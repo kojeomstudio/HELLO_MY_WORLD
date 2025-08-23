@@ -50,6 +50,7 @@
     <Compile Include="FrameWork\Soruces\LogicMessageEntry.cs" />
     <Compile Include="FrameWork\Soruces\MessageResolver.cs" />
     <Compile Include="FrameWork\Soruces\NetworkServiceManager.cs" />
+    <Compile Include="FrameWork\Soruces\PeerToPeerNetwork.cs" />
     <Compile Include="FrameWork\Soruces\ServerUserManager.cs" />
     <Compile Include="FrameWork\Soruces\Logger.cs" />
     <Compile Include="FrameWork\Soruces\SocketAsyncEventArgsPool.cs" />

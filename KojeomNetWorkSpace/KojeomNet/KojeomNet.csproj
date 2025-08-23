@@ -51,6 +51,9 @@
     <Compile Include="FrameWork\Soruces\MessageResolver.cs" />
     <Compile Include="FrameWork\Soruces\NetworkServiceManager.cs" />
     <Compile Include="FrameWork\Soruces\PeerToPeerNetwork.cs" />
+    <Compile Include="FrameWork\Soruces\P2PMessage.cs" />
+    <Compile Include="FrameWork\Soruces\P2PCharacterSynchronizer.cs" />
+    <Compile Include="FrameWork\Soruces\P2PLevelSynchronizer.cs" />
     <Compile Include="FrameWork\Soruces\ServerUserManager.cs" />
     <Compile Include="FrameWork\Soruces\Logger.cs" />
     <Compile Include="FrameWork\Soruces\SocketAsyncEventArgsPool.cs" />

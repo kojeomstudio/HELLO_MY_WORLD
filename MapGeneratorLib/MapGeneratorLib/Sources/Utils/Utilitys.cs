@@ -47,15 +47,18 @@ namespace MapGenLib
             return RandomInstance.Next(min, max);
         }
         /// <summary>
-        /// 
+        /// 지정된 범위에서 난수(float)를 반환한다.
         /// </summary>
         /// <param name="min">inclusive</param>
-        /// <param name="max">inclusive</param>
-        /// <returns></returns>
+        /// <param name="max">exclusive</param>
+        /// <returns>min 이상 max 미만의 임의의 값</returns>
         public static float RandomFloat(float min, float max)
         {
-            //return RandomInstance.Next(min, max);
-            return 1.0f;
+            if (max <= min)
+            {
+                throw new ArgumentException("max must be greater than min");
+            }
+            return (float)(RandomInstance.NextDouble() * (max - min) + min);
         }
 
     }

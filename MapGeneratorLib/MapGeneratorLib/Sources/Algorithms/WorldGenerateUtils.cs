@@ -255,37 +255,38 @@ namespace MapGenLib
             FloodFill3DNode frontNode = new FloodFill3DNode(centerNode.X, centerNode.Y, centerNode.Z + 1);
             FloodFill3DNode backNode = new FloodFill3DNode(centerNode.X, centerNode.Y, centerNode.Z - 1);
 
-            if (worldBlockData[centerNode.X, centerNode.Y, centerNode.Z].CurrentType == (byte)exceptType)
+            byte currentType = worldBlockData[centerNode.X, centerNode.Y, centerNode.Z].CurrentType;
+            // 이미 채워진 노드이거나 예외 타입이면 더 이상 진행하지 않는다.
+            if (currentType == (byte)exceptType || currentType == (byte)replaceType)
             {
                 return;
             }
-            else
+
+            worldBlockData[centerNode.X, centerNode.Y, centerNode.Z].CurrentType = (byte)replaceType;
+
+            if (CheckSubWorldBoundary(leftNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.LEFT) != FloodFillDirection.LEFT))
             {
-                worldBlockData[centerNode.X, centerNode.Y, centerNode.Z].CurrentType = (byte)replaceType;
-                if (CheckSubWorldBoundary(leftNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.LEFT) != FloodFillDirection.LEFT))
-                {
-                    FloodFillSubWorld(leftNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
-                if (CheckSubWorldBoundary(rightNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.RIGHT) != FloodFillDirection.RIGHT))
-                {
-                    FloodFillSubWorld(rightNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
-                if (CheckSubWorldBoundary(topNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.TOP) != FloodFillDirection.TOP))
-                {
-                    FloodFillSubWorld(topNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
-                if (CheckSubWorldBoundary(bottomNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.BOTTOM) != FloodFillDirection.BOTTOM))
-                {
-                    FloodFillSubWorld(bottomNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
-                if (CheckSubWorldBoundary(frontNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.FRONT) != FloodFillDirection.FRONT))
-                {
-                    FloodFillSubWorld(frontNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
-                if (CheckSubWorldBoundary(backNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.BACK) != FloodFillDirection.BACK))
-                {
-                    FloodFillSubWorld(backNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
-                }
+                FloodFillSubWorld(leftNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
+            }
+            if (CheckSubWorldBoundary(rightNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.RIGHT) != FloodFillDirection.RIGHT))
+            {
+                FloodFillSubWorld(rightNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
+            }
+            if (CheckSubWorldBoundary(topNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.TOP) != FloodFillDirection.TOP))
+            {
+                FloodFillSubWorld(topNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
+            }
+            if (CheckSubWorldBoundary(bottomNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.BOTTOM) != FloodFillDirection.BOTTOM))
+            {
+                FloodFillSubWorld(bottomNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
+            }
+            if (CheckSubWorldBoundary(frontNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.FRONT) != FloodFillDirection.FRONT))
+            {
+                FloodFillSubWorld(frontNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
+            }
+            if (CheckSubWorldBoundary(backNode, subWorldSize) == true && ((maskDirection & FloodFillDirection.BACK) != FloodFillDirection.BACK))
+            {
+                FloodFillSubWorld(backNode, exceptType, replaceType, worldBlockData, depth, subWorldSize, maskDirection);
             }
         }
 

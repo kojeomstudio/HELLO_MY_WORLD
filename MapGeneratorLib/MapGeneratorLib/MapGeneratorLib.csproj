@@ -40,17 +40,17 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Sources\CustomMathf.cs" />
-    <Compile Include="Sources\CustomVector2.cs" />
-    <Compile Include="Sources\CustomVector3.cs" />
-    <Compile Include="Sources\EnviromentGenAlgorithms.cs" />
-    <Compile Include="Sources\MainEntry.cs" />
-    <Compile Include="Sources\Noise.cs" />
-    <Compile Include="Sources\Utilitys.cs" />
-    <Compile Include="Sources\WorldGenAlgorithms.cs" />
-    <Compile Include="Sources\WorldGenerateUtils.cs" />
-  </ItemGroup>
+    <ItemGroup>
+      <Compile Include="Sources\Core\MainEntry.cs" />
+      <Compile Include="Sources\Math\CustomMathf.cs" />
+      <Compile Include="Sources\Math\CustomVector2.cs" />
+      <Compile Include="Sources\Math\CustomVector3.cs" />
+      <Compile Include="Sources\Algorithms\EnviromentGenAlgorithms.cs" />
+      <Compile Include="Sources\Algorithms\WorldGenAlgorithms.cs" />
+      <Compile Include="Sources\Algorithms\WorldGenerateUtils.cs" />
+      <Compile Include="Sources\Noise\Noise.cs" />
+      <Compile Include="Sources\Utils\Utilitys.cs" />
+    </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

@@ -54,8 +54,8 @@ static public class NGUITools
 	{
 		get
 		{
-            // 2017.02 버전으로 업데이트하면서 해당 구문이 에러.
-            // 일단 주석처리하고, fileAccess는 true로 고정.
+            // 2017.02 버전?�로 ?�데?�트?�면???�당 구문???�러.
+            // ?�단 주석처리?�고, fileAccess??true�?고정.
             //return Application.platform != RuntimePlatform.WindowsWebPlayer &&
             //	Application.platform != RuntimePlatform.OSXWebPlayer;
             return true;
@@ -1488,12 +1488,12 @@ static public class NGUITools
 		{
 			TextEditor te = new TextEditor();
 			te.Paste();
-			return te.content.text;
+			return te.text;
 		}
 		set
 		{
 			TextEditor te = new TextEditor();
-			te.content = new GUIContent(value);
+			te.text = new string(value);
 			te.OnFocus();
 			te.Copy();
 		}

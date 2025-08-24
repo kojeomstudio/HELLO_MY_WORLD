@@ -443,8 +443,8 @@ namespace ECM.Components
 
         public Vector3 velocity
         {
-            get { return cachedRigidbody.velocity - platformVelocity; }
-            set { cachedRigidbody.velocity = value + platformVelocity; }
+            get { return cachedRigidbody.linearVelocity - platformVelocity; }
+            set { cachedRigidbody.linearVelocity = value + platformVelocity; }
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace ECM.Components
             {
                 // Save rigidbody state, and make it kinematic
 
-                _savedVelocity = cachedRigidbody.velocity;
+                _savedVelocity = cachedRigidbody.linearVelocity;
                 _savedAngularVelocity = cachedRigidbody.angularVelocity;
 
                 cachedRigidbody.isKinematic = true;
@@ -833,7 +833,7 @@ namespace ECM.Components
         public void ApplyVerticalImpulse(float impulse)
         {
             Vector3 up = transform.up;
-            cachedRigidbody.velocity = Vector3.ProjectOnPlane(cachedRigidbody.velocity, up) + up * impulse;
+            cachedRigidbody.linearVelocity = Vector3.ProjectOnPlane(cachedRigidbody.linearVelocity, up) + up * impulse;
         }
 
         /// <summary>
@@ -843,7 +843,7 @@ namespace ECM.Components
 
         public void ApplyImpulse(Vector3 impulse)
         {
-            cachedRigidbody.velocity += impulse - Vector3.Project(cachedRigidbody.velocity, transform.up);
+            cachedRigidbody.linearVelocity += impulse - Vector3.Project(cachedRigidbody.linearVelocity, transform.up);
         }
 
         /// <summary>
@@ -1014,7 +1014,7 @@ namespace ECM.Components
 
             // Update rigidbody's velocity
 
-            cachedRigidbody.velocity = newVelocity;
+            cachedRigidbody.linearVelocity = newVelocity;
 
             // If we have found valid ground reset ground detection cast distance
 
@@ -1338,7 +1338,7 @@ namespace ECM.Components
         {
             var lateralVelocity = Vector3.ProjectOnPlane(velocity, transform.up);
             if (lateralVelocity.sqrMagnitude > maxLateralSpeed * maxLateralSpeed)
-                cachedRigidbody.velocity += lateralVelocity.normalized * maxLateralSpeed - lateralVelocity;
+                cachedRigidbody.linearVelocity += lateralVelocity.normalized * maxLateralSpeed - lateralVelocity;
         }
 
         /// <summary>
@@ -1355,9 +1355,9 @@ namespace ECM.Components
             
             var verticalSpeed = Vector3.Dot(velocity, up);
             if (verticalSpeed < -maxFallSpeed)
-                cachedRigidbody.velocity += up * (-maxFallSpeed - verticalSpeed);
+                cachedRigidbody.linearVelocity += up * (-maxFallSpeed - verticalSpeed);
             if (verticalSpeed > maxRiseSpeed)
-                cachedRigidbody.velocity += up * (maxRiseSpeed - verticalSpeed);
+                cachedRigidbody.linearVelocity += up * (maxRiseSpeed - verticalSpeed);
         }
 
         /// <summary>
@@ -1511,7 +1511,7 @@ namespace ECM.Components
             // Update character's velocity and snap to platform
 
             var pointVelocity = otherRigidbody.GetPointVelocity(groundedPosition);
-            cachedRigidbody.velocity = velocity + pointVelocity;
+            cachedRigidbody.linearVelocity = velocity + pointVelocity;
 
             var deltaVelocity = pointVelocity - platformVelocity;
             groundedPosition += Vector3.ProjectOnPlane(deltaVelocity, up) * Time.deltaTime;
@@ -1669,13 +1669,13 @@ namespace ECM.Components
             if (physicMaterial != null)
                 return;
 
-            physicMaterial = new PhysicMaterial("Frictionless")
+            physicMaterial = new PhysicsMaterial("Frictionless")
             {
                 dynamicFriction = 0.0f,
                 staticFriction = 0.0f,
                 bounciness = 0.0f,
-                frictionCombine = PhysicMaterialCombine.Multiply,
-                bounceCombine = PhysicMaterialCombine.Average
+                frictionCombine = PhysicsMaterialCombine.Multiply,
+                bounceCombine = PhysicsMaterialCombine.Average
             };
 
             aCollider.material = physicMaterial;

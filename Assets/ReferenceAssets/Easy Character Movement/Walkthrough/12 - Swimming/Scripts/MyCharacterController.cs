@@ -59,7 +59,7 @@ namespace ECM.Walkthrough.Swimming
                     allowVerticalMovement = true;
 
                     movement.DisableGroundDetection();
-                    movement.cachedRigidbody.drag = 2.5f;
+                    movement.cachedRigidbody.linearDamping = 2.5f;
                 }
             }
             else
@@ -73,7 +73,7 @@ namespace ECM.Walkthrough.Swimming
                     allowVerticalMovement = false;
 
                     movement.EnableGroundDetection();
-                    movement.cachedRigidbody.drag = 0.0f;
+                    movement.cachedRigidbody.linearDamping = 0.0f;
 
                     // If requested and can jump, perform jump
 

@@ -20,7 +20,7 @@ namespace ECM.EditorTools
 
             var rb = gameObject.GetComponent<Rigidbody>();
 
-            rb.angularDrag = 0.0f;
+            rb.angularDamping = 0.0f;
             rb.useGravity = false;
             rb.isKinematic = false;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -34,7 +34,7 @@ namespace ECM.EditorTools
             capsuleCollider.radius = 0.5f;
             capsuleCollider.height = 2.0f;
             capsuleCollider.material =
-                AssetDatabase.LoadAssetAtPath<PhysicMaterial>(
+                AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(
                     "Assets/Easy Character Movement/Physic Materials/Frictionless.physicMaterial");
 
             var physicMaterial = capsuleCollider.sharedMaterial;
@@ -42,13 +42,13 @@ namespace ECM.EditorTools
             {
                 // if not founded, instantiate one and logs a warning message
 
-                physicMaterial = new PhysicMaterial("Frictionless")
+                physicMaterial = new PhysicsMaterial("Frictionless")
                 {
                     dynamicFriction = 0.0f,
                     staticFriction = 0.0f,
                     bounciness = 0.0f,
-                    frictionCombine = PhysicMaterialCombine.Multiply,
-                    bounceCombine = PhysicMaterialCombine.Multiply
+                    frictionCombine = PhysicsMaterialCombine.Multiply,
+                    bounceCombine = PhysicsMaterialCombine.Multiply
                 };
 
                 capsuleCollider.material = physicMaterial;
@@ -78,7 +78,7 @@ namespace ECM.EditorTools
 
             var rb = gameObject.GetComponent<Rigidbody>();
 
-            rb.angularDrag = 0.0f;
+            rb.angularDamping = 0.0f;
             rb.useGravity = false;
             rb.isKinematic = false;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -92,7 +92,7 @@ namespace ECM.EditorTools
             capsuleCollider.radius = 0.5f;
             capsuleCollider.height = 2.0f;
             capsuleCollider.material =
-                AssetDatabase.LoadAssetAtPath<PhysicMaterial>(
+                AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(
                     "Assets/Easy Character Movement/Physic Materials/Frictionless.physicMaterial");
 
             var physicMaterial = capsuleCollider.sharedMaterial;
@@ -100,13 +100,13 @@ namespace ECM.EditorTools
             {
                 // if not founded, instantiate one and logs a warning message
 
-                physicMaterial = new PhysicMaterial("Frictionless")
+                physicMaterial = new PhysicsMaterial("Frictionless")
                 {
                     dynamicFriction = 0.0f,
                     staticFriction = 0.0f,
                     bounciness = 0.0f,
-                    frictionCombine = PhysicMaterialCombine.Multiply,
-                    bounceCombine = PhysicMaterialCombine.Multiply
+                    frictionCombine = PhysicsMaterialCombine.Multiply,
+                    bounceCombine = PhysicsMaterialCombine.Multiply
                 };
 
                 capsuleCollider.material = physicMaterial;
@@ -136,7 +136,7 @@ namespace ECM.EditorTools
 
             var rb = gameObject.GetComponent<Rigidbody>();
 
-            rb.angularDrag = 0.0f;
+            rb.angularDamping = 0.0f;
             rb.useGravity = false;
             rb.isKinematic = false;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -150,7 +150,7 @@ namespace ECM.EditorTools
             capsuleCollider.radius = 0.5f;
             capsuleCollider.height = 2.0f;
             capsuleCollider.material =
-                AssetDatabase.LoadAssetAtPath<PhysicMaterial>(
+                AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(
                     "Assets/Easy Character Movement/Physic Materials/Frictionless.physicMaterial");
 
             var physicMaterial = capsuleCollider.sharedMaterial;
@@ -158,13 +158,13 @@ namespace ECM.EditorTools
             {
                 // if not founded, instantiate one and logs a warning message
 
-                physicMaterial = new PhysicMaterial("Frictionless")
+                physicMaterial = new PhysicsMaterial("Frictionless")
                 {
                     dynamicFriction = 0.0f,
                     staticFriction = 0.0f,
                     bounciness = 0.0f,
-                    frictionCombine = PhysicMaterialCombine.Multiply,
-                    bounceCombine = PhysicMaterialCombine.Multiply
+                    frictionCombine = PhysicsMaterialCombine.Multiply,
+                    bounceCombine = PhysicsMaterialCombine.Multiply
                 };
 
                 capsuleCollider.material = physicMaterial;

@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using Newtonsoft.Json;
+// using Newtonsoft.Json;  // 제거
 using System.IO;
 
 /*   게임에서 사용되는 액터 프리팹 이름 규칙. ( = Naming Rule)
@@ -46,7 +47,7 @@ public enum AssetPathType
 }
 
 /// <summary>
-/// 게임내에 전반적으로 사용되는 프리팹들을 저장하고 있는 클래스.
+/// 게임내에 전반적으로 사용되는 프리팁들을 저장하고 있는 클래스.
 /// (스킬, 버프 제외)
 /// </summary>
 public class GameResourceSupervisor
@@ -117,7 +118,7 @@ public class GameResourceSupervisor
             GameParticeEffectCategory category = KojeomUtility.GetParticleCategoryFromAssetPath(path);
             GameParticleType type = KojeomUtility.GetParticleTypeFromAssetPath(path);
             string resorucePath = KojeomUtility.ConvertAssetPathToResourcePath(path);
-            if(ParticleEffectPrefabs[(int)category] == null)
+            if (ParticleEffectPrefabs[(int)category] == null)
             {
                 ParticleEffectPrefabs[(int)category] = new ParticleEffectCategoryContainer();
             }
@@ -204,14 +205,20 @@ public class GameResourceSupervisor
                 break;
         }
 
-        List<string> assetsPath = JsonConvert.DeserializeObject<List<string>>(Resources.Load<TextAsset>(resorucePath).text);
-        return assetsPath;
+        var textAsset = Resources.Load<TextAsset>(resorucePath);
+        if (textAsset == null || string.IsNullOrEmpty(textAsset.text))
+            return new List<string>();
+
+        // 최상위 배열(JSON) → string[] → List<string>
+        string[] paths = JsonArrayUtility.FromJson<string>(textAsset.text);
+        return paths != null ? new List<string>(paths) : new List<string>();
     }
+
 #if UNITY_EDITOR
     private void MakeAssetPaths(string[] guids, AssetPathType pathType)
     {
         List<string> assetsPath = new List<string>();
-        foreach(var guid in guids)
+        foreach (var guid in guids)
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             assetsPath.Add(path);
@@ -233,11 +240,13 @@ public class GameResourceSupervisor
                 filePath = ConstFilePath.NPC_ASSET_LIST_FILE_PATH;
                 break;
         }
+
+        // 기존 포맷과 동일하게 최상위 배열([])로 저장
+        string jsonArray = JsonArrayUtility.ToJson(assetsPath, prettyPrint: true);
+
         using (StreamWriter file = new StreamWriter(File.Open(filePath + ".json", FileMode.OpenOrCreate, FileAccess.Write)))
         {
-            JsonSerializer serializer = new JsonSerializer();
-            serializer.Formatting = Formatting.Indented;
-            serializer.Serialize(file, assetsPath);
+            file.Write(jsonArray);
         }
     }
 #endif

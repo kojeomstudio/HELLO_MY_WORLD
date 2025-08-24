@@ -7,7 +7,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 
 ## Project Overview
 - **Development period:** 2016/01 ~ 2021/12 (hold)
-- **Engine:** Unity3D 2020.3.24f1 (LTS)
+- **Engine:** Unity 6000.0.23f1
 - **Language:** C# targeting the .NET Framework 4.5
 - **Libraries:** NGUI 3.x, Sqlite3, JsonObject, Newtonsoft.Json, iTween, FMOD, UniRx, FreeNet, ECM, etc.
 - **Platforms:** Windows PC (Android planned)
@@ -15,7 +15,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 
 ## Repository Structure
 - `Assets/` – Unity game content and scripts. `MyAssets/Scripts` includes modules for AI, GameWorld, Network, Player, UI, pathfinding, and more.
-- `KojeomNetWorkSpace/` – contains the `KojeomNet` network library and sample servers/clients.
+- `KojeomNetWorkSpace/` – contains the `KojeomNet` network library along with the game server and test clients.
 - `MapGeneratorLib/` – standalone library for procedural map generation.
 - `CustomToolSet/` – editor utilities such as `ActorGeneratorTool` and `MapTool`.
 - `Documents/` – design documents and guides (`Project_PDD.md`).
@@ -24,28 +24,33 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Development Environment
-- Unity Engine **2020.3.24f1 (LTS)**
+- Unity Engine **6000.0.23f1**
 - C# / .NET Framework 4.5
 - IDE: Visual Studio, Rider, or VS Code
 
 ## Unity Package Dependencies
 Key packages from `Packages/manifest.json` include:
 
-- `com.unity.postprocessing` 3.1.1
-- `com.unity.textmeshpro` 3.0.6
-- `com.unity.multiplayer-hlapi` 1.0.8
-- `com.unity.test-framework` 1.1.29
-- `com.unity.timeline` 1.4.8
-- `com.unity.render-pipelines.core` 10.7.0
-- `com.unity.shadergraph` 10.7.0
-- `com.unity.recorder` 2.5.7
-- `com.unity.quicksearch` 2.0.2
-- `com.unity.xr.legacyinputhelpers` 2.1.8
+- `com.unity.2d.sprite` 1.0.0
+- `com.unity.2d.tilemap` 1.0.0
+- `com.unity.ai.navigation` 2.0.8
+- `com.unity.collab-proxy` 2.5.2
+- `com.unity.ext.nunit` 2.0.5
+- `com.unity.ide.visualstudio` 2.0.22
+- `com.unity.multiplayer.center` 1.0.0
+- `com.unity.postprocessing` 3.4.0
+- `com.unity.recorder` 5.1.1
+- `com.unity.render-pipelines.core` 17.0.3
+- `com.unity.shadergraph` 17.0.3
+- `com.unity.test-framework` 1.4.5
+- `com.unity.timeline` 1.8.7
+- `com.unity.ugui` 2.0.0
+- `com.unity.xr.legacyinputhelpers` 2.1.11
 
 See `Packages/manifest.json` for the full dependency list.
 
 ## Building and Testing
-1. Clone this repository and open the root folder with **Unity 2020.3.24f1 (LTS)**.
+1. Clone this repository and open the root folder with **Unity 6000.0.23f1**.
 2. Optional .NET components can be built with:
    ```bash
    dotnet build KojeomNetWorkSpace/KojeomNet/KojeomNet.csproj

@@ -76,7 +76,8 @@ public abstract class AChunk : MonoBehaviour {
 
     protected PlaneData CreateFaceProcess(Vector3 point1, Vector3 point2, Vector3 point3, Vector3 point4, BlockTileType tileType)
     {
-        List<CustomVector3> planePoints = new List<CustomVector3>();
+        // Preallocate the exact number of points to avoid repeated list resizing.
+        List<CustomVector3> planePoints = new List<CustomVector3>(4);
         planePoints.Add(new CustomVector3(point1.x, point1.y, point1.z));
         planePoints.Add(new CustomVector3(point2.x, point2.y, point2.z));
         planePoints.Add(new CustomVector3(point3.x, point3.y, point3.z));
@@ -280,12 +281,13 @@ public abstract class AChunk : MonoBehaviour {
     }
 
     protected void UpdateMesh()
-	{
-		MeshInstance.Clear();
-		MeshInstance.vertices = NewVertices.ToArray();
-		MeshInstance.uv = NewUV.ToArray();
-		MeshInstance.triangles = NewTriangles.ToArray();
-		MeshInstance.RecalculateNormals(); 
+        {
+                MeshInstance.Clear();
+                // Avoid per-frame array allocations by using List-based setters.
+                MeshInstance.SetVertices(NewVertices);
+                MeshInstance.SetUVs(0, NewUV);
+                MeshInstance.SetTriangles(NewTriangles, 0);
+                MeshInstance.RecalculateNormals();
         MeshInstance.RecalculateBounds();
         //
         switch (ChunkType)
@@ -303,10 +305,11 @@ public abstract class AChunk : MonoBehaviour {
 	}
 
 	public void Release()
-	{
-		MeshInstance.Clear();
-		NewVertices.Clear();
-		NewUV.Clear();
-		NewTriangles.Clear();
-	}
+        {
+                MeshInstance.Clear();
+                MeshColliderComponent.sharedMesh = null;
+                NewVertices.Clear();
+                NewUV.Clear();
+                NewTriangles.Clear();
+        }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using KojeomNet.FrameWork.Soruces;
 
 namespace KojeomNet.FrameWork.Soruces
@@ -18,8 +19,16 @@ namespace KojeomNet.FrameWork.Soruces
 
         /// <summary>수신된 데이터 처리 이벤트.</summary>
         public Action<TcpClient, byte[]> OnMessageReceived;
+        /// <summary>초기 핸드셰이크가 완료되었을 때 발생.</summary>
+        public Action<TcpClient, string> OnHandshakeReceived;
 
         private TcpListener _listener;
+        private readonly string _localIdentifier;
+
+        public PeerToPeerNetwork(string localIdentifier = "Peer")
+        {
+            _localIdentifier = localIdentifier ?? "Peer";
+        }
 
         /// <summary>
         /// 지정한 포트에서 다른 피어의 접속을 대기한다.
@@ -47,6 +56,7 @@ namespace KojeomNet.FrameWork.Soruces
                     lock (_lock) _peers.Add(client);
                     BeginReceive(client);
                     Logger.SimpleConsoleWriteLineNoFileInfo($"Connected to peer {host}:{port}");
+                    SendHandshake(client);
                 }
                 catch (Exception ex)
                 {
@@ -66,6 +76,7 @@ namespace KojeomNet.FrameWork.Soruces
                 lock (_lock) _peers.Add(client);
                 BeginReceive(client);
                 Logger.SimpleConsoleWriteLineNoFileInfo("Peer connected");
+                SendHandshake(client);
             }
             finally
             {
@@ -130,7 +141,25 @@ namespace KojeomNet.FrameWork.Soruces
                     }
                     byte[] received = new byte[bytes];
                     Buffer.BlockCopy(buffer, 0, received, 0, bytes);
-                    OnMessageReceived?.Invoke(client, received);
+
+                    try
+                    {
+                        P2PMessage message = P2PMessage.FromBytes(received);
+                        if (message.MessageType == P2PMessageType.Handshake)
+                        {
+                            string id = Encoding.UTF8.GetString(message.Payload);
+                            OnHandshakeReceived?.Invoke(client, id);
+                        }
+                        else
+                        {
+                            OnMessageReceived?.Invoke(client, received);
+                        }
+                    }
+                    catch
+                    {
+                        OnMessageReceived?.Invoke(client, received);
+                    }
+
                     BeginReceive(client);
                 }
                 catch
@@ -148,6 +177,21 @@ namespace KojeomNet.FrameWork.Soruces
             lock (_lock) _peers.Remove(client);
             try { client.Close(); } catch { }
             Logger.SimpleConsoleWriteLineNoFileInfo("Peer disconnected");
+        }
+
+        /// <summary>
+        /// 새로 연결된 피어에게 로컬 식별자를 전송한다.
+        /// </summary>
+        private void SendHandshake(TcpClient client)
+        {
+            if (client == null) return;
+            byte[] payload = Encoding.UTF8.GetBytes(_localIdentifier ?? string.Empty);
+            P2PMessage msg = new P2PMessage
+            {
+                MessageType = P2PMessageType.Handshake,
+                Payload = payload
+            };
+            Send(client, msg.ToBytes());
         }
     }
 }

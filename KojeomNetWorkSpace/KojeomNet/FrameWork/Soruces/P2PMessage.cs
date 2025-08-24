@@ -44,6 +44,8 @@ namespace KojeomNet.FrameWork.Soruces
     /// </summary>
     public enum P2PMessageType : byte
     {
+        /// <summary>초기 연결시 서로의 식별 정보를 교환하기 위한 메시지.</summary>
+        Handshake = 0,
         CharacterMovement = 1,
         LevelLoad = 2
     }

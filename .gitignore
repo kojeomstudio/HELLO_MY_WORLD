@@ -435,3 +435,7 @@ healthchecksdb
 /Assets/Plugins/NetworkLib/KojeomNet.dll.mdb
 /Assets/Plugins/NetworkLib/KojeomNet.dll.mdb.meta
 /Assets/Plugins/NetworkLib/KojeomNet.pdb.meta
+
+# Allow server project
+!GameServer/GameServer.csproj
+

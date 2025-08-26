@@ -1,10 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
-using System.IO;
 using System.Threading.Tasks;
-using GameServerApp.Models;
 using GameServerApp.Database;
 using GameServerApp.Handlers;
+using SharedProtocol;
 
 namespace GameServerApp
 {
@@ -12,13 +11,15 @@ namespace GameServerApp
     {
         private readonly TcpListener _listener;
         private readonly DatabaseHelper _database;
-        private readonly MovementHandler _movementHandler;
+        private readonly MessageDispatcher _dispatcher;
 
         public GameServer(int port = 9000, string databaseFile = "game.db")
         {
             _listener = new TcpListener(IPAddress.Any, port);
             _database = new DatabaseHelper(databaseFile);
-            _movementHandler = new MovementHandler();
+            _dispatcher = new MessageDispatcher();
+            _dispatcher.Register(new LoginHandler(_database));
+            _dispatcher.Register(new MovementHandler(_database));
         }
 
         public async Task StartAsync()
@@ -36,27 +37,12 @@ namespace GameServerApp
         private async Task HandleClientAsync(TcpClient client)
         {
             Console.WriteLine("Client connected.");
+            var session = new Session(client);
 
-            using var stream = client.GetStream();
-            using var reader = new StreamReader(stream);
-            using var writer = new StreamWriter(stream) { AutoFlush = true };
-
-            string? name = await reader.ReadLineAsync();
-            var character = new Character(name ?? "Unknown");
-            _database.SavePlayer(character);
-            await writer.WriteLineAsync($"HELLO {character.Name}");
-
-            string? line;
-            while ((line = await reader.ReadLineAsync()) != null)
+            while (true)
             {
-                var parts = line.Split(' ');
-                if (parts[0] == "MOVE" && parts.Length == 3 &&
-                    double.TryParse(parts[1], out double dx) &&
-                    double.TryParse(parts[2], out double dy))
-                {
-                    _movementHandler.Move(character, dx, dy, _database);
-                    await writer.WriteLineAsync($"POS {character.X} {character.Y}");
-                }
+                var (type, message) = await session.ReceiveAsync();
+                await _dispatcher.DispatchAsync(session, type, message);
             }
         }
     }

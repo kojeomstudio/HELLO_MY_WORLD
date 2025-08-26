@@ -1,15 +1,25 @@
 using GameServerApp.Models;
 using GameServerApp.Database;
+using SharedProtocol;
 
-namespace GameServerApp.Handlers
+namespace GameServerApp.Handlers;
+
+public class MovementHandler : MessageHandler<MoveRequest>
 {
-    public class MovementHandler
+    private readonly DatabaseHelper _database;
+
+    public MovementHandler(DatabaseHelper database) : base(MessageType.MoveRequest)
     {
-        public void Move(Character character, double dx, double dy, DatabaseHelper database)
-        {
-            character.X += dx;
-            character.Y += dy;
-            database.SavePlayer(character);
-        }
+        _database = database;
+    }
+
+    protected override Task HandleAsync(Session session, MoveRequest message)
+    {
+        var character = new Character(message.Name);
+        character.X += message.Dx;
+        character.Y += message.Dy;
+        _database.SavePlayer(character);
+        var response = new MoveResponse { X = character.X, Y = character.Y };
+        return session.SendAsync(MessageType.MoveResponse, response);
     }
 }

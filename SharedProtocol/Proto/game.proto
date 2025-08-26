@@ -1,0 +1,22 @@
+syntax = "proto3";
+package GameProtocol;
+
+message LoginRequest {
+  string name = 1;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message MoveRequest {
+  string name = 1;
+  double dx = 2;
+  double dy = 3;
+}
+
+message MoveResponse {
+  double x = 1;
+  double y = 2;
+}

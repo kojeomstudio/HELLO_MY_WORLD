@@ -35,6 +35,7 @@ Unity 패키지 매니페스트에 정의된 주요 패키지 버전:
 - 새로 추가된 `PeerToPeerNetwork` 클래스로 P2P 직접 통신 지원.
 - 각 피어는 서버와 클라이언트 역할을 동시에 수행하며, 간단한 브로드캐스트 기능을 제공.
 - 연결 시 간단한 핸드셰이크를 통해 피어 식별 정보를 교환하여 기본 인증 구조를 마련.
+- 게임 서버는 `SessionManager`를 통해 로그인한 클라이언트 세션을 관리하며, 프로토버퍼 기반 메시지를 `MessageDispatcher`로 라우팅한다.
 
 ## 5. Testing & Build
 - `dotnet build KojeomNetWorkSpace/KojeomNet/KojeomNet.csproj` 로 네트워크 라이브러리를 빌드.

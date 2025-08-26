@@ -8,6 +8,12 @@ public class Session
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
 
+    /// <summary>
+    /// Gets or sets the user name associated with this session after a successful login.
+    /// The property is optional and may remain <c>null</c> until authentication completes.
+    /// </summary>
+    public string? UserName { get; set; }
+
     public Session(TcpClient client)
     {
         _client = client;

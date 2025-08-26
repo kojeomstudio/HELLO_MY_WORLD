@@ -12,14 +12,16 @@ namespace GameServerApp
         private readonly TcpListener _listener;
         private readonly DatabaseHelper _database;
         private readonly MessageDispatcher _dispatcher;
+        private readonly SessionManager _sessions;
 
         public GameServer(int port = 9000, string databaseFile = "game.db")
         {
             _listener = new TcpListener(IPAddress.Any, port);
             _database = new DatabaseHelper(databaseFile);
             _dispatcher = new MessageDispatcher();
-            _dispatcher.Register(new LoginHandler(_database));
-            _dispatcher.Register(new MovementHandler(_database));
+            _sessions = new SessionManager();
+            _dispatcher.Register(new LoginHandler(_database, _sessions));
+            _dispatcher.Register(new MovementHandler(_database, _sessions));
         }
 
         public async Task StartAsync()
@@ -39,10 +41,22 @@ namespace GameServerApp
             Console.WriteLine("Client connected.");
             var session = new Session(client);
 
-            while (true)
+            try
             {
-                var (type, message) = await session.ReceiveAsync();
-                await _dispatcher.DispatchAsync(session, type, message);
+                while (true)
+                {
+                    var (type, message) = await session.ReceiveAsync();
+                    await _dispatcher.DispatchAsync(session, type, message);
+                }
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Client disconnected.");
+            }
+            finally
+            {
+                _sessions.Remove(session);
+                client.Close();
             }
         }
     }

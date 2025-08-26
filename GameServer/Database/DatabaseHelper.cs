@@ -23,7 +23,7 @@ namespace GameServerApp.Database
             cmd.CommandText = @"
                 CREATE TABLE IF NOT EXISTS Players (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL,
+                    Name TEXT NOT NULL UNIQUE,
                     X REAL NOT NULL,
                     Y REAL NOT NULL
                 );
@@ -40,7 +40,9 @@ namespace GameServerApp.Database
             connection.Open();
 
             var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Players (Name, X, Y) VALUES ($name, $x, $y);";
+            cmd.CommandText = @"
+                INSERT INTO Players (Name, X, Y) VALUES ($name, $x, $y)
+                ON CONFLICT(Name) DO UPDATE SET X = excluded.X, Y = excluded.Y;";
             cmd.Parameters.AddWithValue("$name", player.Name);
             cmd.Parameters.AddWithValue("$x", player.X);
             cmd.Parameters.AddWithValue("$y", player.Y);

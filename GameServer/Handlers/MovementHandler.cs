@@ -7,15 +7,24 @@ namespace GameServerApp.Handlers;
 public class MovementHandler : MessageHandler<MoveRequest>
 {
     private readonly DatabaseHelper _database;
+    private readonly SessionManager _sessions;
 
-    public MovementHandler(DatabaseHelper database) : base(MessageType.MoveRequest)
+    public MovementHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.MoveRequest)
     {
         _database = database;
+        _sessions = sessions;
     }
 
     protected override Task HandleAsync(Session session, MoveRequest message)
     {
-        var character = new Character(message.Name);
+        // Use the session's bound user name to avoid trusting client-provided data.
+        var name = session.UserName ?? message.Name;
+
+        // Ignore movement commands from unknown sessions.
+        if (_sessions.GetSession(name) != session)
+            return Task.CompletedTask;
+
+        var character = new Character(name);
         character.X += message.Dx;
         character.Y += message.Dy;
         _database.SavePlayer(character);

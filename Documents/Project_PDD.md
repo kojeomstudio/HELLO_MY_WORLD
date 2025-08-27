@@ -6,7 +6,7 @@
 
 ## 2. Development Environment
 - **Unity Engine**: 2020.3.24f1 (LTS)
-- **C#/.NET**: .NET Framework 4.5 기반, C# 5 호환
+- **C#/.NET**: Unity 런타임은 .NET Framework 4.5 기반이지만, 서버 측 구성 요소는 **.NET 6.0**을 사용한다.
 - **IDE**: Visual Studio, Rider, VSCode 등
 
 ## 3. Dependencies
@@ -31,14 +31,17 @@ Unity 패키지 매니페스트에 정의된 주요 패키지 버전:
 - com.unity.xr.legacyinputhelpers 2.1.8
 
 ## 4. Network Architecture
-- **KojeomNet** 라이브러리를 이용해 클라이언트/서버 구조를 구현.
-- 새로 추가된 `PeerToPeerNetwork` 클래스로 P2P 직접 통신 지원.
-- 각 피어는 서버와 클라이언트 역할을 동시에 수행하며, 간단한 브로드캐스트 기능을 제공.
-- 연결 시 간단한 핸드셰이크를 통해 피어 식별 정보를 교환하여 기본 인증 구조를 마련.
-- 게임 서버는 `SessionManager`를 통해 로그인한 클라이언트 세션을 관리하며, 프로토버퍼 기반 메시지를 `MessageDispatcher`로 라우팅한다.
+- **SharedProtocol** 프로젝트가 `game.proto`에 정의된 패킷을 ProtoBuf로 직렬화하고, 공용 `Session`과 `MessageDispatcher`를 제공한다.
+- 게임 서버(`GameServer`)는 TCP 기반으로 클라이언트를 수용하며, 수신한 패킷을 등록된 핸들러로 라우팅한다.
+- `SessionManager`는 로그인한 클라이언트를 추적하고, `DatabaseHelper`는 SQLite를 이용해 캐릭터와 맵 데이터를 안전하게 저장한다.
+- 현재는 `LoginHandler`와 `MovementHandler`가 포함되어 있으며, 이 구조를 통해 추가 패킷 핸들러를 쉽게 확장할 수 있다.
 
 ## 5. Testing & Build
-- `dotnet build KojeomNetWorkSpace/KojeomNet/KojeomNet.csproj` 로 네트워크 라이브러리를 빌드.
+- .NET SDK가 설치된 환경에서 다음 명령으로 프로토콜 라이브러리와 게임 서버를 빌드한다.
+  ```bash
+  dotnet build SharedProtocol/SharedProtocol.csproj
+  dotnet build GameServer/GameServer.csproj
+  ```
 - 추후 필요 시 Unity Test Runner 또는 별도 테스트 프로젝트를 통해 기능 검증.
 
 ## 6. Future Improvements

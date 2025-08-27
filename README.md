@@ -8,24 +8,28 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 ## Project Overview
 - **Development period:** 2016/01 ~ 2021/12 (hold)
 - **Engine:** Unity 6000.0.23f1
-- **Language:** C# targeting the .NET Framework 4.5
+- **Language:** C# with Unity (.NET Framework 4.5) and standalone server components on .NET 6.0
 - **Libraries:** NGUI 3.x, Sqlite3, JsonObject, Newtonsoft.Json, iTween, FMOD, UniRx, FreeNet, ECM, etc.
 - **Platforms:** Windows PC (Android planned)
 - **License:** MIT
 
 ## Repository Structure
 - `Assets/` – Unity game content and scripts. `MyAssets/Scripts` includes modules for AI, GameWorld, Network, Player, UI, pathfinding, and more.
-- `KojeomNetWorkSpace/` – contains the `KojeomNet` network library along with the game server and test clients.
+- `SharedProtocol/` – ProtoBuf message library (Google.Protobuf) shared between client and server.
+- `GameServer/` – TCP server using `SharedProtocol`, `SessionManager`, and SQLite persistence.
+- `KojeomNetWorkSpace/` – legacy `KojeomNet` network library and test clients.
 - `MapGeneratorLib/` – standalone library for procedural map generation.
 - `CustomToolSet/` – editor utilities such as `ActorGeneratorTool` and `MapTool`.
 - `Documents/` – design documents and guides (`Project_PDD.md`).
 - `Packages/` – Unity package manifest listing engine dependencies.
+- `proto/` – Protobuf IDL files compiled into C# under `Assets/Generated/Protobuf`.
+- `docs/` – networking overview and protocol notes.
 - `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 
 ## Development Environment
 - Unity Engine **6000.0.23f1**
-- C# / .NET Framework 4.5
+- C# / .NET Framework 4.5 (Unity) & .NET 6.0 (server)
 - IDE: Visual Studio, Rider, or VS Code
 
 ## Unity Package Dependencies
@@ -51,9 +55,10 @@ See `Packages/manifest.json` for the full dependency list.
 
 ## Building and Testing
 1. Clone this repository and open the root folder with **Unity 6000.0.23f1**.
-2. Optional .NET components can be built with:
+2. Build the standalone .NET components:
    ```bash
-   dotnet build KojeomNetWorkSpace/KojeomNet/KojeomNet.csproj
+   dotnet build SharedProtocol/SharedProtocol.csproj
+   dotnet build GameServer/GameServer.csproj
    dotnet build MapGeneratorLib/MapGeneratorLib.sln
    ```
 3. After installing the .NET SDK, run available tests with `dotnet test`.

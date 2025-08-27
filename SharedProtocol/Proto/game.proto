@@ -1,22 +1,139 @@
 syntax = "proto3";
 package GameProtocol;
+option csharp_namespace = "GameProtocol";
 
+// 인증 관련 메시지
 message LoginRequest {
-  string name = 1;
+  string username = 1;
+  string password = 2;
+  string client_version = 3;
 }
 
 message LoginResponse {
   bool success = 1;
   string message = 2;
+  string session_token = 3;
+  PlayerInfo player_info = 4;
 }
 
+message LogoutRequest {
+  string session_token = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 플레이어 정보
+message PlayerInfo {
+  string player_id = 1;
+  string username = 2;
+  Vector3 position = 3;
+  int32 level = 4;
+  int32 health = 5;
+  int32 max_health = 6;
+  repeated InventoryItem inventory = 7;
+}
+
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message InventoryItem {
+  int32 item_id = 1;
+  string item_name = 2;
+  int32 quantity = 3;
+}
+
+// 이동 관련 메시지
 message MoveRequest {
-  string name = 1;
-  double dx = 2;
-  double dy = 3;
+  Vector3 target_position = 1;
+  float movement_speed = 2;
 }
 
 message MoveResponse {
-  double x = 1;
-  double y = 2;
+  bool success = 1;
+  Vector3 new_position = 2;
+  int64 timestamp = 3;
+}
+
+// 월드/맵 관련 메시지
+message WorldBlockChangeRequest {
+  string area_id = 1;
+  string subworld_id = 2;
+  Vector3Int block_position = 3;
+  int32 block_type = 4;
+  int32 chunk_type = 5;
+}
+
+message WorldBlockChangeResponse {
+  bool success = 1;
+  string message = 2;
+  int64 timestamp = 3;
+}
+
+message WorldBlockChangeBroadcast {
+  string area_id = 1;
+  string subworld_id = 2;
+  Vector3Int block_position = 3;
+  int32 block_type = 4;
+  int32 chunk_type = 5;
+  string player_id = 6;
+  int64 timestamp = 7;
+}
+
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+// 채팅 관련 메시지
+message ChatMessage {
+  string sender_id = 1;
+  string sender_name = 2;
+  string message = 3;
+  ChatType type = 4;
+  int64 timestamp = 5;
+}
+
+enum ChatType {
+  GLOBAL = 0;
+  LOCAL = 1;
+  WHISPER = 2;
+  SYSTEM = 3;
+}
+
+message ChatRequest {
+  string message = 1;
+  ChatType type = 2;
+  string target_player = 3; // whisper용
+}
+
+message ChatResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 서버 상태 및 진단
+message PingRequest {
+  int64 client_timestamp = 1;
+}
+
+message PingResponse {
+  int64 client_timestamp = 1;
+  int64 server_timestamp = 2;
+}
+
+message ServerStatusRequest {
+  string session_token = 1;
+}
+
+message ServerStatusResponse {
+  int32 online_players = 1;
+  string server_version = 2;
+  int64 server_uptime = 3;
 }

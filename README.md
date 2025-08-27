@@ -15,7 +15,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 
 ## Repository Structure
 - `Assets/` – Unity game content and scripts. `MyAssets/Scripts` includes modules for AI, GameWorld, Network, Player, UI, pathfinding, and more.
-- `SharedProtocol/` – ProtoBuf message library (Google.Protobuf) shared between client and server.
+- `SharedProtocol/` – ProtoBuf-based message definitions and networking helpers shared between client and server.
 - `GameServer/` – TCP server using `SharedProtocol`, `SessionManager`, and SQLite persistence.
 - `KojeomNetWorkSpace/` – legacy `KojeomNet` network library and test clients.
 - `MapGeneratorLib/` – standalone library for procedural map generation.

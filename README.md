@@ -22,6 +22,8 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `CustomToolSet/` – editor utilities such as `ActorGeneratorTool` and `MapTool`.
 - `Documents/` – design documents and guides (`Project_PDD.md`).
 - `Packages/` – Unity package manifest listing engine dependencies.
+- `proto/` – Protobuf IDL files compiled into C# under `Assets/Generated/Protobuf`.
+- `docs/` – networking overview and protocol notes.
 - `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 

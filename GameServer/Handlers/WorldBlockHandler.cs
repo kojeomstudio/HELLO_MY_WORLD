@@ -1,4 +1,5 @@
 using GameServerApp.Database;
+using GameServerApp.World;
 using SharedProtocol;
 
 namespace GameServerApp.Handlers;
@@ -11,12 +12,14 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
 {
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
+    private readonly WorldManager _worldManager;
 
-    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions) 
+    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager) 
         : base(MessageType.WorldBlockChangeRequest)
     {
         _database = database;
         _sessions = sessions;
+        _worldManager = worldManager;
     }
 
     protected override async Task HandleAsync(Session session, WorldBlockChangeRequest message)
@@ -45,7 +48,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 return;
             }
 
-            // 블록 변경 처리 (실제로는 월드 데이터 저장소에 저장)
+            // 블록 변경 처리 (WorldManager를 통한 실제 월드 데이터 변경)
             await ProcessBlockChange(session, message);
 
             // 성공 응답 전송
@@ -103,12 +106,24 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
     /// </summary>
     private async Task ProcessBlockChange(Session session, WorldBlockChangeRequest message)
     {
-        await Task.Delay(20); // 월드 데이터 처리 지연 시뮬레이션
+        var playerState = _sessions.GetPlayerState(session.UserName!);
+        if (playerState == null) return;
+
+        var chunkX = message.BlockPosition.X / 16;
+        var chunkZ = message.BlockPosition.Z / 16;
         
-        // TODO: 실제 월드 데이터 저장소에 블록 변경 사항 저장
-        // - 데이터베이스 또는 파일 시스템에 블록 변경 사항 저장
-        // - 청크 데이터 업데이트
-        // - 백업 시스템 호출 등
+        if (message.BlockPosition.X < 0) chunkX--;
+        if (message.BlockPosition.Z < 0) chunkZ--;
+
+        var playerId = 1;
+        var blockType = (World.BlockType)message.BlockType;
+        
+        await _worldManager.UpdateBlockAsync(chunkX, chunkZ, 
+            message.BlockPosition.X, message.BlockPosition.Y, message.BlockPosition.Z,
+            blockType, playerId);
+            
+        Console.WriteLine($"Block updated at ({message.BlockPosition.X}, {message.BlockPosition.Y}, {message.BlockPosition.Z}) " +
+                         $"to type {blockType} by {session.UserName}");
     }
 
     /// <summary>

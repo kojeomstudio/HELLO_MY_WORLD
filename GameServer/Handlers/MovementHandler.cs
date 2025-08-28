@@ -55,18 +55,16 @@ public class MovementHandler : MessageHandler<MoveRequest>
                 return;
             }
 
-            // 현재 플레이어 정보 가져오기
-            var currentPlayers = _database.GetPlayers().ToList();
-            var currentCharacter = currentPlayers.FirstOrDefault(p => p.Name == session.UserName);
-            
-            if (currentCharacter == null)
+            // 현재 플레이어 상태 가져오기
+            var playerState = _sessions.GetPlayerState(session.UserName);
+            if (playerState == null)
             {
-                await SendMoveFailure(session, "플레이어 정보를 찾을 수 없습니다.");
+                await SendMoveFailure(session, "플레이어 상태를 찾을 수 없습니다.");
                 return;
             }
 
             // 이동 거리 및 유효성 검증
-            var currentPos = new Vector3((float)currentCharacter.X, (float)currentCharacter.Y, 0);
+            var currentPos = new Vector3((float)playerState.Position.X, (float)playerState.Position.Y, (float)playerState.Position.Z);
             var targetPos = message.TargetPosition;
             
             if (!await ValidateMovement(currentPos, targetPos, message.MovementSpeed))
@@ -75,15 +73,19 @@ public class MovementHandler : MessageHandler<MoveRequest>
                 return;
             }
 
-            // 플레이어 위치 업데이트
-            currentCharacter.X = targetPos.X;
-            currentCharacter.Y = targetPos.Y;
-            _database.SavePlayer(currentCharacter);
+            // 플레이어 위치 업데이트 (SessionManager를 통해)
+            var newPosition = new Vector3(targetPos.X, targetPos.Y, targetPos.Z);
+            _sessions.UpdatePlayerState(session.UserName, newPosition, message.Rotation?.Y ?? 0f, message.Rotation?.X ?? 0f);
+
+            // 청크 정보 업데이트
+            var chunkX = (int)Math.Floor(targetPos.X / 16);
+            var chunkZ = (int)Math.Floor(targetPos.Z / 16);
+            _sessions.UpdatePlayerWorld(session.UserName, playerState.CurrentWorldId, chunkX, chunkZ);
 
             // 세션의 플레이어 정보도 업데이트
             if (session.PlayerInfo != null)
             {
-                session.PlayerInfo.Position = new Vector3(targetPos.X, targetPos.Y, targetPos.Z);
+                session.PlayerInfo.Position = newPosition;
             }
 
             // 성공 응답 전송

@@ -111,21 +111,37 @@ public class LoginHandler : MessageHandler<LoginRequest>
     }
 
     /// <summary>
-    /// 사용자를 인증합니다. (현재는 간단한 구현)
-    /// 실제 환경에서는 해시된 비밀번호와 솔트를 사용해야 합니다.
+    /// 사용자를 인증합니다. 해시된 비밀번호와 솔트를 사용한 보안 인증.
     /// </summary>
     private async Task<bool> AuthenticateUser(string username, string password)
     {
-        // TODO: 실제 데이터베이스에서 사용자 인증 정보 확인
-        // 현재는 테스트용으로 간단한 검증만 수행
-        await Task.Delay(50); // 네트워크 지연 시뮬레이션
-        
-        // 기본 테스트 사용자
-        if (username == "test" && password == "password")
-            return true;
+        try
+        {
+            var character = await _database.GetPlayerByNameAsync(username);
             
-        // 실제로는 데이터베이스에서 해시된 비밀번호와 비교
-        return password.Length >= 6; // 최소 6자리 비밀번호
+            if (character == null)
+            {
+                var hashedPassword = HashPassword(password, GenerateSalt());
+                var salt = GenerateSalt();
+                
+                var newCharacter = new Character(username, 0, 100, 0)
+                {
+                    PasswordHash = HashPassword(password, salt),
+                    Salt = salt
+                };
+                
+                await _database.SavePlayerAsync(newCharacter);
+                return true;
+            }
+            
+            var computedHash = HashPassword(password, character.Salt);
+            return computedHash == character.PasswordHash;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Authentication error for {username}: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
@@ -133,20 +149,40 @@ public class LoginHandler : MessageHandler<LoginRequest>
     /// </summary>
     private async Task<Character> GetOrCreateCharacter(string username)
     {
-        await Task.Delay(10); // DB 접근 지연 시뮬레이션
+        var character = await _database.GetPlayerByNameAsync(username);
         
-        var existingPlayers = _database.GetPlayers().ToList();
-        var existingCharacter = existingPlayers.FirstOrDefault(p => p.Name == username);
-        
-        if (existingCharacter != null)
+        if (character != null)
         {
-            return existingCharacter;
+            character.UpdateLastLogin();
+            await _database.SavePlayerAsync(character);
+            return character;
         }
         
-        // 새 캐릭터 생성
-        var newCharacter = new Character(username, 0, 0); // 기본 스폰 위치
-        _database.SavePlayer(newCharacter);
+        var newCharacter = new Character(username, 0, 100, 0);
+        await _database.SavePlayerAsync(newCharacter);
         return newCharacter;
+    }
+    
+    /// <summary>
+    /// 비밀번호를 해시화합니다.
+    /// </summary>
+    private string HashPassword(string password, string salt)
+    {
+        using var sha256 = SHA256.Create();
+        var saltedPassword = Encoding.UTF8.GetBytes(password + salt);
+        var hash = sha256.ComputeHash(saltedPassword);
+        return Convert.ToBase64String(hash);
+    }
+    
+    /// <summary>
+    /// 랜덤 솔트를 생성합니다.
+    /// </summary>
+    private string GenerateSalt()
+    {
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[16];
+        rng.GetBytes(bytes);
+        return Convert.ToBase64String(bytes);
     }
 
     /// <summary>

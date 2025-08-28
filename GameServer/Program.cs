@@ -5,28 +5,37 @@ using System.Threading.Tasks;
 namespace GameServerApp
 {
     /// <summary>
-    /// 게임 서버 애플리케이션의 메인 진입점
-    /// 서버 실행 또는 테스트 클라이언트 실행을 선택할 수 있습니다.
+    /// Enhanced Minecraft-style game server with complete client-server architecture.
+    /// Replaces P2P networking with centralized server authority and protobuf communication.
     /// </summary>
     public static class Program
     {
-        public static async Task Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
-            Console.WriteLine("=== Hello My World Game Server ===");
-            Console.WriteLine("Choose an option:");
-            Console.WriteLine("1. Start Server");
+            // Display server architecture information
+            ServerLauncher.DisplayServerInfo();
+            
+            // Check if we should run in server-only mode
+            if (args.Length > 0 && args[0] == "--server")
+            {
+                return await ServerLauncher.Main(args);
+            }
+            
+            Console.WriteLine("\nChoose an option:");
+            Console.WriteLine("1. Start Enhanced Minecraft Server");
             Console.WriteLine("2. Run Test Client");
-            Console.WriteLine("3. Exit");
+            Console.WriteLine("3. Server Configuration");
+            Console.WriteLine("4. Exit");
             
             while (true)
             {
-                Console.Write("Enter your choice (1-3): ");
+                Console.Write("\nEnter your choice (1-4): ");
                 var choice = Console.ReadLine();
                 
                 switch (choice)
                 {
                     case "1":
-                        await RunServerAsync();
+                        await RunEnhancedServerAsync();
                         break;
                         
                     case "2":
@@ -34,66 +43,161 @@ namespace GameServerApp
                         break;
                         
                     case "3":
+                        DisplayConfigurationMenu();
+                        break;
+                        
+                    case "4":
                         Console.WriteLine("Goodbye!");
-                        return;
+                        return 0;
                         
                     default:
-                        Console.WriteLine("Invalid choice. Please enter 1, 2, or 3.");
+                        Console.WriteLine("Invalid choice. Please enter 1, 2, 3, or 4.");
                         continue;
                 }
                 
                 Console.WriteLine("\nPress any key to return to menu...");
                 Console.ReadKey();
                 Console.Clear();
-                
-                Console.WriteLine("=== Hello My World Game Server ===");
-                Console.WriteLine("Choose an option:");
-                Console.WriteLine("1. Start Server");
+                ServerLauncher.DisplayServerInfo();
+                Console.WriteLine("\nChoose an option:");
+                Console.WriteLine("1. Start Enhanced Minecraft Server");
                 Console.WriteLine("2. Run Test Client");
-                Console.WriteLine("3. Exit");
+                Console.WriteLine("3. Server Configuration");
+                Console.WriteLine("4. Exit");
             }
         }
         
         /// <summary>
-        /// 게임 서버를 실행합니다.
+        /// Runs the enhanced Minecraft-style server with full client-server architecture.
         /// </summary>
-        private static async Task RunServerAsync()
+        private static async Task RunEnhancedServerAsync()
         {
-            var server = new GameServer();
-            
-            // Ctrl+C 처리를 위한 CancellationToken 설정
-            var cts = new CancellationTokenSource();
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                e.Cancel = true;
-                cts.Cancel();
-                Console.WriteLine("\nShutdown signal received. Stopping server...");
-            };
-            
             try
             {
-                // 서버 시작 (백그라운드 작업)
+                Console.WriteLine("\n=== Starting Enhanced Minecraft Server ===");
+                
+                var config = ServerConfig.LoadFromFile();
+                var server = new GameServer(config.Network.Port, config.Database.DatabaseFile);
+                
+                var cts = new CancellationTokenSource();
+                Console.CancelKeyPress += (sender, e) =>
+                {
+                    e.Cancel = true;
+                    cts.Cancel();
+                    Console.WriteLine("\n=== Shutdown Signal Received ===");
+                    server.Stop();
+                };
+                
                 var serverTask = server.StartAsync();
                 
-                Console.WriteLine("Server is running. Press Ctrl+C to stop.");
+                Console.WriteLine("\n=== Server Commands ===");
+                Console.WriteLine("Type 'help' for available commands");
+                Console.WriteLine("Type 'stop' or press Ctrl+C to shutdown");
+                Console.WriteLine("========================");
                 
-                // 종료 신호 대기
+                // Server command loop
+                _ = Task.Run(async () =>
+                {
+                    while (!cts.Token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            var input = Console.ReadLine();
+                            if (string.IsNullOrEmpty(input)) continue;
+                            
+                            await ProcessServerCommand(input.Trim().ToLower(), server);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Command error: {ex.Message}");
+                        }
+                    }
+                });
+                
                 try
                 {
                     await Task.Delay(-1, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
-                    // 예상된 예외 (Ctrl+C)
+                    // Expected cancellation
                 }
                 
-                // 서버 안전 종료
-                await server.StopAsync();
+                Console.WriteLine("Server shutting down gracefully...");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Server error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
             }
+        }
+        
+        private static async Task ProcessServerCommand(string command, GameServer server)
+        {
+            switch (command)
+            {
+                case "help":
+                    Console.WriteLine("\nAvailable Commands:");
+                    Console.WriteLine("  help     - Show this help message");
+                    Console.WriteLine("  stop     - Stop the server");
+                    Console.WriteLine("  status   - Show server status");
+                    Console.WriteLine("  players  - List online players");
+                    Console.WriteLine("  config   - Show current configuration");
+                    break;
+                    
+                case "stop":
+                    server.Stop();
+                    break;
+                    
+                case "status":
+                    Console.WriteLine($"Server Status: Running");
+                    Console.WriteLine($"Architecture: Client-Server (was P2P)");
+                    Console.WriteLine($"Protocol: Google Protocol Buffers");
+                    Console.WriteLine($"Database: SQLite with enhanced schema");
+                    break;
+                    
+                case "config":
+                    var config = ServerConfig.LoadFromFile();
+                    Console.WriteLine($"\nCurrent Configuration:");
+                    Console.WriteLine($"  Network Port: {config.Network.Port}");
+                    Console.WriteLine($"  Max Connections: {config.Network.MaxConnections}");
+                    Console.WriteLine($"  Database File: {config.Database.DatabaseFile}");
+                    Console.WriteLine($"  World Seed: {config.World.WorldSeed}");
+                    break;
+                    
+                default:
+                    Console.WriteLine($"Unknown command: {command}. Type 'help' for available commands.");
+                    break;
+            }
+        }
+        
+        private static void DisplayConfigurationMenu()
+        {
+            Console.WriteLine("\n=== Server Configuration ===");
+            var config = ServerConfig.LoadFromFile();
+            
+            Console.WriteLine($"Network Settings:");
+            Console.WriteLine($"  Port: {config.Network.Port}");
+            Console.WriteLine($"  Max Connections: {config.Network.MaxConnections}");
+            Console.WriteLine($"  Timeout: {config.Network.ConnectionTimeoutMinutes} minutes");
+            
+            Console.WriteLine($"\nWorld Settings:");
+            Console.WriteLine($"  Default World: {config.World.DefaultWorldName}");
+            Console.WriteLine($"  World Seed: {config.World.WorldSeed}");
+            Console.WriteLine($"  Chunk Load Radius: {config.World.ChunkLoadRadius}");
+            
+            Console.WriteLine($"\nGameplay Settings:");
+            Console.WriteLine($"  Max Players: {config.Gameplay.MaxPlayersPerWorld}");
+            Console.WriteLine($"  PvP Enabled: {config.Gameplay.EnablePvP}");
+            Console.WriteLine($"  Flying Enabled: {config.Gameplay.EnableFlying}");
+            
+            Console.WriteLine($"\nSecurity Settings:");
+            Console.WriteLine($"  Authentication Required: {config.Security.RequireAuthentication}");
+            Console.WriteLine($"  Session Timeout: {config.Security.SessionTimeoutHours} hours");
+            Console.WriteLine($"  Anti-cheat: {config.Security.EnableAntiCheat}");
+            
+            Console.WriteLine("\nConfiguration file: server-config.json");
+            Console.WriteLine("Edit the file and restart the server to apply changes.");
         }
     }
 }

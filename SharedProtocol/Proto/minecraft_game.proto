@@ -1,0 +1,885 @@
+syntax = "proto3";
+package MinecraftProtocol;
+option csharp_namespace = "MinecraftProtocol";
+
+// =============================================================================
+// 인증 및 세션 관리 메시지
+// =============================================================================
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+  string client_version = 3;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  string session_token = 3;
+  PlayerInfo player_info = 4;
+  WorldInfo world_info = 5;  // 접속할 월드 정보
+}
+
+message LogoutRequest {
+  string session_token = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// =============================================================================
+// 플레이어 및 게임 상태 관련 메시지
+// =============================================================================
+
+message PlayerInfo {
+  string player_id = 1;
+  string username = 2;
+  Vector3 position = 3;
+  Vector3 rotation = 4;           // 플레이어 회전
+  int32 level = 5;
+  int32 experience = 6;
+  float health = 7;
+  float max_health = 8;
+  float hunger = 9;               // 허기 시스템
+  float max_hunger = 10;
+  GameMode game_mode = 11;        // 게임 모드 (서바이벌, 크리에이티브 등)
+  repeated InventoryItem inventory = 12;
+  InventoryItem held_item = 13;   // 현재 들고 있는 아이템
+  int32 selected_slot = 14;       // 선택된 핫바 슬롯
+  repeated Effect active_effects = 15; // 활성 효과들
+}
+
+// 게임 모드 정의
+enum GameMode {
+  SURVIVAL = 0;    // 서바이벌
+  CREATIVE = 1;    // 크리에이티브
+  ADVENTURE = 2;   // 어드벤처
+  SPECTATOR = 3;   // 관전자
+}
+
+// 월드 정보
+message WorldInfo {
+  string world_name = 1;
+  string world_seed = 2;
+  WorldType world_type = 3;
+  GameMode default_game_mode = 4;
+  bool is_hardcore = 5;
+  int64 world_time = 6;          // 게임 내 시간 (틱 단위)
+  WeatherInfo weather = 7;
+  SpawnPoint spawn_point = 8;
+}
+
+// 월드 타입
+enum WorldType {
+  NORMAL = 0;
+  FLAT = 1;
+  LARGE_BIOMES = 2;
+  AMPLIFIED = 3;
+  CUSTOMIZED = 4;
+}
+
+// 스폰 포인트
+message SpawnPoint {
+  Vector3 position = 1;
+  float yaw = 2;
+  float pitch = 3;
+}
+
+// 날씨 정보
+message WeatherInfo {
+  WeatherType type = 1;
+  int32 duration = 2;            // 지속 시간 (틱)
+  float intensity = 3;           // 강도 (0.0 - 1.0)
+}
+
+enum WeatherType {
+  CLEAR = 0;
+  RAIN = 1;
+  THUNDERSTORM = 2;
+  SNOW = 3;
+}
+
+// =============================================================================
+// 기본 데이터 구조체
+// =============================================================================
+
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+message InventoryItem {
+  int32 item_id = 1;
+  string item_name = 2;
+  int32 quantity = 3;
+  int32 durability = 4;          // 내구도
+  int32 max_durability = 5;
+  repeated Enchantment enchantments = 6;  // 인챈트
+  string custom_data = 7;        // NBT 데이터 (JSON 형태)
+  ItemType item_type = 8;
+}
+
+// 아이템 타입
+enum ItemType {
+  BLOCK = 0;
+  TOOL = 1;
+  WEAPON = 2;
+  ARMOR = 3;
+  FOOD = 4;
+  MATERIAL = 5;
+  MISC = 6;
+}
+
+// 인챈트 정보
+message Enchantment {
+  int32 enchant_id = 1;
+  int32 level = 2;
+}
+
+// 블록 정보 (확장된 구조)
+message BlockInfo {
+  int32 block_id = 1;
+  Vector3Int position = 2;
+  int32 metadata = 3;            // 블록 메타데이터 (방향, 상태 등)
+  string block_entity_data = 4;  // 블록 엔티티 데이터 (상자, 화로 등)
+  int64 last_update = 5;         // 마지막 업데이트 시간
+  LightLevel light_level = 6;    // 조명 레벨
+}
+
+// 조명 정보
+message LightLevel {
+  int32 block_light = 1;         // 블록 조명 (0-15)
+  int32 sky_light = 2;          // 하늘 조명 (0-15)
+}
+
+// 청크 정보
+message ChunkInfo {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  repeated BlockInfo blocks = 3;
+  repeated EntityInfo entities = 4;
+  BiomeData biome_data = 5;
+  bool is_loaded = 6;
+  LightingData lighting = 7;
+}
+
+// 조명 데이터 (전체 청크)
+message LightingData {
+  repeated int32 block_light = 1;  // 16x16x16 블록당 조명 값
+  repeated int32 sky_light = 2;
+}
+
+// 바이옴 데이터
+message BiomeData {
+  repeated int32 biome_ids = 1;  // 16x16 바이옴 ID 배열
+  float temperature = 2;
+  float humidity = 3;
+}
+
+// 엔티티 정보 (몹, 아이템 등)
+message EntityInfo {
+  string entity_id = 1;
+  EntityType entity_type = 2;
+  Vector3 position = 3;
+  Vector3 rotation = 4;
+  Vector3 velocity = 5;
+  float health = 6;
+  float max_health = 7;
+  string custom_data = 8;        // 엔티티별 추가 데이터
+  repeated Effect effects = 9;   // 엔티티에 적용된 효과
+}
+
+enum EntityType {
+  UNKNOWN_ENTITY = 0;
+  PLAYER = 1;
+  // 적대적 몹
+  ZOMBIE = 10;
+  SKELETON = 11;
+  CREEPER = 12;
+  SPIDER = 13;
+  ENDERMAN = 14;
+  WITCH = 15;
+  // 중립/평화 몹
+  PIG = 20;
+  COW = 21;
+  SHEEP = 22;
+  CHICKEN = 23;
+  HORSE = 24;
+  WOLF = 25;
+  CAT = 26;
+  // 기타 엔티티
+  DROPPED_ITEM = 30;
+  ARROW = 31;
+  EXPERIENCE_ORB = 32;
+  BOAT = 33;
+  MINECART = 34;
+}
+
+// =============================================================================
+// 플레이어 액션 및 이동 관련 메시지
+// =============================================================================
+
+message PlayerMoveRequest {
+  Vector3 position = 1;
+  Vector3 rotation = 2;          // 플레이어 시선 방향
+  bool is_on_ground = 3;
+  bool is_sneaking = 4;
+  bool is_sprinting = 5;
+  bool is_flying = 6;
+  int64 timestamp = 7;
+}
+
+message PlayerMoveResponse {
+  bool success = 1;
+  Vector3 corrected_position = 2; // 서버에서 수정된 위치
+  int64 timestamp = 3;
+  string error_message = 4;
+}
+
+// 플레이어 액션 (블록 부수기, 아이템 사용 등)
+message PlayerActionRequest {
+  PlayerAction action = 1;
+  Vector3Int target_position = 2; // 대상 블록 위치
+  int32 face = 3;                // 블록의 어느 면인지 (0-5: down,up,north,south,west,east)
+  Vector3 cursor_position = 4;   // 블록 내 세밀한 위치
+  InventoryItem used_item = 5;   // 사용한 아이템
+  int32 sequence = 6;            // 액션 시퀀스 번호
+}
+
+enum PlayerAction {
+  START_DESTROY_BLOCK = 0;
+  ABORT_DESTROY_BLOCK = 1;
+  STOP_DESTROY_BLOCK = 2;       // 블록 완전히 부순 상태
+  DROP_ALL_ITEMS = 3;
+  DROP_ITEM = 4;
+  SHOOT_ARROW = 5;
+  USE_ITEM = 6;
+  PLACE_BLOCK = 7;
+  RIGHT_CLICK_BLOCK = 8;
+  RIGHT_CLICK_AIR = 9;
+  SWAP_HANDS = 10;
+}
+
+message PlayerActionResponse {
+  bool success = 1;
+  string message = 2;
+  float break_progress = 3;      // 블록 부수기 진행도 (0.0 - 1.0)
+  int32 sequence = 4;           // 대응하는 액션 시퀀스
+  repeated InventoryItem updated_items = 5; // 변경된 아이템들
+}
+
+// =============================================================================
+// 월드 및 블록 관리 메시지
+// =============================================================================
+
+// 청크 요청/응답
+message ChunkRequest {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  int32 view_distance = 3;       // 클라이언트 시야 거리
+}
+
+message ChunkResponse {
+  ChunkInfo chunk_data = 1;
+  bool success = 2;
+  bool is_cached = 3;           // 캐시된 데이터인지 여부
+}
+
+// 다중 청크 요청 (효율성을 위해)
+message MultiChunkRequest {
+  repeated Vector3Int chunk_positions = 1; // x,z 청크 좌표들
+  int32 view_distance = 2;
+}
+
+message MultiChunkResponse {
+  repeated ChunkInfo chunks = 1;
+  int32 total_chunks = 2;
+  int32 sent_chunks = 3;
+}
+
+// 블록 변경 요청
+message BlockChangeRequest {
+  Vector3Int position = 1;
+  int32 new_block_id = 2;
+  int32 metadata = 3;
+  string block_entity_data = 4;
+  PlayerAction action_type = 5;
+  int32 sequence = 6;
+}
+
+message BlockChangeResponse {
+  bool success = 1;
+  string message = 2;
+  Vector3Int position = 3;
+  int32 actual_block_id = 4;     // 실제로 설치된 블록 ID
+  int32 sequence = 5;
+  repeated DropInfo drops = 6;   // 드롭된 아이템들
+}
+
+// 블록 드롭 정보
+message DropInfo {
+  InventoryItem item = 1;
+  Vector3 drop_position = 2;
+  Vector3 velocity = 3;
+}
+
+// 블록 변경 브로드캐스트 (다른 플레이어들에게)
+message BlockChangeBroadcast {
+  Vector3Int position = 1;
+  int32 old_block_id = 2;
+  int32 new_block_id = 3;
+  int32 metadata = 4;
+  string player_name = 5;
+  int64 timestamp = 6;
+  repeated DropInfo drops = 7;
+}
+
+// 다중 블록 변경 (효율성을 위해)
+message MultiBlockChangeRequest {
+  repeated BlockChangeRequest changes = 1;
+}
+
+message MultiBlockChangeResponse {
+  repeated BlockChangeResponse results = 1;
+  bool all_success = 2;
+}
+
+// 블록 업데이트 (물리, 레드스톤 등)
+message BlockUpdateBroadcast {
+  Vector3Int position = 1;
+  int32 block_id = 2;
+  int32 new_metadata = 3;
+  UpdateReason reason = 4;
+  int64 timestamp = 5;
+}
+
+enum UpdateReason {
+  PLAYER_ACTION = 0;
+  PHYSICS = 1;
+  REDSTONE = 2;
+  GROWTH = 3;
+  DECAY = 4;
+  EXPLOSION = 5;
+  FLUID_FLOW = 6;
+}
+
+// =============================================================================
+// 인벤토리 및 아이템 관리 메시지
+// =============================================================================
+
+// 인벤토리 업데이트
+message InventoryUpdateRequest {
+  int32 slot = 1;
+  InventoryItem item = 2;
+  InventoryAction action = 3;
+  int32 button = 4;             // 마우스 버튼 (0=왼쪽, 1=오른쪽, 2=휠클릭)
+  InventoryItem cursor_item = 5; // 커서에 들고 있는 아이템
+}
+
+enum InventoryAction {
+  SET_ITEM = 0;
+  TAKE_ITEM = 1;
+  SWAP_ITEMS = 2;
+  DROP_ITEM = 3;
+  SPLIT_STACK = 4;
+  QUICK_MOVE = 5;               // Shift+클릭
+  PICKUP_ALL = 6;
+  HOTBAR_SWAP = 7;
+}
+
+message InventoryUpdateResponse {
+  bool success = 1;
+  repeated SlotUpdate updated_slots = 2;
+  InventoryItem cursor_item = 3;
+}
+
+message SlotUpdate {
+  int32 slot = 1;
+  InventoryItem item = 2;
+}
+
+// 아이템 사용
+message ItemUseRequest {
+  int32 slot = 1;
+  Vector3Int target_position = 2;
+  int32 face = 3;
+  Vector3 hit_position = 4;
+  bool is_sneaking = 5;
+}
+
+message ItemUseResponse {
+  bool success = 1;
+  InventoryItem updated_item = 2;  // 사용 후 아이템 상태
+  repeated Effect effects = 3;     // 발생한 효과들
+  repeated EntityInfo spawned_entities = 4; // 생성된 엔티티
+}
+
+// 효과 정보 (포션, 버프 등)
+message Effect {
+  int32 effect_id = 1;
+  int32 duration = 2;              // 지속 시간 (틱)
+  int32 amplifier = 3;             // 효과 레벨
+  bool is_ambient = 4;             // 비콘 등에서 오는 효과인지
+  bool show_particles = 5;
+  bool show_icon = 6;
+}
+
+// 아이템 드롭
+message ItemDropRequest {
+  int32 slot = 1;
+  int32 quantity = 2;
+  bool drop_all = 3;               // 스택 전체 드롭 여부
+}
+
+message ItemDropResponse {
+  bool success = 1;
+  EntityInfo dropped_entity = 2;   // 드롭된 아이템 엔티티
+  InventoryItem remaining_item = 3; // 남은 아이템
+}
+
+// =============================================================================
+// 게임플레이 관련 메시지
+// =============================================================================
+
+// 엔티티 스폰/제거
+message EntitySpawnBroadcast {
+  EntityInfo entity = 1;
+  SpawnReason spawn_reason = 2;
+}
+
+enum SpawnReason {
+  NATURAL = 0;
+  SPAWNER = 1;
+  BREEDING = 2;
+  COMMAND = 3;
+  ITEM_DROP = 4;
+  PROJECTILE = 5;
+}
+
+message EntityDespawnBroadcast {
+  string entity_id = 1;
+  DespawnReason reason = 2;
+}
+
+enum DespawnReason {
+  NATURAL = 0;
+  DEATH = 1;
+  TELEPORT = 2;
+  CHUNK_UNLOAD = 3;
+  PICKUP = 4;
+  EXPIRE = 5;
+}
+
+// 엔티티 업데이트 (위치, 상태 등)
+message EntityUpdateBroadcast {
+  string entity_id = 1;
+  Vector3 position = 2;
+  Vector3 rotation = 3;
+  Vector3 velocity = 4;
+  float health = 5;
+  EntityUpdateFlags flags = 6;    // 업데이트된 필드 플래그
+  string data_updates = 7;        // JSON 형태의 추가 업데이트
+}
+
+message EntityUpdateFlags {
+  bool position_updated = 1;
+  bool rotation_updated = 2;
+  bool velocity_updated = 3;
+  bool health_updated = 4;
+  bool metadata_updated = 5;
+}
+
+// 데미지 및 전투
+message DamageEvent {
+  string target_entity_id = 1;
+  string source_entity_id = 2;     // null이면 환경 데미지
+  DamageType damage_type = 3;
+  float damage_amount = 4;
+  Vector3 damage_source_pos = 5;
+  Vector3 knockback = 6;           // 넉백 벡터
+}
+
+enum DamageType {
+  GENERIC = 0;
+  ENTITY_ATTACK = 1;
+  PROJECTILE = 2;
+  FALL = 3;
+  FIRE = 4;
+  LAVA = 5;
+  DROWNING = 6;
+  EXPLOSION = 7;
+  VOID = 8;
+  POISON = 9;
+  MAGIC = 10;
+  WITHER = 11;
+  ANVIL = 12;
+  CACTUS = 13;
+  LIGHTNING = 14;
+}
+
+// 경험치 관련
+message ExperienceUpdateBroadcast {
+  string player_id = 1;
+  int32 total_experience = 2;
+  int32 experience_level = 3;
+  float experience_progress = 4;    // 다음 레벨까지의 진행도 (0.0 - 1.0)
+}
+
+message ExperienceOrbSpawnBroadcast {
+  EntityInfo orb_entity = 1;
+  int32 experience_value = 2;
+}
+
+// =============================================================================
+// 고급 게임 기능 메시지
+// =============================================================================
+
+// 크래프팅
+message CraftingRequest {
+  int32 recipe_id = 1;
+  repeated InventoryItem ingredients = 2;
+  int32 craft_count = 3;
+  CraftingType crafting_type = 4;
+}
+
+enum CraftingType {
+  PLAYER_INVENTORY = 0;
+  CRAFTING_TABLE = 1;
+  FURNACE = 2;
+  ENCHANTING_TABLE = 3;
+  BREWING_STAND = 4;
+}
+
+message CraftingResponse {
+  bool success = 1;
+  repeated InventoryItem result_items = 2;
+  repeated InventoryItem remaining_ingredients = 3;
+  string error_message = 4;
+  int32 experience_gained = 5;
+}
+
+// 컨테이너 (상자, 화로 등) 관리
+message ContainerOpenRequest {
+  Vector3Int position = 1;
+  ContainerType container_type = 2;
+}
+
+enum ContainerType {
+  CHEST = 0;
+  FURNACE = 1;
+  CRAFTING_TABLE = 2;
+  ENCHANTING_TABLE = 3;
+  BREWING_STAND = 4;
+  DISPENSER = 5;
+  HOPPER = 6;
+  BEACON = 7;
+  ANVIL = 8;
+}
+
+message ContainerOpenResponse {
+  bool success = 1;
+  int32 container_id = 2;          // 서버에서 할당한 컨테이너 ID
+  repeated InventoryItem items = 3;
+  string container_title = 4;
+  ContainerProperties properties = 5;
+}
+
+message ContainerProperties {
+  int32 slot_count = 1;
+  int32 fuel_slot = 2;             // 화로 등의 연료 슬롯
+  int32 result_slot = 3;           // 결과물 슬롯
+  float progress = 4;              // 진행도 (화로 등)
+}
+
+message ContainerCloseRequest {
+  int32 container_id = 1;
+}
+
+message ContainerUpdateBroadcast {
+  int32 container_id = 1;
+  repeated SlotUpdate slot_updates = 2;
+  ContainerProperties properties = 3;
+}
+
+// 텔레포트 및 차원 이동
+message TeleportRequest {
+  Vector3 target_position = 1;
+  string target_dimension = 2;
+  TeleportCause cause = 3;
+  bool keep_velocity = 4;
+}
+
+enum TeleportCause {
+  COMMAND = 0;
+  PORTAL = 1;
+  ENDER_PEARL = 2;
+  DEATH = 3;
+  SPAWN = 4;
+  BED = 5;
+  END_PORTAL = 6;
+}
+
+message TeleportResponse {
+  bool success = 1;
+  Vector3 actual_position = 2;
+  string dimension = 3;
+  string error_message = 4;
+}
+
+// 월드 생성 관련
+message WorldGenerationRequest {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  string world_seed = 3;
+  WorldType world_type = 4;
+  string generator_settings = 5;   // JSON 형태의 생성기 설정
+}
+
+message WorldGenerationResponse {
+  ChunkInfo generated_chunk = 1;
+  bool success = 2;
+  bool from_cache = 3;
+}
+
+// 레드스톤 신호
+message RedstoneUpdateBroadcast {
+  Vector3Int position = 1;
+  int32 power_level = 2;           // 0-15
+  RedstoneComponent component_type = 3;
+  repeated Vector3Int affected_blocks = 4; // 영향받는 블록들
+}
+
+enum RedstoneComponent {
+  REDSTONE_WIRE = 0;
+  REDSTONE_TORCH = 1;
+  REPEATER = 2;
+  COMPARATOR = 3;
+  PISTON = 4;
+  DISPENSER_REDSTONE = 5;
+  PRESSURE_PLATE = 6;
+  LEVER = 7;
+  BUTTON = 8;
+}
+
+// 파티클 효과
+message ParticleEffectBroadcast {
+  ParticleType particle_type = 1;
+  Vector3 position = 2;
+  Vector3 velocity = 3;
+  int32 count = 4;
+  float spread = 5;
+  string extra_data = 6;           // 파티클별 추가 데이터
+  int32 view_distance = 7;         // 파티클을 볼 수 있는 거리
+}
+
+enum ParticleType {
+  EXPLOSION = 0;
+  EXPLOSION_LARGE = 1;
+  EXPLOSION_HUGE = 2;
+  BLOCK_BREAK = 3;
+  BLOCK_DUST = 4;
+  WATER_SPLASH = 5;
+  LAVA_POP = 6;
+  SMOKE = 7;
+  FLAME = 8;
+  HEART = 9;
+  CRITICAL_HIT = 10;
+  ENCHANTMENT_TABLE = 11;
+  PORTAL = 12;
+  NOTE = 13;
+  HAPPY_VILLAGER = 14;
+  ANGRY_VILLAGER = 15;
+}
+
+// 사운드 효과
+message SoundEffectBroadcast {
+  SoundType sound_type = 1;
+  Vector3 position = 2;
+  float volume = 3;
+  float pitch = 4;
+  int32 view_distance = 5;         // 소리를 들을 수 있는 거리
+}
+
+enum SoundType {
+  // 블록 관련
+  BLOCK_BREAK_STONE = 0;
+  BLOCK_BREAK_WOOD = 1;
+  BLOCK_BREAK_GRASS = 2;
+  BLOCK_PLACE_STONE = 3;
+  BLOCK_PLACE_WOOD = 4;
+  // 플레이어 관련
+  FOOTSTEP_STONE = 10;
+  FOOTSTEP_WOOD = 11;
+  FOOTSTEP_GRASS = 12;
+  HURT_PLAYER = 13;
+  DEATH_PLAYER = 14;
+  // 게임 관련
+  LEVEL_UP = 20;
+  ORB_PICKUP = 21;
+  ITEM_PICKUP = 22;
+  ITEM_BREAK = 23;
+  // 몹 관련
+  HURT_MOB = 30;
+  DEATH_MOB = 31;
+  // 환경 관련
+  THUNDER = 40;
+  RAIN = 41;
+}
+
+// =============================================================================
+// 채팅 및 커뮤니케이션 메시지
+// =============================================================================
+
+message ChatMessage {
+  string sender_id = 1;
+  string sender_name = 2;
+  string message = 3;
+  ChatType type = 4;
+  int64 timestamp = 5;
+  string formatted_message = 6;    // 서버에서 포맷된 메시지
+  string sender_display_name = 7;  // 표시용 이름 (색상 등 포함)
+}
+
+enum ChatType {
+  GLOBAL = 0;
+  LOCAL = 1;
+  WHISPER = 2;
+  SYSTEM = 3;
+  TEAM = 4;
+  ANNOUNCEMENT = 5;
+  DEATH_MESSAGE = 6;
+  JOIN_LEAVE = 7;
+  ACHIEVEMENT = 8;
+}
+
+message ChatRequest {
+  string message = 1;
+  ChatType type = 2;
+  string target_player = 3;
+}
+
+message ChatResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// =============================================================================
+// 명령어 시스템
+// =============================================================================
+
+message CommandRequest {
+  string command = 1;
+  repeated string arguments = 2;
+}
+
+message CommandResponse {
+  bool success = 1;
+  string result_message = 2;
+  CommandResultType result_type = 3;
+  repeated string additional_output = 4;
+}
+
+enum CommandResultType {
+  SUCCESS = 0;
+  FAILURE = 1;
+  PERMISSION_DENIED = 2;
+  INVALID_SYNTAX = 3;
+  TARGET_NOT_FOUND = 4;
+  INCOMPLETE = 5;
+}
+
+// =============================================================================
+// 서버 관리 및 진단 메시지
+// =============================================================================
+
+message PingRequest {
+  int64 client_timestamp = 1;
+}
+
+message PingResponse {
+  int64 client_timestamp = 1;
+  int64 server_timestamp = 2;
+}
+
+message ServerStatusRequest {
+  string session_token = 1;
+}
+
+message ServerStatusResponse {
+  int32 online_players = 1;
+  string server_version = 2;
+  int64 server_uptime = 3;
+  float tps = 4;                   // 서버 TPS (Ticks Per Second)
+  int64 world_time = 5;
+  WeatherInfo current_weather = 6;
+  int32 loaded_chunks = 7;
+  float memory_usage = 8;          // MB 단위
+}
+
+// 시간 동기화
+message TimeUpdateBroadcast {
+  int64 world_time = 1;
+  int64 day_time = 2;              // 하루 내 시간 (0-24000)
+}
+
+// 날씨 변경
+message WeatherChangeBroadcast {
+  WeatherInfo weather = 1;
+  int64 change_time = 2;
+}
+
+// 플레이어 목록 업데이트
+message PlayerListUpdateBroadcast {
+  repeated PlayerListEntry players = 1;
+  PlayerListAction action = 2;
+}
+
+message PlayerListEntry {
+  string player_id = 1;
+  string username = 2;
+  string display_name = 3;
+  int32 ping = 4;
+  GameMode game_mode = 5;
+}
+
+enum PlayerListAction {
+  ADD_PLAYER = 0;
+  REMOVE_PLAYER = 1;
+  UPDATE_DISPLAY_NAME = 2;
+  UPDATE_PING = 3;
+  UPDATE_GAME_MODE = 4;
+}
+
+// 성능 및 디버그 정보
+message PerformanceInfo {
+  float client_fps = 1;
+  float render_time = 2;           // 밀리초
+  int32 chunk_updates = 3;
+  int32 entity_count = 4;
+  float memory_usage = 5;          // MB 단위
+}
+
+message DebugInfoRequest {
+  DebugInfoType info_type = 1;
+}
+
+enum DebugInfoType {
+  CHUNK_INFO = 0;
+  ENTITY_INFO = 1;
+  PERFORMANCE_INFO = 2;
+  NETWORK_INFO = 3;
+}
+
+message DebugInfoResponse {
+  DebugInfoType info_type = 1;
+  string debug_data = 2;           // JSON 형태의 디버그 정보
+}

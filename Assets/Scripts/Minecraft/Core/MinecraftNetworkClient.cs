@@ -8,8 +8,8 @@ using MinecraftProtocol;
 namespace Minecraft.Core
 {
     /// <summary>
-    /// 마인크래프트 스타일 게임을 위한 네트워크 클라이언트
-    /// 블록 관리, 청크 로딩, 플레이어 액션 등의 고급 기능을 제공합니다.
+    /// Network client for Minecraft-style game
+    /// Provides advanced features like block management, chunk loading, and player actions.
     /// </summary>
     public class MinecraftNetworkClient : MonoBehaviour
     {

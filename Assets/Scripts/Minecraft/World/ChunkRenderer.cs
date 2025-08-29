@@ -6,8 +6,8 @@ using Minecraft.World;
 namespace Minecraft.World
 {
     /// <summary>
-    /// 마인크래프트 스타일 청크 렌더링을 담당하는 컴포넌트
-    /// 블록들을 효율적인 메시로 변환하고 텍스처 아틀라스를 사용합니다.
+    /// Component responsible for Minecraft-style chunk rendering
+    /// Converts blocks to efficient meshes and uses texture atlases.
     /// </summary>
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
     public class ChunkRenderer : MonoBehaviour

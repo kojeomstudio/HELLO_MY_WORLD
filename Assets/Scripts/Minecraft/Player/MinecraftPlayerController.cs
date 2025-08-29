@@ -6,8 +6,8 @@ using Minecraft.World;
 namespace Minecraft.Player
 {
     /// <summary>
-    /// 마인크래프트 스타일 플레이어 컨트롤러
-    /// 1인칭 시점, 블록 상호작용, 인벤토리 관리 등을 담당합니다.
+    /// Minecraft-style player controller
+    /// Handles first-person view, block interaction, inventory management, etc.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class MinecraftPlayerController : MonoBehaviour

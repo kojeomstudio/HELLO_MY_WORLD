@@ -7,8 +7,8 @@ using System.Linq;
 namespace Minecraft.World
 {
     /// <summary>
-    /// 마인크래프트 월드의 청크를 관리하는 시스템
-    /// 청크 로딩, 언로딩, 렌더링, 블록 관리 등을 담당합니다.
+    /// System that manages chunks in the Minecraft world
+    /// Handles chunk loading, unloading, rendering, block management, etc.
     /// </summary>
     public class ChunkManager : MonoBehaviour
     {
@@ -373,7 +373,7 @@ namespace Minecraft.World
     }
     
     /// <summary>
-    /// 블록 타입 정의
+    /// Block type definition
     /// </summary>
     [System.Serializable]
     public class BlockType

@@ -1,1 +1,483 @@
-using UnityEngine;\nusing MinecraftProtocol;\nusing Minecraft.Core;\nusing Minecraft.World;\n\nnamespace Minecraft.Player\n{\n    /// <summary>\n    /// 마인크래프트 스타일 플레이어 컨트롤러\n    /// 1인칭 시점, 블록 상호작용, 인벤토리 관리 등을 담당합니다.\n    /// </summary>\n    [RequireComponent(typeof(CharacterController))]\n    public class MinecraftPlayerController : MonoBehaviour\n    {\n        [Header(\"Movement Settings\")]\n        [SerializeField] private float walkSpeed = 5f;\n        [SerializeField] private float sprintSpeed = 8f;\n        [SerializeField] private float sneakSpeed = 2f;\n        [SerializeField] private float jumpHeight = 1.2f;\n        [SerializeField] private float gravity = -20f;\n        [SerializeField] private float groundCheckDistance = 0.2f;\n        \n        [Header(\"Camera Settings\")]\n        [SerializeField] private Camera playerCamera;\n        [SerializeField] private float mouseSensitivity = 2f;\n        [SerializeField] private float maxLookAngle = 90f;\n        \n        [Header(\"Block Interaction\")]\n        [SerializeField] private float blockReach = 5f;\n        [SerializeField] private LayerMask blockLayerMask = 1;\n        [SerializeField] private GameObject blockHighlight;\n        \n        [Header(\"UI References\")]\n        [SerializeField] private PlayerUI playerUI;\n        \n        // 컴포넌트 참조\n        private CharacterController _characterController;\n        private MinecraftNetworkClient _networkClient;\n        private ChunkManager _chunkManager;\n        \n        // 플레이어 상태\n        private Vector3 _velocity;\n        private bool _isGrounded;\n        private bool _isSprinting;\n        private bool _isSneaking;\n        private bool _isFlying;\n        private GameMode _gameMode = GameMode.Survival;\n        \n        // 카메라 제어\n        private float _verticalRotation;\n        private Vector3 _lastSentPosition;\n        private float _lastSentTime;\n        \n        // 블록 상호작용\n        private Vector3Int _targetBlockPosition;\n        private Vector3Int _placeBlockPosition;\n        private bool _hasTargetBlock;\n        private float _blockBreakProgress;\n        private float _blockBreakTime;\n        private int _selectedHotbarSlot = 0;\n        \n        // 플레이어 정보\n        private PlayerInfo _playerInfo;\n        private InventoryItem[] _hotbar = new InventoryItem[9];\n        \n        // 입력 상태\n        private bool _leftMousePressed;\n        private bool _rightMousePressed;\n        private bool _leftMouseHeld;\n        \n        public Vector3Int TargetBlockPosition => _targetBlockPosition;\n        public bool HasTargetBlock => _hasTargetBlock;\n        public int SelectedHotbarSlot => _selectedHotbarSlot;\n        public InventoryItem SelectedItem => _hotbar[_selectedHotbarSlot];\n        \n        private void Awake()\n        {\n            _characterController = GetComponent<CharacterController>();\n            \n            // 카메라 설정\n            if (playerCamera == null)\n                playerCamera = GetComponentInChildren<Camera>();\n            \n            // 커서 잠금\n            Cursor.lockState = CursorLockMode.Locked;\n            \n            // 네트워크 클라이언트 찾기\n            _networkClient = FindObjectOfType<MinecraftNetworkClient>();\n            _chunkManager = FindObjectOfType<ChunkManager>();\n        }\n        \n        private void Start()\n        {\n            // 네트워크 이벤트 구독\n            if (_networkClient != null)\n            {\n                _networkClient.PlayerInfoUpdated += OnPlayerInfoUpdated;\n                _networkClient.BlockChanged += OnBlockChanged;\n            }\n            \n            // 핫바 초기화\n            InitializeHotbar();\n        }\n        \n        private void Update()\n        {\n            HandleInput();\n            UpdateMovement();\n            UpdateCamera();\n            UpdateBlockInteraction();\n            UpdateNetworkSync();\n            UpdateUI();\n        }\n        \n        /// <summary>\n        /// 입력을 처리합니다.\n        /// </summary>\n        private void HandleInput()\n        {\n            // ESC 키로 커서 잠금 해제\n            if (Input.GetKeyDown(KeyCode.Escape))\n            {\n                Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;\n            }\n            \n            // 이동 입력\n            _isSprinting = Input.GetKey(KeyCode.LeftShift) && !_isSneaking;\n            _isSneaking = Input.GetKey(KeyCode.LeftControl);\n            \n            // 점프\n            if (Input.GetButtonDown(\"Jump\") && _isGrounded)\n            {\n                _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);\n            }\n            \n            // 비행 모드 (크리에이티브)\n            if (_gameMode == GameMode.Creative && Input.GetKeyDown(KeyCode.F))\n            {\n                _isFlying = !_isFlying;\n            }\n            \n            // 핫바 선택\n            for (int i = 1; i <= 9; i++)\n            {\n                if (Input.GetKeyDown(KeyCode.Alpha0 + i))\n                {\n                    _selectedHotbarSlot = i - 1;\n                    break;\n                }\n            }\n            \n            // 마우스 휠로 핫바 선택\n            float scroll = Input.GetAxis(\"Mouse ScrollWheel\");\n            if (Mathf.Abs(scroll) > 0.1f)\n            {\n                _selectedHotbarSlot = (int)Mathf.Repeat(_selectedHotbarSlot - Mathf.Sign(scroll), 9);\n            }\n            \n            // 블록 상호작용\n            _leftMousePressed = Input.GetMouseButtonDown(0);\n            _rightMousePressed = Input.GetMouseButtonDown(1);\n            _leftMouseHeld = Input.GetMouseButton(0);\n        }\n        \n        /// <summary>\n        /// 플레이어 이동을 업데이트합니다.\n        /// </summary>\n        private void UpdateMovement()\n        {\n            // 지면 체크\n            _isGrounded = Physics.CheckSphere(transform.position, groundCheckDistance, blockLayerMask);\n            \n            // 이동 입력\n            float horizontal = Input.GetAxis(\"Horizontal\");\n            float vertical = Input.GetAxis(\"Vertical\");\n            \n            Vector3 direction = transform.right * horizontal + transform.forward * vertical;\n            direction.Normalize();\n            \n            // 이동 속도 계산\n            float currentSpeed = _isSprinting ? sprintSpeed : (_isSneaking ? sneakSpeed : walkSpeed);\n            \n            // 비행 모드\n            if (_isFlying && _gameMode == GameMode.Creative)\n            {\n                if (Input.GetKey(KeyCode.Space))\n                    direction.y = 1f;\n                else if (Input.GetKey(KeyCode.LeftShift))\n                    direction.y = -1f;\n                \n                _velocity = direction * currentSpeed;\n            }\n            else\n            {\n                // 일반 이동\n                Vector3 move = direction * currentSpeed;\n                \n                // 중력 적용\n                if (_isGrounded && _velocity.y < 0)\n                    _velocity.y = -2f;\n                \n                _velocity.y += gravity * Time.deltaTime;\n                move.y = _velocity.y;\n                \n                _velocity = move;\n            }\n            \n            // 이동 적용\n            _characterController.Move(_velocity * Time.deltaTime);\n            \n            // 스니킹 시 낙하 방지 (블록 가장자리에서)\n            if (_isSneaking && _isGrounded)\n            {\n                PreventFalling();\n            }\n        }\n        \n        /// <summary>\n        /// 스니킹 중 낙하를 방지합니다.\n        /// </summary>\n        private void PreventFalling()\n        {\n            Vector3 futurePosition = transform.position + _characterController.velocity * Time.deltaTime;\n            \n            // 앞쪽 블록 체크\n            if (!Physics.CheckSphere(futurePosition + Vector3.down * 1.5f, 0.3f, blockLayerMask))\n            {\n                // 낙하할 위험이 있으면 이동 제한\n                Vector3 limitedVelocity = _characterController.velocity;\n                limitedVelocity.x = 0;\n                limitedVelocity.z = 0;\n                // _characterController.Move(limitedVelocity * Time.deltaTime);\n            }\n        }\n        \n        /// <summary>\n        /// 카메라 회전을 업데이트합니다.\n        /// </summary>\n        private void UpdateCamera()\n        {\n            if (Cursor.lockState != CursorLockMode.Locked) return;\n            \n            float mouseX = Input.GetAxis(\"Mouse X\") * mouseSensitivity;\n            float mouseY = Input.GetAxis(\"Mouse Y\") * mouseSensitivity;\n            \n            // 수직 회전 (위아래)\n            _verticalRotation -= mouseY;\n            _verticalRotation = Mathf.Clamp(_verticalRotation, -maxLookAngle, maxLookAngle);\n            playerCamera.transform.localRotation = Quaternion.Euler(_verticalRotation, 0, 0);\n            \n            // 수평 회전 (좌우)\n            transform.Rotate(Vector3.up * mouseX);\n        }\n        \n        /// <summary>\n        /// 블록 상호작용을 업데이트합니다.\n        /// </summary>\n        private void UpdateBlockInteraction()\n        {\n            // 레이캐스팅으로 대상 블록 찾기\n            Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));\n            \n            if (Physics.Raycast(ray, out RaycastHit hit, blockReach, blockLayerMask))\n            {\n                Vector3Int blockPos = Vector3Int.FloorToInt(hit.point - hit.normal * 0.5f);\n                Vector3Int placePos = Vector3Int.FloorToInt(hit.point + hit.normal * 0.5f);\n                \n                _targetBlockPosition = blockPos;\n                _placeBlockPosition = placePos;\n                _hasTargetBlock = true;\n                \n                // 블록 하이라이트 표시\n                if (blockHighlight != null)\n                {\n                    blockHighlight.SetActive(true);\n                    blockHighlight.transform.position = blockPos + Vector3.one * 0.5f;\n                }\n                \n                // 블록 파괴 (왼쪽 마우스)\n                if (_leftMousePressed)\n                {\n                    StartBlockBreaking();\n                }\n                else if (_leftMouseHeld)\n                {\n                    ContinueBlockBreaking();\n                }\n                else\n                {\n                    StopBlockBreaking();\n                }\n                \n                // 블록 설치 (오른쪽 마우스)\n                if (_rightMousePressed && SelectedItem != null && SelectedItem.ItemType == ItemType.Block)\n                {\n                    PlaceBlock();\n                }\n            }\n            else\n            {\n                _hasTargetBlock = false;\n                _blockBreakProgress = 0;\n                \n                if (blockHighlight != null)\n                    blockHighlight.SetActive(false);\n                    \n                if (_leftMouseHeld)\n                    StopBlockBreaking();\n            }\n        }\n        \n        /// <summary>\n        /// 블록 파괴를 시작합니다.\n        /// </summary>\n        private void StartBlockBreaking()\n        {\n            if (!_hasTargetBlock) return;\n            \n            var blockId = _chunkManager?.GetBlockAt(_targetBlockPosition) ?? 0;\n            if (blockId == 0) return; // Air 블록\n            \n            var blockType = _chunkManager?.GetBlockType(blockId);\n            if (blockType == null) return;\n            \n            _blockBreakTime = blockType.Hardness;\n            _blockBreakProgress = 0f;\n            \n            // 서버에 블록 파괴 시작 알림\n            _networkClient?.SendPlayerAction(PlayerAction.StartDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);\n            \n            Debug.Log($\"Started breaking block at {_targetBlockPosition} (hardness: {blockType.Hardness})\");\n        }\n        \n        /// <summary>\n        /// 블록 파괴를 계속합니다.\n        /// </summary>\n        private void ContinueBlockBreaking()\n        {\n            if (!_hasTargetBlock || _blockBreakTime <= 0) return;\n            \n            _blockBreakProgress += Time.deltaTime / _blockBreakTime;\n            \n            if (_blockBreakProgress >= 1f)\n            {\n                // 블록 완전히 파괴\n                _networkClient?.SendPlayerAction(PlayerAction.StopDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);\n                _blockBreakProgress = 0f;\n                \n                Debug.Log($\"Finished breaking block at {_targetBlockPosition}\");\n            }\n        }\n        \n        /// <summary>\n        /// 블록 파괴를 중단합니다.\n        /// </summary>\n        private void StopBlockBreaking()\n        {\n            if (_blockBreakProgress > 0 && _blockBreakProgress < 1f)\n            {\n                _networkClient?.SendPlayerAction(PlayerAction.AbortDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);\n                Debug.Log($\"Aborted breaking block at {_targetBlockPosition}\");\n            }\n            \n            _blockBreakProgress = 0f;\n        }\n        \n        /// <summary>\n        /// 블록을 설치합니다.\n        /// </summary>\n        private void PlaceBlock()\n        {\n            if (!_hasTargetBlock || SelectedItem == null) return;\n            \n            // 플레이어와 겹치는지 확인\n            Bounds playerBounds = _characterController.bounds;\n            Bounds blockBounds = new Bounds(_placeBlockPosition + Vector3.one * 0.5f, Vector3.one);\n            \n            if (playerBounds.Intersects(blockBounds))\n            {\n                Debug.Log(\"Cannot place block: would intersect with player\");\n                return;\n            }\n            \n            // 블록 설치 요청\n            _networkClient?.SendBlockChange(_placeBlockPosition, SelectedItem.ItemId, 0, null, PlayerAction.PlaceBlock);\n            \n            // 아이템 소모 (서바이벌 모드)\n            if (_gameMode == GameMode.Survival)\n            {\n                ConsumeSelectedItem(1);\n            }\n            \n            Debug.log($\"Placed block {SelectedItem.ItemName} at {_placeBlockPosition}\");\n        }\n        \n        /// <summary>\n        /// 선택된 아이템을 소모합니다.\n        /// </summary>\n        private void ConsumeSelectedItem(int quantity)\n        {\n            var item = _hotbar[_selectedHotbarSlot];\n            if (item == null || item.Quantity < quantity) return;\n            \n            item.Quantity -= quantity;\n            if (item.Quantity <= 0)\n            {\n                _hotbar[_selectedHotbarSlot] = null;\n            }\n            \n            // 서버에 인벤토리 업데이트 전송\n            _networkClient?.SendInventoryUpdate(_selectedHotbarSlot, _hotbar[_selectedHotbarSlot], InventoryAction.SetItem);\n        }\n        \n        /// <summary>\n        /// 네트워크 동기화를 업데이트합니다.\n        /// </summary>\n        private void UpdateNetworkSync()\n        {\n            if (_networkClient == null || !_networkClient.IsConnected) return;\n            \n            // 위치가 크게 변했거나 일정 시간이 지났을 때만 전송\n            float distance = Vector3.Distance(transform.position, _lastSentPosition);\n            float timeSinceLastSent = Time.time - _lastSentTime;\n            \n            if (distance > 0.1f || timeSinceLastSent > 0.05f) // 50ms마다 또는 10cm 이상 이동시\n            {\n                Vector3 rotation = new Vector3(_verticalRotation, transform.eulerAngles.y, 0);\n                \n                _networkClient.SendPlayerMove(\n                    transform.position,\n                    rotation,\n                    _isGrounded,\n                    _isSneaking,\n                    _isSprinting,\n                    _isFlying\n                );\n                \n                _lastSentPosition = transform.position;\n                _lastSentTime = Time.time;\n            }\n        }\n        \n        /// <summary>\n        /// UI를 업데이트합니다.\n        /// </summary>\n        private void UpdateUI()\n        {\n            if (playerUI != null)\n            {\n                playerUI.UpdateHotbar(_hotbar, _selectedHotbarSlot);\n                playerUI.UpdateBlockBreakProgress(_blockBreakProgress);\n                playerUI.UpdateCrosshair(_hasTargetBlock);\n                \n                if (_playerInfo != null)\n                {\n                    playerUI.UpdateHealth(_playerInfo.Health, _playerInfo.MaxHealth);\n                    playerUI.UpdateHunger(_playerInfo.Hunger, _playerInfo.MaxHunger);\n                    playerUI.UpdateExperience(_playerInfo.Level, _playerInfo.Experience);\n                }\n            }\n        }\n        \n        /// <summary>\n        /// 핫바를 초기화합니다.\n        /// </summary>\n        private void InitializeHotbar()\n        {\n            // 테스트용 기본 아이템들\n            _hotbar[0] = new InventoryItem { ItemId = 1, ItemName = \"Stone\", Quantity = 64, ItemType = ItemType.Block };\n            _hotbar[1] = new InventoryItem { ItemId = 2, ItemName = \"Grass\", Quantity = 64, ItemType = ItemType.Block };\n            _hotbar[2] = new InventoryItem { ItemId = 3, ItemName = \"Dirt\", Quantity = 64, ItemType = ItemType.Block };\n        }\n        \n        // 네트워크 이벤트 핸들러들\n        private void OnPlayerInfoUpdated(PlayerInfo playerInfo)\n        {\n            _playerInfo = playerInfo;\n            \n            // 서버에서 수정된 위치로 보정\n            if (playerInfo.Position != null)\n            {\n                var serverPos = new Vector3(\n                    (float)playerInfo.Position.X,\n                    (float)playerInfo.Position.Y,\n                    (float)playerInfo.Position.Z\n                );\n                \n                // 위치 차이가 크면 강제로 보정\n                if (Vector3.Distance(transform.position, serverPos) > 1f)\n                {\n                    transform.position = serverPos;\n                    Debug.Log($\"Position corrected by server: {serverPos}\");\n                }\n            }\n            \n            // 게임 모드 업데이트\n            _gameMode = playerInfo.GameMode;\n            \n            // 인벤토리 업데이트\n            UpdateHotbarFromInventory(playerInfo.Inventory);\n        }\n        \n        private void OnBlockChanged(Vector3Int position, int oldBlockId, int newBlockId)\n        {\n            Debug.Log($\"Block changed at {position}: {oldBlockId} -> {newBlockId}\");\n        }\n        \n        /// <summary>\n        /// 서버 인벤토리로부터 핫바를 업데이트합니다.\n        /// </summary>\n        private void UpdateHotbarFromInventory(System.Collections.Generic.IList<InventoryItem> inventory)\n        {\n            // 핫바 슬롯 (0-8)에 해당하는 아이템들만 업데이트\n            for (int i = 0; i < 9 && i < inventory.Count; i++)\n            {\n                _hotbar[i] = inventory[i];\n            }\n        }\n        \n        /// <summary>\n        /// 플레이어를 특정 위치로 텔레포트합니다.\n        /// </summary>\n        public void Teleport(Vector3 position)\n        {\n            _characterController.enabled = false;\n            transform.position = position;\n            _characterController.enabled = true;\n            \n            _velocity = Vector3.zero;\n            _lastSentPosition = position;\n        }\n        \n        /// <summary>\n        /// 게임 모드를 변경합니다.\n        /// </summary>\n        public void SetGameMode(GameMode gameMode)\n        {\n            _gameMode = gameMode;\n            \n            if (gameMode == GameMode.Creative)\n            {\n                _isFlying = true;\n            }\n            else\n            {\n                _isFlying = false;\n            }\n        }\n        \n        private void OnDestroy()\n        {\n            if (_networkClient != null)\n            {\n                _networkClient.PlayerInfoUpdated -= OnPlayerInfoUpdated;\n                _networkClient.BlockChanged -= OnBlockChanged;\n            }\n        }\n        \n        private void OnDrawGizmosSelected()\n        {\n            // 블록 도달 거리 표시\n            if (playerCamera != null)\n            {\n                Gizmos.color = Color.red;\n                Gizmos.DrawRay(playerCamera.transform.position, playerCamera.transform.forward * blockReach);\n            }\n            \n            // 지면 체크 범위 표시\n            Gizmos.color = Color.green;\n            Gizmos.DrawWireSphere(transform.position, groundCheckDistance);\n            \n            // 대상 블록 표시\n            if (_hasTargetBlock)\n            {\n                Gizmos.color = Color.yellow;\n                Gizmos.DrawWireCube(_targetBlockPosition + Vector3.one * 0.5f, Vector3.one);\n                \n                Gizmos.color = Color.blue;\n                Gizmos.DrawWireCube(_placeBlockPosition + Vector3.one * 0.5f, Vector3.one);\n            }\n        }\n    }\n}
+using UnityEngine;
+using MinecraftProtocol;
+using Minecraft.Core;
+using Minecraft.World;
+
+namespace Minecraft.Player
+{
+    /// <summary>
+    /// 마인크래프트 스타일 플레이어 컨트롤러
+    /// 1인칭 시점, 블록 상호작용, 인벤토리 관리 등을 담당합니다.
+    /// </summary>
+    [RequireComponent(typeof(CharacterController))]
+    public class MinecraftPlayerController : MonoBehaviour
+    {
+        [Header("Movement Settings")]
+        [SerializeField] private float walkSpeed = 5f;
+        [SerializeField] private float sprintSpeed = 8f;
+        [SerializeField] private float sneakSpeed = 2f;
+        [SerializeField] private float jumpHeight = 1.2f;
+        [SerializeField] private float gravity = -20f;
+        [SerializeField] private float groundCheckDistance = 0.2f;
+        
+        [Header("Camera Settings")]
+        [SerializeField] private Camera playerCamera;
+        [SerializeField] private float mouseSensitivity = 2f;
+        [SerializeField] private float maxLookAngle = 90f;
+        
+        [Header("Block Interaction")]
+        [SerializeField] private float blockReach = 5f;
+        [SerializeField] private LayerMask blockLayerMask = 1;
+        [SerializeField] private GameObject blockHighlight;
+        
+        [Header("UI References")]
+        [SerializeField] private PlayerUI playerUI;
+        
+        private CharacterController _characterController;
+        private MinecraftNetworkClient _networkClient;
+        private ChunkManager _chunkManager;
+        
+        private Vector3 _velocity;
+        private bool _isGrounded;
+        private bool _isSprinting;
+        private bool _isSneaking;
+        private bool _isFlying;
+        private GameMode _gameMode = GameMode.Survival;
+        
+        private float _verticalRotation;
+        private Vector3 _lastSentPosition;
+        private float _lastSentTime;
+        
+        private Vector3Int _targetBlockPosition;
+        private Vector3Int _placeBlockPosition;
+        private bool _hasTargetBlock;
+        private float _blockBreakProgress;
+        private float _blockBreakTime;
+        private int _selectedHotbarSlot = 0;
+        
+        private PlayerInfo _playerInfo;
+        private InventoryItem[] _hotbar = new InventoryItem[9];
+        
+        private bool _leftMousePressed;
+        private bool _rightMousePressed;
+        private bool _leftMouseHeld;
+        
+        public Vector3Int TargetBlockPosition => _targetBlockPosition;
+        public bool HasTargetBlock => _hasTargetBlock;
+        public int SelectedHotbarSlot => _selectedHotbarSlot;
+        public InventoryItem SelectedItem => _hotbar[_selectedHotbarSlot];
+        
+        private void Awake()
+        {
+            _characterController = GetComponent<CharacterController>();
+            
+            if (playerCamera == null)
+                playerCamera = GetComponentInChildren<Camera>();
+            
+            Cursor.lockState = CursorLockMode.Locked;
+            
+            _networkClient = FindObjectOfType<MinecraftNetworkClient>();
+            _chunkManager = FindObjectOfType<ChunkManager>();
+        }
+        
+        private void Start()
+        {
+            if (_networkClient != null)
+            {
+                _networkClient.PlayerInfoUpdated += OnPlayerInfoUpdated;
+                _networkClient.BlockChanged += OnBlockChanged;
+            }
+            
+            InitializeHotbar();
+        }
+        
+        private void Update()
+        {
+            HandleInput();
+            UpdateMovement();
+            UpdateCamera();
+            UpdateBlockInteraction();
+            UpdateNetworkSync();
+            UpdateUI();
+        }
+        
+        private void HandleInput()
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
+            }
+            
+            _isSprinting = Input.GetKey(KeyCode.LeftShift) && !_isSneaking;
+            _isSneaking = Input.GetKey(KeyCode.LeftControl);
+            
+            if (Input.GetButtonDown("Jump") && _isGrounded)
+            {
+                _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            }
+            
+            if (_gameMode == GameMode.Creative && Input.GetKeyDown(KeyCode.F))
+            {
+                _isFlying = !_isFlying;
+            }
+            
+            for (int i = 1; i <= 9; i++)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha0 + i))
+                {
+                    _selectedHotbarSlot = i - 1;
+                    break;
+                }
+            }
+            
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(scroll) > 0.1f)
+            {
+                _selectedHotbarSlot = (int)Mathf.Repeat(_selectedHotbarSlot - Mathf.Sign(scroll), 9);
+            }
+            
+            _leftMousePressed = Input.GetMouseButtonDown(0);
+            _rightMousePressed = Input.GetMouseButtonDown(1);
+            _leftMouseHeld = Input.GetMouseButton(0);
+        }
+        
+        private void UpdateMovement()
+        {
+            _isGrounded = Physics.CheckSphere(transform.position, groundCheckDistance, blockLayerMask);
+            
+            float horizontal = Input.GetAxis("Horizontal");
+            float vertical = Input.GetAxis("Vertical");
+            
+            Vector3 direction = transform.right * horizontal + transform.forward * vertical;
+            direction.Normalize();
+            
+            float currentSpeed = _isSprinting ? sprintSpeed : (_isSneaking ? sneakSpeed : walkSpeed);
+            
+            if (_isFlying && _gameMode == GameMode.Creative)
+            {
+                if (Input.GetKey(KeyCode.Space))
+                    direction.y = 1f;
+                else if (Input.GetKey(KeyCode.LeftShift))
+                    direction.y = -1f;
+                
+                _velocity = direction * currentSpeed;
+            }
+            else
+            {
+                Vector3 move = direction * currentSpeed;
+                
+                if (_isGrounded && _velocity.y < 0)
+                    _velocity.y = -2f;
+                
+                _velocity.y += gravity * Time.deltaTime;
+                move.y = _velocity.y;
+                
+                _velocity = move;
+            }
+            
+            _characterController.Move(_velocity * Time.deltaTime);
+            
+            if (_isSneaking && _isGrounded)
+            {
+                PreventFalling();
+            }
+        }
+        
+        private void PreventFalling()
+        {
+            Vector3 futurePosition = transform.position + _characterController.velocity * Time.deltaTime;
+            
+            if (!Physics.CheckSphere(futurePosition + Vector3.down * 1.5f, 0.3f, blockLayerMask))
+            {
+                Vector3 limitedVelocity = _characterController.velocity;
+                limitedVelocity.x = 0;
+                limitedVelocity.z = 0;
+            }
+        }
+        
+        private void UpdateCamera()
+        {
+            if (Cursor.lockState != CursorLockMode.Locked) return;
+            
+            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
+            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
+            
+            _verticalRotation -= mouseY;
+            _verticalRotation = Mathf.Clamp(_verticalRotation, -maxLookAngle, maxLookAngle);
+            playerCamera.transform.localRotation = Quaternion.Euler(_verticalRotation, 0, 0);
+            
+            transform.Rotate(Vector3.up * mouseX);
+        }
+        
+        private void UpdateBlockInteraction()
+        {
+            Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
+            
+            if (Physics.Raycast(ray, out RaycastHit hit, blockReach, blockLayerMask))
+            {
+                Vector3Int blockPos = Vector3Int.FloorToInt(hit.point - hit.normal * 0.5f);
+                Vector3Int placePos = Vector3Int.FloorToInt(hit.point + hit.normal * 0.5f);
+                
+                _targetBlockPosition = blockPos;
+                _placeBlockPosition = placePos;
+                _hasTargetBlock = true;
+                
+                if (blockHighlight != null)
+                {
+                    blockHighlight.SetActive(true);
+                    blockHighlight.transform.position = blockPos + Vector3.one * 0.5f;
+                }
+                
+                if (_leftMousePressed)
+                {
+                    StartBlockBreaking();
+                }
+                else if (_leftMouseHeld)
+                {
+                    ContinueBlockBreaking();
+                }
+                else
+                {
+                    StopBlockBreaking();
+                }
+                
+                if (_rightMousePressed && SelectedItem != null && SelectedItem.ItemType == ItemType.Block)
+                {
+                    PlaceBlock();
+                }
+            }
+            else
+            {
+                _hasTargetBlock = false;
+                _blockBreakProgress = 0;
+                
+                if (blockHighlight != null)
+                    blockHighlight.SetActive(false);
+                    
+                if (_leftMouseHeld)
+                    StopBlockBreaking();
+            }
+        }
+        
+        private void StartBlockBreaking()
+        {
+            if (!_hasTargetBlock) return;
+            
+            var blockId = _chunkManager?.GetBlockAt(_targetBlockPosition) ?? 0;
+            if (blockId == 0) return;
+            
+            var blockType = _chunkManager?.GetBlockType(blockId);
+            if (blockType == null) return;
+            
+            _blockBreakTime = blockType.Hardness;
+            _blockBreakProgress = 0f;
+            
+            _networkClient?.SendPlayerAction(PlayerAction.StartDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+            
+            Debug.Log($"Started breaking block at {_targetBlockPosition} (hardness: {blockType.Hardness})");
+        }
+        
+        private void ContinueBlockBreaking()
+        {
+            if (!_hasTargetBlock || _blockBreakTime <= 0) return;
+            
+            _blockBreakProgress += Time.deltaTime / _blockBreakTime;
+            
+            if (_blockBreakProgress >= 1f)
+            {
+                _networkClient?.SendPlayerAction(PlayerAction.StopDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+                _blockBreakProgress = 0f;
+                
+                Debug.Log($"Finished breaking block at {_targetBlockPosition}");
+            }
+        }
+        
+        private void StopBlockBreaking()
+        {
+            if (_blockBreakProgress > 0 && _blockBreakProgress < 1f)
+            {
+                _networkClient?.SendPlayerAction(PlayerAction.AbortDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+                Debug.Log($"Aborted breaking block at {_targetBlockPosition}");
+            }
+            
+            _blockBreakProgress = 0f;
+        }
+        
+        private void PlaceBlock()
+        {
+            if (!_hasTargetBlock || SelectedItem == null) return;
+            
+            Bounds playerBounds = _characterController.bounds;
+            Bounds blockBounds = new Bounds(_placeBlockPosition + Vector3.one * 0.5f, Vector3.one);
+            
+            if (playerBounds.Intersects(blockBounds))
+            {
+                Debug.Log("Cannot place block: would intersect with player");
+                return;
+            }
+            
+            _networkClient?.SendBlockChange(_placeBlockPosition, SelectedItem.ItemId, 0, null, PlayerAction.PlaceBlock);
+            
+            if (_gameMode == GameMode.Survival)
+            {
+                ConsumeSelectedItem(1);
+            }
+            
+            Debug.Log($"Placed block {SelectedItem.ItemName} at {_placeBlockPosition}");
+        }
+        
+        private void ConsumeSelectedItem(int quantity)
+        {
+            var item = _hotbar[_selectedHotbarSlot];
+            if (item == null || item.Quantity < quantity) return;
+            
+            item.Quantity -= quantity;
+            if (item.Quantity <= 0)
+            {
+                _hotbar[_selectedHotbarSlot] = null;
+            }
+            
+            _networkClient?.SendInventoryUpdate(_selectedHotbarSlot, _hotbar[_selectedHotbarSlot], InventoryAction.SetItem);
+        }
+        
+        private void UpdateNetworkSync()
+        {
+            if (_networkClient == null || !_networkClient.IsConnected) return;
+            
+            float distance = Vector3.Distance(transform.position, _lastSentPosition);
+            float timeSinceLastSent = Time.time - _lastSentTime;
+            
+            if (distance > 0.1f || timeSinceLastSent > 0.05f)
+            {
+                Vector3 rotation = new Vector3(_verticalRotation, transform.eulerAngles.y, 0);
+                
+                _networkClient.SendPlayerMove(
+                    transform.position,
+                    rotation,
+                    _isGrounded,
+                    _isSneaking,
+                    _isSprinting,
+                    _isFlying
+                );
+                
+                _lastSentPosition = transform.position;
+                _lastSentTime = Time.time;
+            }
+        }
+        
+        private void UpdateUI()
+        {
+            if (playerUI != null)
+            {
+                playerUI.UpdateHotbar(_hotbar, _selectedHotbarSlot);
+                playerUI.UpdateBlockBreakProgress(_blockBreakProgress);
+                playerUI.UpdateCrosshair(_hasTargetBlock);
+                
+                if (_playerInfo != null)
+                {
+                    playerUI.UpdateHealth(_playerInfo.Health, _playerInfo.MaxHealth);
+                    playerUI.UpdateHunger(_playerInfo.Hunger, _playerInfo.MaxHunger);
+                    playerUI.UpdateExperience(_playerInfo.Level, _playerInfo.Experience);
+                }
+            }
+        }
+        
+        private void InitializeHotbar()
+        {
+            _hotbar[0] = new InventoryItem { ItemId = 1, ItemName = "Stone", Quantity = 64, ItemType = ItemType.Block };
+            _hotbar[1] = new InventoryItem { ItemId = 2, ItemName = "Grass", Quantity = 64, ItemType = ItemType.Block };
+            _hotbar[2] = new InventoryItem { ItemId = 3, ItemName = "Dirt", Quantity = 64, ItemType = ItemType.Block };
+        }
+        
+        private void OnPlayerInfoUpdated(PlayerInfo playerInfo)
+        {
+            _playerInfo = playerInfo;
+            
+            if (playerInfo.Position != null)
+            {
+                var serverPos = new Vector3(
+                    (float)playerInfo.Position.X,
+                    (float)playerInfo.Position.Y,
+                    (float)playerInfo.Position.Z
+                );
+                
+                if (Vector3.Distance(transform.position, serverPos) > 1f)
+                {
+                    transform.position = serverPos;
+                    Debug.Log($"Position corrected by server: {serverPos}");
+                }
+            }
+            
+            _gameMode = playerInfo.GameMode;
+            
+            UpdateHotbarFromInventory(playerInfo.Inventory);
+        }
+        
+        private void OnBlockChanged(Vector3Int position, int oldBlockId, int newBlockId)
+        {
+            Debug.Log($"Block changed at {position}: {oldBlockId} -> {newBlockId}");
+        }
+        
+        private void UpdateHotbarFromInventory(System.Collections.Generic.IList<InventoryItem> inventory)
+        {
+            for (int i = 0; i < 9 && i < inventory.Count; i++)
+            {
+                _hotbar[i] = inventory[i];
+            }
+        }
+        
+        public void Teleport(Vector3 position)
+        {
+            _characterController.enabled = false;
+            transform.position = position;
+            _characterController.enabled = true;
+            
+            _velocity = Vector3.zero;
+            _lastSentPosition = position;
+        }
+        
+        public void SetGameMode(GameMode gameMode)
+        {
+            _gameMode = gameMode;
+            
+            if (gameMode == GameMode.Creative)
+            {
+                _isFlying = true;
+            }
+            else
+            {
+                _isFlying = false;
+            }
+        }
+        
+        private void OnDestroy()
+        {
+            if (_networkClient != null)
+            {
+                _networkClient.PlayerInfoUpdated -= OnPlayerInfoUpdated;
+                _networkClient.BlockChanged -= OnBlockChanged;
+            }
+        }
+        
+        private void OnDrawGizmosSelected()
+        {
+            if (playerCamera != null)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawRay(playerCamera.transform.position, playerCamera.transform.forward * blockReach);
+            }
+            
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(transform.position, groundCheckDistance);
+            
+            if (_hasTargetBlock)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawWireCube(_targetBlockPosition + Vector3.one * 0.5f, Vector3.one);
+                
+                Gizmos.color = Color.blue;
+                Gizmos.DrawWireCube(_placeBlockPosition + Vector3.one * 0.5f, Vector3.one);
+            }
+        }
+    }
+}

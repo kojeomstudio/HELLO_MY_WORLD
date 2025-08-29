@@ -1,1 +1,364 @@
-using System.Collections.Generic;\nusing UnityEngine;\nusing MinecraftProtocol;\nusing Minecraft.World;\n\nnamespace Minecraft.World\n{\n    /// <summary>\n    /// 마인크래프트 스타일 청크 렌더링을 담당하는 컴포넌트\n    /// 블록들을 효율적인 메시로 변환하고 텍스처 아틀라스를 사용합니다.\n    /// </summary>\n    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]\n    public class ChunkRenderer : MonoBehaviour\n    {\n        [Header(\"Rendering Settings\")]\n        [SerializeField] private bool enableAmbientOcclusion = true;\n        [SerializeField] private bool enableBackfaceCulling = true;\n        [SerializeField] private float blockSize = 1f;\n        \n        // 컴포넌트 참조\n        private MeshFilter _meshFilter;\n        private MeshRenderer _meshRenderer;\n        private MeshCollider _meshCollider;\n        \n        // 청크 데이터\n        private ChunkInfo _chunkData;\n        private Dictionary<int, BlockType> _blockTypes;\n        private Material _material;\n        \n        // 메시 생성 데이터\n        private List<Vector3> _vertices = new();\n        private List<int> _triangles = new();\n        private List<Vector2> _uvs = new();\n        private List<Vector3> _normals = new();\n        private List<Color> _colors = new();\n        \n        // 최적화용 데이터\n        private bool _needsUpdate = false;\n        private Mesh _mesh;\n        \n        // 블록 면 정의 (로컬 좌표)\n        private static readonly Vector3[] _blockVertices = new Vector3[8]\n        {\n            new Vector3(0, 0, 0), // 0: 왼쪽 아래 앞\n            new Vector3(1, 0, 0), // 1: 오른쪽 아래 앞\n            new Vector3(1, 1, 0), // 2: 오른쪽 위 앞\n            new Vector3(0, 1, 0), // 3: 왼쪽 위 앞\n            new Vector3(0, 0, 1), // 4: 왼쪽 아래 뒤\n            new Vector3(1, 0, 1), // 5: 오른쪽 아래 뒤\n            new Vector3(1, 1, 1), // 6: 오른쪽 위 뒤\n            new Vector3(0, 1, 1)  // 7: 왼쪽 위 뒤\n        };\n        \n        // 각 면의 버텍스 인덱스 (시계방향)\n        private static readonly int[][] _faceVertices = new int[6][]\n        {\n            new int[] { 0, 3, 1, 2 }, // 앞면 (Z-)\n            new int[] { 5, 6, 4, 7 }, // 뒷면 (Z+)\n            new int[] { 4, 7, 0, 3 }, // 왼쪽면 (X-)\n            new int[] { 1, 2, 5, 6 }, // 오른쪽면 (X+)\n            new int[] { 4, 0, 5, 1 }, // 아래면 (Y-)\n            new int[] { 3, 7, 2, 6 }  // 위면 (Y+)\n        };\n        \n        // 면 법선 벡터\n        private static readonly Vector3[] _faceNormals = new Vector3[6]\n        {\n            Vector3.back,    // 앞면\n            Vector3.forward, // 뒷면\n            Vector3.left,    // 왼쪽면\n            Vector3.right,   // 오른쪽면\n            Vector3.down,    // 아래면\n            Vector3.up       // 위면\n        };\n        \n        private void Awake()\n        {\n            _meshFilter = GetComponent<MeshFilter>();\n            _meshRenderer = GetComponent<MeshRenderer>();\n            _meshCollider = GetComponent<MeshCollider>();\n            \n            _mesh = new Mesh();\n            _mesh.name = \"ChunkMesh\";\n            _meshFilter.mesh = _mesh;\n        }\n        \n        /// <summary>\n        /// 청크 렌더러를 초기화합니다.\n        /// </summary>\n        public void Initialize(ChunkInfo chunkData, Dictionary<int, BlockType> blockTypes, Material material)\n        {\n            _chunkData = chunkData;\n            _blockTypes = blockTypes;\n            _material = material;\n            \n            _meshRenderer.material = material;\n            \n            _needsUpdate = true;\n            UpdateMesh();\n        }\n        \n        /// <summary>\n        /// 청크 데이터를 업데이트합니다.\n        /// </summary>\n        public void UpdateData(ChunkInfo chunkData)\n        {\n            _chunkData = chunkData;\n            _needsUpdate = true;\n        }\n        \n        /// <summary>\n        /// 메시를 업데이트합니다.\n        /// </summary>\n        public void UpdateMesh()\n        {\n            if (!_needsUpdate || _chunkData == null) return;\n            \n            ClearMeshData();\n            GenerateMesh();\n            ApplyMeshData();\n            \n            _needsUpdate = false;\n        }\n        \n        /// <summary>\n        /// 메시 데이터를 초기화합니다.\n        /// </summary>\n        private void ClearMeshData()\n        {\n            _vertices.Clear();\n            _triangles.Clear();\n            _uvs.Clear();\n            _normals.Clear();\n            _colors.Clear();\n        }\n        \n        /// <summary>\n        /// 청크 메시를 생성합니다.\n        /// </summary>\n        private void GenerateMesh()\n        {\n            if (_chunkData?.Blocks == null) return;\n            \n            // 블록 데이터를 3D 배열로 변환 (성능 최적화)\n            var blockArray = CreateBlockArray();\n            \n            // 각 블록에 대해 메시 생성\n            for (int x = 0; x < 16; x++)\n            {\n                for (int y = 0; y < 256; y++) // 월드 높이\n                {\n                    for (int z = 0; z < 16; z++)\n                    {\n                        var blockId = blockArray[x, y, z];\n                        if (blockId == 0) continue; // Air 블록은 렌더링하지 않음\n                        \n                        if (!_blockTypes.TryGetValue(blockId, out var blockType)) continue;\n                        if (!blockType.IsSolid) continue;\n                        \n                        GenerateBlockMesh(x, y, z, blockType, blockArray);\n                    }\n                }\n            }\n        }\n        \n        /// <summary>\n        /// 블록 데이터를 3D 배열로 변환합니다.\n        /// </summary>\n        private int[,,] CreateBlockArray()\n        {\n            var blockArray = new int[16, 256, 16]; // 기본값은 0 (Air)\n            \n            foreach (var block in _chunkData.Blocks)\n            {\n                var pos = block.Position;\n                if (pos.X >= 0 && pos.X < 16 && pos.Y >= 0 && pos.Y < 256 && pos.Z >= 0 && pos.Z < 16)\n                {\n                    blockArray[pos.X, pos.Y, pos.Z] = block.BlockId;\n                }\n            }\n            \n            return blockArray;\n        }\n        \n        /// <summary>\n        /// 개별 블록의 메시를 생성합니다.\n        /// </summary>\n        private void GenerateBlockMesh(int x, int y, int z, BlockType blockType, int[,,] blockArray)\n        {\n            var blockPosition = new Vector3(x, y, z) * blockSize;\n            \n            // 각 면에 대해 검사\n            for (int face = 0; face < 6; face++)\n            {\n                if (ShouldRenderFace(x, y, z, face, blockArray))\n                {\n                    AddBlockFace(blockPosition, face, blockType);\n                }\n            }\n        }\n        \n        /// <summary>\n        /// 블록의 특정 면을 렌더링해야 하는지 확인합니다.\n        /// </summary>\n        private bool ShouldRenderFace(int x, int y, int z, int face, int[,,] blockArray)\n        {\n            if (!enableBackfaceCulling) return true;\n            \n            // 인접한 블록의 위치 계산\n            var adjacentPos = GetAdjacentPosition(x, y, z, face);\n            \n            // 청크 범위를 벗어나면 렌더링\n            if (adjacentPos.x < 0 || adjacentPos.x >= 16 || \n                adjacentPos.y < 0 || adjacentPos.y >= 256 || \n                adjacentPos.z < 0 || adjacentPos.z >= 16)\n            {\n                return true;\n            }\n            \n            // 인접한 블록이 투명하면 렌더링\n            var adjacentBlockId = blockArray[adjacentPos.x, adjacentPos.y, adjacentPos.z];\n            if (adjacentBlockId == 0) return true; // Air\n            \n            if (_blockTypes.TryGetValue(adjacentBlockId, out var adjacentBlockType))\n            {\n                return !adjacentBlockType.IsOpaque;\n            }\n            \n            return false;\n        }\n        \n        /// <summary>\n        /// 특정 면에 인접한 블록의 위치를 가져옵니다.\n        /// </summary>\n        private Vector3Int GetAdjacentPosition(int x, int y, int z, int face)\n        {\n            return face switch\n            {\n                0 => new Vector3Int(x, y, z - 1), // 앞면\n                1 => new Vector3Int(x, y, z + 1), // 뒷면\n                2 => new Vector3Int(x - 1, y, z), // 왼쪽면\n                3 => new Vector3Int(x + 1, y, z), // 오른쪽면\n                4 => new Vector3Int(x, y - 1, z), // 아래면\n                5 => new Vector3Int(x, y + 1, z), // 위면\n                _ => new Vector3Int(x, y, z)\n            };\n        }\n        \n        /// <summary>\n        /// 블록의 한 면을 메시에 추가합니다.\n        /// </summary>\n        private void AddBlockFace(Vector3 blockPosition, int faceIndex, BlockType blockType)\n        {\n            var startVertexIndex = _vertices.Count;\n            var faceVertices = _faceVertices[faceIndex];\n            var faceNormal = _faceNormals[faceIndex];\n            \n            // 버텍스 추가\n            for (int i = 0; i < 4; i++)\n            {\n                var localVertex = _blockVertices[faceVertices[i]] * blockSize;\n                var worldVertex = blockPosition + localVertex;\n                _vertices.Add(worldVertex);\n                _normals.Add(faceNormal);\n            }\n            \n            // UV 좌표 추가 (텍스처 아틀라스 고려)\n            var uvs = GetBlockFaceUVs(blockType, faceIndex);\n            _uvs.AddRange(uvs);\n            \n            // 색상 추가 (Ambient Occlusion 등)\n            var color = enableAmbientOcclusion ? CalculateAmbientOcclusion(blockPosition, faceIndex) : Color.white;\n            for (int i = 0; i < 4; i++)\n            {\n                _colors.Add(color);\n            }\n            \n            // 삼각형 인덱스 추가 (사각형을 두 개의 삼각형으로)\n            _triangles.AddRange(new int[]\n            {\n                startVertexIndex + 0, startVertexIndex + 1, startVertexIndex + 2,\n                startVertexIndex + 0, startVertexIndex + 2, startVertexIndex + 3\n            });\n        }\n        \n        /// <summary>\n        /// 블록 면의 UV 좌표를 가져옵니다.\n        /// </summary>\n        private Vector2[] GetBlockFaceUVs(BlockType blockType, int faceIndex)\n        {\n            // 간단한 구현: 모든 면에 동일한 텍스처 사용\n            // 실제로는 블록 타입과 면에 따라 다른 UV 좌표를 반환해야 함\n            \n            float textureSize = 1f / 16f; // 16x16 아틀라스 가정\n            float u = (blockType.Id % 16) * textureSize;\n            float v = (blockType.Id / 16) * textureSize;\n            \n            return new Vector2[]\n            {\n                new Vector2(u, v),\n                new Vector2(u + textureSize, v),\n                new Vector2(u + textureSize, v + textureSize),\n                new Vector2(u, v + textureSize)\n            };\n        }\n        \n        /// <summary>\n        /// Ambient Occlusion을 계산합니다.\n        /// </summary>\n        private Color CalculateAmbientOcclusion(Vector3 blockPosition, int faceIndex)\n        {\n            // 간단한 AO 구현: 면의 방향에 따라 밝기 조절\n            float brightness = faceIndex switch\n            {\n                5 => 1.0f,  // 위면 (가장 밝음)\n                4 => 0.5f,  // 아래면 (가장 어두움)\n                _ => 0.8f   // 옆면들\n            };\n            \n            return new Color(brightness, brightness, brightness, 1f);\n        }\n        \n        /// <summary>\n        /// 생성된 메시 데이터를 Unity 메시에 적용합니다.\n        /// </summary>\n        private void ApplyMeshData()\n        {\n            if (_vertices.Count == 0)\n            {\n                // 빈 청크인 경우\n                _mesh.Clear();\n                return;\n            }\n            \n            _mesh.Clear();\n            \n            // 메시 데이터 설정\n            _mesh.vertices = _vertices.ToArray();\n            _mesh.triangles = _triangles.ToArray();\n            _mesh.uv = _uvs.ToArray();\n            _mesh.normals = _normals.ToArray();\n            _mesh.colors = _colors.ToArray();\n            \n            // 최적화\n            _mesh.Optimize();\n            _mesh.RecalculateBounds();\n            \n            // 콜라이더 업데이트\n            if (_meshCollider != null)\n            {\n                _meshCollider.sharedMesh = _mesh;\n            }\n            \n            Debug.Log($\"Generated mesh with {_vertices.Count} vertices, {_triangles.Count / 3} triangles\");\n        }\n        \n        /// <summary>\n        /// 특정 블록 위치를 즉시 업데이트합니다.\n        /// </summary>\n        public void UpdateBlock(Vector3Int localPosition, int newBlockId)\n        {\n            // 블록 데이터 업데이트\n            bool blockFound = false;\n            foreach (var block in _chunkData.Blocks)\n            {\n                if (block.Position.X == localPosition.x && \n                    block.Position.Y == localPosition.y && \n                    block.Position.Z == localPosition.z)\n                {\n                    // TODO: protobuf 필드 업데이트 (읽기 전용이므로 새 객체 생성 필요)\n                    blockFound = true;\n                    break;\n                }\n            }\n            \n            if (!blockFound && newBlockId != 0)\n            {\n                // 새 블록 추가\n                // TODO: protobuf repeated field에 추가\n            }\n            \n            _needsUpdate = true;\n        }\n        \n        /// <summary>\n        /// 청크의 메시 통계를 가져옵니다.\n        /// </summary>\n        public MeshStats GetMeshStats()\n        {\n            return new MeshStats\n            {\n                VertexCount = _vertices.Count,\n                TriangleCount = _triangles.Count / 3,\n                FaceCount = _triangles.Count / 6,\n                HasMesh = _mesh != null && _vertices.Count > 0\n            };\n        }\n        \n        private void OnDestroy()\n        {\n            if (_mesh != null)\n            {\n                DestroyImmediate(_mesh);\n            }\n        }\n        \n        /// <summary>\n        /// 디버그용 기즈모 그리기\n        /// </summary>\n        private void OnDrawGizmosSelected()\n        {\n            if (_chunkData == null) return;\n            \n            // 청크 경계 표시\n            Gizmos.color = Color.cyan;\n            Gizmos.DrawWireCube(transform.position + new Vector3(8, 128, 8), new Vector3(16, 256, 16));\n            \n            // 블록 위치 표시 (성능상 일부만)\n            if (_chunkData.Blocks.Count < 100)\n            {\n                Gizmos.color = Color.yellow;\n                foreach (var block in _chunkData.Blocks)\n                {\n                    if (block.BlockId != 0)\n                    {\n                        var worldPos = transform.position + new Vector3(block.Position.X, block.Position.Y, block.Position.Z);\n                        Gizmos.DrawWireCube(worldPos + Vector3.one * 0.5f, Vector3.one);\n                    }\n                }\n            }\n        }\n    }\n    \n    /// <summary>\n    /// 메시 통계 정보\n    /// </summary>\n    [System.Serializable]\n    public struct MeshStats\n    {\n        public int VertexCount;\n        public int TriangleCount;\n        public int FaceCount;\n        public bool HasMesh;\n        \n        public override string ToString()\n        {\n            return $\"Vertices: {VertexCount}, Triangles: {TriangleCount}, Faces: {FaceCount}\";\n        }\n    }\n}
+using System.Collections.Generic;
+using UnityEngine;
+using MinecraftProtocol;
+using Minecraft.World;
+
+namespace Minecraft.World
+{
+    /// <summary>
+    /// 마인크래프트 스타일 청크 렌더링을 담당하는 컴포넌트
+    /// 블록들을 효율적인 메시로 변환하고 텍스처 아틀라스를 사용합니다.
+    /// </summary>
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
+    public class ChunkRenderer : MonoBehaviour
+    {
+        [Header("Rendering Settings")]
+        [SerializeField] private bool enableAmbientOcclusion = true;
+        [SerializeField] private bool enableBackfaceCulling = true;
+        [SerializeField] private float blockSize = 1f;
+        
+        private MeshFilter _meshFilter;
+        private MeshRenderer _meshRenderer;
+        private MeshCollider _meshCollider;
+        
+        private ChunkInfo _chunkData;
+        private Dictionary<int, BlockType> _blockTypes;
+        private Material _material;
+        
+        private List<Vector3> _vertices = new();
+        private List<int> _triangles = new();
+        private List<Vector2> _uvs = new();
+        private List<Vector3> _normals = new();
+        private List<Color> _colors = new();
+        
+        private bool _needsUpdate = false;
+        private Mesh _mesh;
+        
+        private static readonly Vector3[] _blockVertices = new Vector3[8]
+        {
+            new Vector3(0, 0, 0), // 0: 왼쪽 아래 앞
+            new Vector3(1, 0, 0), // 1: 오른쪽 아래 앞
+            new Vector3(1, 1, 0), // 2: 오른쪽 위 앞
+            new Vector3(0, 1, 0), // 3: 왼쪽 위 앞
+            new Vector3(0, 0, 1), // 4: 왼쪽 아래 뒤
+            new Vector3(1, 0, 1), // 5: 오른쪽 아래 뒤
+            new Vector3(1, 1, 1), // 6: 오른쪽 위 뒤
+            new Vector3(0, 1, 1)  // 7: 왼쪽 위 뒤
+        };
+        
+        private static readonly int[][] _faceVertices = new int[6][]
+        {
+            new int[] { 0, 3, 1, 2 }, // 앞면 (Z-)
+            new int[] { 5, 6, 4, 7 }, // 뒷면 (Z+)
+            new int[] { 4, 7, 0, 3 }, // 왼쪽면 (X-)
+            new int[] { 1, 2, 5, 6 }, // 오른쪽면 (X+)
+            new int[] { 4, 0, 5, 1 }, // 아래면 (Y-)
+            new int[] { 3, 7, 2, 6 }  // 위면 (Y+)
+        };
+        
+        private static readonly Vector3[] _faceNormals = new Vector3[6]
+        {
+            Vector3.back,    // 앞면
+            Vector3.forward, // 뒷면
+            Vector3.left,    // 왼쪽면
+            Vector3.right,   // 오른쪽면
+            Vector3.down,    // 아래면
+            Vector3.up       // 위면
+        };
+        
+        private void Awake()
+        {
+            _meshFilter = GetComponent<MeshFilter>();
+            _meshRenderer = GetComponent<MeshRenderer>();
+            _meshCollider = GetComponent<MeshCollider>();
+            
+            _mesh = new Mesh();
+            _mesh.name = "ChunkMesh";
+            _meshFilter.mesh = _mesh;
+        }
+        
+        public void Initialize(ChunkInfo chunkData, Dictionary<int, BlockType> blockTypes, Material material)
+        {
+            _chunkData = chunkData;
+            _blockTypes = blockTypes;
+            _material = material;
+            
+            _meshRenderer.material = material;
+            
+            _needsUpdate = true;
+            UpdateMesh();
+        }
+        
+        public void UpdateData(ChunkInfo chunkData)
+        {
+            _chunkData = chunkData;
+            _needsUpdate = true;
+        }
+        
+        public void UpdateMesh()
+        {
+            if (!_needsUpdate || _chunkData == null) return;
+            
+            ClearMeshData();
+            GenerateMesh();
+            ApplyMeshData();
+            
+            _needsUpdate = false;
+        }
+        
+        private void ClearMeshData()
+        {
+            _vertices.Clear();
+            _triangles.Clear();
+            _uvs.Clear();
+            _normals.Clear();
+            _colors.Clear();
+        }
+        
+        private void GenerateMesh()
+        {
+            if (_chunkData?.Blocks == null) return;
+            
+            var blockArray = CreateBlockArray();
+            
+            for (int x = 0; x < 16; x++)
+            {
+                for (int y = 0; y < 256; y++)
+                {
+                    for (int z = 0; z < 16; z++)
+                    {
+                        var blockId = blockArray[x, y, z];
+                        if (blockId == 0) continue;
+                        
+                        if (!_blockTypes.TryGetValue(blockId, out var blockType)) continue;
+                        if (!blockType.IsSolid) continue;
+                        
+                        GenerateBlockMesh(x, y, z, blockType, blockArray);
+                    }
+                }
+            }
+        }
+        
+        private int[,,] CreateBlockArray()
+        {
+            var blockArray = new int[16, 256, 16];
+            
+            foreach (var block in _chunkData.Blocks)
+            {
+                var pos = block.Position;
+                if (pos.X >= 0 && pos.X < 16 && pos.Y >= 0 && pos.Y < 256 && pos.Z >= 0 && pos.Z < 16)
+                {
+                    blockArray[pos.X, pos.Y, pos.Z] = block.BlockId;
+                }
+            }
+            
+            return blockArray;
+        }
+        
+        private void GenerateBlockMesh(int x, int y, int z, BlockType blockType, int[,,] blockArray)
+        {
+            var blockPosition = new Vector3(x, y, z) * blockSize;
+            
+            for (int face = 0; face < 6; face++)
+            {
+                if (ShouldRenderFace(x, y, z, face, blockArray))
+                {
+                    AddBlockFace(blockPosition, face, blockType);
+                }
+            }
+        }
+        
+        private bool ShouldRenderFace(int x, int y, int z, int face, int[,,] blockArray)
+        {
+            if (!enableBackfaceCulling) return true;
+            
+            var adjacentPos = GetAdjacentPosition(x, y, z, face);
+            
+            if (adjacentPos.x < 0 || adjacentPos.x >= 16 || 
+                adjacentPos.y < 0 || adjacentPos.y >= 256 || 
+                adjacentPos.z < 0 || adjacentPos.z >= 16)
+            {
+                return true;
+            }
+            
+            var adjacentBlockId = blockArray[adjacentPos.x, adjacentPos.y, adjacentPos.z];
+            if (adjacentBlockId == 0) return true;
+            
+            if (_blockTypes.TryGetValue(adjacentBlockId, out var adjacentBlockType))
+            {
+                return !adjacentBlockType.IsOpaque;
+            }
+            
+            return false;
+        }
+        
+        private Vector3Int GetAdjacentPosition(int x, int y, int z, int face)
+        {
+            return face switch
+            {
+                0 => new Vector3Int(x, y, z - 1), // 앞면
+                1 => new Vector3Int(x, y, z + 1), // 뒷면
+                2 => new Vector3Int(x - 1, y, z), // 왼쪽면
+                3 => new Vector3Int(x + 1, y, z), // 오른쪽면
+                4 => new Vector3Int(x, y - 1, z), // 아래면
+                5 => new Vector3Int(x, y + 1, z), // 위면
+                _ => new Vector3Int(x, y, z)
+            };
+        }
+        
+        private void AddBlockFace(Vector3 blockPosition, int faceIndex, BlockType blockType)
+        {
+            var startVertexIndex = _vertices.Count;
+            var faceVertices = _faceVertices[faceIndex];
+            var faceNormal = _faceNormals[faceIndex];
+            
+            for (int i = 0; i < 4; i++)
+            {
+                var localVertex = _blockVertices[faceVertices[i]] * blockSize;
+                var worldVertex = blockPosition + localVertex;
+                _vertices.Add(worldVertex);
+                _normals.Add(faceNormal);
+            }
+            
+            var uvs = GetBlockFaceUVs(blockType, faceIndex);
+            _uvs.AddRange(uvs);
+            
+            var color = enableAmbientOcclusion ? CalculateAmbientOcclusion(blockPosition, faceIndex) : Color.white;
+            for (int i = 0; i < 4; i++)
+            {
+                _colors.Add(color);
+            }
+            
+            _triangles.AddRange(new int[]
+            {
+                startVertexIndex + 0, startVertexIndex + 1, startVertexIndex + 2,
+                startVertexIndex + 0, startVertexIndex + 2, startVertexIndex + 3
+            });
+        }
+        
+        private Vector2[] GetBlockFaceUVs(BlockType blockType, int faceIndex)
+        {
+            float textureSize = 1f / 16f;
+            float u = (blockType.Id % 16) * textureSize;
+            float v = (blockType.Id / 16) * textureSize;
+            
+            return new Vector2[]
+            {
+                new Vector2(u, v),
+                new Vector2(u + textureSize, v),
+                new Vector2(u + textureSize, v + textureSize),
+                new Vector2(u, v + textureSize)
+            };
+        }
+        
+        private Color CalculateAmbientOcclusion(Vector3 blockPosition, int faceIndex)
+        {
+            float brightness = faceIndex switch
+            {
+                5 => 1.0f,  // 위면
+                4 => 0.5f,  // 아래면
+                _ => 0.8f   // 옆면들
+            };
+            
+            return new Color(brightness, brightness, brightness, 1f);
+        }
+        
+        private void ApplyMeshData()
+        {
+            if (_vertices.Count == 0)
+            {
+                _mesh.Clear();
+                return;
+            }
+            
+            _mesh.Clear();
+            
+            _mesh.vertices = _vertices.ToArray();
+            _mesh.triangles = _triangles.ToArray();
+            _mesh.uv = _uvs.ToArray();
+            _mesh.normals = _normals.ToArray();
+            _mesh.colors = _colors.ToArray();
+            
+            _mesh.Optimize();
+            _mesh.RecalculateBounds();
+            
+            if (_meshCollider != null)
+            {
+                _meshCollider.sharedMesh = _mesh;
+            }
+            
+            Debug.Log($"Generated mesh with {_vertices.Count} vertices, {_triangles.Count / 3} triangles");
+        }
+        
+        public void UpdateBlock(Vector3Int localPosition, int newBlockId)
+        {
+            bool blockFound = false;
+            foreach (var block in _chunkData.Blocks)
+            {
+                if (block.Position.X == localPosition.x && 
+                    block.Position.Y == localPosition.y && 
+                    block.Position.Z == localPosition.z)
+                {
+                    blockFound = true;
+                    break;
+                }
+            }
+            
+            _needsUpdate = true;
+        }
+        
+        public MeshStats GetMeshStats()
+        {
+            return new MeshStats
+            {
+                VertexCount = _vertices.Count,
+                TriangleCount = _triangles.Count / 3,
+                FaceCount = _triangles.Count / 6,
+                HasMesh = _mesh != null && _vertices.Count > 0
+            };
+        }
+        
+        private void OnDestroy()
+        {
+            if (_mesh != null)
+            {
+                DestroyImmediate(_mesh);
+            }
+        }
+        
+        private void OnDrawGizmosSelected()
+        {
+            if (_chunkData == null) return;
+            
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireCube(transform.position + new Vector3(8, 128, 8), new Vector3(16, 256, 16));
+            
+            if (_chunkData.Blocks.Count < 100)
+            {
+                Gizmos.color = Color.yellow;
+                foreach (var block in _chunkData.Blocks)
+                {
+                    if (block.BlockId != 0)
+                    {
+                        var worldPos = transform.position + new Vector3(block.Position.X, block.Position.Y, block.Position.Z);
+                        Gizmos.DrawWireCube(worldPos + Vector3.one * 0.5f, Vector3.one);
+                    }
+                }
+            }
+        }
+    }
+    
+    [System.Serializable]
+    public struct MeshStats
+    {
+        public int VertexCount;
+        public int TriangleCount;
+        public int FaceCount;
+        public bool HasMesh;
+        
+        public override string ToString()
+        {
+            return $"Vertices: {VertexCount}, Triangles: {TriangleCount}, Faces: {FaceCount}";
+        }
+    }
+}

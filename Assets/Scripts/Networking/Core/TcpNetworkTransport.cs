@@ -186,4 +186,92 @@ namespace Networking.Core
 
         /// <summary>
         /// Reads exactly the specified amount of data.
-        /// </summary>\n        private async Task<byte[]> ReadExactAsync(int size, CancellationToken cancellationToken)\n        {\n            var buffer = new byte[size];\n            int totalRead = 0;\n            \n            while (totalRead < size && !cancellationToken.IsCancellationRequested)\n            {\n                var read = await _stream.ReadAsync(buffer, totalRead, size - totalRead, cancellationToken);\n                if (read == 0)\n                {\n                    Debug.Log(\"Server disconnected (read 0 bytes)\");\n                    return null;\n                }\n                totalRead += read;\n            }\n            \n            return totalRead == size ? buffer : null;\n        }\n\n        /// <summary>\n        /// 리소스를 정리합니다.\n        /// </summary>\n        public void Dispose()\n        {\n            _ = DisconnectAsync();\n        }\n    }\n\n    /// <summary>\n    /// Unity 메인 스레드에서 작업을 실행하기 위한 헬퍼 클래스\n    /// </summary>\n    public static class UnityMainThread\n    {\n        private static readonly System.Collections.Concurrent.ConcurrentQueue<Action> _actions = new();\n        private static bool _initialized = false;\n\n        /// <summary>\n        /// Unity 메인 스레드에서 액션을 실행하도록 예약합니다.\n        /// </summary>\n        public static void Execute(Action action)\n        {\n            if (action == null) return;\n            \n            if (Application.isPlaying)\n            {\n                _actions.Enqueue(action);\n                \n                if (!_initialized)\n                {\n                    _initialized = true;\n                    // 메인 스레드에서 큐를 처리할 MonoBehaviour 컴포넌트를 생성\n                    var go = new GameObject(\"UnityMainThreadDispatcher\");\n                    go.AddComponent<UnityMainThreadDispatcher>();\n                    UnityEngine.Object.DontDestroyOnLoad(go);\n                }\n            }\n        }\n        \n        /// <summary>\n        /// 큐에 있는 모든 액션을 실행합니다. (MonoBehaviour.Update에서 호출)\n        /// </summary>\n        internal static void ProcessQueue()\n        {\n            while (_actions.TryDequeue(out var action))\n            {\n                try\n                {\n                    action();\n                }\n                catch (Exception ex)\n                {\n                    Debug.LogError($\"Error executing main thread action: {ex.Message}\");\n                }\n            }\n        }\n    }\n\n    /// <summary>\n    /// Unity 메인 스레드에서 큐를 처리하는 MonoBehaviour\n    /// </summary>\n    public class UnityMainThreadDispatcher : MonoBehaviour\n    {\n        private void Update()\n        {\n            UnityMainThread.ProcessQueue();\n        }\n    }\n}
+        /// </summary>
+        private async Task<byte[]> ReadExactAsync(int size, CancellationToken cancellationToken)
+        {
+            var buffer = new byte[size];
+            int totalRead = 0;
+            
+            while (totalRead < size && !cancellationToken.IsCancellationRequested)
+            {
+                var read = await _stream.ReadAsync(buffer, totalRead, size - totalRead, cancellationToken);
+                if (read == 0)
+                {
+                    Debug.Log("Server disconnected (read 0 bytes)");
+                    return null;
+                }
+                totalRead += read;
+            }
+            
+            return totalRead == size ? buffer : null;
+        }
+
+        /// <summary>
+        /// Cleans up resources.
+        /// </summary>
+        public void Dispose()
+        {
+            _ = DisconnectAsync();
+        }
+    }
+
+    /// <summary>
+    /// Helper class for executing tasks on Unity's main thread
+    /// </summary>
+    public static class UnityMainThread
+    {
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<Action> _actions = new();
+        private static bool _initialized = false;
+
+        /// <summary>
+        /// Schedules an action to be executed on Unity's main thread.
+        /// </summary>
+        public static void Execute(Action action)
+        {
+            if (action == null) return;
+            
+            if (Application.isPlaying)
+            {
+                _actions.Enqueue(action);
+                
+                if (!_initialized)
+                {
+                    _initialized = true;
+                    // Create MonoBehaviour component to process queue on main thread
+                    var go = new GameObject("UnityMainThreadDispatcher");
+                    go.AddComponent<UnityMainThreadDispatcher>();
+                    UnityEngine.Object.DontDestroyOnLoad(go);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Executes all actions in the queue. (Called from MonoBehaviour.Update)
+        /// </summary>
+        internal static void ProcessQueue()
+        {
+            while (_actions.TryDequeue(out var action))
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Error executing main thread action: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// MonoBehaviour that processes the queue on Unity's main thread
+    /// </summary>
+    public class UnityMainThreadDispatcher : MonoBehaviour
+    {
+        private void Update()
+        {
+            UnityMainThread.ProcessQueue();
+        }
+    }
+}

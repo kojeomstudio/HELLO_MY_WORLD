@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using MinecraftProtocol;
+using SharedProtocol;
 using Minecraft.World;
 
 namespace Minecraft.World
@@ -21,7 +21,7 @@ namespace Minecraft.World
         private MeshRenderer _meshRenderer;
         private MeshCollider _meshCollider;
         
-        private ChunkInfo _chunkData;
+        private ChunkDataResponseMessage _chunkData;
         private Dictionary<int, BlockType> _blockTypes;
         private Material _material;
         
@@ -77,7 +77,7 @@ namespace Minecraft.World
             _meshFilter.mesh = _mesh;
         }
         
-        public void Initialize(ChunkInfo chunkData, Dictionary<int, BlockType> blockTypes, Material material)
+        public void Initialize(ChunkDataResponseMessage chunkData, Dictionary<int, BlockType> blockTypes, Material material)
         {
             _chunkData = chunkData;
             _blockTypes = blockTypes;
@@ -89,7 +89,7 @@ namespace Minecraft.World
             UpdateMesh();
         }
         
-        public void UpdateData(ChunkInfo chunkData)
+        public void UpdateData(ChunkDataResponseMessage chunkData)
         {
             _chunkData = chunkData;
             _needsUpdate = true;

@@ -8,7 +8,7 @@ namespace GameServerApp.Handlers;
 /// </summary>
 public class PingHandler : MessageHandler<PingRequest>
 {
-    public PingHandler() : base(MessageType.PingRequest)
+    public PingHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.PingRequest)
     {
     }
 

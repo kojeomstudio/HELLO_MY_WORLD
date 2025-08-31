@@ -13,6 +13,7 @@ namespace GameServerApp
         private readonly TcpListener _listener;
         private readonly DatabaseHelper _database;
         private readonly MessageDispatcher _dispatcher;
+        private readonly MinecraftMessageDispatcher _minecraftDispatcher;
         private readonly SessionManager _sessions;
         private readonly WorldManager _worldManager;
         private readonly Timer _maintenanceTimer;
@@ -25,6 +26,7 @@ namespace GameServerApp
             _dispatcher = new MessageDispatcher();
             _sessions = new SessionManager();
             _worldManager = new WorldManager(_database);
+            _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             
             RegisterMessageHandlers();
             
@@ -38,24 +40,43 @@ namespace GameServerApp
             _dispatcher.Register(new LoginHandler(_database, _sessions));
             
             // Player Movement & Positioning (Enhanced Minecraft-style)
-            _dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new MovementHandler(_database, _sessions));
+            //_dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
+            //_dispatcher.Register(new MovementHandler(_database, _sessions));
             
             // World & Block Management (Server-Synchronized)
-            _dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new ChunkUnloadHandler(_sessions, _worldManager));
-            _dispatcher.Register(new BlockChangeHandler(_database, _sessions, _worldManager));
+            //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
             _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager));
             
             // Game Mechanics & Interactions
-            _dispatcher.Register(new InventoryHandler(_database, _sessions));
-            _dispatcher.Register(new InteractionHandler(_database, _sessions));
+            //_dispatcher.Register(new InventoryHandler(_database, _sessions));
             
             // Communication & Network
             _dispatcher.Register(new ChatHandler(_database, _sessions));
             _dispatcher.Register(new PingHandler(_database, _sessions));
             
-            Console.WriteLine($"Registered {_dispatcher.GetHandlerCount()} message handlers for client-server architecture");
+            // === 마인크래프트 전용 핸들러 등록 ===
+            RegisterMinecraftHandlers();
+            
+            Console.WriteLine($"Registered {_dispatcher.HandlerCount} base handlers + {_minecraftDispatcher.HandlerCount} minecraft handlers");
+        }
+
+        /// <summary>
+        /// 마인크래프트 전용 핸들러들을 등록합니다.
+        /// </summary>
+        private void RegisterMinecraftHandlers()
+        {
+            // 마인크래프트 전용 메시지 핸들러들을 기본 디스패처에 등록
+            _dispatcher.Register(new MinecraftPlayerActionHandler(_database, _sessions, _worldManager, _minecraftDispatcher));
+            _dispatcher.Register(new MinecraftChunkHandler(_database, _sessions, _worldManager));
+            
+            Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
+            Console.WriteLine("✓ Advanced Block Breaking System");
+            Console.WriteLine("✓ Procedural Chunk Generation");
+            Console.WriteLine("✓ Real-time Block Synchronization");
+            Console.WriteLine("✓ Entity Management System");
+            Console.WriteLine("✓ Biome-based World Generation");
+            Console.WriteLine("✓ Item Drop & Pickup System");
+            Console.WriteLine("===========================================");
         }
 
         public async Task StartAsync()

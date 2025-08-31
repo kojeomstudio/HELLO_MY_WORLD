@@ -1,5 +1,5 @@
 using UnityEngine;
-using MinecraftProtocol;
+using SharedProtocol;
 using Minecraft.Core;
 using Minecraft.World;
 
@@ -34,7 +34,7 @@ namespace Minecraft.Player
         [SerializeField] private PlayerUI playerUI;
         
         private CharacterController _characterController;
-        private MinecraftNetworkClient _networkClient;
+        private MinecraftGameClient _gameClient;
         private ChunkManager _chunkManager;
         
         private Vector3 _velocity;
@@ -42,7 +42,7 @@ namespace Minecraft.Player
         private bool _isSprinting;
         private bool _isSneaking;
         private bool _isFlying;
-        private GameMode _gameMode = GameMode.Survival;
+        private GameModeType _gameMode = GameModeType.Survival;
         
         private float _verticalRotation;
         private Vector3 _lastSentPosition;
@@ -55,8 +55,8 @@ namespace Minecraft.Player
         private float _blockBreakTime;
         private int _selectedHotbarSlot = 0;
         
-        private PlayerInfo _playerInfo;
-        private InventoryItem[] _hotbar = new InventoryItem[9];
+        private PlayerStateInfo _playerInfo;
+        private ItemInfo[] _hotbar = new ItemInfo[9];
         
         private bool _leftMousePressed;
         private bool _rightMousePressed;
@@ -65,7 +65,7 @@ namespace Minecraft.Player
         public Vector3Int TargetBlockPosition => _targetBlockPosition;
         public bool HasTargetBlock => _hasTargetBlock;
         public int SelectedHotbarSlot => _selectedHotbarSlot;
-        public InventoryItem SelectedItem => _hotbar[_selectedHotbarSlot];
+        public ItemInfo SelectedItem => _hotbar[_selectedHotbarSlot];
         
         private void Awake()
         {
@@ -76,16 +76,16 @@ namespace Minecraft.Player
             
             Cursor.lockState = CursorLockMode.Locked;
             
-            _networkClient = FindObjectOfType<MinecraftNetworkClient>();
+            _gameClient = FindObjectOfType<MinecraftGameClient>();
             _chunkManager = FindObjectOfType<ChunkManager>();
         }
         
         private void Start()
         {
-            if (_networkClient != null)
+            if (_gameClient != null)
             {
-                _networkClient.PlayerInfoUpdated += OnPlayerInfoUpdated;
-                _networkClient.BlockChanged += OnBlockChanged;
+                _gameClient.PlayerStateUpdated += OnPlayerStateUpdated;
+                _gameClient.BlockChanged += OnBlockChanged;
             }
             
             InitializeHotbar();
@@ -116,7 +116,7 @@ namespace Minecraft.Player
                 _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             }
             
-            if (_gameMode == GameMode.Creative && Input.GetKeyDown(KeyCode.F))
+            if (_gameMode == GameModeType.Creative && Input.GetKeyDown(KeyCode.F))
             {
                 _isFlying = !_isFlying;
             }
@@ -153,7 +153,7 @@ namespace Minecraft.Player
             
             float currentSpeed = _isSprinting ? sprintSpeed : (_isSneaking ? sneakSpeed : walkSpeed);
             
-            if (_isFlying && _gameMode == GameMode.Creative)
+            if (_isFlying && _gameMode == GameModeType.Creative)
             {
                 if (Input.GetKey(KeyCode.Space))
                     direction.y = 1f;
@@ -241,7 +241,7 @@ namespace Minecraft.Player
                     StopBlockBreaking();
                 }
                 
-                if (_rightMousePressed && SelectedItem != null && SelectedItem.ItemType == ItemType.Block)
+                if (_rightMousePressed && SelectedItem != null && SelectedItem.Type == ItemType.Block)
                 {
                     PlaceBlock();
                 }
@@ -272,7 +272,7 @@ namespace Minecraft.Player
             _blockBreakTime = blockType.Hardness;
             _blockBreakProgress = 0f;
             
-            _networkClient?.SendPlayerAction(PlayerAction.StartDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+            _gameClient?.SendPlayerAction(PlayerActionType.StartDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
             
             Debug.Log($"Started breaking block at {_targetBlockPosition} (hardness: {blockType.Hardness})");
         }
@@ -285,7 +285,7 @@ namespace Minecraft.Player
             
             if (_blockBreakProgress >= 1f)
             {
-                _networkClient?.SendPlayerAction(PlayerAction.StopDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+                _gameClient?.SendPlayerAction(PlayerActionType.StopDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
                 _blockBreakProgress = 0f;
                 
                 Debug.Log($"Finished breaking block at {_targetBlockPosition}");
@@ -296,7 +296,7 @@ namespace Minecraft.Player
         {
             if (_blockBreakProgress > 0 && _blockBreakProgress < 1f)
             {
-                _networkClient?.SendPlayerAction(PlayerAction.AbortDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
+                _gameClient?.SendPlayerAction(PlayerActionType.AbortDestroyBlock, _targetBlockPosition, 0, Vector3.zero, SelectedItem);
                 Debug.Log($"Aborted breaking block at {_targetBlockPosition}");
             }
             
@@ -316,9 +316,9 @@ namespace Minecraft.Player
                 return;
             }
             
-            _networkClient?.SendBlockChange(_placeBlockPosition, SelectedItem.ItemId, 0, null, PlayerAction.PlaceBlock);
+            _gameClient?.SendPlayerAction(PlayerActionType.PlaceBlock, _placeBlockPosition, 0, Vector3.zero, SelectedItem);
             
-            if (_gameMode == GameMode.Survival)
+            if (_gameMode == GameModeType.Survival)
             {
                 ConsumeSelectedItem(1);
             }
@@ -337,12 +337,12 @@ namespace Minecraft.Player
                 _hotbar[_selectedHotbarSlot] = null;
             }
             
-            _networkClient?.SendInventoryUpdate(_selectedHotbarSlot, _hotbar[_selectedHotbarSlot], InventoryAction.SetItem);
+            // TODO: Implement inventory update with new protocol
         }
         
         private void UpdateNetworkSync()
         {
-            if (_networkClient == null || !_networkClient.IsConnected) return;
+            if (_gameClient == null || !_gameClient.IsConnected) return;
             
             float distance = Vector3.Distance(transform.position, _lastSentPosition);
             float timeSinceLastSent = Time.time - _lastSentTime;
@@ -351,7 +351,7 @@ namespace Minecraft.Player
             {
                 Vector3 rotation = new Vector3(_verticalRotation, transform.eulerAngles.y, 0);
                 
-                _networkClient.SendPlayerMove(
+                _gameClient.SendPlayerStateUpdate(
                     transform.position,
                     rotation,
                     _isGrounded,
@@ -384,21 +384,21 @@ namespace Minecraft.Player
         
         private void InitializeHotbar()
         {
-            _hotbar[0] = new InventoryItem { ItemId = 1, ItemName = "Stone", Quantity = 64, ItemType = ItemType.Block };
-            _hotbar[1] = new InventoryItem { ItemId = 2, ItemName = "Grass", Quantity = 64, ItemType = ItemType.Block };
-            _hotbar[2] = new InventoryItem { ItemId = 3, ItemName = "Dirt", Quantity = 64, ItemType = ItemType.Block };
+            _hotbar[0] = new ItemInfo { Id = 1, Name = "Stone", Quantity = 64, Type = ItemType.Block };
+            _hotbar[1] = new ItemInfo { Id = 2, Name = "Grass", Quantity = 64, Type = ItemType.Block };
+            _hotbar[2] = new ItemInfo { Id = 3, Name = "Dirt", Quantity = 64, Type = ItemType.Block };
         }
         
-        private void OnPlayerInfoUpdated(PlayerInfo playerInfo)
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
         {
-            _playerInfo = playerInfo;
+            _playerInfo = playerState;
             
-            if (playerInfo.Position != null)
+            if (playerState.Position != null)
             {
                 var serverPos = new Vector3(
-                    (float)playerInfo.Position.X,
-                    (float)playerInfo.Position.Y,
-                    (float)playerInfo.Position.Z
+                    (float)playerState.Position.X,
+                    (float)playerState.Position.Y,
+                    (float)playerState.Position.Z
                 );
                 
                 if (Vector3.Distance(transform.position, serverPos) > 1f)
@@ -408,9 +408,12 @@ namespace Minecraft.Player
                 }
             }
             
-            _gameMode = playerInfo.GameMode;
+            _gameMode = playerState.GameMode;
             
-            UpdateHotbarFromInventory(playerInfo.Inventory);
+            if (playerState.Inventory != null)
+            {
+                UpdateHotbarFromInventory(playerState.Inventory);
+            }
         }
         
         private void OnBlockChanged(Vector3Int position, int oldBlockId, int newBlockId)
@@ -418,7 +421,7 @@ namespace Minecraft.Player
             Debug.Log($"Block changed at {position}: {oldBlockId} -> {newBlockId}");
         }
         
-        private void UpdateHotbarFromInventory(System.Collections.Generic.IList<InventoryItem> inventory)
+        private void UpdateHotbarFromInventory(System.Collections.Generic.IList<ItemInfo> inventory)
         {
             for (int i = 0; i < 9 && i < inventory.Count; i++)
             {
@@ -436,11 +439,11 @@ namespace Minecraft.Player
             _lastSentPosition = position;
         }
         
-        public void SetGameMode(GameMode gameMode)
+        public void SetGameMode(GameModeType gameMode)
         {
             _gameMode = gameMode;
             
-            if (gameMode == GameMode.Creative)
+            if (gameMode == GameModeType.Creative)
             {
                 _isFlying = true;
             }
@@ -452,10 +455,10 @@ namespace Minecraft.Player
         
         private void OnDestroy()
         {
-            if (_networkClient != null)
+            if (_gameClient != null)
             {
-                _networkClient.PlayerInfoUpdated -= OnPlayerInfoUpdated;
-                _networkClient.BlockChanged -= OnBlockChanged;
+                _gameClient.PlayerStateUpdated -= OnPlayerStateUpdated;
+                _gameClient.BlockChanged -= OnBlockChanged;
             }
         }
         

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(protoc:*)",
+      "Bash(find:*)",
+      "Read(/Users/kojeomstudio/**)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet clean:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

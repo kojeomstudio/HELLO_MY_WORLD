@@ -382,5 +382,22 @@ namespace GameServerApp.Database
             var result = await cmd.ExecuteScalarAsync();
             return result != null ? Convert.ToInt32(result) : 1;
         }
+
+        /// <summary>
+        /// 청크 데이터 가져오기 (마인크래프트 핸들러용)
+        /// </summary>
+        public async Task<byte[]?> GetChunkDataAsync(int chunkX, int chunkZ, int worldId = 1)
+        {
+            var chunkData = await LoadChunkAsync(worldId, chunkX, chunkZ);
+            return chunkData?.blockData;
+        }
+
+        /// <summary>
+        /// 청크 데이터 저장하기 (마인크래프트 핸들러용)
+        /// </summary>
+        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, int worldId = 1)
+        {
+            await SaveChunkAsync(worldId, chunkX, chunkZ, blockData);
+        }
     }
 }

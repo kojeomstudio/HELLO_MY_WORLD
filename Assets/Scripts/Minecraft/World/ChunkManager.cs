@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using MinecraftProtocol;
+using SharedProtocol;
 using System.Linq;
 
 namespace Minecraft.World
@@ -23,7 +23,7 @@ namespace Minecraft.World
         [SerializeField] private int chunksPerFrame = 2;
         [SerializeField] private float chunkUpdateInterval = 0.1f;
         
-        private Dictionary<Vector2Int, ChunkInfo> _chunkData = new();
+        private Dictionary<Vector2Int, ChunkDataResponseMessage> _chunkData = new();
         private Dictionary<Vector2Int, GameObject> _chunkObjects = new();
         private Dictionary<Vector2Int, ChunkRenderer> _chunkRenderers = new();
         
@@ -160,24 +160,24 @@ namespace Minecraft.World
         
         private void RequestChunkFromServer(Vector2Int chunkPos)
         {
-            var networkClient = FindObjectOfType<Core.MinecraftNetworkClient>();
-            if (networkClient != null)
+            var gameClient = FindObjectOfType<Core.MinecraftGameClient>();
+            if (gameClient != null)
             {
-                networkClient.RequestChunk(chunkPos.x, chunkPos.y);
+                gameClient.RequestChunk(chunkPos.x, chunkPos.y);
             }
         }
         
-        public void LoadChunk(ChunkInfo chunkInfo)
+        public void LoadChunk(ChunkDataResponseMessage chunkData)
         {
-            var chunkPos = new Vector2Int(chunkInfo.ChunkX, chunkInfo.ChunkZ);
+            var chunkPos = new Vector2Int(chunkData.ChunkX, chunkData.ChunkZ);
             
             if (_chunkData.ContainsKey(chunkPos))
             {
-                UpdateChunk(chunkInfo);
+                UpdateChunk(chunkData);
                 return;
             }
             
-            _chunkData[chunkPos] = chunkInfo;
+            _chunkData[chunkPos] = chunkData;
             
             var chunkObj = CreateChunkObject(chunkPos);
             _chunkObjects[chunkPos] = chunkObj;
@@ -188,29 +188,32 @@ namespace Minecraft.World
                 renderer = chunkObj.AddComponent<ChunkRenderer>();
             }
             
-            renderer.Initialize(chunkInfo, _blockTypes, blockMaterial);
+            renderer.Initialize(chunkData, _blockTypes, blockMaterial);
             _chunkRenderers[chunkPos] = renderer;
             
-            foreach (var entity in chunkInfo.Entities)
+            if (chunkData.Entities != null)
             {
-                CreateEntity(entity);
+                foreach (var entity in chunkData.Entities)
+                {
+                    CreateEntity(entity);
+                }
             }
             
             ChunkLoaded?.Invoke(chunkPos);
             Debug.Log($"Loaded chunk ({chunkPos.x}, {chunkPos.y})");
         }
         
-        public void UpdateChunk(ChunkInfo chunkInfo)
+        public void UpdateChunk(ChunkDataResponseMessage chunkData)
         {
-            var chunkPos = new Vector2Int(chunkInfo.ChunkX, chunkInfo.ChunkZ);
+            var chunkPos = new Vector2Int(chunkData.ChunkX, chunkData.ChunkZ);
             
             if (!_chunkData.ContainsKey(chunkPos)) return;
             
-            _chunkData[chunkPos] = chunkInfo;
+            _chunkData[chunkPos] = chunkData;
             
             if (_chunkRenderers.TryGetValue(chunkPos, out var renderer))
             {
-                renderer.UpdateData(chunkInfo);
+                renderer.UpdateData(chunkData);
                 _chunksToUpdate.Enqueue(chunkPos);
             }
         }
@@ -290,23 +293,17 @@ namespace Minecraft.World
             BlockChanged?.Invoke(blockPos, oldBlockId, newBlockId);
         }
         
-        private void UpdateBlockInChunk(ChunkInfo chunkData, Vector3Int localPos, int newBlockId)
+        private void UpdateBlockInChunk(ChunkDataResponseMessage chunkData, Vector3Int localPos, int newBlockId)
         {
+            if (chunkData.Blocks == null) return;
+            
             foreach (var block in chunkData.Blocks)
             {
                 if (block.Position.X == localPos.x && 
                     block.Position.Y == localPos.y && 
                     block.Position.Z == localPos.z)
                 {
-                    var updatedBlock = new BlockInfo
-                    {
-                        BlockId = newBlockId,
-                        Position = block.Position,
-                        Metadata = block.Metadata,
-                        BlockEntityData = block.BlockEntityData,
-                        LastUpdate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    };
-                    
+                    block.BlockId = newBlockId;
                     break;
                 }
             }
@@ -328,13 +325,16 @@ namespace Minecraft.World
                 worldPos.z - (chunkPos.y * chunkSize)
             );
             
-            foreach (var block in chunkData.Blocks)
+            if (chunkData.Blocks != null)
             {
-                if (block.Position.X == localPos.x && 
-                    block.Position.Y == localPos.y && 
-                    block.Position.Z == localPos.z)
+                foreach (var block in chunkData.Blocks)
                 {
-                    return block.BlockId;
+                    if (block.Position.X == localPos.x && 
+                        block.Position.Y == localPos.y && 
+                        block.Position.Z == localPos.z)
+                    {
+                        return block.BlockId;
+                    }
                 }
             }
             

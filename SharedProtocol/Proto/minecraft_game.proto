@@ -386,14 +386,14 @@ message InventoryUpdateRequest {
 }
 
 enum InventoryAction {
-  SET_ITEM = 0;
-  TAKE_ITEM = 1;
-  SWAP_ITEMS = 2;
-  DROP_ITEM = 3;
-  SPLIT_STACK = 4;
-  QUICK_MOVE = 5;               // Shift+클릭
-  PICKUP_ALL = 6;
-  HOTBAR_SWAP = 7;
+  INV_SET_ITEM = 0;
+  INV_TAKE_ITEM = 1;
+  INV_SWAP_ITEMS = 2;
+  INV_DROP_ITEM = 3;
+  INV_SPLIT_STACK = 4;
+  INV_QUICK_MOVE = 5;               // Shift+클릭
+  INV_PICKUP_ALL = 6;
+  INV_HOTBAR_SWAP = 7;
 }
 
 message InventoryUpdateResponse {
@@ -457,12 +457,12 @@ message EntitySpawnBroadcast {
 }
 
 enum SpawnReason {
-  NATURAL = 0;
-  SPAWNER = 1;
-  BREEDING = 2;
-  COMMAND = 3;
-  ITEM_DROP = 4;
-  PROJECTILE = 5;
+  SPAWN_NATURAL = 0;
+  SPAWN_SPAWNER = 1;
+  SPAWN_BREEDING = 2;
+  SPAWN_COMMAND = 3;
+  SPAWN_ITEM_DROP = 4;
+  SPAWN_PROJECTILE = 5;
 }
 
 message EntityDespawnBroadcast {
@@ -471,12 +471,12 @@ message EntityDespawnBroadcast {
 }
 
 enum DespawnReason {
-  NATURAL = 0;
-  DEATH = 1;
-  TELEPORT = 2;
-  CHUNK_UNLOAD = 3;
-  PICKUP = 4;
-  EXPIRE = 5;
+  DESPAWN_NATURAL = 0;
+  DESPAWN_DEATH = 1;
+  DESPAWN_TELEPORT = 2;
+  DESPAWN_CHUNK_UNLOAD = 3;
+  DESPAWN_PICKUP = 4;
+  DESPAWN_EXPIRE = 5;
 }
 
 // 엔티티 업데이트 (위치, 상태 등)
@@ -509,21 +509,21 @@ message DamageEvent {
 }
 
 enum DamageType {
-  GENERIC = 0;
-  ENTITY_ATTACK = 1;
-  PROJECTILE = 2;
-  FALL = 3;
-  FIRE = 4;
-  LAVA = 5;
-  DROWNING = 6;
-  EXPLOSION = 7;
-  VOID = 8;
-  POISON = 9;
-  MAGIC = 10;
-  WITHER = 11;
-  ANVIL = 12;
-  CACTUS = 13;
-  LIGHTNING = 14;
+  DMG_GENERIC = 0;
+  DMG_ENTITY_ATTACK = 1;
+  DMG_PROJECTILE = 2;
+  DMG_FALL = 3;
+  DMG_FIRE = 4;
+  DMG_LAVA = 5;
+  DMG_DROWNING = 6;
+  DMG_EXPLOSION = 7;
+  DMG_VOID = 8;
+  DMG_POISON = 9;
+  DMG_MAGIC = 10;
+  DMG_WITHER = 11;
+  DMG_ANVIL = 12;
+  DMG_CACTUS = 13;
+  DMG_LIGHTNING = 14;
 }
 
 // 경험치 관련
@@ -552,11 +552,11 @@ message CraftingRequest {
 }
 
 enum CraftingType {
-  PLAYER_INVENTORY = 0;
-  CRAFTING_TABLE = 1;
-  FURNACE = 2;
-  ENCHANTING_TABLE = 3;
-  BREWING_STAND = 4;
+  CRAFT_PLAYER_INVENTORY = 0;
+  CRAFT_CRAFTING_TABLE = 1;
+  CRAFT_FURNACE = 2;
+  CRAFT_ENCHANTING_TABLE = 3;
+  CRAFT_BREWING_STAND = 4;
 }
 
 message CraftingResponse {
@@ -574,15 +574,15 @@ message ContainerOpenRequest {
 }
 
 enum ContainerType {
-  CHEST = 0;
-  FURNACE = 1;
-  CRAFTING_TABLE = 2;
-  ENCHANTING_TABLE = 3;
-  BREWING_STAND = 4;
-  DISPENSER = 5;
-  HOPPER = 6;
-  BEACON = 7;
-  ANVIL = 8;
+  CONT_CHEST = 0;
+  CONT_FURNACE = 1;
+  CONT_CRAFTING_TABLE = 2;
+  CONT_ENCHANTING_TABLE = 3;
+  CONT_BREWING_STAND = 4;
+  CONT_DISPENSER = 5;
+  CONT_HOPPER = 6;
+  CONT_BEACON = 7;
+  CONT_ANVIL = 8;
 }
 
 message ContainerOpenResponse {
@@ -619,13 +619,13 @@ message TeleportRequest {
 }
 
 enum TeleportCause {
-  COMMAND = 0;
-  PORTAL = 1;
-  ENDER_PEARL = 2;
-  DEATH = 3;
-  SPAWN = 4;
-  BED = 5;
-  END_PORTAL = 6;
+  TP_COMMAND = 0;
+  TP_PORTAL = 1;
+  TP_ENDER_PEARL = 2;
+  TP_DEATH = 3;
+  TP_SPAWN = 4;
+  TP_BED = 5;
+  TP_END_PORTAL = 6;
 }
 
 message TeleportResponse {
@@ -682,22 +682,22 @@ message ParticleEffectBroadcast {
 }
 
 enum ParticleType {
-  EXPLOSION = 0;
-  EXPLOSION_LARGE = 1;
-  EXPLOSION_HUGE = 2;
-  BLOCK_BREAK = 3;
-  BLOCK_DUST = 4;
-  WATER_SPLASH = 5;
-  LAVA_POP = 6;
-  SMOKE = 7;
-  FLAME = 8;
-  HEART = 9;
-  CRITICAL_HIT = 10;
-  ENCHANTMENT_TABLE = 11;
-  PORTAL = 12;
-  NOTE = 13;
-  HAPPY_VILLAGER = 14;
-  ANGRY_VILLAGER = 15;
+  PARTICLE_EXPLOSION = 0;
+  PARTICLE_EXPLOSION_LARGE = 1;
+  PARTICLE_EXPLOSION_HUGE = 2;
+  PARTICLE_BLOCK_BREAK = 3;
+  PARTICLE_BLOCK_DUST = 4;
+  PARTICLE_WATER_SPLASH = 5;
+  PARTICLE_LAVA_POP = 6;
+  PARTICLE_SMOKE = 7;
+  PARTICLE_FLAME = 8;
+  PARTICLE_HEART = 9;
+  PARTICLE_CRITICAL_HIT = 10;
+  PARTICLE_ENCHANTMENT_TABLE = 11;
+  PARTICLE_PORTAL = 12;
+  PARTICLE_NOTE = 13;
+  PARTICLE_HAPPY_VILLAGER = 14;
+  PARTICLE_ANGRY_VILLAGER = 15;
 }
 
 // 사운드 효과
@@ -711,28 +711,28 @@ message SoundEffectBroadcast {
 
 enum SoundType {
   // 블록 관련
-  BLOCK_BREAK_STONE = 0;
-  BLOCK_BREAK_WOOD = 1;
-  BLOCK_BREAK_GRASS = 2;
-  BLOCK_PLACE_STONE = 3;
-  BLOCK_PLACE_WOOD = 4;
+  SND_BLOCK_BREAK_STONE = 0;
+  SND_BLOCK_BREAK_WOOD = 1;
+  SND_BLOCK_BREAK_GRASS = 2;
+  SND_BLOCK_PLACE_STONE = 3;
+  SND_BLOCK_PLACE_WOOD = 4;
   // 플레이어 관련
-  FOOTSTEP_STONE = 10;
-  FOOTSTEP_WOOD = 11;
-  FOOTSTEP_GRASS = 12;
-  HURT_PLAYER = 13;
-  DEATH_PLAYER = 14;
+  SND_FOOTSTEP_STONE = 10;
+  SND_FOOTSTEP_WOOD = 11;
+  SND_FOOTSTEP_GRASS = 12;
+  SND_HURT_PLAYER = 13;
+  SND_DEATH_PLAYER = 14;
   // 게임 관련
-  LEVEL_UP = 20;
-  ORB_PICKUP = 21;
-  ITEM_PICKUP = 22;
-  ITEM_BREAK = 23;
+  SND_LEVEL_UP = 20;
+  SND_ORB_PICKUP = 21;
+  SND_ITEM_PICKUP = 22;
+  SND_ITEM_BREAK = 23;
   // 몹 관련
-  HURT_MOB = 30;
-  DEATH_MOB = 31;
+  SND_HURT_MOB = 30;
+  SND_DEATH_MOB = 31;
   // 환경 관련
-  THUNDER = 40;
-  RAIN = 41;
+  SND_THUNDER = 40;
+  SND_RAIN = 41;
 }
 
 // =============================================================================

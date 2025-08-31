@@ -13,7 +13,7 @@ namespace GameServerApp
         public static async Task<int> Main(string[] args)
         {
             // Display server architecture information
-            ServerLauncher.DisplayServerInfo();
+            DisplayServerInfo();
             
             // Check if we should run in server-only mode
             if (args.Length > 0 && args[0] == "--server")
@@ -58,13 +58,25 @@ namespace GameServerApp
                 Console.WriteLine("\nPress any key to return to menu...");
                 Console.ReadKey();
                 Console.Clear();
-                ServerLauncher.DisplayServerInfo();
+                DisplayServerInfo();
                 Console.WriteLine("\nChoose an option:");
                 Console.WriteLine("1. Start Enhanced Minecraft Server");
                 Console.WriteLine("2. Run Test Client");
                 Console.WriteLine("3. Server Configuration");
                 Console.WriteLine("4. Exit");
             }
+        }
+        
+        private static void DisplayServerInfo()
+        {
+            Console.WriteLine("===== Minecraft-Like Game Server Architecture =====");
+            Console.WriteLine("• Client-Server Architecture (P2P removed)");
+            Console.WriteLine("• Google Protocol Buffers for communication");
+            Console.WriteLine("• Enhanced SQLite database with full game state");
+            Console.WriteLine("• Real-time chunk generation and synchronization");
+            Console.WriteLine("• Session management with player persistence");
+            Console.WriteLine("• Anti-cheat and server-side validation");
+            Console.WriteLine("=============================================");
         }
         
         /// <summary>

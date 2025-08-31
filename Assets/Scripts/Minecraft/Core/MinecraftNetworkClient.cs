@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using Networking.Core;
-using MinecraftProtocol;
+using SharedProtocol;
+using System.IO;
 
 namespace Minecraft.Core
 {
@@ -24,29 +25,26 @@ namespace Minecraft.Core
         
         private INetworkTransport _transport;
         private bool _isConnected = false;
-        private PlayerInfo _playerInfo;
-        private WorldInfo _worldInfo;
-        
-        private Dictionary<Vector2Int, ChunkInfo> _loadedChunks = new();
+        private PlayerStateInfo _playerInfo;
+        private Dictionary<Vector2Int, ChunkDataResponseMessage> _loadedChunks = new();
         private Dictionary<string, EntityInfo> _entities = new();
         
         private string _sessionToken;
         private float _lastHeartbeat;
-        private Queue<IMessage> _outgoingMessages = new();
-        private Queue<IMessage> _incomingMessages = new();
+        private Queue<object> _outgoingMessages = new();
+        private Queue<object> _incomingMessages = new();
         
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
-        public event Action<PlayerInfo> PlayerInfoUpdated;
-        public event Action<ChunkInfo> ChunkLoaded;
+        public event Action<PlayerStateInfo> PlayerInfoUpdated;
+        public event Action<ChunkDataResponseMessage> ChunkLoaded;
         public event Action<Vector3Int, int, int> BlockChanged;
         public event Action<EntityInfo> EntitySpawned;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
         
         public bool IsConnected => _isConnected;
-        public PlayerInfo PlayerInfo => _playerInfo;
-        public WorldInfo WorldInfo => _worldInfo;
+        public PlayerStateInfo PlayerInfo => _playerInfo;
         public string SessionToken => _sessionToken;
         public int LoadedChunkCount => _loadedChunks.Count;
         
@@ -107,11 +105,10 @@ namespace Minecraft.Core
         
         public void SendLogin(string username, string password)
         {
-            var loginRequest = new LoginRequest
+            var loginRequest = new LoginMessage
             {
-                Username = username,
-                Password = password,
-                ClientVersion = Application.version
+                UserName = username,
+                Password = password
             };
             
             SendMessage(loginRequest);
@@ -123,11 +120,10 @@ namespace Minecraft.Core
             var chunkKey = new Vector2Int(chunkX, chunkZ);
             if (_loadedChunks.ContainsKey(chunkKey)) return;
             
-            var request = new ChunkRequest
+            var request = new ChunkDataRequestMessage
             {
                 ChunkX = chunkX,
-                ChunkZ = chunkZ,
-                ViewDistance = renderDistance
+                ChunkZ = chunkZ
             };
             
             SendMessage(request);
@@ -136,38 +132,35 @@ namespace Minecraft.Core
         public void SendPlayerMove(Vector3 position, Vector3 rotation, bool isOnGround = true, 
             bool isSneaking = false, bool isSprinting = false, bool isFlying = false)
         {
-            var moveRequest = new PlayerMoveRequest
+            var stateUpdate = new PlayerStateUpdateMessage
             {
-                Position = new MinecraftProtocol.Vector3 { X = position.x, Y = position.y, Z = position.z },
-                Rotation = new MinecraftProtocol.Vector3 { X = rotation.x, Y = rotation.y, Z = rotation.z },
+                Position = new Vector3F { X = position.x, Y = position.y, Z = position.z },
+                Rotation = new Vector3F { X = rotation.x, Y = rotation.y, Z = rotation.z },
                 IsOnGround = isOnGround,
                 IsSneaking = isSneaking,
                 IsSprinting = isSprinting,
-                IsFlying = isFlying,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                IsFlying = isFlying
             };
             
-            SendMessage(moveRequest);
+            SendMessage(stateUpdate);
         }
         
-        public void SendBlockChange(Vector3Int position, int newBlockId, int metadata = 0, 
-            string blockEntityData = null, PlayerAction actionType = PlayerAction.PlaceBlock)
+        public void SendPlayerAction(PlayerActionType action, Vector3Int targetPos, int face, Vector3 cursorPos, ItemInfo selectedItem = null)
         {
-            var request = new BlockChangeRequest
+            var request = new PlayerActionRequestMessage
             {
-                Position = new Vector3Int { X = position.x, Y = position.y, Z = position.z },
-                NewBlockId = newBlockId,
-                Metadata = metadata,
-                BlockEntityData = blockEntityData ?? "",
-                ActionType = actionType,
-                Sequence = UnityEngine.Random.Range(1000, 9999)
+                Action = action,
+                TargetPosition = new Vector3I { X = targetPos.x, Y = targetPos.y, Z = targetPos.z },
+                Face = face,
+                CursorPosition = new Vector3F { X = cursorPos.x, Y = cursorPos.y, Z = cursorPos.z },
+                SelectedItem = selectedItem
             };
             
             SendMessage(request);
-            Debug.Log($"Sent block change: {position} -> Block ID {newBlockId}");
+            Debug.Log($"Sent player action: {action} at {targetPos}");
         }
         
-        private void SendMessage(IMessage message)
+        private void SendMessage(object message)
         {
             if (!_isConnected)
             {
@@ -180,9 +173,10 @@ namespace Minecraft.Core
         
         private void SendHeartbeat()
         {
-            var ping = new PingRequest
+            var ping = new PingMessage
             {
-                ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                ClientId = _sessionToken ?? "unknown"
             };
             
             SendMessage(ping);
@@ -221,10 +215,10 @@ namespace Minecraft.Core
             }
         }
         
-        private byte[] SerializeMessage(IMessage message)
+        private byte[] SerializeMessage(object message)
         {
-            using var stream = new System.IO.MemoryStream();
-            message.WriteTo(stream);
+            using var stream = new MemoryStream();
+            ProtoBuf.Serializer.Serialize(stream, message);
             return stream.ToArray();
         }
         
@@ -244,40 +238,51 @@ namespace Minecraft.Core
             }
         }
         
-        private IMessage DeserializeMessage(ArraySegment<byte> data)
+        private object DeserializeMessage(ArraySegment<byte> data)
         {
-            using var stream = new System.IO.MemoryStream(data.Array, data.Offset, data.Count);
+            using var stream = new MemoryStream(data.Array, data.Offset, data.Count);
             
             try
             {
                 stream.Position = 0;
-                return LoginResponse.Parser.ParseFrom(stream);
+                return ProtoBuf.Serializer.Deserialize<LoginResponseMessage>(stream);
             }
             catch { }
             
             try
             {
                 stream.Position = 0;
-                return ChunkResponse.Parser.ParseFrom(stream);
+                return ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream);
+            }
+            catch { }
+            
+            try
+            {
+                stream.Position = 0;
+                return ProtoBuf.Serializer.Deserialize<PlayerStateUpdateMessage>(stream);
             }
             catch { }
             
             return null;
         }
         
-        private void HandleIncomingMessage(IMessage message)
+        private void HandleIncomingMessage(object message)
         {
             switch (message)
             {
-                case LoginResponse loginResponse:
+                case LoginResponseMessage loginResponse:
                     HandleLoginResponse(loginResponse);
                     break;
                     
-                case ChunkResponse chunkResponse:
+                case ChunkDataResponseMessage chunkResponse:
                     HandleChunkResponse(chunkResponse);
                     break;
                     
-                case PingResponse pingResponse:
+                case PlayerStateUpdateMessage stateUpdate:
+                    HandlePlayerStateUpdate(stateUpdate);
+                    break;
+                    
+                case PingMessage pingResponse:
                     HandlePingResponse(pingResponse);
                     break;
                     
@@ -287,13 +292,12 @@ namespace Minecraft.Core
             }
         }
         
-        private void HandleLoginResponse(LoginResponse response)
+        private void HandleLoginResponse(LoginResponseMessage response)
         {
             if (response.Success)
             {
                 _sessionToken = response.SessionToken;
-                _playerInfo = response.PlayerInfo;
-                _worldInfo = response.WorldInfo;
+                _playerInfo = response.PlayerState;
                 
                 PlayerInfoUpdated?.Invoke(_playerInfo);
                 
@@ -305,21 +309,44 @@ namespace Minecraft.Core
             }
         }
         
-        private void HandleChunkResponse(ChunkResponse response)
+        private void HandleChunkResponse(ChunkDataResponseMessage response)
         {
-            if (response.Success && response.ChunkData != null)
+            if (response.Success)
             {
-                var chunkKey = new Vector2Int(response.ChunkData.ChunkX, response.ChunkData.ChunkZ);
-                _loadedChunks[chunkKey] = response.ChunkData;
+                var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
+                _loadedChunks[chunkKey] = response;
                 
-                ChunkLoaded?.Invoke(response.ChunkData);
-                Debug.Log($"Loaded chunk ({response.ChunkData.ChunkX}, {response.ChunkData.ChunkZ})");
+                ChunkLoaded?.Invoke(response);
+                Debug.Log($"Loaded chunk ({response.ChunkX}, {response.ChunkZ})");
             }
         }
         
-        private void HandlePingResponse(PingResponse response)
+        private void HandlePingResponse(PingMessage response)
         {
-            var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.ClientTimestamp;
+            var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.Timestamp;
+            Debug.Log($"Network latency: {latency}ms");
+        }
+        
+        private void HandlePlayerStateUpdate(PlayerStateUpdateMessage stateUpdate)
+        {
+            if (stateUpdate.PlayerId != _playerInfo?.PlayerId)
+            {
+                Debug.Log($"Received state update for other player: {stateUpdate.PlayerId}");
+                return;
+            }
+            
+            if (_playerInfo != null)
+            {
+                _playerInfo.Position = stateUpdate.Position;
+                _playerInfo.Health = stateUpdate.Health;
+                _playerInfo.Hunger = stateUpdate.Hunger;
+                _playerInfo.IsOnGround = stateUpdate.IsOnGround;
+                _playerInfo.IsSneaking = stateUpdate.IsSneaking;
+                _playerInfo.IsSprinting = stateUpdate.IsSprinting;
+                _playerInfo.IsFlying = stateUpdate.IsFlying;
+                
+                PlayerInfoUpdated?.Invoke(_playerInfo);
+            }
         }
         
         private void OnConnectionStatusChanged(bool isConnected)
@@ -333,7 +360,6 @@ namespace Minecraft.Core
                 _entities.Clear();
                 _sessionToken = null;
                 _playerInfo = null;
-                _worldInfo = null;
             }
         }
         
@@ -342,7 +368,7 @@ namespace Minecraft.Core
             return _loadedChunks.ContainsKey(new Vector2Int(chunkX, chunkZ));
         }
         
-        public ChunkInfo GetChunk(int chunkX, int chunkZ)
+        public ChunkDataResponseMessage GetChunk(int chunkX, int chunkZ)
         {
             _loadedChunks.TryGetValue(new Vector2Int(chunkX, chunkZ), out var chunk);
             return chunk;

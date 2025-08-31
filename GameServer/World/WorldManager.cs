@@ -320,6 +320,71 @@ namespace GameServerApp.World
             var parts = key.Split(',');
             return (int.Parse(parts[0]), int.Parse(parts[1]));
         }
+
+        // === 마인크래프트 핸들러용 추가 메서드들 ===
+
+        /// <summary>
+        /// 특정 블록 정보 가져오기
+        /// </summary>
+        public async Task<Models.BlockData?> GetBlockAsync(int x, int y, int z)
+        {
+            int chunkX = (int)Math.Floor(x / 16.0);
+            int chunkZ = (int)Math.Floor(z / 16.0);
+            int localX = x - chunkX * 16;
+            int localZ = z - chunkZ * 16;
+
+            var chunk = await GetChunkAsync(chunkX, chunkZ);
+            if (chunk != null)
+            {
+                var blockType = chunk.GetBlock(localX, y, localZ);
+                return new Models.BlockData(x, y, z, (int)blockType);
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// 블록 설정하기
+        /// </summary>
+        public async Task SetBlockAsync(Models.BlockData blockData)
+        {
+            int chunkX = (int)Math.Floor(blockData.X / 16.0);
+            int chunkZ = (int)Math.Floor(blockData.Z / 16.0);
+            int localX = blockData.X - chunkX * 16;
+            int localZ = blockData.Z - chunkZ * 16;
+
+            var chunk = await GetChunkAsync(chunkX, chunkZ);
+            if (chunk != null)
+            {
+                chunk.SetBlock(localX, blockData.Y, localZ, (BlockType)blockData.BlockId);
+                
+                // 청크를 수정됨으로 표시
+                var chunkKey = GetChunkKey(chunkX, chunkZ);
+                if (_loadedChunks.TryGetValue(chunkKey, out var loadedChunk))
+                {
+                    loadedChunk.IsModified = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 블록 제거하기
+        /// </summary>
+        public async Task RemoveBlockAsync(int x, int y, int z)
+        {
+            var airBlock = new Models.BlockData(x, y, z, 0); // 0 = Air
+            await SetBlockAsync(airBlock);
+        }
+
+        /// <summary>
+        /// 청크 내 엔티티들 가져오기
+        /// </summary>
+        public async Task<List<Models.Entity>> GetEntitiesInChunk(int chunkX, int chunkZ)
+        {
+            // TODO: 실제 구현에서는 데이터베이스에서 엔티티 조회
+            // 현재는 빈 리스트 반환
+            return new List<Models.Entity>();
+        }
     }
 
     public class LoadedChunk

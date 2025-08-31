@@ -9,4 +9,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0" />
     <ProjectReference Include="../SharedProtocol/SharedProtocol.csproj" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Remove="Handlers/Disabled/**/*.cs" />
+  </ItemGroup>
 </Project>

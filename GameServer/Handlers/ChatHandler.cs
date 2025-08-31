@@ -12,7 +12,7 @@ public class ChatHandler : MessageHandler<ChatRequest>
     private readonly SessionManager _sessions;
     private readonly HashSet<string> _bannedWords = new() { "badword1", "badword2" }; // 금지어 목록
 
-    public ChatHandler(SessionManager sessions) : base(MessageType.ChatRequest)
+    public ChatHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.ChatRequest)
     {
         _sessions = sessions;
     }

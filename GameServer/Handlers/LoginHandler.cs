@@ -14,14 +14,16 @@ public class LoginHandler : MessageHandler<LoginRequest>
 {
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
+    private readonly Rooms.RoomManager _rooms;
     
     // 지원되는 클라이언트 버전 목록
     private readonly HashSet<string> _supportedVersions = new() { "1.0.0", "1.0.1" };
 
-    public LoginHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.LoginRequest)
+    public LoginHandler(DatabaseHelper database, SessionManager sessions, Rooms.RoomManager rooms) : base(MessageType.LoginRequest)
     {
         _database = database;
         _sessions = sessions;
+        _rooms = rooms;
     }
 
     protected override async Task HandleAsync(Session session, LoginRequest message)
@@ -80,6 +82,16 @@ public class LoginHandler : MessageHandler<LoginRequest>
             
             // 세션 등록
             _sessions.Add(session);
+            // 기본 룸에 배정 (로그인 성공 후)
+            _rooms.AssignPlayerToRoom(session.UserName!, "lobby");
+            
+            // 기본 룸 배정 (lobby)
+            try
+            {
+                // RoomManager 주입을 위해 Service Locator 패턴이 없으므로 GameServer에서 Chat/World 핸들러가 처리.
+                // 여기서는 SessionManager 상태만 최신화합니다. 실제 룸 배정은 GameServer.HandleClientAsync 접속 후 수행.
+            }
+            catch { }
             
             // 로그인 성공 응답
             var response = new LoginResponse 

@@ -15,6 +15,7 @@ namespace GameServerApp
         private readonly MessageDispatcher _dispatcher;
         private readonly MinecraftMessageDispatcher _minecraftDispatcher;
         private readonly SessionManager _sessions;
+        private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
         private readonly Timer _maintenanceTimer;
         private bool _isRunning;
@@ -25,6 +26,7 @@ namespace GameServerApp
             _database = new DatabaseHelper(databaseFile);
             _dispatcher = new MessageDispatcher();
             _sessions = new SessionManager();
+            _rooms = new Rooms.RoomManager(_sessions);
             _worldManager = new WorldManager(_database);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             
@@ -37,7 +39,7 @@ namespace GameServerApp
         private void RegisterMessageHandlers()
         {
             // Authentication & Session Management
-            _dispatcher.Register(new LoginHandler(_database, _sessions));
+            _dispatcher.Register(new LoginHandler(_database, _sessions, _rooms));
             
             // Player Movement & Positioning (Enhanced Minecraft-style)
             //_dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
@@ -45,13 +47,13 @@ namespace GameServerApp
             
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager));
+            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms));
             
             // Game Mechanics & Interactions
             //_dispatcher.Register(new InventoryHandler(_database, _sessions));
             
             // Communication & Network
-            _dispatcher.Register(new ChatHandler(_database, _sessions));
+            _dispatcher.Register(new ChatHandler(_database, _sessions, _rooms));
             _dispatcher.Register(new PingHandler(_database, _sessions));
             
             // === 마인크래프트 전용 핸들러 등록 ===
@@ -145,6 +147,11 @@ namespace GameServerApp
             }
             finally
             {
+                // 룸에서 제거
+                if (!string.IsNullOrEmpty(session.UserName))
+                {
+                    _rooms.RemovePlayer(session.UserName);
+                }
                 if (!string.IsNullOrEmpty(session.UserName))
                 {
                     await SavePlayerDataOnDisconnect(session);

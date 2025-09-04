@@ -10,11 +10,13 @@ namespace GameServerApp.Handlers;
 public class ChatHandler : MessageHandler<ChatRequest>
 {
     private readonly SessionManager _sessions;
+    private readonly Rooms.RoomManager _rooms;
     private readonly HashSet<string> _bannedWords = new() { "badword1", "badword2" }; // 금지어 목록
 
-    public ChatHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.ChatRequest)
+    public ChatHandler(DatabaseHelper database, SessionManager sessions, Rooms.RoomManager rooms) : base(MessageType.ChatRequest)
     {
         _sessions = sessions;
+        _rooms = rooms;
     }
 
     protected override async Task HandleAsync(Session session, ChatRequest message)
@@ -94,18 +96,12 @@ public class ChatHandler : MessageHandler<ChatRequest>
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
 
-        // 모든 연결된 플레이어에게 브로드캐스트
-        var tasks = new List<Task>();
-        foreach (var playerName in _sessions.ConnectedUsers)
+        // 같은 룸에만 브로드캐스트
+        var roomId = _rooms.GetPlayerRoomId(senderSession.UserName ?? "");
+        if (!string.IsNullOrEmpty(roomId))
         {
-            var playerSession = _sessions.GetSession(playerName);
-            if (playerSession != null)
-            {
-                tasks.Add(playerSession.SendAsync(MessageType.ChatMessage, chatMessage));
-            }
+            await _rooms.BroadcastToRoomAsync(roomId!, MessageType.ChatMessage, chatMessage);
         }
-
-        await Task.WhenAll(tasks);
         Console.WriteLine($"[GLOBAL] {senderSession.UserName}: {message.Message}");
     }
 

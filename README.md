@@ -71,3 +71,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 ## Networking Protocol (Client ↔ Server)
 - The client and server communicate over a simple framed protocol: `[TotalLength:int][MessageType:int][Payload:protobuf]`.
 - See `docs/networking-protocol.md` for details, message type IDs, and client integration notes.
+
+## Server Rooms
+- The server supports a room-based architecture to scope chat and block broadcasts.
+- See `docs/server-rooms-architecture.md` for lifecycle and integration details.

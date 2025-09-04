@@ -13,13 +13,15 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
     private readonly WorldManager _worldManager;
+    private readonly Rooms.RoomManager _rooms;
 
-    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager) 
+    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, Rooms.RoomManager rooms) 
         : base(MessageType.WorldBlockChangeRequest)
     {
         _database = database;
         _sessions = sessions;
         _worldManager = worldManager;
+        _rooms = rooms;
     }
 
     protected override async Task HandleAsync(Session session, WorldBlockChangeRequest message)
@@ -143,17 +145,11 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
         };
 
         // 해당 영역에 있는 다른 모든 플레이어들에게 브로드캐스트
-        var tasks = new List<Task>();
-        foreach (var playerName in _sessions.ConnectedUsers)
+        var roomId = _rooms.GetPlayerRoomId(originSession.UserName ?? "");
+        if (!string.IsNullOrEmpty(roomId))
         {
-            var playerSession = _sessions.GetSession(playerName);
-            if (playerSession != null && playerSession != originSession)
-            {
-                // TODO: 실제로는 플레이어가 해당 영역에 있는지 확인해야 함
-                tasks.Add(playerSession.SendAsync(MessageType.WorldBlockChangeBroadcast, broadcast));
-            }
+            // 방 안의 모든 플레이어에게만 브로드캐스트
+            await _rooms.BroadcastToRoomAsync(roomId!, MessageType.WorldBlockChangeBroadcast, broadcast);
         }
-
-        await Task.WhenAll(tasks);
     }
 }

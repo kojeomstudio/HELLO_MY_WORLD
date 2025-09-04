@@ -145,7 +145,7 @@ namespace GameServerApp.Handlers
             
             // 크리에이티브 모드라면 즉시 파괴
             var playerState = _sessions.GetPlayerState(playerId);
-            if (playerState?.GameMode == GameMode.Creative)
+            if (playerState != null && (GameMode)playerState.GameMode == GameMode.Creative)
             {
                 await DestroyBlockAsync(session, blockPos, blockInfo);
                 response.Success = true;
@@ -289,7 +289,7 @@ namespace GameServerApp.Handlers
             await _worldManager.SetBlockAsync(newBlock);
 
             // 인벤토리에서 아이템 제거 (크리에이티브 모드가 아닌 경우)
-            if (playerState.GameMode != GameMode.Creative)
+            if ((GameMode)playerState.GameMode != GameMode.Creative)
             {
                 // TODO: 인벤토리에서 아이템 수량 감소 구현
             }
@@ -332,7 +332,7 @@ namespace GameServerApp.Handlers
             var dropInfo = new ItemDropInfo
             {
                 Item = request.UsedItem,
-                DropPosition = playerState.Position,
+                DropPosition = new Vector3D(playerState.Position.X, playerState.Position.Y, playerState.Position.Z),
                 Velocity = new Vector3D(0, 0.3, 0), // 위로 살짝 던지기
                 EntityId = Guid.NewGuid().ToString()
             };
@@ -355,7 +355,7 @@ namespace GameServerApp.Handlers
             
             // 드롭 아이템 생성 (게임 모드에 따라)
             var playerState = _sessions.GetPlayerState(session.UserName!);
-            if (playerState?.GameMode == GameMode.Survival)
+            if (playerState != null && (GameMode)playerState.GameMode == GameMode.Survival)
             {
                 var dropItem = CreateBlockDrop(blockInfo.BlockId);
                 if (dropItem != null)

@@ -69,7 +69,7 @@ public class LoginHandler : MessageHandler<LoginRequest>
             {
                 PlayerId = character.Name, // 실제로는 GUID 등을 사용
                 Username = character.Name,
-                Position = new Vector3((float)character.X, (float)character.Y, 0),
+                Position = new SharedProtocol.Vector3((float)character.X, (float)character.Y, 0),
                 Level = 1,
                 Health = 100,
                 MaxHealth = 100,

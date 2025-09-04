@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using Google.Protobuf;
-using GameProtocol;
+using Game.Auth;
 
 namespace Networking.Core
 {
@@ -28,10 +28,6 @@ namespace Networking.Core
         
         // Message handler events
         public event Action<LoginResponse> LoginResponseReceived;
-        public event Action<MoveResponse> MoveResponseReceived;
-        public event Action<ChatMessage> ChatMessageReceived;
-        public event Action<WorldBlockChangeBroadcast> BlockChangeBroadcastReceived;
-        public event Action<PingResponse> PingResponseReceived;
 
         public bool IsConnected => _transport?.IsConnected ?? false;
         public string ServerAddress => serverAddress;
@@ -107,40 +103,21 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Sends a login request.
+        /// Sends a login request with protocol header (length + type + payload).
         /// </summary>
         public void SendLogin(string username, string password, string clientVersion = "1.0.0")
         {
             var request = new LoginRequest
             {
                 Username = username,
-                Password = password,
-                ClientVersion = clientVersion
+                Password = password
             };
-            
-            SendMessage(request);
+            // Note: Server-side allows missing ClientVersion (defaults). Our .proto lacks this optional field.
+            SendMessageWithHeader(request, ClientMessageType.LoginRequest);
             Debug.Log($"Sent login request for user: {username}");
         }
 
-        /// <summary>
-        /// Sends a move request.
-        /// </summary>
-        public void SendMoveRequest(Vector3 targetPosition, float movementSpeed = 5.0f)
-        {
-            var request = new MoveRequest
-            {
-                TargetPosition = new GameProtocol.Vector3 
-                { 
-                    X = targetPosition.x, 
-                    Y = targetPosition.y, 
-                    Z = targetPosition.z 
-                },
-                MovementSpeed = movementSpeed
-            };
-            
-            SendMessage(request);
-            Debug.Log($"Sent move request to ({targetPosition.x:F2}, {targetPosition.y:F2}, {targetPosition.z:F2})");
-        }
+        // TODO: Implement additional message senders (Move, Chat, BlockChange) after adding matching .proto definitions.
 
         /// <summary>
         /// Sends a chat message.
@@ -195,9 +172,9 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Sends a Protobuf message to the server.
+        /// Serialize protobuf and send with header (length set by transport, type prepended here).
         /// </summary>
-        private void SendMessage(IMessage message)
+        private void SendMessageWithHeader(IMessage message, ClientMessageType type)
         {
             if (!IsConnected)
             {
@@ -209,9 +186,15 @@ namespace Networking.Core
             {
                 using var memoryStream = new MemoryStream();
                 message.WriteTo(memoryStream);
-                var data = memoryStream.ToArray();
-                
-                _transport.Send(new ArraySegment<byte>(data));
+                var payload = memoryStream.ToArray();
+
+                // Build [type:int][payload]
+                var typeBytes = BitConverter.GetBytes((int)type);
+                var framed = new byte[typeBytes.Length + payload.Length];
+                Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+                Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+                _transport.Send(new ArraySegment<byte>(framed));
             }
             catch (Exception ex)
             {
@@ -226,36 +209,29 @@ namespace Networking.Core
         {
             try
             {
-                using var memoryStream = new MemoryStream(data.Array, data.Offset, data.Count);
-                
-                // TODO: In actual implementation, message type headers are needed.
-                // Currently using simple implementation that tries multiple message types.
-                var messageBytes = memoryStream.ToArray();
-                
-                // Try parsing multiple message types (protocol headers needed in actual implementation)
-                if (TryParseMessage<LoginResponse>(messageBytes, out var loginResponse))
+                // Parse [type:int][payload]
+                var buffer = new byte[data.Count];
+                Buffer.BlockCopy(data.Array, data.Offset, buffer, 0, data.Count);
+
+                if (buffer.Length < 4)
                 {
-                    _messageDispatcher.Dispatch(loginResponse);
+                    Debug.LogWarning("Received too small packet");
+                    return;
                 }
-                else if (TryParseMessage<MoveResponse>(messageBytes, out var moveResponse))
+
+                int type = BitConverter.ToInt32(buffer, 0);
+                var payload = new byte[buffer.Length - 4];
+                Buffer.BlockCopy(buffer, 4, payload, 0, payload.Length);
+
+                switch ((ClientMessageType)type)
                 {
-                    _messageDispatcher.Dispatch(moveResponse);
-                }
-                else if (TryParseMessage<ChatMessage>(messageBytes, out var chatMessage))
-                {
-                    _messageDispatcher.Dispatch(chatMessage);
-                }
-                else if (TryParseMessage<WorldBlockChangeBroadcast>(messageBytes, out var blockBroadcast))
-                {
-                    _messageDispatcher.Dispatch(blockBroadcast);
-                }
-                else if (TryParseMessage<PingResponse>(messageBytes, out var pingResponse))
-                {
-                    _messageDispatcher.Dispatch(pingResponse);
-                }
-                else
-                {
-                    Debug.LogWarning("Received unknown message type");
+                    case ClientMessageType.LoginResponse:
+                        if (TryParseMessage<LoginResponse>(payload, out var loginResponse))
+                            _messageDispatcher.Dispatch(loginResponse);
+                        break;
+                    default:
+                        Debug.LogWarning($"Unknown or unhandled message type: {type}");
+                        break;
                 }
             }
             catch (Exception ex)
@@ -289,43 +265,7 @@ namespace Networking.Core
             LoginResponseReceived?.Invoke(response);
         }
 
-        private void OnMoveResponse(MoveResponse response)
-        {
-            if (response.Success && response.NewPosition != null)
-            {
-                var pos = response.NewPosition;
-                Debug.Log($"Move response: Success, New position=({pos.X:F2}, {pos.Y:F2}, {pos.Z:F2})");
-            }
-            else
-            {
-                Debug.Log("Move response: Failed");
-            }
-            MoveResponseReceived?.Invoke(response);
-        }
-
-        private void OnChatMessage(ChatMessage message)
-        {
-            var chatType = (ChatType)message.Type;
-            Debug.Log($"[{chatType}] {message.SenderName}: {message.Message}");
-            ChatMessageReceived?.Invoke(message);
-        }
-
-        private void OnBlockChangeBroadcast(WorldBlockChangeBroadcast broadcast)
-        {
-            if (broadcast.BlockPosition != null)
-            {
-                var pos = broadcast.BlockPosition;
-                Debug.Log($"Block changed by {broadcast.PlayerId}: ({pos.X}, {pos.Y}, {pos.Z}) -> Type {broadcast.BlockType}");
-            }
-            BlockChangeBroadcastReceived?.Invoke(broadcast);
-        }
-
-        private void OnPingResponse(PingResponse response)
-        {
-            var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.ClientTimestamp;
-            Debug.Log($"Ping: {latency}ms");
-            PingResponseReceived?.Invoke(response);
-        }
+        // Placeholder handlers for future messages (Move/Chat/Block/Ping) will be implemented when .proto is ready.
 
         private void OnConnectionStatusChanged(bool isConnected)
         {
@@ -358,4 +298,40 @@ namespace Networking.Core
         Whisper = 2,
         System = 3
     }
+}
+
+/// <summary>
+/// Client-side mirror of server MessageType enum for framing.
+/// Keep values in sync with SharedProtocol.MessageType.
+/// </summary>
+public enum ClientMessageType
+{
+    // 인증 관련
+    LoginRequest = 1,
+    LoginResponse = 2,
+    LogoutRequest = 3,
+    LogoutResponse = 4,
+
+    // 이동 관련
+    MoveRequest = 10,
+    MoveResponse = 11,
+
+    // 월드/블록 관련
+    WorldBlockChangeRequest = 20,
+    WorldBlockChangeResponse = 21,
+    WorldBlockChangeBroadcast = 22,
+
+    // 채팅 관련
+    ChatRequest = 30,
+    ChatResponse = 31,
+    ChatMessage = 32,
+
+    // 서버 상태/진단
+    PingRequest = 40,
+    PingResponse = 41,
+    ServerStatusRequest = 42,
+    ServerStatusResponse = 43,
+
+    // 플레이어 정보 업데이트
+    PlayerInfoUpdate = 50,
 }

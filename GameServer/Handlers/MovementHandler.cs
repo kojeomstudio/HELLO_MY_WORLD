@@ -64,7 +64,7 @@ public class MovementHandler : MessageHandler<MoveRequest>
             }
 
             // 이동 거리 및 유효성 검증
-            var currentPos = new Vector3((float)playerState.Position.X, (float)playerState.Position.Y, (float)playerState.Position.Z);
+            var currentPos = new SharedProtocol.Vector3((float)playerState.Position.X, (float)playerState.Position.Y, (float)playerState.Position.Z);
             var targetPos = message.TargetPosition;
             
             if (!await ValidateMovement(currentPos, targetPos, message.MovementSpeed))
@@ -74,8 +74,9 @@ public class MovementHandler : MessageHandler<MoveRequest>
             }
 
             // 플레이어 위치 업데이트 (SessionManager를 통해)
-            var newPosition = new Vector3(targetPos.X, targetPos.Y, targetPos.Z);
-            _sessions.UpdatePlayerState(session.UserName, newPosition, message.Rotation?.Y ?? 0f, message.Rotation?.X ?? 0f);
+            var newPositionClient = new SharedProtocol.Vector3(targetPos.X, targetPos.Y, targetPos.Z);
+            var newPositionServer = new GameServerApp.Vector3(targetPos.X, targetPos.Y, targetPos.Z);
+            _sessions.UpdatePlayerState(session.UserName, newPositionServer, 0f, 0f);
 
             // 청크 정보 업데이트
             var chunkX = (int)Math.Floor(targetPos.X / 16);
@@ -85,14 +86,14 @@ public class MovementHandler : MessageHandler<MoveRequest>
             // 세션의 플레이어 정보도 업데이트
             if (session.PlayerInfo != null)
             {
-                session.PlayerInfo.Position = newPosition;
+                session.PlayerInfo.Position = newPositionClient;
             }
 
             // 성공 응답 전송
             var response = new MoveResponse
             {
                 Success = true,
-                NewPosition = new Vector3(targetPos.X, targetPos.Y, targetPos.Z),
+                NewPosition = newPositionClient,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
             
@@ -118,7 +119,7 @@ public class MovementHandler : MessageHandler<MoveRequest>
         var response = new MoveResponse 
         { 
             Success = false,
-            NewPosition = session.PlayerInfo?.Position ?? new Vector3(0, 0, 0),
+            NewPosition = session.PlayerInfo?.Position ?? new SharedProtocol.Vector3(0, 0, 0),
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
         await session.SendAsync(MessageType.MoveResponse, response);
@@ -128,7 +129,7 @@ public class MovementHandler : MessageHandler<MoveRequest>
     /// <summary>
     /// 이동 요청의 유효성을 검증합니다.
     /// </summary>
-    private async Task<bool> ValidateMovement(Vector3 currentPos, Vector3 targetPos, float movementSpeed)
+    private async Task<bool> ValidateMovement(SharedProtocol.Vector3 currentPos, SharedProtocol.Vector3 targetPos, float movementSpeed)
     {
         await Task.Delay(5); // 검증 처리 시뮬레이션
         
@@ -158,7 +159,7 @@ public class MovementHandler : MessageHandler<MoveRequest>
     /// <summary>
     /// 다른 플레이어들에게 플레이어의 이동을 브로드캐스트합니다.
     /// </summary>
-    private async Task BroadcastPlayerMovement(Session movedSession, Vector3 newPosition)
+    private async Task BroadcastPlayerMovement(Session movedSession, SharedProtocol.Vector3 newPosition)
     {
         // TODO: 실제로는 근처에 있는 플레이어들에게만 브로드캐스트해야 함
         // 현재는 간단한 구현으로 모든 플레이어에게 전송하지 않음 (성능상 이유)

@@ -73,6 +73,38 @@ public class Session
     }
 
     /// <summary>
+    /// 원시 바이트 페이로드를 지정한 정수형 메시지 타입과 함께 전송합니다.
+    /// 마인크래프트 확장 메시지(MinecraftMessageType) 등 enum 외 타입 코드를 지원합니다.
+    /// </summary>
+    public async Task SendAsync(int rawMessageType, byte[] payload)
+    {
+        try
+        {
+            payload ??= Array.Empty<byte>();
+
+            if (payload.Length > 1024 * 1024) // 1MB 제한
+                throw new InvalidDataException($"Message too large: {payload.Length} bytes");
+
+            var length = BitConverter.GetBytes(payload.Length + sizeof(int));
+            var typeBytes = BitConverter.GetBytes(rawMessageType);
+
+            await _stream.WriteAsync(length, 0, length.Length);
+            await _stream.WriteAsync(typeBytes, 0, typeBytes.Length);
+            if (payload.Length > 0)
+            {
+                await _stream.WriteAsync(payload, 0, payload.Length);
+            }
+            await _stream.FlushAsync();
+
+            LastActivityAt = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to send raw message type {rawMessageType}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
     /// 서버로부터 메시지를 비동기적으로 수신하고 역직렬화합니다.
     /// </summary>
     public async Task<(MessageType type, object message)> ReceiveAsync()
@@ -87,7 +119,8 @@ public class Session
                 throw new InvalidDataException($"Invalid message length: {length}");
             
             var typeBuf = await ReadExactAsync(sizeof(int));
-            var type = (MessageType)BitConverter.ToInt32(typeBuf, 0);
+            var rawType = BitConverter.ToInt32(typeBuf, 0);
+            var type = (MessageType)rawType;
             var body = await ReadExactAsync(length - sizeof(int));
             
             using var ms = new MemoryStream(body);
@@ -98,31 +131,32 @@ public class Session
                 MessageType.LoginResponse => Serializer.Deserialize<LoginResponse>(ms),
                 MessageType.LogoutRequest => Serializer.Deserialize<LogoutRequest>(ms),
                 MessageType.LogoutResponse => Serializer.Deserialize<LogoutResponse>(ms),
-                
+
                 // 이동 관련
                 MessageType.MoveRequest => Serializer.Deserialize<MoveRequest>(ms),
                 MessageType.MoveResponse => Serializer.Deserialize<MoveResponse>(ms),
-                
+
                 // 월드/블록 관련
                 MessageType.WorldBlockChangeRequest => Serializer.Deserialize<WorldBlockChangeRequest>(ms),
                 MessageType.WorldBlockChangeResponse => Serializer.Deserialize<WorldBlockChangeResponse>(ms),
                 MessageType.WorldBlockChangeBroadcast => Serializer.Deserialize<WorldBlockChangeBroadcast>(ms),
-                
+
                 // 채팅 관련
                 MessageType.ChatRequest => Serializer.Deserialize<ChatRequest>(ms),
                 MessageType.ChatResponse => Serializer.Deserialize<ChatResponse>(ms),
                 MessageType.ChatMessage => Serializer.Deserialize<ChatMessage>(ms),
-                
+
                 // 서버 상태/진단
                 MessageType.PingRequest => Serializer.Deserialize<PingRequest>(ms),
                 MessageType.PingResponse => Serializer.Deserialize<PingResponse>(ms),
                 MessageType.ServerStatusRequest => Serializer.Deserialize<ServerStatusRequest>(ms),
                 MessageType.ServerStatusResponse => Serializer.Deserialize<ServerStatusResponse>(ms),
-                
+
                 // 플레이어 정보
                 MessageType.PlayerInfoUpdate => Serializer.Deserialize<PlayerInfoUpdate>(ms),
-                
-                _ => throw new InvalidOperationException($"Unknown message type {type}")
+
+                // 알 수 없는 타입은 원시 바이트로 전달 (마인크래프트 확장 등)
+                _ => body
             };
             return (type, message);
         }

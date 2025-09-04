@@ -18,7 +18,7 @@ namespace GameServerApp
             // Check if we should run in server-only mode
             if (args.Length > 0 && args[0] == "--server")
             {
-                return await ServerLauncher.Main(args);
+                return await ServerLauncher.RunAsync(args);
             }
             
             Console.WriteLine("\nChoose an option:");

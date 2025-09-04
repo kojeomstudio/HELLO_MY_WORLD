@@ -215,7 +215,7 @@ public class SessionManager
             {
                 Console.WriteLine($"Player {playerName} timed out due to inactivity");
                 Remove(session);
-                session.Disconnect();
+                session.Dispose();
             }
         }
     }

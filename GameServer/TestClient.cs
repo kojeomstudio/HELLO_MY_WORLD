@@ -126,7 +126,7 @@ namespace GameServerApp
                 // 이동 요청 전송
                 var moveRequest = new MoveRequest
                 {
-                    TargetPosition = new Vector3 { X = x, Y = y, Z = z },
+                    TargetPosition = new SharedProtocol.Vector3 { X = x, Y = y, Z = z },
                     MovementSpeed = 5.0f
                 };
                 

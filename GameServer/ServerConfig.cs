@@ -121,7 +121,8 @@ public class PerformanceSettings
 /// </summary>
 public static class ServerLauncher
 {
-    public static async Task<int> Main(string[] args)
+    // Renamed from Main to RunAsync to avoid multiple entry points.
+    public static async Task<int> RunAsync(string[] args)
     {
         Console.WriteLine("=== Minecraft-Style Game Server ===");
         Console.WriteLine("Client-Server Architecture");

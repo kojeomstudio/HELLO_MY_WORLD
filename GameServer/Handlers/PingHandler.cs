@@ -1,4 +1,5 @@
 using SharedProtocol;
+using GameServerApp.Database;
 
 namespace GameServerApp.Handlers;
 

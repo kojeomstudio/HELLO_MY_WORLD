@@ -67,3 +67,7 @@ See `Packages/manifest.json` for the full dependency list.
 ## Additional Resources
 There is a helpful tutorial used at the start of the project:<br>
 http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating.html
+
+## Networking Protocol (Client ↔ Server)
+- The client and server communicate over a simple framed protocol: `[TotalLength:int][MessageType:int][Payload:protobuf]`.
+- See `docs/networking-protocol.md` for details, message type IDs, and client integration notes.

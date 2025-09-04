@@ -140,19 +140,32 @@ namespace GameServerApp.Database
             using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
-                var character = new Character(reader.GetString("Name"), 
-                    reader.GetDouble("X"), reader.GetDouble("Y"), reader.GetDouble("Z"))
+                int idxName = reader.GetOrdinal("Name");
+                int idxX = reader.GetOrdinal("X");
+                int idxY = reader.GetOrdinal("Y");
+                int idxZ = reader.GetOrdinal("Z");
+                int idxPasswordHash = reader.GetOrdinal("PasswordHash");
+                int idxSalt = reader.GetOrdinal("Salt");
+                int idxLevel = reader.GetOrdinal("Level");
+                int idxHealth = reader.GetOrdinal("Health");
+                int idxMaxHealth = reader.GetOrdinal("MaxHealth");
+                int idxCreatedAt = reader.GetOrdinal("CreatedAt");
+                int idxLastLoginAt = reader.GetOrdinal("LastLoginAt");
+                int idxId = reader.GetOrdinal("Id");
+
+                var character = new Character(reader.GetString(idxName), 
+                    reader.GetDouble(idxX), reader.GetDouble(idxY), reader.GetDouble(idxZ))
                 {
-                    PasswordHash = reader.GetString("PasswordHash"),
-                    Salt = reader.GetString("Salt"),
-                    Level = reader.GetInt32("Level"),
-                    Health = reader.GetInt32("Health"),
-                    MaxHealth = reader.GetInt32("MaxHealth"),
-                    CreatedAt = reader.GetDateTime("CreatedAt"),
-                    LastLoginAt = reader.GetDateTime("LastLoginAt")
+                    PasswordHash = reader.GetString(idxPasswordHash),
+                    Salt = reader.GetString(idxSalt),
+                    Level = reader.GetInt32(idxLevel),
+                    Health = reader.GetInt32(idxHealth),
+                    MaxHealth = reader.GetInt32(idxMaxHealth),
+                    CreatedAt = reader.GetDateTime(idxCreatedAt),
+                    LastLoginAt = reader.GetDateTime(idxLastLoginAt)
                 };
                 
-                await LoadPlayerInventory(character, reader.GetInt32("Id"));
+                await LoadPlayerInventory(character, reader.GetInt32(idxId));
                 return character;
             }
             return null;
@@ -174,8 +187,12 @@ namespace GameServerApp.Database
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                character.AddItem(reader.GetInt32("ItemId"), 
-                    reader.GetString("ItemName"), reader.GetInt32("Quantity"));
+                int idxItemId = reader.GetOrdinal("ItemId");
+                int idxItemName = reader.GetOrdinal("ItemName");
+                int idxQuantity = reader.GetOrdinal("Quantity");
+
+                character.AddItem(reader.GetInt32(idxItemId), 
+                    reader.GetString(idxItemName), reader.GetInt32(idxQuantity));
             }
         }
 

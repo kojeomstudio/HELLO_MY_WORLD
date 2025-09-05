@@ -75,3 +75,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 ## Server Rooms
 - The server supports a room-based architecture to scope chat and block broadcasts.
 - See `docs/server-rooms-architecture.md` for lifecycle and integration details.
+
+## World Generation
+- Server procedurally generates terrain, ores, caves, dungeons, and vegetation.
+- See `docs/world-generation.md` for the pipeline and extension notes.

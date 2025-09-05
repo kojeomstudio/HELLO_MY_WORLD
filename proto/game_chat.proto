@@ -1,0 +1,23 @@
+syntax = "proto3";
+package Game.Chat;
+option csharp_namespace = "Game.Chat";
+
+message ChatRequest {
+  string message = 1;
+  int32 type = 2; // enum mirrored on client
+  string target_player = 3;
+}
+
+message ChatResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message ChatMessage {
+  string sender_id = 1;
+  string sender_name = 2;
+  string message = 3;
+  int32 type = 4;
+  int64 timestamp = 5;
+}
+

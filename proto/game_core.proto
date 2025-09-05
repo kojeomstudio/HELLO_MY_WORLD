@@ -1,0 +1,32 @@
+syntax = "proto3";
+package Game.Core;
+option csharp_namespace = "Game.Core";
+
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+message InventoryItem {
+  int32 item_id = 1;
+  string item_name = 2;
+  int32 quantity = 3;
+}
+
+message PlayerInfo {
+  string player_id = 1;
+  string username = 2;
+  Vector3 position = 3;
+  int32 level = 4;
+  int32 health = 5;
+  int32 max_health = 6;
+  repeated InventoryItem inventory = 7;
+}
+

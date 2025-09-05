@@ -72,10 +72,12 @@ namespace Networking
             networkClient.ConnectionStatusChanged += OnConnectionStatusChanged;
             networkClient.ConnectionError += OnConnectionError;
             networkClient.LoginResponseReceived += OnLoginResponse;
+            #if HMW_PROTO
             networkClient.MoveResponseReceived += OnMoveResponse;
             networkClient.ChatMessageReceived += OnChatMessage;
             networkClient.BlockChangeBroadcastReceived += OnBlockChangeBroadcast;
             networkClient.PingResponseReceived += OnPingResponse;
+            #endif
         }
 
         private void SetupUI()
@@ -117,7 +119,6 @@ namespace Networking
                 
             if (chatSendButton != null)
                 chatSendButton.interactable = isConnected && isLoggedIn;
-                
             if (chatInput != null)
                 chatInput.interactable = isConnected && isLoggedIn;
         }
@@ -283,7 +284,8 @@ namespace Networking
             }
         }
 
-        private void OnChatMessage(ChatMessage message)
+        #if HMW_PROTO
+        private void OnChatMessage(Game.Chat.ChatMessage message)
         {
             var chatType = (ChatType)message.Type;
             var prefix = chatType switch
@@ -298,7 +300,7 @@ namespace Networking
             AddChatMessage($"{prefix} {message.SenderName}: {message.Message}");
         }
 
-        private void OnBlockChangeBroadcast(WorldBlockChangeBroadcast broadcast)
+        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
         {
             if (broadcast.BlockPosition != null)
             {
@@ -310,11 +312,12 @@ namespace Networking
             }
         }
 
-        private void OnPingResponse(PingResponse response)
+        private void OnPingResponse(Game.Diag.PingResponse response)
         {
             var latency = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.ClientTimestamp;
             Debug.Log($"Ping: {latency}ms");
         }
+        #endif
 
         // Public methods (can be called from other scripts)
         public void SendBlockChange(string areaId, string subworldId, Vector3Int blockPosition, int blockType, int chunkType)
@@ -340,10 +343,12 @@ namespace Networking
                 networkClient.ConnectionStatusChanged -= OnConnectionStatusChanged;
                 networkClient.ConnectionError -= OnConnectionError;
                 networkClient.LoginResponseReceived -= OnLoginResponse;
+                #if HMW_PROTO
                 networkClient.MoveResponseReceived -= OnMoveResponse;
                 networkClient.ChatMessageReceived -= OnChatMessage;
                 networkClient.BlockChangeBroadcastReceived -= OnBlockChangeBroadcast;
                 networkClient.PingResponseReceived -= OnPingResponse;
+                #endif
             }
         }
     }

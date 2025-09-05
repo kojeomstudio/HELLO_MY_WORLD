@@ -16,9 +16,36 @@ namespace GameServerApp
             DisplayServerInfo();
             
             // Check if we should run in server-only mode
-            if (args.Length > 0 && args[0] == "--server")
+            if (args.Contains("--server"))
             {
                 return await ServerLauncher.RunAsync(args);
+            }
+
+            // Self test: start server, run test client, shutdown
+            if (args.Contains("--selftest") || args.Contains("--test-client"))
+            {
+                try
+                {
+                    var config = ServerConfig.LoadFromFile();
+                    var server = new GameServer(config.Network.Port, config.Database.DatabaseFile);
+
+                    var cts = new CancellationTokenSource();
+                    var serverTask = server.StartAsync();
+
+                    // Wait a moment for the server to start listening
+                    await Task.Delay(300);
+
+                    await TestClient.RunTestSuiteAsync();
+
+                    server.Stop();
+                    await Task.Delay(200);
+                    return 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Self test failed: {ex.Message}");
+                    return 1;
+                }
             }
             
             Console.WriteLine("\nChoose an option:");

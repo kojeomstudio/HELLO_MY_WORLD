@@ -177,9 +177,136 @@ namespace GameServerApp.World
             }
             
             GenerateOres(chunk, chunkX, chunkZ);
+            // Caves and dungeons are carved after base terrain and ores
+            GenerateCaves(chunk, chunkX, chunkZ);
+            GenerateDungeons(chunk, chunkX, chunkZ);
             GenerateVegetation(chunk, chunkX, chunkZ);
             
             return chunk;
+        }
+
+        /// <summary>
+        /// Simple 3D cave carving using random walk "worms". Keeps it fast and chunk-local.
+        /// </summary>
+        private void GenerateCaves(ChunkData chunk, int chunkX, int chunkZ)
+        {
+            var rand = new Random((chunkX * 73856093) ^ (chunkZ * 19349663));
+            int wormCount = 2 + rand.Next(3); // 2~4 worms per chunk
+
+            for (int w = 0; w < wormCount; w++)
+            {
+                // Start somewhere underground
+                double x = rand.Next(16);
+                double y = rand.Next(20, 48);
+                double z = rand.Next(16);
+                int steps = 80 + rand.Next(60);
+                double yaw = rand.NextDouble() * Math.PI * 2.0;
+                double pitch = (rand.NextDouble() - 0.5) * 0.6; // tilt up/down
+                double radius = 1.8 + rand.NextDouble() * 1.2;  // 1.8 ~ 3.0
+
+                for (int s = 0; s < steps; s++)
+                {
+                    // Carve a small sphere at current position
+                    int cx = (int)Math.Round(x);
+                    int cy = (int)Math.Round(y);
+                    int cz = (int)Math.Round(z);
+                    CarveSphere(chunk, cx, cy, cz, radius);
+
+                    // Move forward
+                    x += Math.Cos(yaw);
+                    z += Math.Sin(yaw);
+                    y += Math.Sin(pitch) * 0.5; // gentle vertical changes
+
+                    // Randomly perturb direction
+                    yaw += (rand.NextDouble() - 0.5) * 0.4;
+                    pitch += (rand.NextDouble() - 0.5) * 0.2;
+
+                    // Clamp within chunk and underground range
+                    if (x < 1 || x > 14 || z < 1 || z > 14) break;
+                    if (y < 10 || y > 80) break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Carves a spherical pocket of air centered at (cx,cy,cz).
+        /// </summary>
+        private void CarveSphere(ChunkData chunk, int cx, int cy, int cz, double radius)
+        {
+            int r = (int)Math.Ceiling(radius);
+            for (int dx = -r; dx <= r; dx++)
+            {
+                for (int dy = -r; dy <= r; dy++)
+                {
+                    for (int dz = -r; dz <= r; dz++)
+                    {
+                        int x = cx + dx;
+                        int y = cy + dy;
+                        int z = cz + dz;
+                        if (x < 0 || x >= 16 || z < 0 || z >= 16 || y < 1 || y >= 255) continue;
+
+                        double dist2 = dx * dx + dy * dy + dz * dz;
+                        if (dist2 <= radius * radius)
+                        {
+                            // Only carve solid materials
+                            var bt = chunk.GetBlock(x, y, z);
+                            if (bt != BlockType.Air && bt != BlockType.Water && bt != BlockType.Lava)
+                                chunk.SetBlock(x, y, z, BlockType.Air);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Places small cobblestone rooms underground with simple corridors.
+        /// </summary>
+        private void GenerateDungeons(ChunkData chunk, int chunkX, int chunkZ)
+        {
+            var rand = new Random((chunkX * 83492791) ^ (chunkZ * 297657976));
+            if (rand.NextDouble() > 0.12) return; // ~12% chance per chunk
+
+            int roomWidth = 5 + rand.Next(3);  // 5..7
+            int roomHeight = 4;                // fixed low rooms
+            int roomDepth = 5 + rand.Next(3);
+
+            int ox = rand.Next(2, 16 - roomWidth - 2);
+            int oy = rand.Next(18, 36);
+            int oz = rand.Next(2, 16 - roomDepth - 2);
+
+            // Carve interior
+            for (int x = ox + 1; x < ox + roomWidth - 1; x++)
+            {
+                for (int y = oy + 1; y < oy + roomHeight - 1; y++)
+                {
+                    for (int z = oz + 1; z < oz + roomDepth - 1; z++)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Air);
+                    }
+                }
+            }
+
+            // Build walls/floor/ceiling with cobblestone
+            for (int x = ox; x < ox + roomWidth; x++)
+            {
+                for (int y = oy; y < oy + roomHeight; y++)
+                {
+                    for (int z = oz; z < oz + roomDepth; z++)
+                    {
+                        bool isWall = (x == ox || x == ox + roomWidth - 1 || z == oz || z == oz + roomDepth - 1 || y == oy || y == oy + roomHeight - 1);
+                        if (isWall)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Cobblestone);
+                        }
+                    }
+                }
+            }
+
+            // Simple doorway
+            for (int y = oy + 1; y < oy + 3; y++)
+            {
+                chunk.SetBlock(ox + roomWidth / 2, y, oz, BlockType.Air);
+            }
         }
 
         private int GenerateHeight(int worldX, int worldZ)

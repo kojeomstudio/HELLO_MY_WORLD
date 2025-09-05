@@ -1,0 +1,808 @@
+syntax = "proto3";
+package EnhancedMinecraftProtocol;
+option csharp_namespace = "EnhancedMinecraftProtocol";
+
+// =============================================================================
+// 강화된 마인크래프트 프로토콜 정의
+// 모든 필수 게임 기능을 포함: 블록 파괴/생성, 인벤토리, 크래프팅, 전투, 경험치 등
+// =============================================================================
+
+// 기본 데이터 구조체
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+// =============================================================================
+// 플레이어 정보 및 상태
+// =============================================================================
+
+message PlayerInfo {
+  string player_id = 1;
+  string username = 2;
+  Vector3 position = 3;
+  Vector3 rotation = 4;
+  int32 level = 5;
+  int64 experience = 6;
+  float experience_progress = 7;  // 0.0 - 1.0
+  float health = 8;
+  float max_health = 9;
+  float hunger = 10;
+  float max_hunger = 11;
+  float saturation = 12;          // 포만감
+  GameMode game_mode = 13;
+  PlayerInventory inventory = 14;
+  int32 selected_slot = 15;       // 핫바에서 선택된 슬롯 (0-8)
+  repeated ActiveEffect active_effects = 16;
+  PlayerStats stats = 17;
+}
+
+enum GameMode {
+  SURVIVAL = 0;
+  CREATIVE = 1;
+  ADVENTURE = 2;
+  SPECTATOR = 3;
+}
+
+message PlayerStats {
+  int32 blocks_mined = 1;
+  int32 blocks_placed = 2;
+  int32 distance_walked = 3;
+  int32 monsters_killed = 4;
+  int32 deaths = 5;
+  int64 play_time_ticks = 6;
+}
+
+// =============================================================================
+// 인벤토리 시스템
+// =============================================================================
+
+message PlayerInventory {
+  repeated InventorySlot main_inventory = 1;    // 27슬롯 (3x9)
+  repeated InventorySlot hotbar = 2;           // 9슬롯
+  InventorySlot helmet = 3;
+  InventorySlot chestplate = 4;
+  InventorySlot leggings = 5;
+  InventorySlot boots = 6;
+  InventorySlot offhand = 7;                   // 방패나 토템 등
+  InventorySlot crafting_result = 8;           // 2x2 크래프팅 결과
+  repeated InventorySlot crafting_input = 9;    // 2x2 크래프팅 입력 (4슬롯)
+}
+
+message InventorySlot {
+  int32 slot_id = 1;
+  ItemStack item_stack = 2;
+}
+
+message ItemStack {
+  int32 item_id = 1;
+  string item_name = 2;
+  int32 count = 3;
+  int32 durability = 4;
+  int32 max_durability = 5;
+  repeated Enchantment enchantments = 6;
+  string nbt_data = 7;              // JSON 형태의 NBT 데이터
+  ItemType item_type = 8;
+  ItemRarity rarity = 9;
+}
+
+enum ItemType {
+  BLOCK = 0;
+  TOOL = 1;
+  WEAPON = 2;
+  ARMOR = 3;
+  FOOD = 4;
+  MATERIAL = 5;
+  POTION = 6;
+  MISC = 7;
+}
+
+enum ItemRarity {
+  COMMON = 0;
+  UNCOMMON = 1;
+  RARE = 2;
+  EPIC = 3;
+  LEGENDARY = 4;
+}
+
+message Enchantment {
+  int32 enchant_id = 1;
+  int32 level = 2;
+  string enchant_name = 3;
+}
+
+// =============================================================================
+// 블록 파괴 및 생성 시스템
+// =============================================================================
+
+message BlockBreakStartRequest {
+  Vector3Int block_position = 1;
+  int32 tool_item_id = 2;          // 사용 중인 도구
+  int32 sequence_id = 3;           // 파괴 시퀀스 ID
+}
+
+message BlockBreakStartResponse {
+  bool success = 1;
+  string message = 2;
+  float estimated_break_time = 3;   // 예상 파괴 시간 (초)
+  int32 sequence_id = 4;
+  bool instant_break = 5;          // 즉시 파괴 여부
+}
+
+message BlockBreakProgressUpdate {
+  Vector3Int block_position = 1;
+  float progress = 2;              // 0.0 - 1.0
+  int32 sequence_id = 3;
+  string player_id = 4;
+}
+
+message BlockBreakCompleteRequest {
+  Vector3Int block_position = 1;
+  int32 sequence_id = 2;
+}
+
+message BlockBreakCompleteResponse {
+  bool success = 1;
+  Vector3Int block_position = 2;
+  repeated ItemStack dropped_items = 3;
+  int32 experience_dropped = 4;
+  int32 sequence_id = 5;
+}
+
+message BlockPlaceRequest {
+  Vector3Int block_position = 1;
+  int32 block_id = 2;
+  int32 block_metadata = 3;        // 방향, 상태 등
+  int32 face = 4;                  // 배치할 면 (0-5)
+  Vector3 cursor_position = 5;     // 블록 내 세밀한 위치
+  ItemStack used_item = 6;
+}
+
+message BlockPlaceResponse {
+  bool success = 1;
+  string message = 2;
+  Vector3Int actual_position = 3;
+  int32 actual_block_id = 4;
+  ItemStack remaining_item = 5;
+}
+
+// 블록 변경 브로드캐스트
+message BlockChangeBroadcast {
+  Vector3Int position = 1;
+  int32 old_block_id = 2;
+  int32 new_block_id = 3;
+  int32 metadata = 4;
+  string player_id = 5;
+  int64 timestamp = 6;
+  ChangeReason reason = 7;
+  repeated ItemStack drops = 8;
+  ParticleEffect particle_effect = 9;
+  SoundEffect sound_effect = 10;
+}
+
+enum ChangeReason {
+  PLAYER_BREAK = 0;
+  PLAYER_PLACE = 1;
+  PHYSICS = 2;                    // 중력, 물 흐름 등
+  REDSTONE = 3;
+  GROWTH = 4;                     // 나무, 작물 성장
+  DECAY = 5;                      // 잎사귀 소멸
+  EXPLOSION = 6;
+  FIRE = 7;
+}
+
+// =============================================================================
+// 월드 및 청크 시스템
+// =============================================================================
+
+message ChunkLoadRequest {
+  repeated Vector3Int chunk_positions = 1;  // x,z 청크 좌표들
+  int32 view_distance = 2;
+}
+
+message ChunkLoadResponse {
+  repeated ChunkData chunks = 1;
+  int32 total_requested = 2;
+  int32 total_sent = 3;
+}
+
+message ChunkData {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  bytes block_data = 3;           // 압축된 블록 데이터
+  bytes biome_data = 4;           // 바이옴 데이터
+  bytes light_data = 5;           // 조명 데이터 (스카이라이트 + 블록라이트)
+  repeated EntityData entities = 6;
+  repeated TileEntityData tile_entities = 7;
+  int64 generation_timestamp = 8;
+}
+
+message TileEntityData {
+  Vector3Int position = 1;
+  TileEntityType type = 2;
+  string data = 3;                // JSON 형태의 타일 엔티티 데이터
+}
+
+enum TileEntityType {
+  CHEST = 0;
+  FURNACE = 1;
+  BREWING_STAND = 2;
+  ENCHANTING_TABLE = 3;
+  BEACON = 4;
+  MOB_SPAWNER = 5;
+  SIGN = 6;
+  BANNER = 7;
+}
+
+// =============================================================================
+// 엔티티 시스템
+// =============================================================================
+
+message EntityData {
+  string entity_id = 1;
+  EntityType entity_type = 2;
+  Vector3 position = 3;
+  Vector3 rotation = 4;
+  Vector3 velocity = 5;
+  float health = 6;
+  float max_health = 7;
+  string custom_data = 8;
+  repeated ActiveEffect effects = 9;
+  EntityMetadata metadata = 10;
+}
+
+enum EntityType {
+  UNKNOWN_ENTITY = 0;
+  PLAYER = 1;
+  // 적대적 몹
+  ZOMBIE = 10;
+  SKELETON = 11;
+  CREEPER = 12;
+  SPIDER = 13;
+  ENDERMAN = 14;
+  WITCH = 15;
+  SLIME = 16;
+  // 중립/평화 몹
+  PIG = 20;
+  COW = 21;
+  SHEEP = 22;
+  CHICKEN = 23;
+  HORSE = 24;
+  WOLF = 25;
+  CAT = 26;
+  VILLAGER = 27;
+  // 기타 엔티티
+  DROPPED_ITEM = 30;
+  ARROW = 31;
+  EXPERIENCE_ORB = 32;
+  BOAT = 33;
+  MINECART = 34;
+  FIREBALL = 35;
+}
+
+message EntityMetadata {
+  bool is_on_fire = 1;
+  bool is_crouching = 2;
+  bool is_sprinting = 3;
+  bool is_invisible = 4;
+  bool is_glowing = 5;
+  bool is_flying = 6;
+  int32 air_ticks = 7;
+  string custom_name = 8;
+}
+
+message EntitySpawnBroadcast {
+  EntityData entity = 1;
+  SpawnReason spawn_reason = 2;
+}
+
+message EntityDespawnBroadcast {
+  string entity_id = 1;
+  DespawnReason reason = 2;
+}
+
+enum SpawnReason {
+  SPAWN_NATURAL = 0;
+  SPAWN_SPAWNER = 1;
+  SPAWN_BREEDING = 2;
+  SPAWN_COMMAND = 3;
+  SPAWN_ITEM_DROP = 4;
+  SPAWN_PROJECTILE = 5;
+}
+
+enum DespawnReason {
+  DESPAWN_NATURAL = 0;
+  DESPAWN_DEATH = 1;
+  DESPAWN_PICKUP = 2;
+  DESPAWN_CHUNK_UNLOAD = 3;
+  DESPAWN_COMMAND = 4;
+}
+
+// =============================================================================
+// 플레이어 액션 시스템
+// =============================================================================
+
+message PlayerActionRequest {
+  PlayerAction action = 1;
+  Vector3Int target_position = 2;
+  int32 face = 3;
+  Vector3 cursor_position = 4;
+  ItemStack used_item = 5;
+  int32 sequence = 6;
+  ActionData action_data = 7;      // 액션별 추가 데이터
+}
+
+enum PlayerAction {
+  // 블록 관련
+  START_DESTROY_BLOCK = 0;
+  ABORT_DESTROY_BLOCK = 1;
+  FINISH_DESTROY_BLOCK = 2;
+  PLACE_BLOCK = 3;
+  RIGHT_CLICK_BLOCK = 4;
+  
+  // 아이템 관련
+  USE_ITEM = 10;
+  DROP_ITEM = 11;
+  DROP_ITEM_STACK = 12;
+  EAT_FOOD = 13;
+  DRINK_POTION = 14;
+  
+  // 전투 관련
+  ATTACK_ENTITY = 20;
+  SHOOT_BOW = 21;
+  BLOCK_WITH_SHIELD = 22;
+  
+  // 기타
+  INTERACT = 30;
+  SNEAK_START = 31;
+  SNEAK_STOP = 32;
+  SPRINT_START = 33;
+  SPRINT_STOP = 34;
+  JUMP = 35;
+}
+
+message ActionData {
+  // 각 액션에 따른 추가 데이터
+  string target_entity_id = 1;
+  float charge_progress = 2;       // 활 충전 등
+  int32 held_ticks = 3;           // 아이템을 얼마나 오래 사용했는지
+}
+
+message PlayerActionResponse {
+  bool success = 1;
+  string message = 2;
+  int32 sequence = 3;
+  ActionResult result = 4;
+}
+
+message ActionResult {
+  repeated ItemStack updated_items = 1;
+  repeated ActiveEffect applied_effects = 2;
+  float health_change = 3;
+  float hunger_change = 4;
+  int32 experience_change = 5;
+  ParticleEffect particle_effect = 6;
+  SoundEffect sound_effect = 7;
+}
+
+// =============================================================================
+// 크래프팅 시스템
+// =============================================================================
+
+message CraftingRequest {
+  int32 recipe_id = 1;
+  repeated ItemStack ingredients = 2;
+  CraftingType crafting_type = 3;
+  int32 craft_amount = 4;
+}
+
+enum CraftingType {
+  CRAFTING_PLAYER_2X2 = 0;
+  CRAFTING_TABLE_3X3 = 1;
+  CRAFTING_FURNACE = 2;
+  CRAFTING_BREWING_STAND = 3;
+  CRAFTING_ENCHANTING_TABLE = 4;
+  CRAFTING_ANVIL = 5;
+}
+
+message CraftingResponse {
+  bool success = 1;
+  repeated ItemStack result_items = 2;
+  repeated ItemStack remaining_items = 3;
+  int32 experience_cost = 4;
+  string error_message = 5;
+}
+
+message RecipeDiscoveryBroadcast {
+  int32 recipe_id = 1;
+  string recipe_name = 2;
+  RecipeType recipe_type = 3;
+}
+
+enum RecipeType {
+  SHAPED = 0;
+  SHAPELESS = 1;
+  SMELTING = 2;
+  BREWING = 3;
+  ENCHANTING = 4;
+}
+
+// =============================================================================
+// 전투 및 데미지 시스템
+// =============================================================================
+
+message CombatEvent {
+  string attacker_id = 1;
+  string target_id = 2;
+  DamageType damage_type = 3;
+  float damage_amount = 4;
+  float final_damage = 5;          // 방어구, 저항 효과 적용 후
+  Vector3 damage_source_pos = 6;
+  Vector3 knockback_velocity = 7;
+  ItemStack weapon_used = 8;
+  bool is_critical = 9;
+  bool is_blocked = 10;            // 방패로 막았는지
+}
+
+enum DamageType {
+  DMG_GENERIC = 0;
+  DMG_ENTITY_ATTACK = 1;
+  DMG_PROJECTILE = 2;
+  DMG_FALL = 3;
+  DMG_FIRE = 4;
+  DMG_FIRE_TICK = 5;
+  DMG_LAVA = 6;
+  DMG_DROWNING = 7;
+  DMG_SUFFOCATION = 8;
+  DMG_EXPLOSION = 9;
+  DMG_VOID = 10;
+  DMG_POISON = 11;
+  DMG_MAGIC = 12;
+  DMG_WITHER = 13;
+  DMG_ANVIL = 14;
+  DMG_CACTUS = 15;
+  DMG_LIGHTNING = 16;
+  DMG_STARVATION = 17;
+}
+
+message DeathEvent {
+  string player_id = 1;
+  DamageType death_cause = 2;
+  string killer_id = 3;           // null이면 환경사망
+  Vector3 death_position = 4;
+  repeated ItemStack dropped_items = 5;
+  int32 experience_dropped = 6;
+  string death_message = 7;
+}
+
+// =============================================================================
+// 경험치 및 인챈트 시스템
+// =============================================================================
+
+message ExperienceUpdateBroadcast {
+  string player_id = 1;
+  int64 total_experience = 2;
+  int32 experience_level = 3;
+  float level_progress = 4;        // 0.0 - 1.0
+}
+
+message ExperienceOrbSpawnBroadcast {
+  EntityData orb_entity = 1;
+  int32 experience_value = 2;
+  Vector3 target_position = 3;     // 플레이어 위치 (이동 대상)
+}
+
+message EnchantingRequest {
+  ItemStack item_to_enchant = 1;
+  int32 enchantment_option = 2;    // 0, 1, 2 (3가지 옵션)
+  int32 lapis_cost = 3;
+  int32 experience_cost = 4;
+}
+
+message EnchantingResponse {
+  bool success = 1;
+  ItemStack enchanted_item = 2;
+  string error_message = 3;
+  repeated Enchantment applied_enchantments = 4;
+}
+
+// =============================================================================
+// 효과 및 포션 시스템
+// =============================================================================
+
+message ActiveEffect {
+  int32 effect_id = 1;
+  string effect_name = 2;
+  int32 amplifier = 3;             // 효과 레벨 (0부터 시작)
+  int32 duration_ticks = 4;        // 남은 지속시간 (틱)
+  bool is_ambient = 5;             // 비콘 등의 주변 효과
+  bool show_particles = 6;
+  bool show_icon = 7;
+  EffectType effect_type = 8;
+}
+
+enum EffectType {
+  BENEFICIAL = 0;
+  HARMFUL = 1;
+  NEUTRAL = 2;
+}
+
+message EffectUpdateBroadcast {
+  string target_id = 1;
+  repeated ActiveEffect active_effects = 2;
+}
+
+// =============================================================================
+// 파티클 및 사운드 시스템
+// =============================================================================
+
+message ParticleEffect {
+  ParticleType particle_type = 1;
+  Vector3 position = 2;
+  Vector3 velocity = 3;
+  int32 count = 4;
+  float spread = 5;
+  string particle_data = 6;        // 파티클별 추가 데이터 (JSON)
+}
+
+enum ParticleType {
+  BLOCK_BREAK = 0;
+  BLOCK_CRACK = 1;
+  EXPLOSION_NORMAL = 2;
+  EXPLOSION_LARGE = 3;
+  WATER_SPLASH = 4;
+  LAVA_POP = 5;
+  SMOKE_NORMAL = 6;
+  FLAME = 7;
+  HEART = 8;
+  CRIT = 9;
+  ENCHANTMENT_TABLE = 10;
+  PORTAL = 11;
+  NOTE = 12;
+  HAPPY_VILLAGER = 13;
+  ANGRY_VILLAGER = 14;
+  DAMAGE_INDICATOR = 15;
+}
+
+message SoundEffect {
+  SoundType sound_type = 1;
+  Vector3 position = 2;
+  float volume = 3;
+  float pitch = 4;
+  SoundCategory category = 5;
+}
+
+enum SoundType {
+  // 블록 소리
+  BLOCK_BREAK_STONE = 0;
+  BLOCK_BREAK_WOOD = 1;
+  BLOCK_BREAK_GRASS = 2;
+  BLOCK_PLACE_STONE = 3;
+  BLOCK_PLACE_WOOD = 4;
+  
+  // 플레이어 소리
+  HURT_PLAYER = 10;
+  DEATH_PLAYER = 11;
+  LEVEL_UP = 12;
+  
+  // 아이템 소리
+  ITEM_PICKUP = 20;
+  ITEM_BREAK = 21;
+  EAT = 22;
+  DRINK = 23;
+  
+  // 전투 소리
+  ATTACK_STRONG = 30;
+  ATTACK_WEAK = 31;
+  ARROW_SHOOT = 32;
+  ARROW_HIT = 33;
+  
+  // 환경 소리
+  FOOTSTEP_STONE = 40;
+  FOOTSTEP_WOOD = 41;
+  FOOTSTEP_GRASS = 42;
+  AMBIENT_CAVE = 43;
+  THUNDER = 44;
+  RAIN = 45;
+  
+  // UI 소리
+  UI_BUTTON_CLICK = 50;
+  CHEST_OPEN = 51;
+  CHEST_CLOSE = 52;
+}
+
+enum SoundCategory {
+  SND_MASTER = 0;
+  SND_MUSIC = 1;
+  SND_RECORD = 2;
+  SND_WEATHER = 3;
+  SND_BLOCK = 4;
+  SND_HOSTILE = 5;
+  SND_NEUTRAL = 6;
+  SND_PLAYER = 7;
+  SND_AMBIENT = 8;
+  SND_VOICE = 9;
+}
+
+// =============================================================================
+// 채팅 및 명령어 시스템
+// =============================================================================
+
+message ChatMessage {
+  string sender_id = 1;
+  string sender_name = 2;
+  string message_content = 3;
+  ChatType chat_type = 4;
+  int64 timestamp = 5;
+  string formatted_message = 6;
+  ChatStyle style = 7;
+}
+
+enum ChatType {
+  CHAT_GLOBAL = 0;
+  CHAT_LOCAL = 1;
+  CHAT_WHISPER = 2;
+  CHAT_SYSTEM = 3;
+  CHAT_TEAM = 4;
+  CHAT_ANNOUNCEMENT = 5;
+  CHAT_DEATH = 6;
+  CHAT_JOIN_LEAVE = 7;
+  CHAT_ACHIEVEMENT = 8;
+  CHAT_COMMAND_RESULT = 9;
+}
+
+message ChatStyle {
+  string color = 1;                // hex color code
+  bool bold = 2;
+  bool italic = 3;
+  bool underlined = 4;
+  bool strikethrough = 5;
+  bool obfuscated = 6;
+}
+
+message CommandExecuteRequest {
+  string command = 1;
+  repeated string arguments = 2;
+  string sender_id = 3;
+}
+
+message CommandExecuteResponse {
+  bool success = 1;
+  string result_message = 2;
+  CommandResultType result_type = 3;
+  repeated string output_lines = 4;
+}
+
+enum CommandResultType {
+  SUCCESS = 0;
+  FAILURE = 1;
+  PERMISSION_DENIED = 2;
+  INVALID_SYNTAX = 3;
+  TARGET_NOT_FOUND = 4;
+  INCOMPLETE = 5;
+}
+
+// =============================================================================
+// 서버 관리 및 월드 정보
+// =============================================================================
+
+message WorldInfo {
+  string world_name = 1;
+  string world_seed = 2;
+  WorldType world_type = 3;
+  GameMode default_game_mode = 4;
+  bool hardcore_mode = 5;
+  int64 world_time = 6;            // 게임 틱
+  int64 day_time = 7;              // 하루 내 시간 (0-24000)
+  WeatherInfo weather = 8;
+  Vector3 spawn_point = 9;
+  WorldDifficulty difficulty = 10;
+  WorldBorder world_border = 11;
+}
+
+enum WorldType {
+  NORMAL = 0;
+  FLAT = 1;
+  LARGE_BIOMES = 2;
+  AMPLIFIED = 3;
+  DEBUG = 4;
+  CUSTOM = 5;
+}
+
+enum WorldDifficulty {
+  DIFF_PEACEFUL = 0;
+  DIFF_EASY = 1;
+  DIFF_NORMAL = 2;
+  DIFF_HARD = 3;
+}
+
+message WeatherInfo {
+  WeatherType weather_type = 1;
+  int32 duration_ticks = 2;
+  float intensity = 3;
+  bool thundering = 4;
+}
+
+enum WeatherType {
+  WEATHER_CLEAR = 0;
+  WEATHER_RAIN = 1;
+  WEATHER_STORM = 2;
+  WEATHER_SNOW = 3;
+}
+
+message WorldBorder {
+  Vector3 center = 1;
+  double diameter = 2;
+  double target_diameter = 3;
+  int64 time_to_target = 4;
+  double warning_distance = 5;
+  int32 warning_time = 6;
+  double damage_per_block = 7;
+  double damage_buffer = 8;
+}
+
+message ServerStatusResponse {
+  string server_version = 1;
+  int32 protocol_version = 2;
+  int32 online_players = 3;
+  int32 max_players = 4;
+  float server_tps = 5;
+  int64 server_uptime = 6;
+  string motd = 7;                 // Message of the Day
+  WorldInfo world_info = 8;
+}
+
+message TimeUpdateBroadcast {
+  int64 world_time = 1;
+  int64 day_time = 2;
+}
+
+message WeatherUpdateBroadcast {
+  WeatherInfo weather = 1;
+  int64 change_timestamp = 2;
+}
+
+// =============================================================================
+// 성취 및 통계 시스템
+// =============================================================================
+
+message AchievementUnlockBroadcast {
+  string player_id = 1;
+  int32 achievement_id = 2;
+  string achievement_name = 3;
+  string achievement_description = 4;
+  AchievementType achievement_type = 5;
+  int32 experience_reward = 6;
+}
+
+enum AchievementType {
+  BASIC = 0;
+  CHALLENGE = 1;
+  GOAL = 2;
+}
+
+message StatisticUpdateBroadcast {
+  string player_id = 1;
+  repeated StatisticEntry statistics = 2;
+}
+
+message StatisticEntry {
+  string statistic_name = 1;
+  int64 value = 2;
+  StatisticCategory category = 3;
+}
+
+enum StatisticCategory {
+  STAT_GENERAL = 0;
+  STAT_BLOCKS = 1;
+  STAT_ITEMS = 2;
+  STAT_MOBS = 3;
+  STAT_CUSTOM = 4;
+}

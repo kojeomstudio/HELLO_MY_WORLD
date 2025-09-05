@@ -253,6 +253,44 @@ namespace GameServerApp
         }
 
         /// <summary>
+        /// 블록 변경 테스트를 수행합니다.
+        /// </summary>
+        public async Task TestBlockChangeAsync(int x, int y, int z, int blockType)
+        {
+            try
+            {
+                Console.WriteLine($"Testing block change at ({x},{y},{z}) -> {blockType}");
+
+                var request = new WorldBlockChangeRequest
+                {
+                    AreaId = "default",
+                    SubworldId = "default",
+                    BlockPosition = new Vector3Int { X = x, Y = y, Z = z },
+                    BlockType = blockType,
+                    ChunkType = 0
+                };
+
+                await _session.SendAsync(MessageType.WorldBlockChangeRequest, request);
+
+                var (responseType, responseMessage) = await _session.ReceiveAsync();
+                if (responseType == MessageType.WorldBlockChangeResponse && responseMessage is WorldBlockChangeResponse resp)
+                {
+                    Console.WriteLine(resp.Success
+                        ? $"✓ Block change success: {resp.Message}"
+                        : $"✗ Block change failed: {resp.Message}");
+                }
+                else
+                {
+                    Console.WriteLine($"✗ Unexpected response type: {responseType}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"✗ Block change test failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 전체 테스트 스위트를 실행합니다.
         /// </summary>
         public static async Task RunTestSuiteAsync()
@@ -286,6 +324,10 @@ namespace GameServerApp
                 
                 // 5. 핑 테스트
                 await testClient.TestPingAsync();
+                await Task.Delay(100);
+
+                // 6. 블록 변경 테스트 (x=0,y=64,z=0에 흙(3) 배치)
+                await testClient.TestBlockChangeAsync(0, 64, 0, 3);
                 await Task.Delay(100);
                 
                 Console.WriteLine("\n=== Test Suite Completed ===");

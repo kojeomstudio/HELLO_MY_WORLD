@@ -1,0 +1,16 @@
+syntax = "proto3";
+package Game.Move;
+option csharp_namespace = "Game.Move";
+import "game_core.proto";
+
+message MoveRequest {
+  Game.Core.Vector3 target_position = 1;
+  float movement_speed = 2;
+}
+
+message MoveResponse {
+  bool success = 1;
+  Game.Core.Vector3 new_position = 2;
+  int64 timestamp = 3;
+}
+

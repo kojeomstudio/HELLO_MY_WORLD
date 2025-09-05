@@ -1,0 +1,43 @@
+syntax = "proto3";
+package Game.World;
+option csharp_namespace = "Game.World";
+import "game_core.proto";
+
+message WorldBlockChangeRequest {
+  string area_id = 1;
+  string subworld_id = 2;
+  Game.Core.Vector3Int block_position = 3;
+  int32 block_type = 4;
+  int32 chunk_type = 5;
+}
+
+message WorldBlockChangeResponse {
+  bool success = 1;
+  string message = 2;
+  int64 timestamp = 3;
+}
+
+message WorldBlockChangeBroadcast {
+  string area_id = 1;
+  string subworld_id = 2;
+  Game.Core.Vector3Int block_position = 3;
+  int32 block_type = 4;
+  int32 chunk_type = 5;
+  string player_id = 6;
+  int64 timestamp = 7;
+}
+
+message ChunkDataRequest {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  int32 view_distance = 3;
+}
+
+message ChunkDataResponse {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  bool success = 3;
+  bytes compressed_block_data = 4;
+  // Entities omitted for brevity in client; server sends separately if needed
+}
+

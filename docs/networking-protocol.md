@@ -19,6 +19,24 @@ The Unity client reads a 4 byte length, then reads `length` bytes. The first 4 b
 
 Note: Protobuf wire format is interoperable across implementations as long as field numbers and types match. It is acceptable for the client to omit optional fields; they will be treated as default on the server.
 
+### Generate client C# from .proto
+
+Protos live in `proto/`. Generate Google.Protobuf C# files for Unity like this:
+
+```
+protoc \
+  --csharp_out=Assets/Generated/Protobuf \
+  -Iproto \
+  proto/game_auth.proto \
+  proto/game_core.proto \
+  proto/game_move.proto \
+  proto/game_chat.proto \
+  proto/game_world.proto \
+  proto/game_diag.proto
+```
+
+Then refresh Unity so the generated C# appears. Ensure `Assets/link.xml` preserves the Google.Protobuf assembly for IL2CPP builds.
+
 ## Message Types
 
 Message type IDs mirror `SharedProtocol.MessageType` on the server and must remain stable:
@@ -83,4 +101,3 @@ Planned additions (.proto files to be authored next):
 
 - Server: `dotnet build SharedProtocol/SharedProtocol.csproj` then `dotnet build GameServer/GameServer.csproj`.
 - Unity: Ensure `Google.Protobuf` runtime is present (see `Assets/link.xml`). Generated C# files from `.proto` go under `Assets/Generated/Protobuf/`.
-

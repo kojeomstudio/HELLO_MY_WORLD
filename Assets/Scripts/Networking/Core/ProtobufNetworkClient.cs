@@ -28,6 +28,12 @@ namespace Networking.Core
         
         // Message handler events
         public event Action<LoginResponse> LoginResponseReceived;
+        #if HMW_PROTO
+        public event Action<Game.Move.MoveResponse> MoveResponseReceived;
+        public event Action<Game.Chat.ChatMessage> ChatMessageReceived;
+        public event Action<Game.World.WorldBlockChangeBroadcast> BlockChangeBroadcastReceived;
+        public event Action<Game.Diag.PingResponse> PingResponseReceived;
+        #endif
 
         public bool IsConnected => _transport?.IsConnected ?? false;
         public string ServerAddress => serverAddress;
@@ -124,15 +130,17 @@ namespace Networking.Core
         /// </summary>
         public void SendChatMessage(string message, ChatType chatType = ChatType.Global, string targetPlayer = "")
         {
-            var request = new ChatRequest
+            #if HMW_PROTO
+            var request = new Game.Chat.ChatRequest
             {
                 Message = message,
                 Type = (int)chatType,
                 TargetPlayer = targetPlayer
             };
-            
-            SendMessage(request);
-            Debug.Log($"Sent chat message [{chatType}]: {message}");
+            SendMessageWithHeader(request, ClientMessageType.ChatRequest);
+            #else
+            Debug.LogWarning("Chat proto not generated yet. See docs/networking-protocol.md to generate C#.");
+            #endif
         }
 
         /// <summary>
@@ -140,11 +148,12 @@ namespace Networking.Core
         /// </summary>
         public void SendBlockChangeRequest(string areaId, string subworldId, Vector3Int blockPosition, int blockType, int chunkType)
         {
-            var request = new WorldBlockChangeRequest
+            #if HMW_PROTO
+            var request = new Game.World.WorldBlockChangeRequest
             {
                 AreaId = areaId,
                 SubworldId = subworldId,
-                BlockPosition = new GameProtocol.Vector3Int 
+                BlockPosition = new Game.Core.Vector3Int 
                 { 
                     X = blockPosition.x, 
                     Y = blockPosition.y, 
@@ -153,9 +162,10 @@ namespace Networking.Core
                 BlockType = blockType,
                 ChunkType = chunkType
             };
-            
-            SendMessage(request);
-            Debug.Log($"Sent block change request at ({blockPosition.x}, {blockPosition.y}, {blockPosition.z})");
+            SendMessageWithHeader(request, ClientMessageType.WorldBlockChangeRequest);
+            #else
+            Debug.LogWarning("World proto not generated yet. See docs/networking-protocol.md to generate C#.");
+            #endif
         }
 
         /// <summary>
@@ -163,12 +173,12 @@ namespace Networking.Core
         /// </summary>
         public void SendPing()
         {
-            var request = new PingRequest
-            {
-                ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-            
-            SendMessage(request);
+            #if HMW_PROTO
+            var request = new Game.Diag.PingRequest { ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() };
+            SendMessageWithHeader(request, ClientMessageType.PingRequest);
+            #else
+            Debug.LogWarning("Diag proto not generated yet. See docs/networking-protocol.md to generate C#.");
+            #endif
         }
 
         /// <summary>
@@ -229,6 +239,36 @@ namespace Networking.Core
                         if (TryParseMessage<LoginResponse>(payload, out var loginResponse))
                             _messageDispatcher.Dispatch(loginResponse);
                         break;
+                    #if HMW_PROTO
+                    case ClientMessageType.MoveResponse:
+                        if (TryParseMessage<Game.Move.MoveResponse>(payload, out var moveResponse))
+                        {
+                            _messageDispatcher.Dispatch(moveResponse);
+                            MoveResponseReceived?.Invoke(moveResponse);
+                        }
+                        break;
+                    case ClientMessageType.ChatMessage:
+                        if (TryParseMessage<Game.Chat.ChatMessage>(payload, out var chatMessage))
+                        {
+                            _messageDispatcher.Dispatch(chatMessage);
+                            ChatMessageReceived?.Invoke(chatMessage);
+                        }
+                        break;
+                    case ClientMessageType.WorldBlockChangeBroadcast:
+                        if (TryParseMessage<Game.World.WorldBlockChangeBroadcast>(payload, out var blockBroadcast))
+                        {
+                            _messageDispatcher.Dispatch(blockBroadcast);
+                            BlockChangeBroadcastReceived?.Invoke(blockBroadcast);
+                        }
+                        break;
+                    case ClientMessageType.PingResponse:
+                        if (TryParseMessage<Game.Diag.PingResponse>(payload, out var pingResponse))
+                        {
+                            _messageDispatcher.Dispatch(pingResponse);
+                            PingResponseReceived?.Invoke(pingResponse);
+                        }
+                        break;
+                    #endif
                     default:
                         Debug.LogWarning($"Unknown or unhandled message type: {type}");
                         break;

@@ -7,10 +7,13 @@ using System.Data;
 
 /// <summary>
 /// 게임내 사용자가 월드 블록을 수정/삭제를 관리하는 클래스.
+/// 마인크래프트와 같은 블록 조작 기능을 제공합니다.
 /// </summary>
-/// 
 public class ModifyWorldManager : MonoBehaviour
 {
+    /// <summary>
+    /// 블록 처리를 위한 내부 데이터 구조체
+    /// </summary>
     private struct ProcessBlockData_Internal
     {
         public CollideInfo CollideInfo;
@@ -20,10 +23,20 @@ public class ModifyWorldManager : MonoBehaviour
         public int BlockY;
         public int BlockZ;
         public byte BlockType;
+        public float PlaceDistance; // 블록 설치 거리 추가
+        public bool IsValidPlacement; // 유효한 설치 위치인지 확인
     }
 
     private SubWorld SelectWorldInstance;
     private int chunkSize = 0;
+    
+    // 블록 설치/파괴 관련 설정
+    private const float MAX_BLOCK_REACH_DISTANCE = 6.0f; // 최대 블록 조작 거리
+    private const float MIN_BLOCK_PLACE_DISTANCE = 1.0f; // 최소 블록 설치 거리
+    
+    /// <summary>
+    /// 매니저 초기화
+    /// </summary>
     public void Init()
     {
         var gameWorldConfig = WorldConfigFile.Instance.GetConfig();
@@ -67,14 +80,49 @@ public class ModifyWorldManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 입력에 의한 블록 삭제 (개선된 거리 체크 포함)
+    /// </summary>
     public void DeleteBlockByInput(Ray ray, Vector3 clickWorldPos, byte blockType)
     {
-        DeleteBlockAt(ray, clickWorldPos, blockType);
+        if (IsValidInteractionDistance(clickWorldPos))
+        {
+            DeleteBlockAt(ray, clickWorldPos, blockType);
+        }
+        else
+        {
+            GameMessage.SetMessage("너무 멀어서 블록을 부술 수 없습니다.", GameMessage.MESSAGE_TYPE.CANT_CREATE_BLOCK);
+            UIPopupSupervisor.OpenPopupUI(UI_POPUP_TYPE.GameMessage);
+        }
     }
 
+    /// <summary>
+    /// 입력에 의한 블록 추가 (개선된 거리 체크 포함)
+    /// </summary>
     public void AddBlockByInput(Ray ray, Vector3 clickWorldPos, byte blockType)
     {
-        AddBlockAt(ray, clickWorldPos, blockType);
+        if (IsValidInteractionDistance(clickWorldPos))
+        {
+            AddBlockAt(ray, clickWorldPos, blockType);
+        }
+        else
+        {
+            GameMessage.SetMessage("너무 멀어서 블록을 설치할 수 없습니다.", GameMessage.MESSAGE_TYPE.CANT_CREATE_BLOCK);
+            UIPopupSupervisor.OpenPopupUI(UI_POPUP_TYPE.GameMessage);
+        }
+    }
+    
+    /// <summary>
+    /// 플레이어와 대상 위치 간의 거리가 유효한지 확인
+    /// </summary>
+    private bool IsValidInteractionDistance(Vector3 targetPosition)
+    {
+        if (GamePlayerManager.Instance?.GetCurrentPlayer()?.transform == null)
+            return false;
+            
+        Vector3 playerPosition = GamePlayerManager.Instance.GetCurrentPlayer().transform.position;
+        float distance = Vector3.Distance(playerPosition, targetPosition);
+        return distance <= MAX_BLOCK_REACH_DISTANCE;
     }
 
     private void DeleteBlockAt(Ray ray, Vector3 clickWorldPos, byte blockType)
@@ -120,6 +168,14 @@ public class ModifyWorldManager : MonoBehaviour
                 blockX += (int)offset.x;
                 blockY += (int)offset.y;
                 blockZ += (int)offset.z;
+                
+                // 블록 설치 위치 유효성 검사
+                if (!IsValidBlockPlacement(blockX, blockY, blockZ, SelectWorldInstance))
+                {
+                    GameMessage.SetMessage("이 위치에는 블록을 설치할 수 없습니다.", GameMessage.MESSAGE_TYPE.CANT_CREATE_BLOCK);
+                    UIPopupSupervisor.OpenPopupUI(UI_POPUP_TYPE.GameMessage);
+                    return;
+                }
             }
 
             ProcessBlockData_Internal processData = new ProcessBlockData_Internal();
@@ -130,6 +186,8 @@ public class ModifyWorldManager : MonoBehaviour
             processData.BlockZ = blockZ;
             processData.BlockType = blockType;
             processData.UpdatePosition = collideInfo.HitBlockCenter + offset;
+            processData.PlaceDistance = Vector3.Distance(ray.origin, processData.UpdatePosition);
+            processData.IsValidPlacement = IsValidBlockPlacement(blockX, blockY, blockZ, SelectWorldInstance);
             if (GameStatusManager.CurrentGameModeState == GameModeState.SINGLE)
             {
                 ProcessBlockCreateOrDelete(processData);
@@ -186,25 +244,32 @@ public class ModifyWorldManager : MonoBehaviour
 
         if (processData.bCreate == true)
         {
-            // 임시코드
-            SelectWorldInstance.CustomOctreeInstance.Add(processData.UpdatePosition);
-            SetBlockForAdd(processData.BlockX, processData.BlockY, processData.BlockZ, processData.BlockType);
-            SelectWorldInstance.WorldBlockData[processData.BlockX, processData.BlockY, processData.BlockZ].bRendered = true;
+            // 블록 생성 처리 - 개선된 로직
+            if (processData.IsValidPlacement && processData.PlaceDistance <= MAX_BLOCK_REACH_DISTANCE)
+            {
+                SelectWorldInstance.CustomOctreeInstance.Add(processData.UpdatePosition);
+                SetBlockForAdd(processData.BlockX, processData.BlockY, processData.BlockZ, processData.BlockType);
+                SelectWorldInstance.WorldBlockData[processData.BlockX, processData.BlockY, processData.BlockZ].bRendered = true;
+                
+                // 블록 설치 사운드 재생
+                PlayBlockPlaceSound(processData.BlockType, processData.UpdatePosition);
+            }
+            else
+            {
+                KojeomLogger.DebugLog("Invalid block placement attempt", LOG_TYPE.WARNING);
+            }
         }
         else
         {
-            // 파티클 테스트.
-            ParticleEffectSpawnParams spawnParams;
-            spawnParams.ParticleType = GameParticleType.FireworksGreenSmall;
-            spawnParams.SpawnLocation = processData.CollideInfo.CollisionPoint;
-            spawnParams.SpawnRotation = Quaternion.identity;
-            spawnParams.bLooping = false;
-            spawnParams.bStart = true;
-            GameParticleEffectManager.Instance.SpawnParticleEffect(spawnParams);
-
+            // 블록 파괴 처리 - 개선된 파티클 효과
+            SpawnBlockBreakParticles(processData.BlockType, processData.CollideInfo.CollisionPoint);
+            
             SelectWorldInstance.CustomOctreeInstance.Delete(processData.UpdatePosition);
             SetBlockForDelete(processData.BlockX, processData.BlockY, processData.BlockZ, processData.BlockType);
             SelectWorldInstance.WorldBlockData[processData.BlockX, processData.BlockY, processData.BlockZ].bRendered = false;
+            
+            // 블록 파괴 사운드 재생
+            PlayBlockBreakSound(processData.BlockType, processData.UpdatePosition);
         }
     }
 
@@ -393,5 +458,91 @@ public class ModifyWorldManager : MonoBehaviour
         {
             SelectWorldInstance.ChunkSlots[updateX, updateY, updateZ + 1].Chunks[(int)ChunkType.TERRAIN].Update = true;
         }
+    }
+    
+    /// <summary>
+    /// 블록 설치 위치의 유효성을 검사합니다.
+    /// </summary>
+    private bool IsValidBlockPlacement(int x, int y, int z, SubWorld subWorld)
+    {
+        // 범위 체크
+        var gameWorldConfig = WorldConfigFile.Instance.GetConfig();
+        if (x < 0 || x >= gameWorldConfig.SubWorldSizeX || 
+            y < 0 || y >= gameWorldConfig.SubWorldSizeY || 
+            z < 0 || z >= gameWorldConfig.SubWorldSizeZ)
+        {
+            return false;
+        }
+        
+        // 이미 블록이 있는지 체크
+        if (subWorld.WorldBlockData[x, y, z].CurrentType != (byte)BlockTileType.EMPTY)
+        {
+            return false;
+        }
+        
+        // 플레이어와 겹치는지 체크 (플레이어 위치 근처)
+        if (GamePlayerManager.Instance?.GetCurrentPlayer() != null)
+        {
+            Vector3 playerPos = GamePlayerManager.Instance.GetCurrentPlayer().transform.position;
+            Vector3 blockWorldPos = new Vector3(x, y, z);
+            
+            // 플레이어 바운딩 박스와 겹치는지 확인 (간단한 거리 체크)
+            if (Vector3.Distance(playerPos, blockWorldPos) < MIN_BLOCK_PLACE_DISTANCE)
+            {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// 블록 타입에 따른 파괴 파티클 효과를 생성합니다.
+    /// </summary>
+    private void SpawnBlockBreakParticles(byte blockType, Vector3 position)
+    {
+        ParticleEffectSpawnParams spawnParams;
+        
+        // 블록 타입에 따른 다른 파티클 효과
+        switch ((BlockTileType)blockType)
+        {
+            case BlockTileType.STONE_BIG:
+            case BlockTileType.STONE_SMALL:
+                spawnParams.ParticleType = GameParticleType.FireworksGreenSmall;
+                break;
+            case BlockTileType.WOOD:
+                spawnParams.ParticleType = GameParticleType.FireworksGreenSmall; // 나무용 파티클로 변경 가능
+                break;
+            case BlockTileType.GRASS:
+                spawnParams.ParticleType = GameParticleType.FireworksGreenSmall; // 풀용 파티클로 변경 가능
+                break;
+            default:
+                spawnParams.ParticleType = GameParticleType.FireworksGreenSmall;
+                break;
+        }
+        
+        spawnParams.SpawnLocation = position;
+        spawnParams.SpawnRotation = Quaternion.identity;
+        spawnParams.bLooping = false;
+        spawnParams.bStart = true;
+        GameParticleEffectManager.Instance.SpawnParticleEffect(spawnParams);
+    }
+    
+    /// <summary>
+    /// 블록 설치 사운드를 재생합니다.
+    /// </summary>
+    private void PlayBlockPlaceSound(byte blockType, Vector3 position)
+    {
+        // TODO: 블록 타입에 따른 다른 사운드 재생
+        // GameSoundManager를 통한 사운드 재생 구현
+    }
+    
+    /// <summary>
+    /// 블록 파괴 사운드를 재생합니다.
+    /// </summary>
+    private void PlayBlockBreakSound(byte blockType, Vector3 position)
+    {
+        // TODO: 블록 타입에 따른 다른 사운드 재생
+        // GameSoundManager를 통한 사운드 재생 구현
     }
 }

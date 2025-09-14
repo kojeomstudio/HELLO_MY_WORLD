@@ -186,44 +186,155 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// Simple 3D cave carving using random walk "worms". Keeps it fast and chunk-local.
+        /// 개선된 3D 동굴 생성 시스템 - 더 자연스럽고 다양한 동굴 구조
         /// </summary>
         private void GenerateCaves(ChunkData chunk, int chunkX, int chunkZ)
         {
             var rand = new Random((chunkX * 73856093) ^ (chunkZ * 19349663));
-            int wormCount = 2 + rand.Next(3); // 2~4 worms per chunk
+            
+            // 메인 동굴 시스템 (기존 웜 방식 개선)
+            GenerateMainCaveSystem(chunk, rand);
+            
+            // 소형 동굴방 추가
+            GenerateSmallCaveRooms(chunk, rand);
+            
+            // 수직 동굴 (수직갱)
+            GenerateVerticalShafts(chunk, rand);
+        }
+        
+        /// <summary>
+        /// 메인 동굴 시스템 생성
+        /// </summary>
+        private void GenerateMainCaveSystem(ChunkData chunk, Random rand)
+        {
+            int wormCount = 1 + rand.Next(3); // 1~3개의 메인 웜
 
             for (int w = 0; w < wormCount; w++)
             {
-                // Start somewhere underground
                 double x = rand.Next(16);
-                double y = rand.Next(20, 48);
+                double y = rand.Next(15, 55); // 더 깊은 지하부터
                 double z = rand.Next(16);
-                int steps = 80 + rand.Next(60);
+                int steps = 100 + rand.Next(80); // 더 긴 동굴
                 double yaw = rand.NextDouble() * Math.PI * 2.0;
-                double pitch = (rand.NextDouble() - 0.5) * 0.6; // tilt up/down
-                double radius = 1.8 + rand.NextDouble() * 1.2;  // 1.8 ~ 3.0
+                double pitch = (rand.NextDouble() - 0.5) * 0.4;
+                double baseRadius = 2.0 + rand.NextDouble() * 1.5; // 기본 반지름
 
                 for (int s = 0; s < steps; s++)
                 {
-                    // Carve a small sphere at current position
+                    // 동적으로 변하는 반지름 (넓어지고 좁아지는 효과)
+                    double currentRadius = baseRadius + Math.Sin(s * 0.1) * 0.8;
+                    
                     int cx = (int)Math.Round(x);
                     int cy = (int)Math.Round(y);
                     int cz = (int)Math.Round(z);
-                    CarveSphere(chunk, cx, cy, cz, radius);
+                    
+                    // 동굴 조각하기
+                    CarveSphere(chunk, cx, cy, cz, currentRadius);
+                    
+                    // 가끔 큰 공간(방) 생성
+                    if (s > 20 && rand.NextDouble() < 0.05) // 5% 확률
+                    {
+                        CarveRoom(chunk, cx, cy, cz, 4 + rand.Next(4));
+                    }
 
-                    // Move forward
-                    x += Math.Cos(yaw);
-                    z += Math.Sin(yaw);
-                    y += Math.Sin(pitch) * 0.5; // gentle vertical changes
+                    // 이동
+                    double speed = 0.8 + rand.NextDouble() * 0.4; // 가변 속도
+                    x += Math.Cos(yaw) * speed;
+                    z += Math.Sin(yaw) * speed;
+                    y += Math.Sin(pitch) * 0.3;
 
-                    // Randomly perturb direction
-                    yaw += (rand.NextDouble() - 0.5) * 0.4;
-                    pitch += (rand.NextDouble() - 0.5) * 0.2;
+                    // 방향 변화 (더 자연스럽게)
+                    yaw += (rand.NextDouble() - 0.5) * 0.3;
+                    pitch += (rand.NextDouble() - 0.5) * 0.15;
+                    pitch = Math.Clamp(pitch, -0.7, 0.7);
 
-                    // Clamp within chunk and underground range
-                    if (x < 1 || x > 14 || z < 1 || z > 14) break;
-                    if (y < 10 || y > 80) break;
+                    // 범위 체크
+                    if (x < 0 || x > 15 || z < 0 || z > 15) break;
+                    if (y < 5 || y > 100) break;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 소형 동굴방들 생성
+        /// </summary>
+        private void GenerateSmallCaveRooms(ChunkData chunk, Random rand)
+        {
+            int roomCount = rand.Next(2, 6); // 2~5개의 소형 방
+            
+            for (int i = 0; i < roomCount; i++)
+            {
+                int roomX = rand.Next(3, 13);
+                int roomY = rand.Next(10, 60);
+                int roomZ = rand.Next(3, 13);
+                int roomSize = rand.Next(3, 7);
+                
+                CarveRoom(chunk, roomX, roomY, roomZ, roomSize);
+            }
+        }
+        
+        /// <summary>
+        /// 수직 동굴 (갱도) 생성
+        /// </summary>
+        private void GenerateVerticalShafts(ChunkData chunk, Random rand)
+        {
+            if (rand.NextDouble() < 0.3) // 30% 확률로 수직갱 생성
+            {
+                int shaftX = rand.Next(4, 12);
+                int shaftZ = rand.Next(4, 12);
+                int shaftTop = rand.Next(80, 120);
+                int shaftBottom = rand.Next(10, 30);
+                double shaftRadius = 1.5 + rand.NextDouble();
+                
+                for (int y = shaftBottom; y < shaftTop; y++)
+                {
+                    CarveSphere(chunk, shaftX, y, shaftZ, shaftRadius);
+                    
+                    // 가끔 측면 통로 생성
+                    if (rand.NextDouble() < 0.1)
+                    {
+                        int sideLength = rand.Next(3, 8);
+                        double sideDirection = rand.NextDouble() * Math.PI * 2;
+                        
+                        for (int i = 0; i < sideLength; i++)
+                        {
+                            int sideX = shaftX + (int)(Math.Cos(sideDirection) * i);
+                            int sideZ = shaftZ + (int)(Math.Sin(sideDirection) * i);
+                            CarveSphere(chunk, sideX, y, sideZ, 1.2);
+                        }
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 동굴방 조각하기
+        /// </summary>
+        private void CarveRoom(ChunkData chunk, int centerX, int centerY, int centerZ, int size)
+        {
+            for (int dx = -size; dx <= size; dx++)
+            {
+                for (int dy = -size/2; dy <= size/2; dy++) // 방은 수평적으로 더 넓게
+                {
+                    for (int dz = -size; dz <= size; dz++)
+                    {
+                        int x = centerX + dx;
+                        int y = centerY + dy;
+                        int z = centerZ + dz;
+                        
+                        if (x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 1 && y < 255)
+                        {
+                            double dist = Math.Sqrt(dx*dx + dy*dy*1.5 + dz*dz); // 수직 압축
+                            if (dist <= size)
+                            {
+                                var blockType = chunk.GetBlock(x, y, z);
+                                if (blockType != BlockType.Air && blockType != BlockType.Water && blockType != BlockType.Lava)
+                                {
+                                    chunk.SetBlock(x, y, z, BlockType.Air);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -259,53 +370,219 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// Places small cobblestone rooms underground with simple corridors.
+        /// 개선된 던전 생성 시스템 - 더 복잡하고 다양한 구조의 던전
         /// </summary>
         private void GenerateDungeons(ChunkData chunk, int chunkX, int chunkZ)
         {
             var rand = new Random((chunkX * 83492791) ^ (chunkZ * 297657976));
-            if (rand.NextDouble() > 0.12) return; // ~12% chance per chunk
+            if (rand.NextDouble() > 0.15) return; // 15% 확률로 증가
 
-            int roomWidth = 5 + rand.Next(3);  // 5..7
-            int roomHeight = 4;                // fixed low rooms
-            int roomDepth = 5 + rand.Next(3);
+            // 던전 타입 결정
+            DungeonType dungeonType = (DungeonType)rand.Next(3);
+            
+            switch (dungeonType)
+            {
+                case DungeonType.SimpleRoom:
+                    GenerateSimpleDungeon(chunk, rand);
+                    break;
+                case DungeonType.MultiRoom:
+                    GenerateMultiRoomDungeon(chunk, rand);
+                    break;
+                case DungeonType.Maze:
+                    GenerateMazeDungeon(chunk, rand);
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// 던전 타입 열거형
+        /// </summary>
+        private enum DungeonType
+        {
+            SimpleRoom,
+            MultiRoom,
+            Maze
+        }
+        
+        /// <summary>
+        /// 단순한 방 형태 던전
+        /// </summary>
+        private void GenerateSimpleDungeon(ChunkData chunk, Random rand)
+        {
+            int roomWidth = 6 + rand.Next(4);   // 6..9
+            int roomHeight = 4 + rand.Next(2);  // 4..5
+            int roomDepth = 6 + rand.Next(4);
 
             int ox = rand.Next(2, 16 - roomWidth - 2);
-            int oy = rand.Next(18, 36);
+            int oy = rand.Next(15, 40); // 더 깊은 지하
             int oz = rand.Next(2, 16 - roomDepth - 2);
 
-            // Carve interior
-            for (int x = ox + 1; x < ox + roomWidth - 1; x++)
+            BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+            
+            // 보물 상자 위치 (중앙)
+            int treasureX = ox + roomWidth / 2;
+            int treasureZ = oz + roomDepth / 2;
+            // TODO: 보물 상자 블록 추가 시 사용
+            // chunk.SetBlock(treasureX, oy + 1, treasureZ, BlockType.Chest);
+        }
+        
+        /// <summary>
+        /// 다중 방 던전
+        /// </summary>
+        private void GenerateMultiRoomDungeon(ChunkData chunk, Random rand)
+        {
+            int roomCount = 2 + rand.Next(3); // 2~4개 방
+            
+            for (int i = 0; i < roomCount; i++)
             {
-                for (int y = oy + 1; y < oy + roomHeight - 1; y++)
+                int roomWidth = 5 + rand.Next(3);
+                int roomHeight = 3 + rand.Next(2);
+                int roomDepth = 5 + rand.Next(3);
+
+                int ox = rand.Next(1, 16 - roomWidth - 1);
+                int oy = rand.Next(15, 35);
+                int oz = rand.Next(1, 16 - roomDepth - 1);
+                
+                BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+                
+                // 방들 사이에 복도 연결 (간단한 버전)
+                if (i > 0)
                 {
-                    for (int z = oz + 1; z < oz + roomDepth - 1; z++)
+                    ConnectRooms(chunk, ox + roomWidth/2, oy + 1, oz + roomDepth/2, rand);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 미로 형태 던전
+        /// </summary>
+        private void GenerateMazeDungeon(ChunkData chunk, Random rand)
+        {
+            int startX = rand.Next(2, 6);
+            int startZ = rand.Next(2, 6);
+            int mazeY = rand.Next(20, 35);
+            int mazeSize = 8; // 8x8 미로
+            
+            // 간단한 미로 생성 (더 복잡한 알고리즘으로 확장 가능)
+            for (int x = 0; x < mazeSize; x++)
+            {
+                for (int z = 0; z < mazeSize; z++)
+                {
+                    int worldX = startX + x;
+                    int worldZ = startZ + z;
+                    
+                    if (worldX < 16 && worldZ < 16)
+                    {
+                        // 체스판 패턴으로 벽과 통로 생성
+                        if ((x + z) % 2 == 0 || rand.NextDouble() < 0.3)
+                        {
+                            // 통로
+                            chunk.SetBlock(worldX, mazeY, worldZ, BlockType.Air);
+                            chunk.SetBlock(worldX, mazeY + 1, worldZ, BlockType.Air);
+                            chunk.SetBlock(worldX, mazeY + 2, worldZ, BlockType.Air);
+                        }
+                        else
+                        {
+                            // 벽
+                            for (int y = 0; y < 4; y++)
+                            {
+                                chunk.SetBlock(worldX, mazeY + y, worldZ, BlockType.Cobblestone);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 던전 방 건설
+        /// </summary>
+        private void BuildDungeonRoom(ChunkData chunk, int ox, int oy, int oz, int width, int height, int depth)
+        {
+            // 내부 비우기
+            for (int x = ox + 1; x < ox + width - 1; x++)
+            {
+                for (int y = oy + 1; y < oy + height - 1; y++)
+                {
+                    for (int z = oz + 1; z < oz + depth - 1; z++)
                     {
                         chunk.SetBlock(x, y, z, BlockType.Air);
                     }
                 }
             }
 
-            // Build walls/floor/ceiling with cobblestone
-            for (int x = ox; x < ox + roomWidth; x++)
+            // 벽, 바닥, 천장 건설
+            for (int x = ox; x < ox + width; x++)
             {
-                for (int y = oy; y < oy + roomHeight; y++)
+                for (int y = oy; y < oy + height; y++)
                 {
-                    for (int z = oz; z < oz + roomDepth; z++)
+                    for (int z = oz; z < oz + depth; z++)
                     {
-                        bool isWall = (x == ox || x == ox + roomWidth - 1 || z == oz || z == oz + roomDepth - 1 || y == oy || y == oy + roomHeight - 1);
+                        bool isWall = (x == ox || x == ox + width - 1 || 
+                                      z == oz || z == oz + depth - 1 || 
+                                      y == oy || y == oy + height - 1);
                         if (isWall)
                         {
-                            chunk.SetBlock(x, y, z, BlockType.Cobblestone);
+                            // 다양한 재료 사용
+                            BlockType wallMaterial = GetDungeonWallMaterial();
+                            chunk.SetBlock(x, y, z, wallMaterial);
                         }
                     }
                 }
             }
 
-            // Simple doorway
+            // 입구 생성 (더 자연스럽게)
+            CreateDungeonEntrance(chunk, ox, oy, oz, width, depth);
+        }
+        
+        /// <summary>
+        /// 던전 벽 재료 결정
+        /// </summary>
+        private BlockType GetDungeonWallMaterial()
+        {
+            var materials = new[] { BlockType.Cobblestone, BlockType.Stone, BlockType.Stone };
+            var rand = new Random();
+            return materials[rand.Next(materials.Length)];
+        }
+        
+        /// <summary>
+        /// 던전 입구 생성
+        /// </summary>
+        private void CreateDungeonEntrance(ChunkData chunk, int ox, int oy, int oz, int width, int depth)
+        {
+            // 정면에 2x2 입구 생성
             for (int y = oy + 1; y < oy + 3; y++)
             {
-                chunk.SetBlock(ox + roomWidth / 2, y, oz, BlockType.Air);
+                for (int x = ox + width/2 - 1; x <= ox + width/2; x++)
+                {
+                    chunk.SetBlock(x, y, oz, BlockType.Air);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 방들을 복도로 연결
+        /// </summary>
+        private void ConnectRooms(ChunkData chunk, int x, int y, int z, Random rand)
+        {
+            // 간단한 직선 복도 (더 복잡한 연결 로직으로 확장 가능)
+            int corridorLength = rand.Next(3, 8);
+            int direction = rand.Next(4); // 0:북, 1:동, 2:남, 3:서
+            
+            int[] dx = {0, 1, 0, -1};
+            int[] dz = {-1, 0, 1, 0};
+            
+            for (int i = 0; i < corridorLength; i++)
+            {
+                int newX = x + dx[direction] * i;
+                int newZ = z + dz[direction] * i;
+                
+                if (newX >= 0 && newX < 16 && newZ >= 0 && newZ < 16)
+                {
+                    chunk.SetBlock(newX, y, newZ, BlockType.Air);
+                    chunk.SetBlock(newX, y + 1, newZ, BlockType.Air);
+                    chunk.SetBlock(newX, y + 2, newZ, BlockType.Air);
+                }
             }
         }
 
@@ -333,26 +610,88 @@ namespace GameServerApp.World
                 return BiomeType.Plains;
         }
 
+        /// <summary>
+        /// 개선된 광물 생성 시스템 - 더 현실적이고 균형 잡힌 분배
+        /// </summary>
         private void GenerateOres(ChunkData chunk, int chunkX, int chunkZ)
         {
             var rand = new Random(chunkX * 1000 + chunkZ);
             
-            for (int i = 0; i < 8; i++)
+            // 각 광물별로 사실적인 깊이와 희귀성 설정
+            GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // 석탄: 언제나, 여러 층에서
+            GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // 철: 중간 깊이
+            GenerateOreType(chunk, rand, BlockType.GoldOre, 1, 25, 4, 3);       // 금: 깊은 곳
+            GenerateOreType(chunk, rand, BlockType.DiamondOre, 1, 16, 2, 2);    // 다이아몬드: 가장 깊은 곳
+        }
+        
+        /// <summary>
+        /// 특정 광물 종류를 생성
+        /// </summary>
+        private void GenerateOreType(ChunkData chunk, Random rand, BlockType oreType, 
+            int minY, int maxY, int maxVeins, int maxVeinSize)
+        {
+            int veinCount = rand.Next(1, maxVeins + 1);
+            
+            for (int vein = 0; vein < veinCount; vein++)
             {
-                var x = rand.Next(16);
-                var y = rand.Next(1, 32);
-                var z = rand.Next(16);
+                int centerX = rand.Next(16);
+                int centerY = rand.Next(minY, maxY + 1);
+                int centerZ = rand.Next(16);
                 
+                // 광맥 크기 결정
+                int veinSize = rand.Next(1, maxVeinSize + 1);
+                
+                // 광맥 모양 생성 (구형이 아닌 불규칙한 형태)
+                GenerateOreVein(chunk, rand, oreType, centerX, centerY, centerZ, veinSize);
+            }
+        }
+        
+        /// <summary>
+        /// 광맥을 불규칙한 형태로 생성
+        /// </summary>
+        private void GenerateOreVein(ChunkData chunk, Random rand, BlockType oreType, 
+            int centerX, int centerY, int centerZ, int size)
+        {
+            var oreBlocks = new List<(int x, int y, int z)>();
+            
+            // 시작점 추가
+            oreBlocks.Add((centerX, centerY, centerZ));
+            
+            // 주변으로 확산
+            for (int i = 0; i < size - 1; i++)
+            {
+                if (oreBlocks.Count == 0) break;
+                
+                // 기존 광물 블록 중 무작위로 하나 선택
+                var baseBlock = oreBlocks[rand.Next(oreBlocks.Count)];
+                
+                // 6방향 중 무작위로 확산
+                var directions = new (int dx, int dy, int dz)[] 
+                {
+                    (1, 0, 0), (-1, 0, 0), (0, 1, 0), 
+                    (0, -1, 0), (0, 0, 1), (0, 0, -1)
+                };
+                
+                var direction = directions[rand.Next(directions.Length)];
+                int newX = baseBlock.x + direction.dx;
+                int newY = baseBlock.y + direction.dy;
+                int newZ = baseBlock.z + direction.dz;
+                
+                // 범위 체크 및 중복 방지
+                if (newX >= 0 && newX < 16 && newY >= 0 && newY < 256 && newZ >= 0 && newZ < 16)
+                {
+                    if (!oreBlocks.Contains((newX, newY, newZ)))
+                    {
+                        oreBlocks.Add((newX, newY, newZ));
+                    }
+                }
+            }
+            
+            // 실제로 광물 블록 배치
+            foreach (var (x, y, z) in oreBlocks)
+            {
                 if (chunk.GetBlock(x, y, z) == BlockType.Stone)
                 {
-                    var oreType = rand.NextDouble() switch
-                    {
-                        < 0.05 => BlockType.DiamondOre,
-                        < 0.15 => BlockType.GoldOre,
-                        < 0.4 => BlockType.IronOre,
-                        _ => BlockType.CoalOre
-                    };
-                    
                     chunk.SetBlock(x, y, z, oreType);
                 }
             }

@@ -35,6 +35,26 @@ public enum MessageType
     
     // 플레이어 정보 업데이트
     PlayerInfoUpdate = 50,
+    
+    // 인벤토리 관련
+    InventoryRequest = 60,
+    InventoryResponse = 61,
+    InventoryUpdateBroadcast = 62,
+    
+    // 제작 관련
+    CraftingRequest = 70,
+    CraftingResponse = 71,
+    RecipeListRequest = 72,
+    RecipeListResponse = 73,
+    
+    // 체력 및 허기 관련
+    HealthActionRequest = 80,
+    HealthActionResponse = 81,
+    HealthUpdate = 82,
+    RespawnRequest = 83,
+    RespawnResponse = 84,
+    PlayerDeath = 85,
+    PlayerRespawnBroadcast = 86,
 }
 
 // 기본 데이터 구조
@@ -225,4 +245,174 @@ public class PlayerInfoUpdate
 {
     [ProtoMember(1)] public PlayerInfo? PlayerInfo { get; set; }
     [ProtoMember(2)] public long Timestamp { get; set; }
+}
+
+// 인벤토리 관련 메시지
+[ProtoContract]
+public class InventorySlotData
+{
+    [ProtoMember(1)] public int SlotIndex { get; set; }
+    [ProtoMember(2)] public string ItemId { get; set; } = string.Empty;
+    [ProtoMember(3)] public int Amount { get; set; }
+    [ProtoMember(4)] public string ItemData { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class InventoryRequest
+{
+    [ProtoMember(1)] public int Action { get; set; } // 0=Move, 1=Swap, 2=Split, 3=Drop
+    [ProtoMember(2)] public int SourceSlot { get; set; }
+    [ProtoMember(3)] public int TargetSlot { get; set; }
+    [ProtoMember(4)] public int Amount { get; set; }
+    [ProtoMember(5)] public string ItemId { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class InventoryResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public List<InventorySlotData> UpdatedSlots { get; set; } = new();
+    [ProtoMember(4)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class InventoryUpdateBroadcast
+{
+    [ProtoMember(1)] public string PlayerId { get; set; } = string.Empty;
+    [ProtoMember(2)] public List<InventorySlotData> UpdatedSlots { get; set; } = new();
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+// 제작 관련 메시지
+[ProtoContract]
+public class CraftingIngredientData
+{
+    [ProtoMember(1)] public string ItemId { get; set; } = string.Empty;
+    [ProtoMember(2)] public int Amount { get; set; }
+}
+
+[ProtoContract]
+public class CraftingResultData
+{
+    [ProtoMember(1)] public string ItemId { get; set; } = string.Empty;
+    [ProtoMember(2)] public int Amount { get; set; }
+}
+
+[ProtoContract]
+public class RecipeData
+{
+    [ProtoMember(1)] public string RecipeId { get; set; } = string.Empty;
+    [ProtoMember(2)] public string Name { get; set; } = string.Empty;
+    [ProtoMember(3)] public List<CraftingIngredientData> Ingredients { get; set; } = new();
+    [ProtoMember(4)] public List<CraftingResultData> Results { get; set; } = new();
+    [ProtoMember(5)] public int CraftingType { get; set; } // 0=Hand, 1=Workbench, 2=Furnace
+    [ProtoMember(6)] public int CraftingTime { get; set; }
+}
+
+[ProtoContract]
+public class CraftingRequest
+{
+    [ProtoMember(1)] public string RecipeId { get; set; } = string.Empty;
+    [ProtoMember(2)] public int CraftingAmount { get; set; } = 1;
+    [ProtoMember(3)] public int CraftingType { get; set; }
+}
+
+[ProtoContract]
+public class CraftedItemData
+{
+    [ProtoMember(1)] public string ItemId { get; set; } = string.Empty;
+    [ProtoMember(2)] public int Amount { get; set; }
+    [ProtoMember(3)] public int SlotIndex { get; set; }
+}
+
+[ProtoContract]
+public class CraftingResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public string RecipeId { get; set; } = string.Empty;
+    [ProtoMember(4)] public List<CraftedItemData> CraftedItems { get; set; } = new();
+    [ProtoMember(5)] public string UpdatedInventory { get; set; } = string.Empty;
+    [ProtoMember(6)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class RecipeListRequest
+{
+    [ProtoMember(1)] public int CraftingType { get; set; } = -1; // -1 = 모든 타입
+}
+
+[ProtoContract]
+public class RecipeListResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public List<RecipeData> Recipes { get; set; } = new();
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+// 체력 및 허기 관련 메시지
+[ProtoContract]
+public class HealthActionRequest
+{
+    [ProtoMember(1)] public int ActionType { get; set; } // 0=Damage, 1=Heal, 2=Feed, 3=ConsumeHunger
+    [ProtoMember(2)] public float Amount { get; set; }
+    [ProtoMember(3)] public int DamageType { get; set; }
+    [ProtoMember(4)] public int HealType { get; set; }
+    [ProtoMember(5)] public float Saturation { get; set; }
+}
+
+[ProtoContract]
+public class HealthActionResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class HealthUpdateMessage
+{
+    [ProtoMember(1)] public float Health { get; set; }
+    [ProtoMember(2)] public float MaxHealth { get; set; }
+    [ProtoMember(3)] public int Hunger { get; set; }
+    [ProtoMember(4)] public int MaxHunger { get; set; }
+    [ProtoMember(5)] public float Saturation { get; set; }
+    [ProtoMember(6)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class RespawnRequest
+{
+    [ProtoMember(1)] public bool Force { get; set; } = false;
+}
+
+[ProtoContract]
+public class RespawnResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public Vector3? RespawnPosition { get; set; }
+    [ProtoMember(4)] public float Health { get; set; }
+    [ProtoMember(5)] public float MaxHealth { get; set; }
+    [ProtoMember(6)] public int Hunger { get; set; }
+    [ProtoMember(7)] public int MaxHunger { get; set; }
+    [ProtoMember(8)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class PlayerDeathMessage
+{
+    [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string DeathMessage { get; set; } = string.Empty;
+    [ProtoMember(3)] public int DamageType { get; set; }
+    [ProtoMember(4)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class PlayerRespawnBroadcast
+{
+    [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public Vector3? RespawnPosition { get; set; }
+    [ProtoMember(3)] public long Timestamp { get; set; }
 }

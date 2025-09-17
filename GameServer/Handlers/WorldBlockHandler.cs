@@ -50,6 +50,18 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 return;
             }
 
+            // 추가 입력 검증: 좌표 및 블록 타입 범위 확인
+            if (message.BlockPosition!.Y < 0 || message.BlockPosition.Y >= 256)
+            {
+                await SendFailureResponse(session, "블록 Y 좌표가 허용 범위를 벗어났습니다.");
+                return;
+            }
+            if (!Enum.IsDefined(typeof(World.BlockType), message.BlockType))
+            {
+                await SendFailureResponse(session, "알 수 없는 블록 타입입니다.");
+                return;
+            }
+
             // 블록 변경 처리 (WorldManager를 통한 실제 월드 데이터 변경)
             await ProcessBlockChange(session, message);
 

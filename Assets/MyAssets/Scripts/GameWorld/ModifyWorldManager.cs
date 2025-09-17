@@ -194,20 +194,24 @@ public class ModifyWorldManager : MonoBehaviour
             }
             else if (GameStatusManager.CurrentGameModeState == GameModeState.MULTI)
             {
-                // 1) Try Protobuf-based client-server path (authoritative server)
-                var netMgr = UnityEngine.GameObject.FindObjectOfType<Networking.NetworkManager>();
-                if (netMgr != null)
+                // 1) Protobuf 기반 서버 권한 경로 (HMW_PROTO가 정의된 경우에만 사용)
+#if HMW_PROTO
                 {
-                    var areaId = SelectWorldInstance.GetWorldAreaUniqueID();
-                    var subWorldId = SelectWorldInstance.UniqueID;
-                    var pos = new UnityEngine.Vector3Int(blockX, blockY, blockZ);
-                    int ownerChunkType = (int)SelectWorldInstance.WorldBlockData[blockX, blockY, blockZ].OwnerChunkType;
-                    // Send to server; local world updates after broadcast
-                    netMgr.SendBlockChange(areaId, subWorldId, pos, blockType, ownerChunkType);
+                    var netMgr = UnityEngine.GameObject.FindObjectOfType<Networking.NetworkManager>();
+                    if (netMgr != null)
+                    {
+                        var areaId = SelectWorldInstance.GetWorldAreaUniqueID();
+                        var subWorldId = SelectWorldInstance.UniqueID;
+                        var pos = new UnityEngine.Vector3Int(blockX, blockY, blockZ);
+                        int ownerChunkType = (int)SelectWorldInstance.WorldBlockData[blockX, blockY, blockZ].OwnerChunkType;
+                        // 서버로 요청 전송 (서버 브로드캐스트로 최종 반영)
+                        netMgr.SendBlockChange(areaId, subWorldId, pos, blockType, ownerChunkType);
+                        return;
+                    }
                 }
-                else
+#endif
+                // 2) 레거시 P2P 경로 (Fallback)
                 {
-                    // 2) Fallback to legacy P2P path
                     SubWorldBlockPacketData packetData;
                     packetData.AreaID = SelectWorldInstance.GetWorldAreaUniqueID();
                     packetData.SubWorldID = SelectWorldInstance.UniqueID;

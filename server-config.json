@@ -1,0 +1,54 @@
+{
+  "Network": {
+    "Port": 9000,
+    "BindAddress": "0.0.0.0",
+    "MaxConnections": 100,
+    "ConnectionTimeoutMinutes": 5,
+    "HeartbeatIntervalSeconds": 30,
+    "EnableEncryption": false
+  },
+  "Database": {
+    "DatabaseFile": "minecraft_game.db",
+    "EnableWALMode": true,
+    "ConnectionPoolSize": 10,
+    "AutoBackup": true,
+    "BackupIntervalHours": 24
+  },
+  "World": {
+    "DefaultWorldName": "default",
+    "WorldSeed": 12345,
+    "ChunkLoadRadius": 8,
+    "ChunkUnloadTimeoutMinutes": 30,
+    "EnableTerrainGeneration": true,
+    "EnableOreGeneration": true,
+    "EnableVegetationGeneration": true,
+    "MaxWorldHeight": 256,
+    "MinWorldHeight": -64
+  },
+  "Gameplay": {
+    "MaxPlayersPerWorld": 20,
+    "EnablePvP": true,
+    "EnableFlying": true,
+    "MovementValidationTolerance": 10,
+    "MaxBlockInteractionDistance": 5,
+    "EnableInventorySystem": true,
+    "MaxInventorySlots": 36,
+    "EnableChatSystem": true
+  },
+  "Security": {
+    "RequireAuthentication": true,
+    "MinPasswordLength": 6,
+    "SessionTimeoutHours": 24,
+    "EnableRateLimiting": true,
+    "MaxMessagesPerSecond": 10,
+    "EnableAntiCheat": true
+  },
+  "Performance": {
+    "MaintenanceIntervalMinutes": 5,
+    "ChunkSaveIntervalMinutes": 10,
+    "PlayerStateSaveIntervalMinutes": 2,
+    "EnableGarbageCollection": true,
+    "MaxConcurrentChunkGenerations": 4,
+    "EnableMetrics": true
+  }
+}

@@ -5,6 +5,7 @@ using GameServerApp.Database;
 using GameServerApp.Handlers;
 using GameServerApp.World;
 using SharedProtocol;
+using System.Collections.Concurrent;
 
 namespace GameServerApp
 {
@@ -18,6 +19,8 @@ namespace GameServerApp
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
         private readonly Timer _maintenanceTimer;
+        private readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _rateCounters = new();
+        private readonly ServerConfig _config;
         private bool _isRunning;
 
         public GameServer(int port = 9000, string databaseFile = "minecraft_game.db")
@@ -29,6 +32,7 @@ namespace GameServerApp
             _rooms = new Rooms.RoomManager(_sessions);
             _worldManager = new WorldManager(_database);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
+            _config = ServerConfig.LoadFromFile();
             
             RegisterMessageHandlers();
             
@@ -43,7 +47,7 @@ namespace GameServerApp
             
             // Player Movement & Positioning (Enhanced Minecraft-style)
             //_dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
-            //_dispatcher.Register(new MovementHandler(_database, _sessions));
+            _dispatcher.Register(new MovementHandler(_database, _sessions));
             
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
@@ -137,6 +141,16 @@ namespace GameServerApp
                 while (_isRunning && client.Connected)
                 {
                     var (type, message) = await session.ReceiveAsync();
+
+                    // 간단한 세션별 메시지 레이트 리미팅 (초당 최대 N개)
+                    if (_config.Security.EnableRateLimiting && !string.IsNullOrEmpty(session.UserName))
+                    {
+                        if (IsRateLimited(session.UserName!, _config.Security.MaxMessagesPerSecond))
+                        {
+                            Console.WriteLine($"Rate limit exceeded by {session.UserName}. Dropping message {type}.");
+                            continue; // 메시지를 드롭하고 다음 루프로 진행
+                        }
+                    }
                     
                     if (!string.IsNullOrEmpty(session.UserName))
                     {
@@ -175,6 +189,32 @@ namespace GameServerApp
                 
                 Console.WriteLine($"Cleaned up session for {session.UserName ?? clientEndpoint}");
             }
+        }
+
+        private bool IsRateLimited(string userName, int maxPerSecond)
+        {
+            var now = DateTime.UtcNow;
+            var key = userName;
+            var window = now.AddSeconds(-1);
+
+            _rateCounters.AddOrUpdate(key,
+                addValueFactory: _ => (1, now),
+                updateValueFactory: (_, entry) =>
+                {
+                    // 같은 1초 윈도우 안이면 카운트 증가, 아니면 새 윈도우 시작
+                    if (entry.WindowStart > window)
+                    {
+                        var newCount = entry.Count + 1;
+                        return (newCount, entry.WindowStart);
+                    }
+                    return (1, now);
+                });
+
+            if (_rateCounters.TryGetValue(key, out var updated))
+            {
+                return updated.Count > maxPerSecond;
+            }
+            return false;
         }
 
         private async Task SavePlayerDataOnDisconnect(Session session)

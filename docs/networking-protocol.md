@@ -69,6 +69,11 @@ Minecraft-specific extensions (100+) can be added similarly; the server now acce
   - Parses received frames, switches on type, and deserializes payload using Google.Protobuf DTOs.
   - Currently implements Login (request/response). Additional messages should be added as .proto grows.
 
+- `Assets/Scripts/Networking/NetworkManager.cs`:
+  - Wires client features to UI and gameplay.
+  - Applies `WorldBlockChangeBroadcast` to the active world via `ModifyWorldManager.ModifySpecificSubWorld(...)`.
+  - Exposes `SendBlockChange(areaId, subworldId, Vector3Int pos, int blockType, int chunkType)` for gameplay code.
+
 ## Protobuf DTOs
 
 Generated code lives in `Assets/Generated/Protobuf/`. The existing `game_auth.proto` contains:

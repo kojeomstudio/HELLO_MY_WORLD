@@ -194,21 +194,35 @@ public class ModifyWorldManager : MonoBehaviour
             }
             else if (GameStatusManager.CurrentGameModeState == GameModeState.MULTI)
             {
-                // 블록 변경 패킷.
-                SubWorldBlockPacketData packetData;
-                packetData.AreaID = SelectWorldInstance.GetWorldAreaUniqueID();
-                packetData.SubWorldID = SelectWorldInstance.UniqueID;
-                packetData.BlockTypeValue = blockType;
-
-                packetData.BlockIndex_X = blockX;
-                packetData.BlockIndex_Y = blockY;
-                packetData.BlockIndex_Z = blockZ;
-                packetData.OwnerChunkType = (byte)SelectWorldInstance.WorldBlockData[blockX, blockY, blockZ].OwnerChunkType;
-                // 패킷 전송.
-                GameNetworkManager.GetInstance().RequestChangeSubWorldBlock(packetData, () =>
+                // 1) Try Protobuf-based client-server path (authoritative server)
+                var netMgr = UnityEngine.GameObject.FindObjectOfType<Networking.NetworkManager>();
+                if (netMgr != null)
                 {
-                    ProcessBlockCreateOrDelete(processData);
-                });
+                    var areaId = SelectWorldInstance.GetWorldAreaUniqueID();
+                    var subWorldId = SelectWorldInstance.UniqueID;
+                    var pos = new UnityEngine.Vector3Int(blockX, blockY, blockZ);
+                    int ownerChunkType = (int)SelectWorldInstance.WorldBlockData[blockX, blockY, blockZ].OwnerChunkType;
+                    // Send to server; local world updates after broadcast
+                    netMgr.SendBlockChange(areaId, subWorldId, pos, blockType, ownerChunkType);
+                }
+                else
+                {
+                    // 2) Fallback to legacy P2P path
+                    SubWorldBlockPacketData packetData;
+                    packetData.AreaID = SelectWorldInstance.GetWorldAreaUniqueID();
+                    packetData.SubWorldID = SelectWorldInstance.UniqueID;
+                    packetData.BlockTypeValue = blockType;
+
+                    packetData.BlockIndex_X = blockX;
+                    packetData.BlockIndex_Y = blockY;
+                    packetData.BlockIndex_Z = blockZ;
+                    packetData.OwnerChunkType = (byte)SelectWorldInstance.WorldBlockData[blockX, blockY, blockZ].OwnerChunkType;
+                    // 패킷 전송 후 콜백에서 로컬 반영
+                    GameNetworkManager.GetInstance().RequestChangeSubWorldBlock(packetData, () =>
+                    {
+                        ProcessBlockCreateOrDelete(processData);
+                    });
+                }
             }
         }
     }

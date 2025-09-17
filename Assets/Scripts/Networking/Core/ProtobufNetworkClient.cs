@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Google.Protobuf;
 using Game.Auth;
+#if HMW_PROTO
+using Game.Move;
+#endif
 
 namespace Networking.Core
 {
@@ -179,6 +182,29 @@ namespace Networking.Core
             #else
             Debug.LogWarning("Diag proto not generated yet. See docs/networking-protocol.md to generate C#.");
             #endif
+        }
+
+        /// <summary>
+        /// Sends a movement request to the server so it can validate and echo back an authoritative position.
+        /// Keeps signature available even when proto types are not compiled.
+        /// </summary>
+        public void SendMoveRequest(Vector3 targetPosition, float movementSpeed)
+        {
+#if HMW_PROTO
+            var req = new Game.Move.MoveRequest
+            {
+                TargetPosition = new Game.Core.Vector3
+                {
+                    X = targetPosition.x,
+                    Y = targetPosition.y,
+                    Z = targetPosition.z
+                },
+                MovementSpeed = movementSpeed
+            };
+            SendMessageWithHeader(req, ClientMessageType.MoveRequest);
+#else
+            Debug.LogWarning("Move proto not generated yet. Define HMW_PROTO and generate C# from proto/game_move.proto.");
+#endif
         }
 
         /// <summary>

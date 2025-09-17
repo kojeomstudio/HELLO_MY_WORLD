@@ -306,8 +306,24 @@ namespace Networking
             {
                 var pos = broadcast.BlockPosition;
                 Debug.Log($"Block changed by {broadcast.PlayerId}: ({pos.X}, {pos.Y}, {pos.Z}) -> Type {broadcast.BlockType}");
-                
-                // TODO: Handle actual block changes (integrate with world system)
+                // Apply to local world using ModifyWorldManager
+                try
+                {
+                    var modifyMgr = GameObject.FindObjectOfType<ModifyWorldManager>();
+                    if (modifyMgr != null)
+                    {
+                        modifyMgr.ModifySpecificSubWorld(
+                            broadcast.AreaId,
+                            broadcast.SubworldId,
+                            pos.X, pos.Y, pos.Z,
+                            (byte)broadcast.BlockType
+                        );
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"Failed to apply block change: {ex.Message}");
+                }
                 AddChatMessage($"Block changed at ({pos.X}, {pos.Y}, {pos.Z}) by {broadcast.PlayerId}");
             }
         }

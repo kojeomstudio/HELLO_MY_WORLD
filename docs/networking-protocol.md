@@ -63,33 +63,44 @@ Minecraft-specific extensions (100+) can be added similarly; the server now acce
 
 ## Unity Client Integration
 
-- `Assets/Scripts/Networking/Core/TcpNetworkTransport.cs` performs the socket I/O and reads/writes the length-prefixed frames.
-- `Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs`:
-  - Builds framed packets: `[type:int][payload]` and passes them to transport.
-  - Parses received frames, switches on type, and deserializes payload using Google.Protobuf DTOs.
-  - Currently implements Login (request/response). Additional messages should be added as .proto grows.
+- `Assets/Scripts/Networking/Core/TcpNetworkTransport.cs` still owns the raw socket and implements the `[length][payload]` frame contract described above.
+- `Assets/Scripts/Minecraft/Core/MinecraftGameClient.cs` is the high-level façade used by gameplay systems. It now:
+  - Serializes requests with `ProtoBuf.Serializer` so Unity can share DTOs with the server code.
+  - Queues outgoing messages on the main thread while the transport executes on a background task.
+  - Maintains a chunk cache (`ChunkSnapshot`) that mirrors the authoritative state pushed by the server.
+  - Normalizes movement packets (`MoveRequest`) by clamping the speed server-side code expects.
+- `Assets/Scripts/Minecraft/World/ChunkManager.cs` listens for chunk callbacks, instantiates `ChunkRenderer` instances, and applies block-change broadcasts to the cached snapshot so lighting/meshes stay in sync between client and server.
+- `Assets/Scripts/Minecraft/UI/MinecraftGameManager.cs` subscribes to connection/login/chunk events and exposes debug output while wiring the Unity UI.
 
-- `Assets/Scripts/Networking/NetworkManager.cs`:
-  - Wires client features to UI and gameplay.
-  - Applies `WorldBlockChangeBroadcast` to the active world via `ModifyWorldManager.ModifySpecificSubWorld(...)`.
-  - Exposes `SendBlockChange(areaId, subworldId, Vector3Int pos, int blockType, int chunkType)` for gameplay code.
+For legacy systems the lightweight `ProtobufNetworkClient` remains available, but new gameplay should use `MinecraftGameClient` so chunk and entity handling stays consistent with the authoritative server pipeline.
+
+## Minecraft Message Extensions
+
+The enhanced “minecraft” messages extend the base `MessageType` enum. The numeric IDs live in `SharedProtocol/MinecraftMessages.cs` and mirror the values generated for the client (`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`). Key assignments:
+
+- 100: `PlayerStateUpdate` (client → server)
+- 101: `PlayerActionRequest`
+- 102: `PlayerActionResponse`
+- 110: `ChunkDataRequest`
+- 111: `ChunkDataResponse`
+- 112: `BlockChangeNotification`
+- 120–152: Inventory/container events
+- 130–133: Entity spawn/despawn/update
+- 140–143: Time/weather/effect broadcasts
+
+When the Unity client writes one of these messages it feeds the raw integer ID into `TcpNetworkTransport`, which happily forwards any four-byte code even if it is outside the `MessageType` enum. On receipt the server’s `Session.ReceiveAsync()` returns the raw payload to the `MinecraftMessageDispatcher` so strongly-typed handlers can pick it up.
+
+### Chunk Payload Encoding
+
+- Server: `GameServer/Handlers/MinecraftChunkHandler` packs each chunk into a 65 536 byte block array (16×256×16). If the payload exceeds 1 KB it is gzipped before being written as `ChunkDataResponseMessage.CompressedBlockData`.
+- Client: `MinecraftGameClient` runs the buffer through `ChunkCompression.DecodeBlocks`, which detects the gzip magic bytes and inflates the array if required. The decoded result is stored in a `ChunkSnapshot` for subsequent mesh generation and block mutation.
+- `ChunkManager` rehydrates the snapshot into a `byte[,,]` during `ChunkRenderer.GenerateMesh`. Server-driven block updates (`BlockChangeNotification` or `WorldBlockChangeBroadcast`) update the snapshot first, then schedule a mesh refresh so the change is visible locally.
+
+Because both sides are dealing with raw byte arrays (rather than a repeated list of per-block messages) the protocol stays compact and avoids excessive allocations inside the Unity player.
 
 ## Protobuf DTOs
 
-Generated code lives in `Assets/Generated/Protobuf/`. The existing `game_auth.proto` contains:
-
-- `Game.Auth.LoginRequest { string username=1; string password=2; }`
-- `Game.Auth.LoginResponse { bool success=1; string message=2; }`
-
-The server-side DTO (`SharedProtocol/LoginRequest`) also supports an optional `ClientVersion` (field 3). Omitting this field from the client is safe.
-
-Planned additions (.proto files to be authored next):
-
-- Core: `Vector3`, `Vector3Int`, `InventoryItem`, `PlayerInfo` (for LoginResponse, PlayerInfoUpdate)
-- Movement: `MoveRequest`, `MoveResponse`
-- Chat: `ChatRequest`, `ChatResponse`, `ChatMessage`
-- World/Blocks: `WorldBlockChangeRequest`, `WorldBlockChangeResponse`, `WorldBlockChangeBroadcast`
-- Diagnostics: `PingRequest`, `PingResponse`, `ServerStatusRequest`, `ServerStatusResponse`
+Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Game.*` protos, the Unity project includes `enhanced_minecraft_game.proto` which defines all Minecraft-specific DTOs (`ChunkDataResponse`, `PlayerActionRequest`, `EntityInfo`, etc.). Run the bundled `protoc` command whenever fields change, then commit the regenerated C# to keep the client in sync with `SharedProtocol/MinecraftMessages.cs`.
 
 ## Server Compatibility Changes
 

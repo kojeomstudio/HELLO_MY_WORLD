@@ -10,6 +10,11 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<string, LoadedChunk> _loadedChunks = new();
         private readonly Random _random;
         private int _worldId;
+
+        private const int GlobalWaterLevel = 62;
+        private const double RiverCenterThreshold = 0.0125;
+        private const double RiverBankThreshold = 0.028;
+        private const int CloudBaseAltitude = 200;
         
         public WorldManager(DatabaseHelper database, int worldId = 1)
         {
@@ -180,8 +185,11 @@ namespace GameServerApp.World
             // Caves and dungeons are carved after base terrain and ores
             GenerateCaves(chunk, chunkX, chunkZ);
             GenerateDungeons(chunk, chunkX, chunkZ);
+            GenerateRivers(chunk, chunkX, chunkZ);
+            GenerateLakes(chunk, chunkX, chunkZ);
             GenerateVegetation(chunk, chunkX, chunkZ);
-            
+            GenerateClouds(chunk, chunkX, chunkZ);
+
             return chunk;
         }
 
@@ -391,6 +399,239 @@ namespace GameServerApp.World
                 case DungeonType.Maze:
                     GenerateMazeDungeon(chunk, rand);
                     break;
+            }
+        }
+
+        private void GenerateRivers(ChunkData chunk, int chunkX, int chunkZ)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    var worldX = chunkX * 16 + x;
+                    var worldZ = chunkZ * 16 + z;
+
+                    double riverNoise = SimplexNoise.Generate(worldX * 0.0012, worldZ * 0.0012, 0.6, 5, 1.0, 0.45, 91111);
+                    double intensity = Math.Abs(riverNoise);
+
+                    if (intensity < RiverCenterThreshold)
+                    {
+                        if (!IsOceanColumn(chunk, x, z))
+                        {
+                            CarveRiverColumn(chunk, x, z, worldX, worldZ, intensity);
+                        }
+                    }
+                    else if (intensity < RiverBankThreshold)
+                    {
+                        ShapeRiverBank(chunk, x, z);
+                    }
+                }
+            }
+        }
+
+        private void GenerateLakes(ChunkData chunk, int chunkX, int chunkZ)
+        {
+            double lakeNoise = SimplexNoise.Generate(chunkX * 0.035, chunkZ * 0.035, 0.55, 3, 1.0, 0.55, 67891);
+            if (lakeNoise < 0.62)
+                return;
+
+            var rand = new Random((chunkX * 928371) ^ (chunkZ * 72341) ^ 0xC0FFEE);
+            if (rand.NextDouble() > (lakeNoise - 0.62) * 1.8)
+                return;
+
+            int centerX = rand.Next(4, 12);
+            int centerZ = rand.Next(4, 12);
+            int radiusX = 3 + rand.Next(3);
+            int radiusZ = 3 + rand.Next(3);
+            int depth = 2 + rand.Next(2);
+            int waterLevel = Math.Clamp(GlobalWaterLevel + rand.Next(-1, 2), 45, 80);
+
+            int sampleSurface = FindSurfaceLevel(chunk, centerX, centerZ);
+            if (sampleSurface < waterLevel - 3 || sampleSurface > waterLevel + 8)
+                return;
+
+            for (int x = Math.Max(0, centerX - radiusX - 1); x < Math.Min(16, centerX + radiusX + 2); x++)
+            {
+                for (int z = Math.Max(0, centerZ - radiusZ - 1); z < Math.Min(16, centerZ + radiusZ + 2); z++)
+                {
+                    double nx = (x - centerX) / (double)radiusX;
+                    double nz = (z - centerZ) / (double)radiusZ;
+                    double distance = nx * nx + nz * nz;
+
+                    if (distance <= 1.0)
+                    {
+                        int localDepth = depth + (int)Math.Max(0, (1.0 - distance) * 2.0);
+                        CarveLakeColumn(chunk, x, z, waterLevel, localDepth);
+                    }
+                    else if (distance <= 1.25)
+                    {
+                        DecorateLakeBank(chunk, x, z, waterLevel);
+                    }
+                }
+            }
+        }
+
+        private void GenerateClouds(ChunkData chunk, int chunkX, int chunkZ)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    var worldX = chunkX * 16 + x;
+                    var worldZ = chunkZ * 16 + z;
+
+                    double noise = SimplexNoise.Generate(worldX * 0.0009, worldZ * 0.0009, 0.65, 4, 1.0, 0.6, 44444);
+                    if (noise <= 0.68)
+                        continue;
+
+                    int baseAltitude = CloudBaseAltitude + (int)((noise - 0.68) * 45);
+                    baseAltitude = Math.Clamp(baseAltitude, CloudBaseAltitude, 255);
+
+                    if (chunk.GetBlock(x, baseAltitude, z) == BlockType.Air)
+                    {
+                        chunk.SetBlock(x, baseAltitude, z, BlockType.Cloud);
+
+                        if (noise > 0.78 && baseAltitude + 1 < 256)
+                        {
+                            chunk.SetBlock(x, baseAltitude + 1, z, BlockType.Cloud);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CarveRiverColumn(ChunkData chunk, int x, int z, int worldX, int worldZ, double intensity)
+        {
+            int surface = FindSurfaceLevel(chunk, x, z);
+            if (surface <= 0)
+                return;
+
+            if (surface <= GlobalWaterLevel - 3 && chunk.GetBlock(x, surface, z) == BlockType.Water)
+                return;
+
+            int waterTop = Math.Min(GlobalWaterLevel, surface);
+            double depthFactor = Math.Clamp((RiverCenterThreshold - intensity) / RiverCenterThreshold, 0.0, 1.0);
+            int bedDepth = Math.Clamp(2 + (int)Math.Round(depthFactor * 3), 2, 5);
+            int bedBottom = Math.Max(1, waterTop - bedDepth);
+
+            for (int y = surface; y > waterTop; y--)
+            {
+                chunk.SetBlock(x, y, z, BlockType.Air);
+            }
+
+            chunk.SetBlock(x, waterTop, z, BlockType.Water);
+
+            if (waterTop - 1 >= bedBottom)
+            {
+                chunk.SetBlock(x, waterTop - 1, z, BlockType.Sand);
+            }
+
+            if (waterTop - 2 >= bedBottom)
+            {
+                for (int y = waterTop - 2; y >= bedBottom; y--)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Stone);
+                }
+            }
+
+            for (int y = waterTop + 1; y <= GlobalWaterLevel && y < 256; y++)
+            {
+                chunk.SetBlock(x, y, z, BlockType.Water);
+            }
+
+            for (int y = GlobalWaterLevel + 1; y <= surface + 2 && y < 256; y++)
+            {
+                if (chunk.GetBlock(x, y, z) != BlockType.Air)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Air);
+                }
+            }
+        }
+
+        private void ShapeRiverBank(ChunkData chunk, int x, int z)
+        {
+            int surface = FindSurfaceLevel(chunk, x, z);
+            if (surface <= 0)
+                return;
+
+            if (chunk.GetBlock(x, surface, z) == BlockType.Water)
+                return;
+
+            chunk.SetBlock(x, surface, z, BlockType.Sand);
+
+            if (surface - 1 > 0 && chunk.GetBlock(x, surface - 1, z) == BlockType.Dirt)
+            {
+                chunk.SetBlock(x, surface - 1, z, BlockType.Sand);
+            }
+
+            if (surface + 1 < 256)
+            {
+                chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+            }
+        }
+
+        private bool IsOceanColumn(ChunkData chunk, int x, int z)
+        {
+            var biome = chunk.GetBiome(x, z);
+            if (biome == BiomeType.Ocean)
+                return true;
+
+            var waterAtLevel = GlobalWaterLevel >= 0 && GlobalWaterLevel < 256 && chunk.GetBlock(x, GlobalWaterLevel, z) == BlockType.Water;
+            var waterBelow = GlobalWaterLevel - 1 >= 0 && chunk.GetBlock(x, GlobalWaterLevel - 1, z) == BlockType.Water;
+            return waterAtLevel && waterBelow;
+        }
+
+        private void CarveLakeColumn(ChunkData chunk, int x, int z, int waterLevel, int depth)
+        {
+            int surface = FindSurfaceLevel(chunk, x, z);
+            if (surface <= 0)
+                return;
+
+            int bottom = Math.Max(1, waterLevel - depth);
+
+            for (int y = surface; y >= bottom; y--)
+            {
+                chunk.SetBlock(x, y, z, BlockType.Air);
+            }
+
+            chunk.SetBlock(x, bottom, z, BlockType.Stone);
+
+            int sandLayer = Math.Min(waterLevel - 1, bottom + 1);
+            if (sandLayer > bottom)
+            {
+                chunk.SetBlock(x, sandLayer, z, BlockType.Sand);
+            }
+
+            for (int y = sandLayer + 1; y <= waterLevel && y < 256; y++)
+            {
+                chunk.SetBlock(x, y, z, BlockType.Water);
+            }
+
+            for (int y = waterLevel + 1; y <= Math.Min(waterLevel + 3, 255); y++)
+            {
+                if (chunk.GetBlock(x, y, z) != BlockType.Air)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Air);
+                }
+            }
+        }
+
+        private void DecorateLakeBank(ChunkData chunk, int x, int z, int waterLevel)
+        {
+            int surface = FindSurfaceLevel(chunk, x, z);
+            if (surface <= 0)
+                return;
+
+            if (chunk.GetBlock(x, surface, z) == BlockType.Water)
+                return;
+
+            if (surface <= waterLevel + 2)
+            {
+                chunk.SetBlock(x, surface, z, BlockType.Sand);
+                if (surface + 1 < 256)
+                {
+                    chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+                }
             }
         }
         
@@ -988,7 +1229,8 @@ namespace GameServerApp.World
         TallGrass = 15,
         DeadBush = 16,
         Ice = 17,
-        Snow = 18
+        Snow = 18,
+        Cloud = 19
     }
 
     public enum BiomeType : byte

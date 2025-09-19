@@ -6,6 +6,7 @@ using Minecraft.Player;
 using SharedProtocol;
 using System.Threading.Tasks;
 using Minecraft.Crafting;
+using Minecraft.Multiplayer;
 
 namespace Minecraft.UI
 {
@@ -69,6 +70,11 @@ namespace Minecraft.UI
             if (FindObjectOfType<CraftingManager>() == null)
             {
                 gameObject.AddComponent<CraftingManager>();
+            }
+
+            if (FindObjectOfType<RoomBrowserManager>() == null)
+            {
+                gameObject.AddComponent<RoomBrowserManager>();
             }
 
             // Disable player controller until logged in

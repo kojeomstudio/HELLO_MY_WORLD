@@ -82,16 +82,19 @@ public class LoginHandler : MessageHandler<LoginRequest>
             
             // 세션 등록
             _sessions.Add(session);
-            // 기본 룸에 배정 (로그인 성공 후)
-            _rooms.AssignPlayerToRoom(session.UserName!, "lobby");
-            
-            // 기본 룸 배정 (lobby)
-            try
+
+            if (!_rooms.AssignPlayerToRoom(session.UserName!, Rooms.RoomManager.DefaultLobbyId))
             {
-                // RoomManager 주입을 위해 Service Locator 패턴이 없으므로 GameServer에서 Chat/World 핸들러가 처리.
-                // 여기서는 SessionManager 상태만 최신화합니다. 실제 룸 배정은 GameServer.HandleClientAsync 접속 후 수행.
+                _sessions.Remove(session);
+                await SendLoginFailure(session, "로비에 입장할 수 없습니다. 잠시 후 다시 시도해주세요.");
+                return;
             }
-            catch { }
+
+            var lobby = _rooms.GetRoom(Rooms.RoomManager.DefaultLobbyId);
+            if (lobby != null)
+            {
+                _sessions.UpdatePlayerWorld(session.UserName!, lobby.WorldId, 0, 0);
+            }
             
             // 로그인 성공 응답
             var response = new LoginResponse 

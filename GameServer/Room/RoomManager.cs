@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using SharedProtocol;
 
 namespace GameServerApp.Rooms;
@@ -8,6 +11,8 @@ namespace GameServerApp.Rooms;
 /// </summary>
 public class RoomManager
 {
+    public const string DefaultLobbyId = "lobby";
+
     private readonly SessionManager _sessions;
     private readonly Dictionary<string, GameRoom> _rooms = new();
     private readonly Dictionary<string, string> _playerRoom = new(); // player -> roomId
@@ -16,14 +21,14 @@ public class RoomManager
     {
         _sessions = sessions;
         // Ensure there is always a default room bound to default world
-        CreateRoom("lobby", worldId: 1);
+        CreateRoom(DefaultLobbyId, 1, "Lobby", maxPlayers: 0, isLobby: true);
     }
 
-    public bool CreateRoom(string roomId, int worldId)
+    public bool CreateRoom(string roomId, int worldId, string? displayName = null, int maxPlayers = 0, bool isLobby = false)
     {
         if (string.IsNullOrWhiteSpace(roomId)) return false;
         if (_rooms.ContainsKey(roomId)) return false;
-        _rooms[roomId] = new GameRoom(roomId, worldId);
+        _rooms[roomId] = new GameRoom(roomId, worldId, displayName ?? roomId, maxPlayers, isLobby);
         return true;
     }
 
@@ -47,7 +52,11 @@ public class RoomManager
             if (_rooms.TryGetValue(current, out var prev)) prev.Remove(userName);
         }
 
-        room.Add(userName);
+        if (!room.Add(userName))
+        {
+            return false;
+        }
+
         _playerRoom[userName] = roomId;
         return true;
     }
@@ -72,6 +81,20 @@ public class RoomManager
         return room;
     }
 
+    public IEnumerable<GameRoom> GetRooms()
+    {
+        return _rooms.Values;
+    }
+
+    public IReadOnlyCollection<string> GetMembers(string roomId)
+    {
+        if (_rooms.TryGetValue(roomId, out var room))
+        {
+            return room.Members;
+        }
+        return Array.Empty<string>();
+    }
+
     /// <summary>
     /// Broadcasts a message to all members of a room.
     /// </summary>
@@ -87,4 +110,3 @@ public class RoomManager
         await Task.WhenAll(tasks);
     }
 }
-

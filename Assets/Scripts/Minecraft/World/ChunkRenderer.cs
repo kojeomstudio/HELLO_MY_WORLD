@@ -21,7 +21,7 @@ namespace Minecraft.World
         private MeshRenderer _meshRenderer;
         private MeshCollider _meshCollider;
         
-        private ChunkDataResponseMessage _chunkData;
+        private ChunkSnapshot _chunkData;
         private Dictionary<int, BlockType> _blockTypes;
         private Material _material;
         
@@ -77,7 +77,7 @@ namespace Minecraft.World
             _meshFilter.mesh = _mesh;
         }
         
-        public void Initialize(ChunkDataResponseMessage chunkData, Dictionary<int, BlockType> blockTypes, Material material)
+        public void Initialize(ChunkSnapshot chunkData, Dictionary<int, BlockType> blockTypes, Material material)
         {
             _chunkData = chunkData;
             _blockTypes = blockTypes;
@@ -89,7 +89,7 @@ namespace Minecraft.World
             UpdateMesh();
         }
         
-        public void UpdateData(ChunkDataResponseMessage chunkData)
+        public void UpdateData(ChunkSnapshot chunkData)
         {
             _chunkData = chunkData;
             _needsUpdate = true;
@@ -117,45 +117,36 @@ namespace Minecraft.World
         
         private void GenerateMesh()
         {
-            if (_chunkData?.Blocks == null) return;
-            
+            if (_chunkData == null) return;
+
             var blockArray = CreateBlockArray();
-            
-            for (int x = 0; x < 16; x++)
+
+            for (int x = 0; x < ChunkSnapshot.ChunkSize; x++)
             {
-                for (int y = 0; y < 256; y++)
+                for (int y = 0; y < ChunkSnapshot.ChunkHeight; y++)
                 {
-                    for (int z = 0; z < 16; z++)
+                    for (int z = 0; z < ChunkSnapshot.ChunkSize; z++)
                     {
                         var blockId = blockArray[x, y, z];
                         if (blockId == 0) continue;
-                        
+
                         if (!_blockTypes.TryGetValue(blockId, out var blockType)) continue;
                         if (!blockType.IsSolid) continue;
-                        
+
                         GenerateBlockMesh(x, y, z, blockType, blockArray);
                     }
                 }
             }
         }
-        
-        private int[,,] CreateBlockArray()
+
+        private byte[,,] CreateBlockArray()
         {
-            var blockArray = new int[16, 256, 16];
-            
-            foreach (var block in _chunkData.Blocks)
-            {
-                var pos = block.Position;
-                if (pos.X >= 0 && pos.X < 16 && pos.Y >= 0 && pos.Y < 256 && pos.Z >= 0 && pos.Z < 16)
-                {
-                    blockArray[pos.X, pos.Y, pos.Z] = block.BlockId;
-                }
-            }
-            
+            var blockArray = new byte[ChunkSnapshot.ChunkSize, ChunkSnapshot.ChunkHeight, ChunkSnapshot.ChunkSize];
+            _chunkData.CopyBlocksTo(blockArray);
             return blockArray;
         }
-        
-        private void GenerateBlockMesh(int x, int y, int z, BlockType blockType, int[,,] blockArray)
+
+        private void GenerateBlockMesh(int x, int y, int z, BlockType blockType, byte[,,] blockArray)
         {
             var blockPosition = new Vector3(x, y, z) * blockSize;
             
@@ -168,15 +159,15 @@ namespace Minecraft.World
             }
         }
         
-        private bool ShouldRenderFace(int x, int y, int z, int face, int[,,] blockArray)
+        private bool ShouldRenderFace(int x, int y, int z, int face, byte[,,] blockArray)
         {
             if (!enableBackfaceCulling) return true;
             
             var adjacentPos = GetAdjacentPosition(x, y, z, face);
             
-            if (adjacentPos.x < 0 || adjacentPos.x >= 16 || 
-                adjacentPos.y < 0 || adjacentPos.y >= 256 || 
-                adjacentPos.z < 0 || adjacentPos.z >= 16)
+            if (adjacentPos.x < 0 || adjacentPos.x >= ChunkSnapshot.ChunkSize || 
+                adjacentPos.y < 0 || adjacentPos.y >= ChunkSnapshot.ChunkHeight || 
+                adjacentPos.z < 0 || adjacentPos.z >= ChunkSnapshot.ChunkSize)
             {
                 return true;
             }

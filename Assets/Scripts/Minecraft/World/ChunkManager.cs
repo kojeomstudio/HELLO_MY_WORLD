@@ -23,7 +23,7 @@ namespace Minecraft.World
         [SerializeField] private int chunksPerFrame = 2;
         [SerializeField] private float chunkUpdateInterval = 0.1f;
         
-        private Dictionary<Vector2Int, ChunkDataResponseMessage> _chunkData = new();
+        private readonly Dictionary<Vector2Int, ChunkSnapshot> _chunkData = new();
         private Dictionary<Vector2Int, GameObject> _chunkObjects = new();
         private Dictionary<Vector2Int, ChunkRenderer> _chunkRenderers = new();
         
@@ -167,7 +167,7 @@ namespace Minecraft.World
             }
         }
         
-        public void LoadChunk(ChunkDataResponseMessage chunkData)
+        public void LoadChunk(ChunkSnapshot chunkData)
         {
             var chunkPos = new Vector2Int(chunkData.ChunkX, chunkData.ChunkZ);
             
@@ -203,7 +203,7 @@ namespace Minecraft.World
             Debug.Log($"Loaded chunk ({chunkPos.x}, {chunkPos.y})");
         }
         
-        public void UpdateChunk(ChunkDataResponseMessage chunkData)
+        public void UpdateChunk(ChunkSnapshot chunkData)
         {
             var chunkPos = new Vector2Int(chunkData.ChunkX, chunkData.ChunkZ);
             
@@ -293,20 +293,9 @@ namespace Minecraft.World
             BlockChanged?.Invoke(blockPos, oldBlockId, newBlockId);
         }
         
-        private void UpdateBlockInChunk(ChunkDataResponseMessage chunkData, Vector3Int localPos, int newBlockId)
+        private void UpdateBlockInChunk(ChunkSnapshot chunkData, Vector3Int localPos, int newBlockId)
         {
-            if (chunkData.Blocks == null) return;
-            
-            foreach (var block in chunkData.Blocks)
-            {
-                if (block.Position.X == localPos.x && 
-                    block.Position.Y == localPos.y && 
-                    block.Position.Z == localPos.z)
-                {
-                    block.BlockId = newBlockId;
-                    break;
-                }
-            }
+            chunkData.SetBlockId(localPos.x, localPos.y, localPos.z, newBlockId);
         }
         
         public int GetBlockAt(Vector3Int worldPos)
@@ -325,20 +314,7 @@ namespace Minecraft.World
                 worldPos.z - (chunkPos.y * chunkSize)
             );
             
-            if (chunkData.Blocks != null)
-            {
-                foreach (var block in chunkData.Blocks)
-                {
-                    if (block.Position.X == localPos.x && 
-                        block.Position.Y == localPos.y && 
-                        block.Position.Z == localPos.z)
-                    {
-                        return block.BlockId;
-                    }
-                }
-            }
-            
-            return 0;
+            return chunkData.GetBlockId(localPos.x, localPos.y, localPos.z);
         }
         
         public BlockType GetBlockType(int blockId)

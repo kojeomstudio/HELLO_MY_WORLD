@@ -350,10 +350,12 @@ namespace Minecraft.Player
             if (distance > 0.1f || timeSinceLastSent > 0.05f)
             {
                 Vector3 rotation = new Vector3(_verticalRotation, transform.eulerAngles.y, 0);
-                
+                float movementSpeed = timeSinceLastSent > Mathf.Epsilon ? distance / timeSinceLastSent : 0f;
+
                 _gameClient.SendPlayerStateUpdate(
                     transform.position,
                     rotation,
+                    movementSpeed,
                     _isGrounded,
                     _isSneaking,
                     _isSprinting,

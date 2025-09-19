@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UnityEngine;
 using Networking.Core;
@@ -33,6 +34,7 @@ namespace Minecraft.Core
         private PlayerStateInfo _playerState = new();
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
         private readonly Dictionary<string, EntityInfo> _entities = new();
+        private readonly Dictionary<string, RecipeData> _knownRecipes = new();
 
         private readonly Queue<OutgoingMessage> _outgoingMessages = new();
         private readonly Queue<object> _incomingMessages = new();
@@ -45,6 +47,8 @@ namespace Minecraft.Core
         public event Action<EntityInfo> EntitySpawned;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
+        public event Action<IReadOnlyList<RecipeData>> RecipeListReceived;
+        public event Action<CraftingResponse> CraftingCompleted;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
@@ -214,6 +218,50 @@ namespace Minecraft.Core
             EnqueueMessage((int)MessageType.ChatRequest, request);
         }
 
+        #region Crafting API
+
+        public void RequestAllRecipes()
+        {
+            var request = new RecipeListRequest { CraftingType = -1 };
+            EnqueueMessage((int)MessageType.RecipeListRequest, request);
+        }
+
+        public void RequestRecipes(CraftingType craftingType)
+        {
+            var request = new RecipeListRequest { CraftingType = (int)craftingType };
+            EnqueueMessage((int)MessageType.RecipeListRequest, request);
+        }
+
+        public void SendCraftingRequest(string recipeId, int amount, CraftingType craftingType)
+        {
+            if (string.IsNullOrEmpty(recipeId))
+            {
+                Debug.LogWarning("Cannot craft: recipe id is empty");
+                return;
+            }
+
+            var request = new CraftingRequest
+            {
+                RecipeId = recipeId,
+                CraftingAmount = Mathf.Max(1, amount),
+                CraftingType = (int)craftingType
+            };
+
+            EnqueueMessage((int)MessageType.CraftingRequest, request);
+        }
+
+        public bool TryGetKnownRecipe(string recipeId, out RecipeData recipe)
+        {
+            return _knownRecipes.TryGetValue(recipeId, out recipe);
+        }
+
+        public IReadOnlyCollection<RecipeData> GetKnownRecipes()
+        {
+            return _knownRecipes.Values;
+        }
+
+        #endregion
+
         private void SendHeartbeat()
         {
             if (!_isConnected) return;
@@ -337,6 +385,8 @@ namespace Minecraft.Core
                         MessageType.PingResponse => ProtoBuf.Serializer.Deserialize<PingResponse>(stream),
                         MessageType.WorldBlockChangeBroadcast => ProtoBuf.Serializer.Deserialize<WorldBlockChangeBroadcast>(stream),
                         MessageType.WorldBlockChangeResponse => ProtoBuf.Serializer.Deserialize<WorldBlockChangeResponse>(stream),
+                        MessageType.CraftingResponse => ProtoBuf.Serializer.Deserialize<CraftingResponse>(stream),
+                        MessageType.RecipeListResponse => ProtoBuf.Serializer.Deserialize<RecipeListResponse>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
                         _ => null
                     };
@@ -400,6 +450,12 @@ namespace Minecraft.Core
                     break;
                 case ChatResponse chatResponse:
                     HandleChatResponse(chatResponse);
+                    break;
+                case RecipeListResponse recipeList:
+                    HandleRecipeListResponse(recipeList);
+                    break;
+                case CraftingResponse craftingResponse:
+                    HandleCraftingResponse(craftingResponse);
                     break;
                 case EntitySpawnMessage spawnMessage:
                     HandleEntitySpawn(spawnMessage);
@@ -492,6 +548,74 @@ namespace Minecraft.Core
             {
                 ErrorOccurred?.Invoke(response.ErrorMessage);
             }
+        }
+
+        private void HandleRecipeListResponse(RecipeListResponse response)
+        {
+            if (!response.Success)
+            {
+                ErrorOccurred?.Invoke("Failed to fetch crafting recipes from server.");
+                return;
+            }
+
+            foreach (var recipe in response.Recipes)
+            {
+                if (!string.IsNullOrEmpty(recipe.RecipeId))
+                {
+                    _knownRecipes[recipe.RecipeId] = recipe;
+                }
+            }
+
+            RecipeListReceived?.Invoke(response.Recipes);
+            Debug.Log($"Received {response.Recipes.Count} crafting recipes (total cached: {_knownRecipes.Count}).");
+        }
+
+        private void HandleCraftingResponse(CraftingResponse response)
+        {
+            if (!response.Success)
+            {
+                if (!string.IsNullOrEmpty(response.Message))
+                {
+                    ErrorOccurred?.Invoke(response.Message);
+                }
+                CraftingCompleted?.Invoke(response);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(response.UpdatedInventory))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(response.UpdatedInventory);
+                    if (doc.RootElement.TryGetProperty("Slots", out var slotsElement))
+                    {
+                        int occupied = 0;
+                        foreach (var slot in slotsElement.EnumerateArray())
+                        {
+                            if (slot.TryGetProperty("ItemId", out var idProp) && !string.IsNullOrEmpty(idProp.GetString()))
+                            {
+                                occupied++;
+                            }
+                        }
+
+                        Debug.Log($"Inventory snapshot received. Occupied slots: {occupied}.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to parse inventory snapshot from crafting response: {ex.Message}");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(response.RecipeId) && _knownRecipes.TryGetValue(response.RecipeId, out var recipe))
+            {
+                var craftedSummary = response.CraftedItems?.Count > 0
+                    ? string.Join(", ", response.CraftedItems.Select(item => $"{item.Amount}x {item.ItemId}"))
+                    : "(no items reported)";
+                Debug.Log($"Crafted {craftedSummary} via recipe '{recipe.Name}'.");
+            }
+
+            CraftingCompleted?.Invoke(response);
         }
 
         private void HandleEntitySpawn(EntitySpawnMessage message)

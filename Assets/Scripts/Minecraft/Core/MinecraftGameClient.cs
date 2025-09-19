@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 using Networking.Core;
 using SharedProtocol;
+using Minecraft.World;
 
 namespace Minecraft.Core
 {
     /// <summary>
-    /// Enhanced Minecraft game client that properly integrates with the server
-    /// using SharedProtocol messages and the Session protocol
+    /// High level Minecraft-style game client that speaks the SharedProtocol framing
+    /// and surfaces gameplay events (chunks, entities, chat, etc.) to Unity systems.
     /// </summary>
     public class MinecraftGameClient : MonoBehaviour
     {
@@ -18,87 +20,90 @@ namespace Minecraft.Core
         [SerializeField] private string serverAddress = "127.0.0.1";
         [SerializeField] private int serverPort = 9000;
         [SerializeField] private float connectionTimeout = 10f;
-        
+
         [Header("Game Settings")]
         [SerializeField] private int renderDistance = 8;
         [SerializeField] private float networkTickRate = 20f;
-        
+
         private INetworkTransport _transport;
-        private bool _isConnected = false;
-        private string _sessionToken;
+        private bool _isConnected;
+        private string _sessionToken = string.Empty;
         private float _lastNetworkUpdate;
-        
-        // Player and World State
-        private PlayerStateInfo _playerState;
-        private Dictionary<Vector2Int, ChunkDataResponseMessage> _loadedChunks = new();
-        private Dictionary<string, EntityInfo> _entities = new();
-        
-        // Message queues for thread safety
-        private Queue<object> _outgoingMessages = new();
-        private Queue<object> _incomingMessages = new();
-        
-        // Events for UI and game systems
+
+        private PlayerStateInfo _playerState = new();
+        private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
+        private readonly Dictionary<string, EntityInfo> _entities = new();
+
+        private readonly Queue<OutgoingMessage> _outgoingMessages = new();
+        private readonly Queue<object> _incomingMessages = new();
+
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
         public event Action<PlayerStateInfo> PlayerStateUpdated;
-        public event Action<ChunkDataResponseMessage> ChunkLoaded;
+        public event Action<ChunkSnapshot> ChunkLoaded;
         public event Action<Vector3Int, int, int> BlockChanged;
         public event Action<EntityInfo> EntitySpawned;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
-        
-        // Public properties
+
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
         public string SessionToken => _sessionToken;
         public int LoadedChunkCount => _loadedChunks.Count;
-        
+
         private void Awake()
         {
             InitializeClient();
         }
-        
+
         private void Update()
         {
-            ProcessMessageQueues();
-            
-            if (_isConnected && Time.time - _lastNetworkUpdate > 1f / networkTickRate)
+            ProcessOutgoingMessages();
+            ProcessIncomingMessages();
+
+            if (_isConnected && networkTickRate > 0f && Time.time - _lastNetworkUpdate >= 1f / networkTickRate)
             {
                 SendHeartbeat();
                 _lastNetworkUpdate = Time.time;
             }
         }
-        
+
+        private void OnDestroy()
+        {
+            if (_transport != null)
+            {
+                _transport.ConnectionStatusChanged -= OnTransportConnectionChanged;
+                _transport.Received -= OnDataReceived;
+                _transport.Dispose();
+            }
+        }
+
         private void InitializeClient()
         {
             _transport = new TcpNetworkTransport();
             _transport.ConnectionStatusChanged += OnTransportConnectionChanged;
             _transport.Received += OnDataReceived;
-            
-            Debug.Log("MinecraftGameClient initialized with SharedProtocol");
+
+            Debug.Log("MinecraftGameClient ready (SharedProtocol framing)");
         }
-        
+
         #region Connection Management
-        
+
         public async Task<bool> ConnectAsync()
         {
             try
             {
-                Debug.Log($"Connecting to Minecraft server at {serverAddress}:{serverPort}...");
-                
                 var connectTask = _transport.ConnectAsync(serverAddress, serverPort);
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(connectionTimeout));
-                
+
                 var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-                
                 if (completedTask == timeoutTask)
                 {
                     ErrorOccurred?.Invoke("Connection timed out");
                     return false;
                 }
-                
+
                 await connectTask;
-                Debug.Log("Successfully connected to Minecraft server");
                 return true;
             }
             catch (Exception ex)
@@ -107,55 +112,70 @@ namespace Minecraft.Core
                 return false;
             }
         }
-        
+
         public async Task DisconnectAsync()
         {
             try
             {
-                if (_transport != null)
-                {
-                    await _transport.DisconnectAsync();
-                }
+                await _transport.DisconnectAsync();
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Error during disconnect: {ex.Message}");
+                Debug.LogWarning($"Disconnect error: {ex.Message}");
             }
         }
-        
-        #endregion
-        
-        #region Message Sending
-        
-        public void SendLogin(string username, string password)
+
+        private void OnTransportConnectionChanged(bool isConnected)
         {
-            var loginMessage = new LoginMessage
+            _isConnected = isConnected;
+
+            if (!isConnected)
             {
-                UserName = username,
-                Password = password
+                _sessionToken = string.Empty;
+                _playerState = new PlayerStateInfo();
+                _loadedChunks.Clear();
+                _entities.Clear();
+                _outgoingMessages.Clear();
+                _incomingMessages.Clear();
+            }
+
+            ConnectionStatusChanged?.Invoke(isConnected);
+        }
+
+        #endregion
+
+        #region Message Sending
+
+        public void SendLogin(string username, string password, string clientVersion = "1.0.0")
+        {
+            var request = new LoginRequest
+            {
+                Username = username,
+                Password = password,
+                ClientVersion = clientVersion
             };
-            
-            SendMessage(MessageType.Login, loginMessage);
+
+            EnqueueMessage((int)MessageType.LoginRequest, request);
             Debug.Log($"Sent login request for {username}");
         }
-        
-        public void SendPlayerStateUpdate(Vector3 position, Vector3 rotation, bool isOnGround = true, 
-            bool isSneaking = false, bool isSprinting = false, bool isFlying = false)
+
+        public void SendPlayerStateUpdate(Vector3 position, Vector3 rotation, float movementSpeed,
+            bool isOnGround = true, bool isSneaking = false, bool isSprinting = false, bool isFlying = false)
         {
-            var stateUpdate = new PlayerStateUpdateMessage
+            if (!_isConnected) return;
+
+            var clampedSpeed = Mathf.Clamp(movementSpeed, 0.1f, 10f);
+            var moveRequest = new MoveRequest
             {
-                Position = new Vector3F { X = position.x, Y = position.y, Z = position.z },
-                Rotation = new Vector3F { X = rotation.x, Y = rotation.y, Z = rotation.z },
-                IsOnGround = isOnGround,
-                IsSneaking = isSneaking,
-                IsSprinting = isSprinting,
-                IsFlying = isFlying,
-                PlayerId = _sessionToken ?? "unknown"
+                TargetPosition = new SharedProtocol.Vector3(position.x, position.y, position.z),
+                MovementSpeed = clampedSpeed
             };
-            
-            SendMinecraftMessage(MinecraftMessageType.PlayerStateUpdate, stateUpdate);
+
+            EnqueueMessage((int)MessageType.MoveRequest, moveRequest);
+
+            UpdateLocalPlayerState(position, rotation, isOnGround, isSneaking, isSprinting, isFlying);
         }
-        
+
         public void SendPlayerAction(PlayerActionType action, Vector3Int targetPos, int face, Vector3 cursorPos, ItemInfo selectedItem = null)
         {
             var request = new PlayerActionRequestMessage
@@ -163,95 +183,82 @@ namespace Minecraft.Core
                 Action = action,
                 TargetPosition = new Vector3I { X = targetPos.x, Y = targetPos.y, Z = targetPos.z },
                 Face = face,
-                CursorPosition = new Vector3F { X = cursorPos.x, Y = cursorPos.y, Z = cursorPos.z },
+                CursorPosition = new Vector3D { X = cursorPos.x, Y = cursorPos.y, Z = cursorPos.z },
                 SelectedItem = selectedItem
             };
-            
-            SendMinecraftMessage(MinecraftMessageType.PlayerActionRequest, request);
-            Debug.Log($"Sent player action: {action} at {targetPos}");
+
+            EnqueueMessage((int)MinecraftMessageType.PlayerActionRequest, request);
         }
-        
+
         public void RequestChunk(int chunkX, int chunkZ)
         {
-            var chunkKey = new Vector2Int(chunkX, chunkZ);
-            if (_loadedChunks.ContainsKey(chunkKey)) return;
-            
             var request = new ChunkDataRequestMessage
             {
                 ChunkX = chunkX,
-                ChunkZ = chunkZ
+                ChunkZ = chunkZ,
+                ViewDistance = renderDistance
             };
-            
-            SendMinecraftMessage(MinecraftMessageType.ChunkDataRequest, request);
-            Debug.Log($"Requested chunk ({chunkX}, {chunkZ})");
+
+            EnqueueMessage((int)MinecraftMessageType.ChunkDataRequest, request);
         }
-        
-        public void SendChatMessage(string message)
+
+        public void SendChatMessage(string message, ChatType chatType = ChatType.Global, string targetPlayer = "")
         {
-            var chatMessage = new ChatMessage
+            var request = new ChatRequest
             {
-                Sender = _playerState?.PlayerId ?? "unknown",
-                Content = message,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                Message = message,
+                Type = (int)chatType,
+                TargetPlayer = targetPlayer
             };
-            
-            SendMessage(MessageType.Chat, chatMessage);
+
+            EnqueueMessage((int)MessageType.ChatRequest, request);
         }
-        
+
         private void SendHeartbeat()
         {
-            var ping = new PingMessage
+            if (!_isConnected) return;
+
+            var ping = new PingRequest
             {
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                ClientId = _sessionToken ?? "unknown"
+                ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
-            
-            SendMessage(MessageType.Ping, ping);
+
+            EnqueueMessage((int)MessageType.PingRequest, ping);
         }
-        
-        private void SendMessage(MessageType messageType, object message)
+
+        private void EnqueueMessage(int typeCode, object payload)
         {
             if (!_isConnected)
             {
-                Debug.LogWarning($"Cannot send {message.GetType().Name}: not connected");
+                Debug.LogWarning($"Cannot send {payload.GetType().Name}: not connected");
                 return;
             }
-            
-            _outgoingMessages.Enqueue(new { MessageType = messageType, Message = message });
+
+            _outgoingMessages.Enqueue(new OutgoingMessage(typeCode, payload));
         }
-        
-        private void SendMinecraftMessage(MinecraftMessageType messageType, object message)
-        {
-            if (!_isConnected)
-            {
-                Debug.LogWarning($"Cannot send {message.GetType().Name}: not connected");
-                return;
-            }
-            
-            _outgoingMessages.Enqueue(new { MessageType = messageType, Message = message, IsMinecraftMessage = true });
-        }
-        
+
         #endregion
-        
-        #region Message Processing
-        
-        private void ProcessMessageQueues()
+
+        #region Message Queues
+
+        private void ProcessOutgoingMessages()
         {
-            // Process outgoing messages
-            while (_outgoingMessages.Count > 0 && _isConnected)
+            while (_isConnected && _outgoingMessages.Count > 0)
             {
-                var messageWrapper = _outgoingMessages.Dequeue();
+                var message = _outgoingMessages.Dequeue();
                 try
                 {
-                    SendMessageToTransport(messageWrapper);
+                    SendMessageToTransport(message);
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"Failed to send message: {ex.Message}");
+                    Debug.LogError($"Failed to send message ({message.Payload.GetType().Name}): {ex.Message}");
                 }
             }
-            
-            // Process incoming messages
+        }
+
+        private void ProcessIncomingMessages()
+        {
             while (_incomingMessages.Count > 0)
             {
                 var message = _incomingMessages.Dequeue();
@@ -265,53 +272,42 @@ namespace Minecraft.Core
                 }
             }
         }
-        
-        private void SendMessageToTransport(object messageWrapper)
+
+        private void SendMessageToTransport(OutgoingMessage message)
         {
-            using var stream = new MemoryStream();
-            
-            // Use the Session protocol format: [MessageType][MessageData]
-            var wrapper = messageWrapper as dynamic;
-            var messageType = wrapper.MessageType;
-            var message = wrapper.Message;
-            var isMinecraftMessage = wrapper.IsMinecraftMessage ?? false;
-            
-            // Write message type
-            if (isMinecraftMessage)
-            {
-                stream.WriteByte((byte)messageType); // MinecraftMessageType
-            }
-            else
-            {
-                stream.WriteByte((byte)messageType); // MessageType
-            }
-            
-            // Serialize and write message data
-            using var messageStream = new MemoryStream();
-            ProtoBuf.Serializer.Serialize(messageStream, message);
-            var messageBytes = messageStream.ToArray();
-            
-            stream.Write(messageBytes, 0, messageBytes.Length);
-            
-            var data = stream.ToArray();
-            _transport.Send(new ArraySegment<byte>(data));
+            using var payloadStream = new MemoryStream();
+            ProtoBuf.Serializer.Serialize(payloadStream, message.Payload);
+            var payload = payloadStream.ToArray();
+
+            var typeBytes = BitConverter.GetBytes(message.TypeCode);
+            var framed = new byte[typeBytes.Length + payload.Length];
+            Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+            Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+            _transport.Send(new ArraySegment<byte>(framed));
         }
-        
+
         private void OnDataReceived(ArraySegment<byte> data)
         {
             try
             {
-                using var stream = new MemoryStream(data.Array, data.Offset, data.Count);
-                
-                // Read message type
-                var messageTypeByte = stream.ReadByte();
-                if (messageTypeByte == -1) return;
-                
-                // Determine if it's a regular message or Minecraft message
-                var remainingBytes = new byte[data.Count - 1];
-                stream.Read(remainingBytes, 0, remainingBytes.Length);
-                
-                var message = DeserializeMessage((MessageType)messageTypeByte, remainingBytes);
+                var buffer = new byte[data.Count];
+                Buffer.BlockCopy(data.Array!, data.Offset, buffer, 0, data.Count);
+
+                if (buffer.Length < sizeof(int))
+                {
+                    Debug.LogWarning("Received payload smaller than header");
+                    return;
+                }
+
+                var typeCode = BitConverter.ToInt32(buffer, 0);
+                var payload = new byte[buffer.Length - sizeof(int)];
+                if (payload.Length > 0)
+                {
+                    Buffer.BlockCopy(buffer, sizeof(int), payload, 0, payload.Length);
+                }
+
+                var message = DeserializeMessage(typeCode, payload);
                 if (message != null)
                 {
                     _incomingMessages.Enqueue(message);
@@ -322,264 +318,305 @@ namespace Minecraft.Core
                 Debug.LogError($"Failed to process received data: {ex.Message}");
             }
         }
-        
-        private object DeserializeMessage(MessageType messageType, byte[] data)
+
+        private object DeserializeMessage(int typeCode, byte[] payload)
         {
-            using var stream = new MemoryStream(data);
-            
+            using var stream = new MemoryStream(payload);
+
             try
             {
-                return messageType switch
+                if (Enum.IsDefined(typeof(MessageType), typeCode))
                 {
-                    MessageType.Login => ProtoBuf.Serializer.Deserialize<LoginResponseMessage>(stream),
-                    MessageType.Chat => ProtoBuf.Serializer.Deserialize<ChatMessage>(stream),
-                    MessageType.Ping => ProtoBuf.Serializer.Deserialize<PingMessage>(stream),
-                    
-                    // Try to deserialize as Minecraft messages
-                    _ => TryDeserializeMinecraftMessage((MinecraftMessageType)messageType, data)
-                };
+                    var messageType = (MessageType)typeCode;
+                    return messageType switch
+                    {
+                        MessageType.LoginResponse => ProtoBuf.Serializer.Deserialize<LoginResponse>(stream),
+                        MessageType.MoveResponse => ProtoBuf.Serializer.Deserialize<MoveResponse>(stream),
+                        MessageType.ChatResponse => ProtoBuf.Serializer.Deserialize<ChatResponse>(stream),
+                        MessageType.ChatMessage => ProtoBuf.Serializer.Deserialize<ChatMessage>(stream),
+                        MessageType.PingResponse => ProtoBuf.Serializer.Deserialize<PingResponse>(stream),
+                        MessageType.WorldBlockChangeBroadcast => ProtoBuf.Serializer.Deserialize<WorldBlockChangeBroadcast>(stream),
+                        MessageType.WorldBlockChangeResponse => ProtoBuf.Serializer.Deserialize<WorldBlockChangeResponse>(stream),
+                        MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
+                        _ => null
+                    };
+                }
+
+                if (Enum.IsDefined(typeof(MinecraftMessageType), typeCode))
+                {
+                    var minecraftType = (MinecraftMessageType)typeCode;
+                    return minecraftType switch
+                    {
+                        MinecraftMessageType.PlayerActionResponse => ProtoBuf.Serializer.Deserialize<PlayerActionResponseMessage>(stream),
+                        MinecraftMessageType.ChunkDataResponse => ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream),
+                        MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
+                        MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
+                        MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
+                        _ => null
+                    };
+                }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Failed to deserialize message type {messageType}: {ex.Message}");
+                Debug.LogError($"Failed to deserialize message type {typeCode}: {ex.Message}");
                 return null;
             }
+
+            Debug.LogWarning($"Unknown message type received: {typeCode}");
+            return null;
         }
-        
-        private object TryDeserializeMinecraftMessage(MinecraftMessageType messageType, byte[] data)
-        {
-            using var stream = new MemoryStream(data);
-            
-            try
-            {
-                return messageType switch
-                {
-                    MinecraftMessageType.PlayerStateUpdate => ProtoBuf.Serializer.Deserialize<PlayerStateUpdateMessage>(stream),
-                    MinecraftMessageType.PlayerActionResponse => ProtoBuf.Serializer.Deserialize<PlayerActionResponseMessage>(stream),
-                    MinecraftMessageType.ChunkDataResponse => ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream),
-                    MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
-                    MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
-                    MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
-                    _ => null
-                };
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Failed to deserialize Minecraft message type {messageType}: {ex.Message}");
-                return null;
-            }
-        }
-        
+
+        #endregion
+
+        #region Message Handlers
+
         private void HandleIncomingMessage(object message)
         {
             switch (message)
             {
-                case LoginResponseMessage loginResponse:
+                case LoginResponse loginResponse:
                     HandleLoginResponse(loginResponse);
                     break;
-                    
-                case PlayerStateUpdateMessage stateUpdate:
-                    HandlePlayerStateUpdate(stateUpdate);
+                case MoveResponse moveResponse:
+                    HandleMoveResponse(moveResponse);
                     break;
-                    
+                case PlayerInfoUpdate infoUpdate:
+                    HandlePlayerInfoUpdate(infoUpdate);
+                    break;
                 case ChunkDataResponseMessage chunkResponse:
                     HandleChunkResponse(chunkResponse);
                     break;
-                    
                 case PlayerActionResponseMessage actionResponse:
                     HandlePlayerActionResponse(actionResponse);
                     break;
-                    
                 case BlockChangeNotificationMessage blockChange:
                     HandleBlockChange(blockChange);
                     break;
-                    
-                case EntitySpawnMessage entitySpawn:
-                    HandleEntitySpawn(entitySpawn);
+                case WorldBlockChangeBroadcast worldBlockChange:
+                    HandleWorldBlockBroadcast(worldBlockChange);
                     break;
-                    
-                case EntityDespawnMessage entityDespawn:
-                    HandleEntityDespawn(entityDespawn);
-                    break;
-                    
                 case ChatMessage chatMessage:
-                    HandleChatMessage(chatMessage);
+                    ChatMessageReceived?.Invoke(chatMessage);
                     break;
-                    
-                case PingMessage pingResponse:
+                case ChatResponse chatResponse:
+                    HandleChatResponse(chatResponse);
+                    break;
+                case EntitySpawnMessage spawnMessage:
+                    HandleEntitySpawn(spawnMessage);
+                    break;
+                case EntityDespawnMessage despawnMessage:
+                    HandleEntityDespawn(despawnMessage);
+                    break;
+                case PingResponse pingResponse:
                     HandlePingResponse(pingResponse);
                     break;
-                    
                 default:
-                    Debug.LogWarning($"Unhandled message type: {message?.GetType().Name}");
+                    Debug.LogWarning($"Unhandled message type: {message.GetType().Name}");
                     break;
             }
         }
-        
-        #endregion
-        
-        #region Message Handlers
-        
-        private void HandleLoginResponse(LoginResponseMessage response)
+
+        private void HandleLoginResponse(LoginResponse response)
         {
-            if (response.Success)
+            if (!response.Success)
             {
-                _sessionToken = response.SessionToken;
-                _playerState = response.PlayerState;
-                
-                PlayerStateUpdated?.Invoke(_playerState);
-                Debug.Log($"Login successful: {response.Message}");
+                ErrorOccurred?.Invoke(string.IsNullOrWhiteSpace(response.Message) ? "Login failed" : response.Message);
+                return;
             }
-            else
+
+            _sessionToken = response.SessionToken ?? string.Empty;
+            if (response.PlayerInfo != null)
             {
-                ErrorOccurred?.Invoke($"Login failed: {response.Message}");
-            }
-        }
-        
-        private void HandlePlayerStateUpdate(PlayerStateUpdateMessage stateUpdate)
-        {
-            if (_playerState != null && stateUpdate.PlayerId == _playerState.PlayerId)
-            {
-                // Update our own player state
-                _playerState.Position = stateUpdate.Position;
-                _playerState.Health = stateUpdate.Health;
-                _playerState.Hunger = stateUpdate.Hunger;
-                _playerState.IsOnGround = stateUpdate.IsOnGround;
-                _playerState.IsSneaking = stateUpdate.IsSneaking;
-                _playerState.IsSprinting = stateUpdate.IsSprinting;
-                _playerState.IsFlying = stateUpdate.IsFlying;
-                
+                _playerState = ConvertToPlayerStateInfo(response.PlayerInfo);
                 PlayerStateUpdated?.Invoke(_playerState);
             }
         }
-        
+
+        private void HandleMoveResponse(MoveResponse response)
+        {
+            if (!response.Success || response.NewPosition == null) return;
+
+            _playerState.Position = new Vector3D
+            {
+                X = response.NewPosition.X,
+                Y = response.NewPosition.Y,
+                Z = response.NewPosition.Z
+            };
+        }
+
+        private void HandlePlayerInfoUpdate(PlayerInfoUpdate update)
+        {
+            if (update.PlayerInfo == null) return;
+            _playerState = ConvertToPlayerStateInfo(update.PlayerInfo);
+            PlayerStateUpdated?.Invoke(_playerState);
+        }
+
         private void HandleChunkResponse(ChunkDataResponseMessage response)
         {
-            if (response.Success)
-            {
-                var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
-                _loadedChunks[chunkKey] = response;
-                
-                ChunkLoaded?.Invoke(response);
-                Debug.Log($"Loaded chunk ({response.ChunkX}, {response.ChunkZ}) with {response.Blocks?.Count ?? 0} blocks");
-            }
-            else
-            {
-                Debug.LogWarning($"Failed to load chunk: {response.Message}");
-            }
+            var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
+            var blocks = ChunkCompression.DecodeBlocks(response.CompressedBlockData);
+            var entities = response.Entities ?? new List<EntityInfo>();
+            var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache);
+
+            _loadedChunks[chunkKey] = snapshot;
+            ChunkLoaded?.Invoke(snapshot);
         }
-        
+
         private void HandlePlayerActionResponse(PlayerActionResponseMessage response)
         {
-            if (response.Success)
+            if (!response.Success && !string.IsNullOrEmpty(response.Message))
             {
-                Debug.Log($"Player action {response.Action} completed successfully");
-            }
-            else
-            {
-                Debug.LogWarning($"Player action {response.Action} failed: {response.Message}");
+                ErrorOccurred?.Invoke(response.Message);
             }
         }
-        
-        private void HandleBlockChange(BlockChangeNotificationMessage blockChange)
+
+        private void HandleBlockChange(BlockChangeNotificationMessage message)
         {
-            if (blockChange.Blocks != null)
+            var position = new Vector3Int(message.Position.X, message.Position.Y, message.Position.Z);
+            var previousBlockId = UpdateLocalChunkCache(position, message.NewBlockId);
+            var oldId = message.OldBlockId != 0 ? message.OldBlockId : previousBlockId;
+            BlockChanged?.Invoke(position, oldId, message.NewBlockId);
+        }
+
+        private void HandleWorldBlockBroadcast(WorldBlockChangeBroadcast message)
+        {
+            if (message.BlockPosition == null) return;
+            var pos = new Vector3Int(message.BlockPosition.X, message.BlockPosition.Y, message.BlockPosition.Z);
+            var previous = UpdateLocalChunkCache(pos, message.BlockType);
+            BlockChanged?.Invoke(pos, previous, message.BlockType);
+        }
+
+        private void HandleChatResponse(ChatResponse response)
+        {
+            if (!response.Success && !string.IsNullOrEmpty(response.ErrorMessage))
             {
-                foreach (var block in blockChange.Blocks)
-                {
-                    var pos = new Vector3Int(block.Position.X, block.Position.Y, block.Position.Z);
-                    BlockChanged?.Invoke(pos, 0, block.BlockId); // oldBlockId not available
-                }
+                ErrorOccurred?.Invoke(response.ErrorMessage);
             }
         }
-        
-        private void HandleEntitySpawn(EntitySpawnMessage entitySpawn)
+
+        private void HandleEntitySpawn(EntitySpawnMessage message)
         {
-            if (entitySpawn.Entity != null)
+            if (message.Entity == null || string.IsNullOrEmpty(message.Entity.EntityId)) return;
+            _entities[message.Entity.EntityId] = message.Entity;
+            EntitySpawned?.Invoke(message.Entity);
+        }
+
+        private void HandleEntityDespawn(EntityDespawnMessage message)
+        {
+            if (string.IsNullOrEmpty(message.EntityId)) return;
+            _entities.Remove(message.EntityId);
+            EntityDespawned?.Invoke(message.EntityId);
+        }
+
+        private void HandlePingResponse(PingResponse response)
+        {
+            var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.ClientTimestamp;
+            Debug.Log($"Ping: {latency} ms");
+        }
+
+        private void UpdateLocalPlayerState(Vector3 position, Vector3 rotation, bool isOnGround,
+            bool isSneaking, bool isSprinting, bool isFlying)
+        {
+            _playerState ??= new PlayerStateInfo();
+            _playerState.Position = new Vector3D { X = position.x, Y = position.y, Z = position.z };
+            _playerState.Rotation = new Vector3D { X = rotation.x, Y = rotation.y, Z = rotation.z };
+            _playerState.IsOnGround = isOnGround;
+            _playerState.IsSneaking = isSneaking;
+            _playerState.IsSprinting = isSprinting;
+            _playerState.IsFlying = isFlying;
+        }
+
+        private PlayerStateInfo ConvertToPlayerStateInfo(PlayerInfo info)
+        {
+            var state = new PlayerStateInfo
             {
-                _entities[entitySpawn.Entity.EntityId] = entitySpawn.Entity;
-                EntitySpawned?.Invoke(entitySpawn.Entity);
+                PlayerId = info.PlayerId,
+                Username = info.Username,
+                Position = info.Position != null ? new Vector3D { X = info.Position.X, Y = info.Position.Y, Z = info.Position.Z } : new Vector3D(),
+                Rotation = new Vector3D(),
+                Level = info.Level,
+                Experience = 0,
+                Health = info.Health,
+                MaxHealth = info.MaxHealth,
+                Hunger = 20f,
+                MaxHunger = 20f,
+                GameMode = GameMode.Survival,
+                SelectedSlot = 0
+            };
+
+            if (info.Inventory != null)
+            {
+                state.Inventory = info.Inventory.Select(ConvertInventoryItem).ToList();
             }
+
+            if (info.Inventory != null && info.Inventory.Count > 0)
+            {
+                state.HeldItem = ConvertInventoryItem(info.Inventory[0]);
+            }
+
+            return state;
         }
-        
-        private void HandleEntityDespawn(EntityDespawnMessage entityDespawn)
+
+        private InventoryItemInfo ConvertInventoryItem(InventoryItem item)
         {
-            _entities.Remove(entityDespawn.EntityId);
-            EntityDespawned?.Invoke(entityDespawn.EntityId);
+            return new InventoryItemInfo
+            {
+                ItemId = item.ItemId,
+                ItemName = item.ItemName,
+                Quantity = item.Quantity,
+                Durability = item.Durability,
+                MaxDurability = item.MaxDurability,
+                ItemType = ItemType.Block
+            };
         }
-        
-        private void HandleChatMessage(ChatMessage chatMessage)
-        {
-            ChatMessageReceived?.Invoke(chatMessage);
-        }
-        
-        private void HandlePingResponse(PingMessage pingResponse)
-        {
-            var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - pingResponse.Timestamp;
-            Debug.Log($"Network latency: {latency}ms");
-        }
-        
+
         #endregion
-        
-        #region Public API
-        
-        public bool IsChunkLoaded(int chunkX, int chunkZ)
+
+        #region Public Accessors
+
+        public ChunkSnapshot GetChunk(int chunkX, int chunkZ)
         {
-            return _loadedChunks.ContainsKey(new Vector2Int(chunkX, chunkZ));
+            var key = new Vector2Int(chunkX, chunkZ);
+            return _loadedChunks.TryGetValue(key, out var chunk) ? chunk : null;
         }
-        
-        public ChunkDataResponseMessage GetChunk(int chunkX, int chunkZ)
-        {
-            _loadedChunks.TryGetValue(new Vector2Int(chunkX, chunkZ), out var chunk);
-            return chunk;
-        }
-        
-        public IEnumerable<ChunkDataResponseMessage> GetLoadedChunks()
+
+        public IEnumerable<ChunkSnapshot> GetLoadedChunks()
         {
             return _loadedChunks.Values;
         }
-        
-        public EntityInfo GetEntity(string entityId)
-        {
-            _entities.TryGetValue(entityId, out var entity);
-            return entity;
-        }
-        
+
         #endregion
-        
-        #region Unity Lifecycle
-        
-        private void OnTransportConnectionChanged(bool isConnected)
+
+        private readonly struct OutgoingMessage
         {
-            _isConnected = isConnected;
-            ConnectionStatusChanged?.Invoke(isConnected);
-            
-            if (!isConnected)
+            public OutgoingMessage(int typeCode, object payload)
             {
-                // Clear state on disconnect
-                _loadedChunks.Clear();
-                _entities.Clear();
-                _sessionToken = null;
-                _playerState = null;
-                
-                Debug.Log("Disconnected from server - state cleared");
+                TypeCode = typeCode;
+                Payload = payload;
             }
+
+            public int TypeCode { get; }
+            public object Payload { get; }
         }
-        
-        private void OnDestroy()
+
+        private int UpdateLocalChunkCache(Vector3Int worldPosition, int newBlockId)
         {
-            if (_transport != null)
+            var chunkSize = ChunkSnapshot.ChunkSize;
+            int chunkX = Mathf.FloorToInt(worldPosition.x / (float)chunkSize);
+            int chunkZ = Mathf.FloorToInt(worldPosition.z / (float)chunkSize);
+            var key = new Vector2Int(chunkX, chunkZ);
+
+            if (!_loadedChunks.TryGetValue(key, out var chunk))
             {
-                _transport.ConnectionStatusChanged -= OnTransportConnectionChanged;
-                _transport.Received -= OnDataReceived;
-                
-                if (_transport is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
+                return 0;
             }
+
+            int localX = worldPosition.x - chunkX * chunkSize;
+            int localZ = worldPosition.z - chunkZ * chunkSize;
+
+            var previous = chunk.GetBlockId(localX, worldPosition.y, localZ);
+            chunk.SetBlockId(localX, worldPosition.y, localZ, newBlockId);
+            return previous;
         }
-        
-        #endregion
     }
 }

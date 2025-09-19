@@ -55,6 +55,14 @@ public enum MessageType
     RespawnResponse = 84,
     PlayerDeath = 85,
     PlayerRespawnBroadcast = 86,
+
+    // 룸/로비 관련
+    RoomListRequest = 90,
+    RoomListResponse = 91,
+    RoomEnterRequest = 92,
+    RoomEnterResponse = 93,
+    RoomLeaveRequest = 94,
+    RoomLeaveResponse = 95,
 }
 
 // 기본 데이터 구조
@@ -349,6 +357,71 @@ public class RecipeListResponse
     [ProtoMember(1)] public bool Success { get; set; }
     [ProtoMember(2)] public List<RecipeData> Recipes { get; set; } = new();
     [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+// 룸/로비 관련 메시지
+[ProtoContract]
+public class RoomInfo
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+    [ProtoMember(2)] public string DisplayName { get; set; } = string.Empty;
+    [ProtoMember(3)] public int WorldId { get; set; }
+    [ProtoMember(4)] public int PlayerCount { get; set; }
+    [ProtoMember(5)] public int Capacity { get; set; }
+    [ProtoMember(6)] public bool IsLobby { get; set; }
+}
+
+[ProtoContract]
+public class RoomMemberList
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+    [ProtoMember(2)] public List<string> Members { get; set; } = new();
+}
+
+[ProtoContract]
+public class RoomListRequest
+{
+    [ProtoMember(1)] public bool IncludeMembers { get; set; }
+    [ProtoMember(2)] public int WorldIdFilter { get; set; } = -1;
+}
+
+[ProtoContract]
+public class RoomListResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public List<RoomInfo> Rooms { get; set; } = new();
+    [ProtoMember(3)] public List<RoomMemberList> MemberLists { get; set; } = new();
+    [ProtoMember(4)] public long Timestamp { get; set; }
+    [ProtoMember(5)] public string Message { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class RoomEnterRequest
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class RoomEnterResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public RoomInfo? Room { get; set; }
+    [ProtoMember(4)] public List<string> Members { get; set; } = new();
+}
+
+[ProtoContract]
+public class RoomLeaveRequest
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class RoomLeaveResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public string PreviousRoomId { get; set; } = string.Empty;
 }
 
 // 체력 및 허기 관련 메시지

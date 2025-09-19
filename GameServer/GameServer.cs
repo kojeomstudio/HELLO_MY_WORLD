@@ -61,6 +61,9 @@ namespace GameServerApp
             _dispatcher.Register(new InventoryHandler(_database, _sessions));
             _dispatcher.Register(new CraftingHandler(_database, _sessions, craftingSystem));
             _dispatcher.Register(new RecipeListHandler(_database, _sessions, craftingSystem));
+            _dispatcher.Register(new RoomListHandler(_sessions, _rooms));
+            _dispatcher.Register(new RoomEnterHandler(_sessions, _rooms));
+            _dispatcher.Register(new RoomLeaveHandler(_sessions, _rooms));
             _dispatcher.Register(new HealthHandler(_database, _sessions, healthSystem));
             _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem));
             

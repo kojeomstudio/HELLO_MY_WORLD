@@ -35,6 +35,7 @@ namespace Minecraft.Core
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
         private readonly Dictionary<string, EntityInfo> _entities = new();
         private readonly Dictionary<string, RecipeData> _knownRecipes = new();
+        private readonly Dictionary<string, RoomInfo> _knownRooms = new();
 
         private readonly Queue<OutgoingMessage> _outgoingMessages = new();
         private readonly Queue<object> _incomingMessages = new();
@@ -49,6 +50,9 @@ namespace Minecraft.Core
         public event Action<ChatMessage> ChatMessageReceived;
         public event Action<IReadOnlyList<RecipeData>> RecipeListReceived;
         public event Action<CraftingResponse> CraftingCompleted;
+        public event Action<IReadOnlyList<RoomInfo>> RoomListReceived;
+        public event Action<RoomEnterResponse> RoomEntered;
+        public event Action<RoomLeaveResponse> RoomLeft;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
@@ -262,6 +266,40 @@ namespace Minecraft.Core
 
         #endregion
 
+        #region Room / Lobby API
+
+        public void RequestRoomList(bool includeMembers = false, int worldFilter = -1)
+        {
+            var request = new RoomListRequest
+            {
+                IncludeMembers = includeMembers,
+                WorldIdFilter = worldFilter
+            };
+            EnqueueMessage((int)MessageType.RoomListRequest, request);
+        }
+
+        public void EnterRoom(string roomId)
+        {
+            if (string.IsNullOrEmpty(roomId))
+            {
+                Debug.LogWarning("Cannot enter room: roomId is empty");
+                return;
+            }
+
+            var request = new RoomEnterRequest { RoomId = roomId };
+            EnqueueMessage((int)MessageType.RoomEnterRequest, request);
+        }
+
+        public void LeaveCurrentRoom(string? roomIdHint = null)
+        {
+            var request = new RoomLeaveRequest { RoomId = roomIdHint ?? string.Empty };
+            EnqueueMessage((int)MessageType.RoomLeaveRequest, request);
+        }
+
+        public IReadOnlyDictionary<string, RoomInfo> GetKnownRooms() => _knownRooms;
+
+        #endregion
+
         private void SendHeartbeat()
         {
             if (!_isConnected) return;
@@ -387,6 +425,9 @@ namespace Minecraft.Core
                         MessageType.WorldBlockChangeResponse => ProtoBuf.Serializer.Deserialize<WorldBlockChangeResponse>(stream),
                         MessageType.CraftingResponse => ProtoBuf.Serializer.Deserialize<CraftingResponse>(stream),
                         MessageType.RecipeListResponse => ProtoBuf.Serializer.Deserialize<RecipeListResponse>(stream),
+                        MessageType.RoomListResponse => ProtoBuf.Serializer.Deserialize<RoomListResponse>(stream),
+                        MessageType.RoomEnterResponse => ProtoBuf.Serializer.Deserialize<RoomEnterResponse>(stream),
+                        MessageType.RoomLeaveResponse => ProtoBuf.Serializer.Deserialize<RoomLeaveResponse>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
                         _ => null
                     };
@@ -456,6 +497,15 @@ namespace Minecraft.Core
                     break;
                 case CraftingResponse craftingResponse:
                     HandleCraftingResponse(craftingResponse);
+                    break;
+                case RoomListResponse roomList:
+                    HandleRoomListResponse(roomList);
+                    break;
+                case RoomEnterResponse roomEnter:
+                    HandleRoomEnterResponse(roomEnter);
+                    break;
+                case RoomLeaveResponse roomLeave:
+                    HandleRoomLeaveResponse(roomLeave);
                     break;
                 case EntitySpawnMessage spawnMessage:
                     HandleEntitySpawn(spawnMessage);
@@ -616,6 +666,72 @@ namespace Minecraft.Core
             }
 
             CraftingCompleted?.Invoke(response);
+        }
+
+        private void HandleRoomListResponse(RoomListResponse response)
+        {
+            if (!response.Success)
+            {
+                if (!string.IsNullOrEmpty(response.Message))
+                {
+                    ErrorOccurred?.Invoke(response.Message);
+                }
+                RoomListReceived?.Invoke(Array.Empty<RoomInfo>());
+                return;
+            }
+
+            _knownRooms.Clear();
+            foreach (var room in response.Rooms)
+            {
+                if (!string.IsNullOrEmpty(room.RoomId))
+                {
+                    _knownRooms[room.RoomId] = room;
+                }
+            }
+
+            RoomListReceived?.Invoke(response.Rooms);
+        }
+
+        private void HandleRoomEnterResponse(RoomEnterResponse response)
+        {
+            if (!response.Success)
+            {
+                if (!string.IsNullOrEmpty(response.Message))
+                {
+                    ErrorOccurred?.Invoke(response.Message);
+                }
+                RoomEntered?.Invoke(response);
+                return;
+            }
+
+            if (response.Room != null && !string.IsNullOrEmpty(response.Room.RoomId))
+            {
+                _knownRooms[response.Room.RoomId] = response.Room;
+            }
+
+            if (response.Room != null)
+            {
+                Debug.Log($"Entered room {response.Room.DisplayName} ({response.Room.RoomId}). Members: {response.Members.Count}");
+            }
+
+            RoomEntered?.Invoke(response);
+        }
+
+        private void HandleRoomLeaveResponse(RoomLeaveResponse response)
+        {
+            if (!response.Success)
+            {
+                if (!string.IsNullOrEmpty(response.Message))
+                {
+                    ErrorOccurred?.Invoke(response.Message);
+                }
+            }
+            else
+            {
+                Debug.Log($"Left room {response.PreviousRoomId}; returned to lobby.");
+            }
+
+            RoomLeft?.Invoke(response);
         }
 
         private void HandleEntitySpawn(EntitySpawnMessage message)

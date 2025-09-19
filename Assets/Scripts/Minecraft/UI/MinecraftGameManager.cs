@@ -5,6 +5,7 @@ using Minecraft.World;
 using Minecraft.Player;
 using SharedProtocol;
 using System.Threading.Tasks;
+using Minecraft.Crafting;
 
 namespace Minecraft.UI
 {
@@ -64,7 +65,12 @@ namespace Minecraft.UI
             if (gameClient == null) gameClient = FindObjectOfType<MinecraftGameClient>();
             if (chunkManager == null) chunkManager = FindObjectOfType<ChunkManager>();
             if (playerController == null) playerController = FindObjectOfType<MinecraftPlayerController>();
-            
+
+            if (FindObjectOfType<CraftingManager>() == null)
+            {
+                gameObject.AddComponent<CraftingManager>();
+            }
+
             // Disable player controller until logged in
             if (playerController != null) playerController.enabled = false;
         }

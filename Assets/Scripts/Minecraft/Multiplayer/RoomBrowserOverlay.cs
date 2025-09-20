@@ -118,7 +118,8 @@ namespace Minecraft.Multiplayer
                 builder.Append(room.Capacity <= 0 ? "∞" : room.Capacity.ToString());
                 builder.Append("] (#");
                 builder.Append(room.RoomId);
-                builder.Append(")\n");
+                builder.Append(")
+");
             }
 
             _roomListText.text = builder.ToString();

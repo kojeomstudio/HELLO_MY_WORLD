@@ -46,10 +46,13 @@ public class RoomManager
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(roomId)) return false;
         if (!_rooms.TryGetValue(roomId, out var room)) return false;
 
-        // Remove from current room (if any)
+        string? previousRoomId = null;
+        GameRoom? previousRoom = null;
+
         if (_playerRoom.TryGetValue(userName, out var current))
         {
-            if (_rooms.TryGetValue(current, out var prev)) prev.Remove(userName);
+            previousRoomId = current;
+            _rooms.TryGetValue(current, out previousRoom);
         }
 
         if (!room.Add(userName))
@@ -58,6 +61,12 @@ public class RoomManager
         }
 
         _playerRoom[userName] = roomId;
+
+        if (previousRoom != null)
+        {
+            previousRoom.Remove(userName);
+        }
+
         return true;
     }
 

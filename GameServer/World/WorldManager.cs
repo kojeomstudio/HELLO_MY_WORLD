@@ -15,7 +15,24 @@ namespace GameServerApp.World
         private const double RiverCenterThreshold = 0.0125;
         private const double RiverBankThreshold = 0.028;
         private const int CloudBaseAltitude = 200;
-        
+        private const double OceanThreshold = 0.36;
+        private const double BeachThreshold = 0.42;
+        private const int MinSurfaceHeight = 45;
+        private const int MaxSurfaceHeight = 150;
+        private const double CliffThreshold = 0.55;
+
+        private struct TerrainProfile
+        {
+            public int SurfaceHeight;
+            public bool HasWater;
+            public int WaterLevel;
+            public BiomeType Biome;
+            public BlockType SurfaceBlock;
+            public BlockType SubSurfaceBlock;
+            public BlockType FillerBlock;
+            public bool UseCliffFace;
+        }
+
         public WorldManager(DatabaseHelper database, int worldId = 1)
         {
             _database = database;
@@ -150,37 +167,23 @@ namespace GameServerApp.World
                 {
                     var worldX = chunkX * 16 + x;
                     var worldZ = chunkZ * 16 + z;
-                    
-                    var height = GenerateHeight(worldX, worldZ);
-                    var biome = GenerateBiome(worldX, worldZ);
-                    
-                    chunk.SetBiome(x, z, biome);
-                    
-                    for (int y = 0; y <= height && y < 256; y++)
-                    {
-                        BlockType blockType;
-                        
-                        if (y == 0)
-                            blockType = BlockType.Bedrock;
-                        else if (y < height - 3)
-                            blockType = BlockType.Stone;
-                        else if (y < height)
-                            blockType = BlockType.Dirt;
-                        else if (y == height)
-                            blockType = biome == BiomeType.Desert ? BlockType.Sand : BlockType.Grass;
-                        else
-                            blockType = BlockType.Air;
-                        
-                        chunk.SetBlock(x, y, z, blockType);
-                    }
-                    
-                    for (int y = height + 1; y < 256; y++)
+
+                    var profile = CalculateTerrainProfile(worldX, worldZ);
+                    chunk.SetBiome(x, z, profile.Biome);
+                    ApplyTerrainColumn(chunk, x, z, profile);
+
+                    var clearanceTop = profile.HasWater
+                        ? Math.Max(profile.WaterLevel, profile.SurfaceHeight)
+                        : profile.SurfaceHeight;
+                    clearanceTop = Math.Clamp(clearanceTop, 0, 255);
+
+                    for (int y = clearanceTop + 1; y < 256; y++)
                     {
                         chunk.SetBlock(x, y, z, BlockType.Air);
                     }
                 }
             }
-            
+
             GenerateOres(chunk, chunkX, chunkZ);
             // Caves and dungeons are carved after base terrain and ores
             GenerateCaves(chunk, chunkX, chunkZ);
@@ -191,6 +194,173 @@ namespace GameServerApp.World
             GenerateClouds(chunk, chunkX, chunkZ);
 
             return chunk;
+        }
+
+        private TerrainProfile CalculateTerrainProfile(int worldX, int worldZ)
+        {
+            var continentalness = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.00045, 5, 1.0, 0.55, 934113));
+            var erosion = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0012, 4, 1.0, 0.6, 811223));
+            var peaks = SampleRidgedNoise(worldX, worldZ, 0.0018, 4, 1.0, 0.5, 51277);
+            var hills = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0025, 4, 1.0, 0.55, 22119));
+            var humidity = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.00095, 3, 1.0, 0.6, 6711));
+            var temperature = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0008, 3, 1.0, 0.6, 9987));
+
+            if (continentalness < OceanThreshold)
+            {
+                double oceanDepthFactor = Math.Clamp((OceanThreshold - continentalness) / OceanThreshold, 0.0, 1.0);
+                int depth = 14 + (int)(oceanDepthFactor * 28);
+                int seafloor = Math.Max(6, GlobalWaterLevel - depth);
+
+                return new TerrainProfile
+                {
+                    SurfaceHeight = seafloor,
+                    HasWater = true,
+                    WaterLevel = GlobalWaterLevel,
+                    Biome = BiomeType.Ocean,
+                    SurfaceBlock = BlockType.Sand,
+                    SubSurfaceBlock = BlockType.Sand,
+                    FillerBlock = BlockType.Stone,
+                    UseCliffFace = false
+                };
+            }
+
+            bool isBeach = continentalness < BeachThreshold;
+
+            var profile = new TerrainProfile
+            {
+                HasWater = false,
+                WaterLevel = GlobalWaterLevel,
+                SurfaceBlock = BlockType.Grass,
+                SubSurfaceBlock = BlockType.Dirt,
+                FillerBlock = BlockType.Stone,
+                Biome = BiomeType.Plains,
+                UseCliffFace = false
+            };
+
+            double landFactor = continentalness - OceanThreshold;
+            int baseHeight = 60 + (int)(landFactor * 48) - (int)(erosion * 10);
+            baseHeight = Math.Clamp(baseHeight, 55, 95);
+
+            double hillWeight = Math.Max(0.0, hills - 0.35);
+            double mountainWeight = Math.Max(0.0, peaks - 0.45) * (1.0 - erosion * 0.6);
+
+            int hillContribution = (int)(hillWeight * 18);
+            int mountainContribution = (int)(mountainWeight * 60);
+
+            int surfaceHeight = baseHeight + hillContribution + mountainContribution;
+            surfaceHeight = Math.Clamp(surfaceHeight, MinSurfaceHeight, MaxSurfaceHeight);
+            profile.SurfaceHeight = surfaceHeight;
+
+            bool steep = mountainWeight > CliffThreshold && erosion < 0.35;
+            bool mountainous = surfaceHeight > 105 || mountainContribution > 25;
+
+            if (steep)
+            {
+                profile.Biome = BiomeType.Cliffs;
+                profile.SurfaceBlock = BlockType.Cobblestone;
+                profile.SubSurfaceBlock = BlockType.Stone;
+                profile.UseCliffFace = true;
+            }
+            else if (mountainous)
+            {
+                profile.Biome = BiomeType.Mountains;
+                profile.SurfaceBlock = BlockType.Stone;
+                profile.SubSurfaceBlock = BlockType.Stone;
+            }
+            else if (hillContribution > 8)
+            {
+                profile.Biome = BiomeType.Hills;
+            }
+            else
+            {
+                profile.Biome = DetermineLandBiome(temperature, humidity);
+            }
+
+            if (profile.Biome == BiomeType.Desert)
+            {
+                profile.SurfaceBlock = BlockType.Sand;
+                profile.SubSurfaceBlock = BlockType.Sand;
+            }
+
+            if (profile.Biome == BiomeType.Tundra)
+            {
+                profile.SurfaceBlock = BlockType.Grass;
+                profile.SubSurfaceBlock = BlockType.Dirt;
+            }
+
+            if (isBeach)
+            {
+                profile.Biome = BiomeType.Beach;
+                profile.SurfaceBlock = BlockType.Sand;
+                profile.SubSurfaceBlock = BlockType.Sand;
+            }
+
+            return profile;
+        }
+
+        private void ApplyTerrainColumn(ChunkData chunk, int x, int z, TerrainProfile profile)
+        {
+            int surfaceHeight = Math.Clamp(profile.SurfaceHeight, 1, 255);
+
+            for (int y = 0; y <= surfaceHeight && y < 256; y++)
+            {
+                BlockType block;
+
+                if (y == 0)
+                {
+                    block = BlockType.Bedrock;
+                }
+                else if (y < surfaceHeight - 3)
+                {
+                    block = profile.FillerBlock;
+                }
+                else if (profile.UseCliffFace && y >= surfaceHeight - 4)
+                {
+                    block = BlockType.Cobblestone;
+                }
+                else if (y < surfaceHeight)
+                {
+                    block = profile.SubSurfaceBlock;
+                }
+                else
+                {
+                    block = profile.SurfaceBlock;
+                }
+
+                chunk.SetBlock(x, y, z, block);
+            }
+
+            if (profile.HasWater)
+            {
+                int waterTop = Math.Clamp(profile.WaterLevel, surfaceHeight, 255);
+                for (int y = surfaceHeight + 1; y <= waterTop && y < 256; y++)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Water);
+                }
+            }
+        }
+
+        private BiomeType DetermineLandBiome(double temperature, double humidity)
+        {
+            if (temperature > 0.7 && humidity < 0.35)
+                return BiomeType.Desert;
+            if (temperature < 0.3)
+                return BiomeType.Tundra;
+            if (humidity > 0.6)
+                return BiomeType.Forest;
+            return BiomeType.Plains;
+        }
+
+        private static double NormalizeNoise(double value)
+        {
+            return Math.Clamp((value + 1.0) * 0.5, 0.0, 1.0);
+        }
+
+        private double SampleRidgedNoise(int worldX, int worldZ, double frequency, int octaves, double amplitude, double persistence, int seed)
+        {
+            var noise = SimplexNoise.Generate(worldX, worldZ, frequency, octaves, amplitude, persistence, seed);
+            noise = Math.Clamp(noise, -1.0, 1.0);
+            return 1.0 - Math.Abs(noise);
         }
 
         /// <summary>
@@ -658,7 +828,7 @@ namespace GameServerApp.World
             int oy = rand.Next(15, 40); // 더 깊은 지하
             int oz = rand.Next(2, 16 - roomDepth - 2);
 
-            BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+            BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
             
             // 보물 상자 위치 (중앙)
             int treasureX = ox + roomWidth / 2;
@@ -684,7 +854,7 @@ namespace GameServerApp.World
                 int oy = rand.Next(15, 35);
                 int oz = rand.Next(1, 16 - roomDepth - 1);
                 
-                BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+                BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
                 
                 // 방들 사이에 복도 연결 (간단한 버전)
                 if (i > 0)
@@ -738,7 +908,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 던전 방 건설
         /// </summary>
-        private void BuildDungeonRoom(ChunkData chunk, int ox, int oy, int oz, int width, int height, int depth)
+        private void BuildDungeonRoom(ChunkData chunk, Random rand, int ox, int oy, int oz, int width, int height, int depth)
         {
             // 내부 비우기
             for (int x = ox + 1; x < ox + width - 1; x++)
@@ -765,7 +935,7 @@ namespace GameServerApp.World
                         if (isWall)
                         {
                             // 다양한 재료 사용
-                            BlockType wallMaterial = GetDungeonWallMaterial();
+                            BlockType wallMaterial = GetDungeonWallMaterial(rand);
                             chunk.SetBlock(x, y, z, wallMaterial);
                         }
                     }
@@ -774,15 +944,16 @@ namespace GameServerApp.World
 
             // 입구 생성 (더 자연스럽게)
             CreateDungeonEntrance(chunk, ox, oy, oz, width, depth);
+
+            DecorateDungeonInterior(chunk, ox, oy, oz, width, height, depth, rand);
         }
         
         /// <summary>
         /// 던전 벽 재료 결정
         /// </summary>
-        private BlockType GetDungeonWallMaterial()
+        private BlockType GetDungeonWallMaterial(Random rand)
         {
             var materials = new[] { BlockType.Cobblestone, BlockType.Stone, BlockType.Stone };
-            var rand = new Random();
             return materials[rand.Next(materials.Length)];
         }
         
@@ -800,7 +971,63 @@ namespace GameServerApp.World
                 }
             }
         }
-        
+
+        private void DecorateDungeonInterior(ChunkData chunk, int ox, int oy, int oz, int width, int height, int depth, Random rand)
+        {
+            if (width > 4 && depth > 4)
+            {
+                var supports = new (int x, int z)[]
+                {
+                    (ox + 1, oz + 1),
+                    (ox + width - 2, oz + 1),
+                    (ox + 1, oz + depth - 2),
+                    (ox + width - 2, oz + depth - 2)
+                };
+
+                int supportTop = Math.Max(oy + 1, Math.Min(oy + height - 2, 255));
+                foreach (var (sx, sz) in supports)
+                {
+                    if (sx <= ox || sx >= ox + width - 1 || sz <= oz || sz >= oz + depth - 1)
+                    {
+                        continue;
+                    }
+
+                    for (int y = oy + 1; y <= supportTop; y++)
+                    {
+                        if (chunk.GetBlock(sx, y, sz) == BlockType.Air)
+                        {
+                            chunk.SetBlock(sx, y, sz, BlockType.Cobblestone);
+                        }
+                    }
+                }
+            }
+
+            if (width > 6 && depth > 6 && rand.NextDouble() < 0.35)
+            {
+                int poolX = rand.Next(ox + 2, ox + width - 2);
+                int poolZ = rand.Next(oz + 2, oz + depth - 2);
+                var fluid = rand.NextDouble() < 0.55 ? BlockType.Water : BlockType.Lava;
+                chunk.SetBlock(poolX, oy, poolZ, fluid);
+            }
+
+            if (width > 3 && depth > 3)
+            {
+                int treasureCount = rand.Next(1, 1 + Math.Max(1, (width * depth) / 24));
+                for (int i = 0; i < treasureCount; i++)
+                {
+                    int lootX = rand.Next(ox + 1, ox + width - 1);
+                    int lootZ = rand.Next(oz + 1, oz + depth - 1);
+
+                    if (chunk.GetBlock(lootX, oy + 1, lootZ) == BlockType.Air)
+                    {
+                        chunk.SetBlock(lootX, oy, lootZ, BlockType.Cobblestone);
+                        var lootBlock = rand.NextDouble() < 0.7 ? BlockType.GoldOre : BlockType.DiamondOre;
+                        chunk.SetBlock(lootX, oy + 1, lootZ, lootBlock);
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 방들을 복도로 연결
         /// </summary>
@@ -829,26 +1056,22 @@ namespace GameServerApp.World
 
         private int GenerateHeight(int worldX, int worldZ)
         {
-            var noise1 = SimplexNoise.Generate(worldX * 0.01, worldZ * 0.01, 0.5, 4, 1.0, 0.5, 12345);
-            var noise2 = SimplexNoise.Generate(worldX * 0.005, worldZ * 0.005, 0.3, 6, 1.0, 0.4, 54321);
-            
-            var height = 64 + (int)(noise1 * 32 + noise2 * 16);
-            return Math.Clamp(height, 5, 120);
+            var profile = CalculateTerrainProfile(worldX, worldZ);
+            var columnTop = profile.HasWater
+                ? Math.Max(profile.SurfaceHeight, profile.WaterLevel)
+                : profile.SurfaceHeight;
+            return Math.Clamp(columnTop, 0, 255);
         }
 
         private BiomeType GenerateBiome(int worldX, int worldZ)
         {
-            var temperature = SimplexNoise.Generate(worldX * 0.003, worldZ * 0.003, 0.5, 3, 1.0, 0.5, 11111);
-            var humidity = SimplexNoise.Generate(worldX * 0.004, worldZ * 0.004, 0.5, 3, 1.0, 0.5, 22222);
-            
-            if (temperature > 0.6 && humidity < 0.3)
-                return BiomeType.Desert;
-            else if (temperature < -0.3)
-                return BiomeType.Tundra;
-            else if (humidity > 0.4)
-                return BiomeType.Forest;
-            else
-                return BiomeType.Plains;
+            var profile = CalculateTerrainProfile(worldX, worldZ);
+            return profile.Biome;
+        }
+
+        public BiomeType SampleBiome(int worldX, int worldZ)
+        {
+            return CalculateTerrainProfile(worldX, worldZ).Biome;
         }
 
         /// <summary>
@@ -1004,8 +1227,13 @@ namespace GameServerApp.World
             {
                 BiomeType.Forest => 0.8,
                 BiomeType.Plains => 0.3,
+                BiomeType.Hills => 0.25,
+                BiomeType.Mountains => 0.1,
                 BiomeType.Desert => 0.05,
-                BiomeType.Tundra => 0.1,
+                BiomeType.Tundra => 0.12,
+                BiomeType.Cliffs => 0.02,
+                BiomeType.Beach => 0.03,
+                BiomeType.Ocean => 0.0,
                 _ => 0.2
             };
         }
@@ -1016,6 +1244,8 @@ namespace GameServerApp.World
             {
                 BiomeType.Forest => rand.NextDouble() < 0.3 ? BlockType.Wood : BlockType.TallGrass,
                 BiomeType.Desert => BlockType.DeadBush,
+                BiomeType.Beach => BlockType.DeadBush,
+                BiomeType.Cliffs => BlockType.DeadBush,
                 _ => BlockType.TallGrass
             };
         }
@@ -1239,7 +1469,11 @@ namespace GameServerApp.World
         Forest = 1,
         Desert = 2,
         Tundra = 3,
-        Ocean = 4
+        Ocean = 4,
+        Mountains = 5,
+        Hills = 6,
+        Cliffs = 7,
+        Beach = 8
     }
 
     public static class SimplexNoise

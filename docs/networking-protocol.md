@@ -58,8 +58,29 @@ Message type IDs mirror `SharedProtocol.MessageType` on the server and must rema
 - 42: `ServerStatusRequest`
 - 43: `ServerStatusResponse`
 - 50: `PlayerInfoUpdate`
+- 90: `RoomListRequest`
+- 91: `RoomListResponse`
+- 92: `RoomEnterRequest`
+- 93: `RoomEnterResponse`
+- 94: `RoomLeaveRequest`
+- 95: `RoomLeaveResponse`
+- 96: `RoomQueueUpdate`
+- 97: `RoomPromotionNotice`
 
 Minecraft-specific extensions (100+) can be added similarly; the server now accepts unknown types and will deliver raw payloads to handlers.
+
+## Room & Lobby Messages
+
+The room DTOs were expanded so the Unity lobby browser and the dedicated server stay in sync:
+
+- `RoomInfo` now carries `LobbyId`, `Owner`, `GameMode`, `QueueCount`, `SpectatorCount`, `Status`, `Visibility`, `RequiresPassword`, and a small `Tags` dictionary (string key/value pairs for arbitrary metadata).
+- `RoomMemberList` preserves the legacy `Members` array while adding `MemberInfos`, a list of rich `RoomMemberInfo` objects containing role, ready state, queue position, and the UTC join timestamp.
+- `RoomEnterRequest` accepts optional fields (`LobbyId`, `Password`, `AutoAssign`, `AllowQueue`, `JoinAsSpectator`, `PreferredRole`) so the client can request matchmaking behaviour without out-of-band parameters.
+- `RoomEnterResponse` flags whether the caller is queued (`IsQueued`, `QueuePosition`, `EstimatedWaitMs`) and returns the caller’s `RoomMemberInfo` snapshot.
+- `RoomLeaveResponse` reports whether someone was promoted from the queue when a seat freed up and whether the caller was automatically returned to the lobby.
+- `RoomQueueUpdateMessage` and `RoomPromotionMessage` are server→client pushes used to keep queue UI responsive without reissuing `RoomListRequest`.
+
+When introducing new room/lobby concepts, prefer extending these DTOs with additional optional fields instead of replacing them so older clients continue to understand the baseline contract.
 
 ## Unity Client Integration
 

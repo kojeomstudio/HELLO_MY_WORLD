@@ -1,89 +1,60 @@
-# World Generation (Server) - Enhanced
+# World Generation Overview (GameServer)
 
-This document describes the enhanced server-side procedural generation used for Minecraft-like worlds.
+The 2024 refresh of `WorldManager` adds coastal oceans, navigable rivers, inland lakes, and highland terrain (mountains, hills, cliffs) on top of the existing cave and dungeon pass. This document explains how the generation pipeline works so future tweaks and biome additions stay consistent.
 
-## Enhanced Pipeline (per chunk)
-1. **Base terrain heightmap and biomes** - Multi-octave noise with biome-specific height modifiers
-2. **Stratification** - Biome-aware layer generation (bedrock/stone/dirt/grass/sand/snow)
-3. **Ore generation** - Strategic placement based on depth and biome
-4. **Cave systems** - Multiple cave generation methods:
-   - 3D noise-based cave networks
-   - Random-walk worm caves with variable radius
-   - Large caverns for underground exploration
-5. **Underground features** - Lakes, lava pools, aquifers
-6. **Dungeons** - Various types:
-   - Small cobblestone rooms with treasure
-   - Large multi-room dungeons
-   - Corridor systems with multiple chambers
-7. **Surface structures** - Villages, ruins, monuments
-8. **Vegetation** - Biome-specific trees, grass, flowers based on density maps
-9. **Lighting calculation** - Sky light and block light propagation
+## Terrain Pipeline
 
-## New Features
+Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
-### Enhanced Cave Generation
-- **3D Noise Caves**: Use Simplex noise for realistic cave networks
-- **Worm Caves**: Improved random-walk algorithm with variable radius and branching
-- **Large Caverns**: Rare but spectacular underground spaces
-- **Cave Biomes**: Different cave types based on surrounding terrain
+1. **Continentalness mask** – low-frequency Simplex noise determines whether a column lies on land, shallow coast, or deep ocean. Columns that fall below the `OceanThreshold` are marked as Ocean biomes and automatically filled with water up to the global sea level (Y=62).
+2. **Erosion & ridges** – additional noise samples shape hills versus mountains. A ridged profile produces sharp peaks while an erosion signal dampens steep slopes, giving rolling foothills and dramatic ridgelines.
+3. **Biome selection** – temperature/humidity noise still decides between plains, forest, desert, and tundra. New biome identifiers were added for `Mountains`, `Hills`, `Cliffs`, and `Beach` so the client can render appropriate ambience.
+4. **Column sculpting** – the pipeline lays down bedrock, filler stone, biome-specific topsoil (grass/dirt, sand, cobblestone cliffs) and applies water caps for oceans and freshwater pockets.
+5. **Post-processing** – after the base terrain is in place we apply ore generation, caves, dungeons, rivers, lakes, vegetation, and clouds.
 
-### Advanced World Features
-- **Underground Lakes**: Water-filled caverns with stone shores
-- **Lava Pools**: Dangerous underground hazards and resources
-- **Dungeon Variety**: Multiple room layouts and treasure distributions
-- **Structure Generation**: Villages, ruins, and other surface features
+> **Note**: The new pipeline keeps all previous features (ores, caves, dungeons, vegetation) but now feeds them richer biome context and more varied elevation data so worlds feel less flat and more “Minecraft-like”.
 
-### Improved Block Management
-- **Physics Simulation**: Sand and gravel fall naturally
-- **Block Breaking System**: Tool-based breaking times and appropriate drops
-- **Lighting System**: Proper light propagation and updates
-- **Chunk Updates**: Efficient neighbor chunk updates
+## Water Features
 
-## Technical Improvements
+- **Global water level**: a constant `GlobalWaterLevel` (62) controls sea height. Ocean biomes carve a seafloor using sand and stone, then fill to this level.
+- **Rivers**: a signed noise field locates river centres and banks. Columns near the river core are cleared, filled with flowing water, and lined with sand.
+- **Lakes**: per-chunk randomised ellipses carve depressions, line them with sand, and fill them to a locally sampled water level. Adjacent banks receive light smoothing to blend into surrounding terrain.
 
-### Performance Optimizations
-- Deterministic generation using `(chunkX,chunkZ,seed)`-derived random seeds
-- Chunk-local generation prevents cross-chunk dependencies
-- Efficient lighting calculations with proper light propagation
-- Optimized database persistence with async operations
+## Highlands & Cliffs
 
-### Enhanced Data Structures
-- Extended block types with metadata support
-- Biome-specific generation parameters
-- Enhanced chunk data with lighting information
-- Proper entity spawn management
+- **Mountains**: ridged noise creates high elevation peaks; above ~Y105 we favour stone caps, optionally transitioning to cobblestone for rugged summits.
+- **Hills**: gentle noise adds rolling terrain between plains and mountains.
+- **Cliffs**: steep slopes set `UseCliffFace`, replacing the top layers with cobblestone to create sheer faces and overhangs.
+- **Beaches**: continentalness thresholds mark coastline cells and swap the surface for sand while keeping the column open to shallow seawater.
 
-## Configuration Options
-- **World Settings**: Customizable seeds, structure density, cave frequency
-- **Biome Parameters**: Per-biome height, vegetation, and structure settings
-- **Difficulty Scaling**: Dungeon frequency and mob spawners based on game difficulty
-- **Physics Settings**: Toggle for realistic physics simulation
+## Underground Content
 
-## Future Extensibility
-- **Custom Biomes**: Easy addition of new biome types with unique features
-- **Modular Structures**: Template-based building generation
-- **Advanced Physics**: Water flow, lava simulation, plant growth
-- **Dynamic Weather**: Weather-based terrain modifications
-- **Underground Civilizations**: Complex dungeon networks with lore
+- **Caves**: the existing multi-pass cave system (worm tunnels, caverns, vertical shafts) now operates on the new stratified terrain without change.
+- **Dungeons**: `GenerateDungeons` was expanded with:
+  - Interior decoration (pillars, water/lava pools, ore “loot” pedestals).
+  - Support for multi-room layouts and simple mazes.
+  - Procedural entrances and varied room connections for smoother exploration loops.
 
-## Usage Examples
+## Vegetation & Clouds
 
-### Basic World Generation
-```csharp
-var worldManager = new WorldManager(database, worldId);
-var settings = new WorldSettings {
-    Seed = 12345,
-    DungeonDensity = 0.12,
-    EnablePhysics = true
-};
-var chunk = await worldManager.GetChunkAsync(chunkX, chunkZ);
-```
+Vegetation density now respects the extended biome list:
 
-### Custom Structure Placement
-```csharp
-// Villages generate with 2% probability per chunk
-settings.VillageDensity = 0.02;
-// Ruins generate with 5% probability per chunk  
-settings.RuinsDensity = 0.05;
-```
+- Forests remain dense with a mix of trees and tall grass.
+- Plains receive sparse tall grass.
+- Deserts and beaches sprinkle dead bushes.
+- Mountains and cliffs keep vegetation minimal to preserve rocky silhouettes.
 
+Clouds still float above the world but now vary in altitude based on noise-driven coverage.
+
+## Biome & Block Enumerations
+
+- `BiomeType` now includes `Ocean`, `Mountains`, `Hills`, `Cliffs`, and `Beach`. These propagate to the client via chunk metadata and lobby protocols.
+- No new block IDs were introduced; existing materials (stone, dirt, sand, cobblestone, water) are reused to express the new terrain features.
+
+## Extending Further
+
+- **New biomes**: Add entries to `BiomeType`, extend `CalculateTerrainProfile`, and adjust vegetation density/loot tables accordingly.
+- **Custom structures**: Insert new post-processing passes after terrain generation but before caves/dungeons if large scale structures are required.
+- **Tuning water features**: Adjust `RiverCenterThreshold`, `RiverBankThreshold`, and lake probability constants for different world densities.
+
+The updated generator aims to produce striking, traversable landscapes while remaining deterministic and race-free for multiplayer synchronisation.

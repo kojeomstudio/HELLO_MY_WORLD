@@ -31,17 +31,57 @@ public class RoomListHandler : MessageHandler<RoomListRequest>
         }
 
         var query = _rooms.GetRooms();
+
         if (message.WorldIdFilter >= 0)
         {
             query = query.Where(room => room.WorldId == message.WorldIdFilter);
         }
 
+        if (!string.IsNullOrWhiteSpace(message.LobbyIdFilter))
+        {
+            query = query.Where(room => string.Equals(room.LobbyId, message.LobbyIdFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (message.VisibilityFilter >= 0)
+        {
+            query = query.Where(room => (int)room.Visibility == message.VisibilityFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(message.GameModeFilter))
+        {
+            query = query.Where(room => string.Equals(room.GameMode, message.GameModeFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (message.OnlyJoinable)
+        {
+            query = query.Where(room => room.MaxPlayers <= 0 || room.ActivePlayerCount < room.MaxPlayers);
+        }
+
         var rooms = query.ToList();
+
+        var roomInfos = rooms
+            .Select(room =>
+            {
+                var info = room.ToRoomInfo();
+                if (!message.IncludeQueues)
+                {
+                    info.QueueCount = 0;
+                }
+                if (!message.IncludeTags)
+                {
+                    info.Tags.Clear();
+                }
+                return info;
+            })
+            .ToList();
+
         var response = new RoomListResponse
         {
             Success = true,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            Rooms = rooms.Select(room => room.ToRoomInfo()).ToList()
+            Rooms = roomInfos,
+            IncludesQueues = message.IncludeQueues,
+            IncludesTags = message.IncludeTags
         };
 
         if (message.IncludeMembers)
@@ -51,9 +91,15 @@ public class RoomListHandler : MessageHandler<RoomListRequest>
                 response.MemberLists.Add(new RoomMemberList
                 {
                     RoomId = room.RoomId,
-                    Members = room.GetMemberSnapshot()
+                    Members = room.GetMemberSnapshot(),
+                    MemberInfos = room.GetMemberInfoSnapshot()
                 });
             }
+        }
+
+        if (message.IncludeLobbySummary)
+        {
+            response.LobbySummaries = _rooms.GetLobbySummaries().ToList();
         }
 
         await session.SendAsync(MessageType.RoomListResponse, response);

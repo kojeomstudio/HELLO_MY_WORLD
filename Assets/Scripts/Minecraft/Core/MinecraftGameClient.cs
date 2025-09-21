@@ -53,6 +53,8 @@ namespace Minecraft.Core
         public event Action<IReadOnlyList<RoomInfo>> RoomListReceived;
         public event Action<RoomEnterResponse> RoomEntered;
         public event Action<RoomLeaveResponse> RoomLeft;
+        public event Action<RoomQueueUpdateMessage> RoomQueueUpdated;
+        public event Action<RoomPromotionMessage> RoomPromotionReceived;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
@@ -428,6 +430,8 @@ namespace Minecraft.Core
                         MessageType.RoomListResponse => ProtoBuf.Serializer.Deserialize<RoomListResponse>(stream),
                         MessageType.RoomEnterResponse => ProtoBuf.Serializer.Deserialize<RoomEnterResponse>(stream),
                         MessageType.RoomLeaveResponse => ProtoBuf.Serializer.Deserialize<RoomLeaveResponse>(stream),
+                        MessageType.RoomQueueUpdate => ProtoBuf.Serializer.Deserialize<RoomQueueUpdateMessage>(stream),
+                        MessageType.RoomPromotionNotice => ProtoBuf.Serializer.Deserialize<RoomPromotionMessage>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
                         _ => null
                     };
@@ -506,6 +510,12 @@ namespace Minecraft.Core
                     break;
                 case RoomLeaveResponse roomLeave:
                     HandleRoomLeaveResponse(roomLeave);
+                    break;
+                case RoomQueueUpdateMessage queueUpdate:
+                    HandleRoomQueueUpdate(queueUpdate);
+                    break;
+                case RoomPromotionMessage promotion:
+                    HandleRoomPromotion(promotion);
                     break;
                 case EntitySpawnMessage spawnMessage:
                     HandleEntitySpawn(spawnMessage);
@@ -689,6 +699,14 @@ namespace Minecraft.Core
                 }
             }
 
+            if (response.LobbySummaries?.Count > 0)
+            {
+                foreach (var lobby in response.LobbySummaries)
+                {
+                    Debug.Log($"Lobby {lobby.LobbyId}: rooms={lobby.RoomCount}, players={lobby.PlayerCount}, queue={lobby.QueueCount}");
+                }
+            }
+
             RoomListReceived?.Invoke(response.Rooms);
         }
 
@@ -712,6 +730,10 @@ namespace Minecraft.Core
             if (response.Room != null)
             {
                 Debug.Log($"Entered room {response.Room.DisplayName} ({response.Room.RoomId}). Members: {response.Members.Count}");
+                if (response.IsQueued)
+                {
+                    Debug.Log($"Waiting in queue position {response.QueuePosition} (est. {response.EstimatedWaitMs} ms).");
+                }
             }
 
             RoomEntered?.Invoke(response);
@@ -728,10 +750,35 @@ namespace Minecraft.Core
             }
             else
             {
-                Debug.Log($"Left room {response.PreviousRoomId}; returned to lobby.");
+                var promotionSuffix = response.PromotedFromQueue && !string.IsNullOrEmpty(response.PromotedUser)
+                    ? $" (promoted {response.PromotedUser} from queue)"
+                    : string.Empty;
+                var destination = response.ReturnedToLobby ? "returned to lobby" : "left room";
+                Debug.Log($"Left room {response.PreviousRoomId}; {destination}.{promotionSuffix}");
             }
 
             RoomLeft?.Invoke(response);
+        }
+
+        private void HandleRoomQueueUpdate(RoomQueueUpdateMessage message)
+        {
+            var waiting = message.Queue?.Count ?? 0;
+            Debug.Log($"Queue update for room {message.RoomId}: {waiting} players waiting.");
+            RoomQueueUpdated?.Invoke(message);
+        }
+
+        private void HandleRoomPromotion(RoomPromotionMessage message)
+        {
+            if (message.Member != null)
+            {
+                Debug.Log($"Player {message.Member.UserName} promoted into room {message.RoomId}.");
+            }
+            else
+            {
+                Debug.Log($"Received room promotion notice for {message.RoomId}.");
+            }
+
+            RoomPromotionReceived?.Invoke(message);
         }
 
         private void HandleEntitySpawn(EntitySpawnMessage message)

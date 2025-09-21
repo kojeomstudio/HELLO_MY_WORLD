@@ -63,6 +63,8 @@ public enum MessageType
     RoomEnterResponse = 93,
     RoomLeaveRequest = 94,
     RoomLeaveResponse = 95,
+    RoomQueueUpdate = 96,
+    RoomPromotionNotice = 97,
 }
 
 // 기본 데이터 구조
@@ -369,6 +371,15 @@ public class RoomInfo
     [ProtoMember(4)] public int PlayerCount { get; set; }
     [ProtoMember(5)] public int Capacity { get; set; }
     [ProtoMember(6)] public bool IsLobby { get; set; }
+    [ProtoMember(7)] public string LobbyId { get; set; } = string.Empty;
+    [ProtoMember(8)] public string Owner { get; set; } = string.Empty;
+    [ProtoMember(9)] public string GameMode { get; set; } = string.Empty;
+    [ProtoMember(10)] public int QueueCount { get; set; }
+    [ProtoMember(11)] public int Status { get; set; }
+    [ProtoMember(12)] public int Visibility { get; set; }
+    [ProtoMember(13)] public bool RequiresPassword { get; set; }
+    [ProtoMember(14)] public int SpectatorCount { get; set; }
+    [ProtoMember(15)] public Dictionary<string, string> Tags { get; set; } = new();
 }
 
 [ProtoContract]
@@ -376,6 +387,19 @@ public class RoomMemberList
 {
     [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
     [ProtoMember(2)] public List<string> Members { get; set; } = new();
+    [ProtoMember(3)] public List<RoomMemberInfo> MemberInfos { get; set; } = new();
+}
+
+[ProtoContract]
+public class RoomMemberInfo
+{
+    [ProtoMember(1)] public string UserName { get; set; } = string.Empty;
+    [ProtoMember(2)] public int Role { get; set; }
+    [ProtoMember(3)] public bool IsReady { get; set; }
+    [ProtoMember(4)] public long JoinedAt { get; set; }
+    [ProtoMember(5)] public bool IsSpectator { get; set; }
+    [ProtoMember(6)] public bool IsQueued { get; set; }
+    [ProtoMember(7)] public int QueuePosition { get; set; }
 }
 
 [ProtoContract]
@@ -383,6 +407,13 @@ public class RoomListRequest
 {
     [ProtoMember(1)] public bool IncludeMembers { get; set; }
     [ProtoMember(2)] public int WorldIdFilter { get; set; } = -1;
+    [ProtoMember(3)] public string LobbyIdFilter { get; set; } = string.Empty;
+    [ProtoMember(4)] public bool OnlyJoinable { get; set; }
+    [ProtoMember(5)] public bool IncludeQueues { get; set; }
+    [ProtoMember(6)] public bool IncludeLobbySummary { get; set; }
+    [ProtoMember(7)] public int VisibilityFilter { get; set; } = -1;
+    [ProtoMember(8)] public string GameModeFilter { get; set; } = string.Empty;
+    [ProtoMember(9)] public bool IncludeTags { get; set; }
 }
 
 [ProtoContract]
@@ -393,12 +424,33 @@ public class RoomListResponse
     [ProtoMember(3)] public List<RoomMemberList> MemberLists { get; set; } = new();
     [ProtoMember(4)] public long Timestamp { get; set; }
     [ProtoMember(5)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(6)] public List<LobbySummary> LobbySummaries { get; set; } = new();
+    [ProtoMember(7)] public bool IncludesQueues { get; set; }
+    [ProtoMember(8)] public bool IncludesTags { get; set; }
+}
+
+[ProtoContract]
+public class LobbySummary
+{
+    [ProtoMember(1)] public string LobbyId { get; set; } = string.Empty;
+    [ProtoMember(2)] public string DisplayName { get; set; } = string.Empty;
+    [ProtoMember(3)] public int RoomCount { get; set; }
+    [ProtoMember(4)] public int PlayerCount { get; set; }
+    [ProtoMember(5)] public int QueueCount { get; set; }
+    [ProtoMember(6)] public int ActiveRooms { get; set; }
 }
 
 [ProtoContract]
 public class RoomEnterRequest
 {
     [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+    [ProtoMember(2)] public string LobbyId { get; set; } = string.Empty;
+    [ProtoMember(3)] public string Password { get; set; } = string.Empty;
+    [ProtoMember(4)] public bool AutoAssign { get; set; }
+    [ProtoMember(5)] public bool AllowQueue { get; set; } = true;
+    [ProtoMember(6)] public bool JoinAsSpectator { get; set; }
+    [ProtoMember(7)] public int PreferredRole { get; set; } = (int)RoomRole.Player;
+    [ProtoMember(8)] public string PreferredGameMode { get; set; } = string.Empty;
 }
 
 [ProtoContract]
@@ -408,6 +460,11 @@ public class RoomEnterResponse
     [ProtoMember(2)] public string Message { get; set; } = string.Empty;
     [ProtoMember(3)] public RoomInfo? Room { get; set; }
     [ProtoMember(4)] public List<string> Members { get; set; } = new();
+    [ProtoMember(5)] public bool IsQueued { get; set; }
+    [ProtoMember(6)] public int QueuePosition { get; set; }
+    [ProtoMember(7)] public bool JoinedAsSpectator { get; set; }
+    [ProtoMember(8)] public long EstimatedWaitMs { get; set; }
+    [ProtoMember(9)] public RoomMemberInfo? Member { get; set; }
 }
 
 [ProtoContract]
@@ -422,6 +479,57 @@ public class RoomLeaveResponse
     [ProtoMember(1)] public bool Success { get; set; }
     [ProtoMember(2)] public string Message { get; set; } = string.Empty;
     [ProtoMember(3)] public string PreviousRoomId { get; set; } = string.Empty;
+    [ProtoMember(4)] public bool PromotedFromQueue { get; set; }
+    [ProtoMember(5)] public string PromotedUser { get; set; } = string.Empty;
+    [ProtoMember(6)] public bool ReturnedToLobby { get; set; }
+}
+
+[ProtoContract]
+public class RoomQueueEntry
+{
+    [ProtoMember(1)] public string UserName { get; set; } = string.Empty;
+    [ProtoMember(2)] public int Position { get; set; }
+    [ProtoMember(3)] public long EstimatedWaitMs { get; set; }
+}
+
+[ProtoContract]
+public class RoomQueueUpdateMessage
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+    [ProtoMember(2)] public List<RoomQueueEntry> Queue { get; set; } = new();
+}
+
+[ProtoContract]
+public class RoomPromotionMessage
+{
+    [ProtoMember(1)] public string RoomId { get; set; } = string.Empty;
+    [ProtoMember(2)] public bool IsNowActive { get; set; }
+    [ProtoMember(3)] public RoomMemberInfo? Member { get; set; }
+    [ProtoMember(4)] public RoomInfo? Room { get; set; }
+}
+
+public enum RoomVisibility
+{
+    Public = 0,
+    FriendsOnly = 1,
+    Private = 2
+}
+
+public enum RoomStatus
+{
+    Waiting = 0,
+    InGame = 1,
+    Completed = 2,
+    Locked = 3
+}
+
+public enum RoomRole
+{
+    Player = 0,
+    Host = 1,
+    Moderator = 2,
+    Spectator = 3,
+    Queue = 4
 }
 
 // 체력 및 허기 관련 메시지

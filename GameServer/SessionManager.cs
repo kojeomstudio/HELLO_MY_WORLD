@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using SharedProtocol;
 using GameServerApp.Models;
+using GameServerApp.Rooms;
 
 namespace GameServerApp;
 
@@ -38,7 +39,8 @@ public class SessionManager
                 LoginTime = DateTime.UtcNow,
                 IsOnline = true,
                 CurrentWorldId = 1,
-                Position = new Vector3 { X = 0, Y = 100, Z = 0 }
+                Position = new Vector3 { X = 0, Y = 100, Z = 0 },
+                CurrentRoomId = RoomManager.DefaultLobbyId
             };
         }
         else
@@ -103,6 +105,22 @@ public class SessionManager
             state.CurrentWorldId = worldId;
             state.CurrentChunkX = chunkX;
             state.CurrentChunkZ = chunkZ;
+        }
+    }
+
+    public void UpdatePlayerRoom(string userName, string roomId, RoomRole role, bool isQueued = false, int queuePosition = 0)
+    {
+        if (_playerStates.TryGetValue(userName, out var state))
+        {
+            state.CurrentRoomId = roomId;
+            state.CurrentRoomRole = role;
+            state.IsQueuedForRoom = isQueued;
+            state.QueuePosition = queuePosition;
+        }
+
+        if (_sessions.TryGetValue(userName, out var session))
+        {
+            session.PlayerInfo ??= new PlayerInfo { Username = userName };
         }
     }
 
@@ -237,17 +255,21 @@ public class SessionManager
 /// <summary>
 /// Represents the current state of a player in the game world.
 /// </summary>
-public class PlayerState
-{
-    public string UserName { get; set; } = string.Empty;
-    public Vector3 Position { get; set; } = new();
-    public float RotationY { get; set; }
-    public float RotationX { get; set; }
-    public int CurrentWorldId { get; set; } = 1;
-    public int CurrentChunkX { get; set; }
-    public int CurrentChunkZ { get; set; }
-    public bool IsOnline { get; set; }
-    public DateTime LoginTime { get; set; }
+    public class PlayerState
+    {
+        public string UserName { get; set; } = string.Empty;
+        public Vector3 Position { get; set; } = new();
+        public float RotationY { get; set; }
+        public float RotationX { get; set; }
+        public int CurrentWorldId { get; set; } = 1;
+        public int CurrentChunkX { get; set; }
+        public int CurrentChunkZ { get; set; }
+        public string CurrentRoomId { get; set; } = RoomManager.DefaultLobbyId;
+        public RoomRole CurrentRoomRole { get; set; } = RoomRole.Player;
+        public bool IsQueuedForRoom { get; set; }
+        public int QueuePosition { get; set; }
+        public bool IsOnline { get; set; }
+        public DateTime LoginTime { get; set; }
     public DateTime LastMoveTime { get; set; }
     public DateTime LastSeenTime { get; set; }
     public bool IsFlying { get; set; }

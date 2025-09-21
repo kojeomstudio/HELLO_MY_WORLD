@@ -9,6 +9,7 @@ The dedicated GameServer organises players into rooms so gameplay broadcasts (ch
 | `RoomManager` | Owns the registry of `GameRoom` instances, tracks which room each player belongs to, and provides helpers to broadcast or auto-assign rooms. Exposes `TryAssignPlayerToRoom`, `AutoAssign`, `RemovePlayer`, and aggregate lobby summaries. |
 | `GameRoom` | Holds immutable identifiers (`RoomId`, `WorldId`, `LobbyId`) plus mutable state such as visibility, game mode, current status, member list, and queue. It also manages ownership/roles, password validation, and promotion from the waiting queue. |
 | `RoomMember` | Captures per-player metadata inside a room (role, ready flag, queued position, join timestamp). |
+| `SessionManager` | Persists per-player world + room context (`CurrentRoomId`, `CurrentRoomRole`, queue position) so other systems can query multiplayer state without touching room internals. |
 
 ## Lifecycle Overview
 
@@ -16,7 +17,7 @@ The dedicated GameServer organises players into rooms so gameplay broadcasts (ch
 2. **Login** – `LoginHandler` validates the session, assigns the user to the lobby (`TryAssignPlayerToRoom` with queue disabled), and updates the player’s world metadata maintained by `SessionManager`.
 3. **Join Request** – `RoomEnterHandler` accepts a `RoomEnterRequest` which can target a specific room or request auto-assignment within a lobby. It forwards the request to `RoomManager.TryAssignPlayerToRoom` with a `RoomJoinOptions` payload describing password, preferred role, spectator mode, and whether the caller is willing to wait in the queue.
 4. **Queue Handling** – if a room is full and queueing is permitted, the player is stored in the room’s wait list and receives a `RoomEnterResponse` with `IsQueued=true` plus their current queue position. Whenever seats free up `RoomManager` promotes the next player, sends them a `RoomPromotionNotice`, and broadcasts an updated queue snapshot.
-5. **Leave & Cleanup** – `RoomLeaveHandler` removes the player from their room using `RoomManager.RemovePlayer`. Active members free seats, potentially promoting a queued player, after which the leaving player is redirected back to the lobby.
+5. **Leave & Cleanup** – `RoomLeaveHandler` removes the player from their room using `RoomManager.RemovePlayer`. Active members free seats, potentially promoting a queued player, after which the leaving player is redirected back to the lobby. Promotions and reassignments update `SessionManager` so the authoritative player state stays in sync with room membership.
 
 ## Queue & Promotion Messages
 

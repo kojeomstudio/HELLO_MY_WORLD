@@ -110,6 +110,11 @@ public class RoomManager
             }
         }
 
+        if (joinResult.Member != null)
+        {
+            UpdatePlayerStateForMember(targetRoom, joinResult.Member, joinResult.Queued);
+        }
+
         _ = HandleQueuePromotion(targetRoom, seatFreed: false);
 
         return RoomAssignmentResult.FromJoin(targetRoom, joinResult);
@@ -171,6 +176,7 @@ public class RoomManager
         }
 
         _playerRoom.Remove(userName);
+        _sessions.UpdatePlayerRoom(userName, string.Empty, RoomRole.Player, false, 0);
         var promoted = HandleQueuePromotion(room, removedFromActive);
 
         return RoomRemovalResult.Successful(roomId, room, removedFromActive, promoted);
@@ -255,6 +261,7 @@ public class RoomManager
             if (promoted != null)
             {
                 _playerRoom[promoted.UserName] = room.RoomId;
+                UpdatePlayerStateForMember(room, promoted, false);
 
                 var promotion = new RoomPromotionMessage
                 {
@@ -322,6 +329,16 @@ public class RoomManager
         }
 
         await Task.WhenAll(tasks);
+    }
+
+    private void UpdatePlayerStateForMember(GameRoom room, RoomMember member, bool queued)
+    {
+        _sessions.UpdatePlayerRoom(member.UserName, room.RoomId, member.Role, queued, member.QueuePosition);
+
+        if (!queued || member.Role == RoomRole.Spectator)
+        {
+            _sessions.UpdatePlayerWorld(member.UserName, room.WorldId, 0, 0);
+        }
     }
 }
 

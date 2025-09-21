@@ -37,6 +37,19 @@ namespace GameServerApp.World.Generation
             value = default!;
             return false;
         }
+
+        public T GetOrAddMetadata<T>(string key, Func<T> factory)
+        {
+            if (TryGetMetadata<T>(key, out var existing))
+            {
+                return existing;
+            }
+
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            var created = factory();
+            _metadata[key] = created!;
+            return created;
+        }
     }
 
     /// <summary>

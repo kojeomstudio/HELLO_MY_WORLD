@@ -27,6 +27,7 @@ namespace GameServerApp.World
         private const double DomainWarpSimplexAmplitude = 32.0;
         private const double DomainWarpPerlinAmplitude = 18.0;
         private const double ValleyDepthMultiplier = 12.0;
+        private const string TerrainProfilesKey = "terrain.profiles";
 
         private struct TerrainProfile
         {
@@ -306,6 +307,7 @@ namespace GameServerApp.World
         private void GenerateBaseTerrain(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
+            var profiles = context.GetOrAddMetadata(TerrainProfilesKey, () => new TerrainProfile[16, 16]);
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
@@ -314,6 +316,7 @@ namespace GameServerApp.World
                     var worldZ = context.ChunkZ * 16 + z;
 
                     var profile = CalculateTerrainProfile(worldX, worldZ);
+                    profiles[x, z] = profile;
                     chunk.SetBiome(x, z, profile.Biome);
                     ApplyTerrainColumn(chunk, x, z, profile);
 
@@ -609,12 +612,23 @@ namespace GameServerApp.World
         private void GenerateRivers(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
+            TerrainProfile[,]? profiles = null;
+            context.TryGetMetadata(TerrainProfilesKey, out profiles);
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
                     var worldX = context.ChunkX * 16 + x;
                     var worldZ = context.ChunkZ * 16 + z;
+
+                    if (profiles != null)
+                    {
+                        var profile = profiles[x, z];
+                        if (profile.Biome == BiomeType.Ocean)
+                        {
+                            continue;
+                        }
+                    }
 
                     var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
                     double sampleX = worldX + warp.dx;

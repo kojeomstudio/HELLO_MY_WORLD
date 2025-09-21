@@ -14,6 +14,10 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 > **Note**: The new pipeline keeps all previous features (ores, caves, dungeons, vegetation) but now feeds them richer biome context and more varied elevation data so worlds feel less flat and more “Minecraft-like”.
 
+### Stage-based Execution
+
+`WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of stages. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable.
+
 ## Water Features
 
 - **Global water level**: a constant `GlobalWaterLevel` (62) controls sea height. Ocean biomes carve a seafloor using sand and stone, then fill to this level.

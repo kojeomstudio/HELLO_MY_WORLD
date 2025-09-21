@@ -175,7 +175,7 @@ namespace GameServerApp
                 // 룸에서 제거
                 if (!string.IsNullOrEmpty(session.UserName))
                 {
-                    _rooms.RemovePlayer(session.UserName);
+                    _ = _rooms.RemovePlayer(session.UserName);
                 }
                 if (!string.IsNullOrEmpty(session.UserName))
                 {

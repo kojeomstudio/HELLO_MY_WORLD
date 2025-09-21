@@ -310,44 +310,51 @@ namespace GameServerApp.Handlers
         /// </summary>
         private BiomeInfo GenerateBiomeData(int chunkX, int chunkZ)
         {
-            var biomeIds = new List<int>();
-            
-            // 16x16 바이옴 배열 생성
+            var biomeIds = new List<int>(16 * 16);
+            double accumulatedTemperature = 0;
+            double accumulatedHumidity = 0;
+
             for (int z = 0; z < 16; z++)
             {
                 for (int x = 0; x < 16; x++)
                 {
                     int worldX = chunkX * 16 + x;
                     int worldZ = chunkZ * 16 + z;
-                    
-                    // 간단한 바이옴 결정 (온도와 습도 기반)
-                    double temperature = Math.Sin(worldX * 0.001) + Math.Cos(worldZ * 0.001);
-                    double humidity = Math.Sin(worldX * 0.002) * Math.Cos(worldZ * 0.002);
-                    
-                    int biomeId = DetermineBiome(temperature, humidity);
-                    biomeIds.Add(biomeId);
+
+                    var biome = _worldManager.SampleBiome(worldX, worldZ);
+                    biomeIds.Add((int)biome);
+
+                    var climate = GetBiomeClimate(biome);
+                    accumulatedTemperature += climate.temp;
+                    accumulatedHumidity += climate.humidity;
                 }
             }
-            
+
+            int sampleCount = biomeIds.Count;
+            float averageTemperature = sampleCount > 0 ? (float)(accumulatedTemperature / sampleCount) : 0.5f;
+            float averageHumidity = sampleCount > 0 ? (float)(accumulatedHumidity / sampleCount) : 0.5f;
+
             return new BiomeInfo
             {
                 BiomeIds = biomeIds,
-                Temperature = 0.8f, // 평균 온도
-                Humidity = 0.6f     // 평균 습도
+                Temperature = averageTemperature,
+                Humidity = averageHumidity
             };
         }
 
-        /// <summary>
-        /// 온도와 습도에 따른 바이옴 결정
-        /// </summary>
-        private int DetermineBiome(double temperature, double humidity)
+        private (double temp, double humidity) GetBiomeClimate(BiomeType biome)
         {
-            return (temperature, humidity) switch
+            return biome switch
             {
-                ( > 0.5, > 0.5) => 1,    // 정글
-                ( > 0.5, <= 0.5) => 2,  // 사막
-                ( <= 0.5, > 0.5) => 3,  // 늪지
-                _ => 0                   // 평원 (기본)
+                BiomeType.Desert => (0.95, 0.15),
+                BiomeType.Tundra => (0.2, 0.35),
+                BiomeType.Forest => (0.7, 0.75),
+                BiomeType.Ocean => (0.6, 0.85),
+                BiomeType.Mountains => (0.35, 0.4),
+                BiomeType.Hills => (0.55, 0.5),
+                BiomeType.Cliffs => (0.4, 0.35),
+                BiomeType.Beach => (0.85, 0.65),
+                _ => (0.6, 0.45)
             };
         }
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using GameServerApp.Database;
 using GameServerApp.Models;
+using GameServerApp.World.Generation;
 
 namespace GameServerApp.World
 {
@@ -10,17 +11,49 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<string, LoadedChunk> _loadedChunks = new();
         private readonly Random _random;
         private int _worldId;
+        private readonly TerrainGenerationPipeline _terrainPipeline;
 
         private const int GlobalWaterLevel = 62;
         private const double RiverCenterThreshold = 0.0125;
         private const double RiverBankThreshold = 0.028;
         private const int CloudBaseAltitude = 200;
-        
+        private const double OceanThreshold = 0.36;
+        private const double BeachThreshold = 0.42;
+        private const int MinSurfaceHeight = 45;
+        private const int MaxSurfaceHeight = 150;
+        private const double CliffThreshold = 0.55;
+        private const double DomainWarpSimplexFrequency = 0.00065;
+        private const double DomainWarpPerlinFrequency = 0.0011;
+        private const double DomainWarpSimplexAmplitude = 32.0;
+        private const double DomainWarpPerlinAmplitude = 18.0;
+        private const double ValleyDepthMultiplier = 12.0;
+
+        private struct TerrainProfile
+        {
+            public int SurfaceHeight;
+            public bool HasWater;
+            public int WaterLevel;
+            public BiomeType Biome;
+            public BlockType SurfaceBlock;
+            public BlockType SubSurfaceBlock;
+            public BlockType FillerBlock;
+            public bool UseCliffFace;
+        }
+
         public WorldManager(DatabaseHelper database, int worldId = 1)
         {
             _database = database;
             _worldId = worldId;
             _random = new Random();
+            _terrainPipeline = new TerrainGenerationPipeline()
+                .AddStage("base-terrain", GenerateBaseTerrain)
+                .AddStage("ores", GenerateOres)
+                .AddStage("caves", GenerateCaves)
+                .AddStage("dungeons", GenerateDungeons)
+                .AddStage("rivers", GenerateRivers)
+                .AddStage("lakes", GenerateLakes)
+                .AddStage("vegetation", GenerateVegetation)
+                .AddStage("clouds", GenerateClouds);
         }
 
         public async Task<ChunkData?> GetChunkAsync(int chunkX, int chunkZ)
@@ -143,62 +176,232 @@ namespace GameServerApp.World
         private async Task<ChunkData> GenerateChunk(int chunkX, int chunkZ)
         {
             var chunk = new ChunkData(chunkX, chunkZ);
-            
+            var context = new TerrainGenerationContext(this, chunk, chunkX, chunkZ);
+            _terrainPipeline.Execute(context);
+            return chunk;
+        }
+
+        private TerrainProfile CalculateTerrainProfile(int worldX, int worldZ)
+        {
+            var warp = SimplexNoise.DomainWarp(
+                worldX,
+                worldZ,
+                DomainWarpSimplexFrequency,
+                DomainWarpPerlinFrequency,
+                DomainWarpSimplexAmplitude,
+                DomainWarpPerlinAmplitude,
+                925113);
+
+            double sampleX = worldX + warp.dx;
+            double sampleZ = worldZ + warp.dz;
+
+            var continentalness = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.00045, 5, 1.0, 0.52, 934113));
+            var macroPerlin = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.00038, 4, 1.0, 0.5, 420031));
+            var erosion = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 4, 1.0, 0.58, 811223));
+            var peaks = SampleRidgedNoise(sampleX, sampleZ, 0.0018, 4, 1.0, 0.48, 51277);
+            var hills = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.0028, 4, 1.0, 0.54, 22119));
+            var valleyNoise = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.0036, 3, 1.0, 0.45, 20317));
+            var humidity = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.00095, 3, 1.0, 0.58, 6711));
+            var temperature = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.00075, 3, 1.0, 0.6, 9987));
+
+            double blendedContinental = Math.Clamp(continentalness * 0.65 + macroPerlin * 0.35, 0.0, 1.0);
+
+            if (blendedContinental < OceanThreshold)
+            {
+                double oceanDepthFactor = Math.Clamp((OceanThreshold - blendedContinental) / OceanThreshold, 0.0, 1.0);
+                int depth = 14 + (int)(oceanDepthFactor * 28);
+                int seafloor = Math.Max(6, GlobalWaterLevel - depth);
+
+                return new TerrainProfile
+                {
+                    SurfaceHeight = seafloor,
+                    HasWater = true,
+                    WaterLevel = GlobalWaterLevel,
+                    Biome = BiomeType.Ocean,
+                    SurfaceBlock = BlockType.Sand,
+                    SubSurfaceBlock = BlockType.Sand,
+                    FillerBlock = BlockType.Stone,
+                    UseCliffFace = false
+                };
+            }
+
+            bool isBeach = blendedContinental < BeachThreshold;
+
+            var profile = new TerrainProfile
+            {
+                HasWater = false,
+                WaterLevel = GlobalWaterLevel,
+                SurfaceBlock = BlockType.Grass,
+                SubSurfaceBlock = BlockType.Dirt,
+                FillerBlock = BlockType.Stone,
+                Biome = BiomeType.Plains,
+                UseCliffFace = false
+            };
+
+            int baseHeight = (int)(MinSurfaceHeight + blendedContinental * 62);
+            baseHeight -= (int)(erosion * 10);
+            baseHeight -= (int)(Math.Max(0.0, 0.55 - valleyNoise) * ValleyDepthMultiplier);
+            baseHeight = Math.Clamp(baseHeight, MinSurfaceHeight, MaxSurfaceHeight);
+
+            double hillWeight = Math.Max(0.0, hills - 0.32);
+            double mountainWeight = Math.Max(0.0, peaks - 0.46) * (1.0 - erosion * 0.6);
+            mountainWeight += Math.Max(0.0, valleyNoise - 0.7) * 0.25;
+
+            int hillContribution = (int)(hillWeight * 20);
+            int mountainContribution = (int)(mountainWeight * 64);
+
+            int surfaceHeight = baseHeight + hillContribution + mountainContribution;
+            surfaceHeight = Math.Clamp(surfaceHeight, MinSurfaceHeight, MaxSurfaceHeight);
+            profile.SurfaceHeight = surfaceHeight;
+
+            bool steep = mountainWeight > CliffThreshold && erosion < 0.35;
+            bool mountainous = surfaceHeight > 108 || mountainContribution > 28;
+
+            if (steep)
+            {
+                profile.Biome = BiomeType.Cliffs;
+                profile.SurfaceBlock = BlockType.Cobblestone;
+                profile.SubSurfaceBlock = BlockType.Stone;
+                profile.UseCliffFace = true;
+            }
+            else if (mountainous)
+            {
+                profile.Biome = BiomeType.Mountains;
+                profile.SurfaceBlock = BlockType.Stone;
+                profile.SubSurfaceBlock = BlockType.Stone;
+            }
+            else if (hillContribution > 8)
+            {
+                profile.Biome = BiomeType.Hills;
+            }
+            else
+            {
+                profile.Biome = DetermineLandBiome(temperature, humidity);
+            }
+
+            if (profile.Biome == BiomeType.Desert)
+            {
+                profile.SurfaceBlock = BlockType.Sand;
+                profile.SubSurfaceBlock = BlockType.Sand;
+            }
+
+            if (profile.Biome == BiomeType.Tundra)
+            {
+                profile.SurfaceBlock = BlockType.Grass;
+                profile.SubSurfaceBlock = BlockType.Dirt;
+            }
+
+            if (isBeach)
+            {
+                profile.Biome = BiomeType.Beach;
+                profile.SurfaceBlock = BlockType.Sand;
+                profile.SubSurfaceBlock = BlockType.Sand;
+                profile.HasWater = true;
+                profile.WaterLevel = Math.Max(GlobalWaterLevel - 1, profile.SurfaceHeight + 1);
+            }
+
+            return profile;
+        }
+
+        private void GenerateBaseTerrain(TerrainGenerationContext context)
+        {
+            var chunk = context.Chunk;
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
-                    var worldX = chunkX * 16 + x;
-                    var worldZ = chunkZ * 16 + z;
-                    
-                    var height = GenerateHeight(worldX, worldZ);
-                    var biome = GenerateBiome(worldX, worldZ);
-                    
-                    chunk.SetBiome(x, z, biome);
-                    
-                    for (int y = 0; y <= height && y < 256; y++)
-                    {
-                        BlockType blockType;
-                        
-                        if (y == 0)
-                            blockType = BlockType.Bedrock;
-                        else if (y < height - 3)
-                            blockType = BlockType.Stone;
-                        else if (y < height)
-                            blockType = BlockType.Dirt;
-                        else if (y == height)
-                            blockType = biome == BiomeType.Desert ? BlockType.Sand : BlockType.Grass;
-                        else
-                            blockType = BlockType.Air;
-                        
-                        chunk.SetBlock(x, y, z, blockType);
-                    }
-                    
-                    for (int y = height + 1; y < 256; y++)
+                    var worldX = context.ChunkX * 16 + x;
+                    var worldZ = context.ChunkZ * 16 + z;
+
+                    var profile = CalculateTerrainProfile(worldX, worldZ);
+                    chunk.SetBiome(x, z, profile.Biome);
+                    ApplyTerrainColumn(chunk, x, z, profile);
+
+                    var clearanceTop = profile.HasWater
+                        ? Math.Max(profile.WaterLevel, profile.SurfaceHeight)
+                        : profile.SurfaceHeight;
+                    clearanceTop = Math.Clamp(clearanceTop, 0, 255);
+
+                    for (int y = clearanceTop + 1; y < 256; y++)
                     {
                         chunk.SetBlock(x, y, z, BlockType.Air);
                     }
                 }
             }
-            
-            GenerateOres(chunk, chunkX, chunkZ);
-            // Caves and dungeons are carved after base terrain and ores
-            GenerateCaves(chunk, chunkX, chunkZ);
-            GenerateDungeons(chunk, chunkX, chunkZ);
-            GenerateRivers(chunk, chunkX, chunkZ);
-            GenerateLakes(chunk, chunkX, chunkZ);
-            GenerateVegetation(chunk, chunkX, chunkZ);
-            GenerateClouds(chunk, chunkX, chunkZ);
+        }
 
-            return chunk;
+        private void ApplyTerrainColumn(ChunkData chunk, int x, int z, TerrainProfile profile)
+        {
+            int surfaceHeight = Math.Clamp(profile.SurfaceHeight, 1, 255);
+
+            for (int y = 0; y <= surfaceHeight && y < 256; y++)
+            {
+                BlockType block;
+
+                if (y == 0)
+                {
+                    block = BlockType.Bedrock;
+                }
+                else if (y < surfaceHeight - 3)
+                {
+                    block = profile.FillerBlock;
+                }
+                else if (profile.UseCliffFace && y >= surfaceHeight - 4)
+                {
+                    block = BlockType.Cobblestone;
+                }
+                else if (y < surfaceHeight)
+                {
+                    block = profile.SubSurfaceBlock;
+                }
+                else
+                {
+                    block = profile.SurfaceBlock;
+                }
+
+                chunk.SetBlock(x, y, z, block);
+            }
+
+            if (profile.HasWater)
+            {
+                int waterTop = Math.Clamp(profile.WaterLevel, surfaceHeight, 255);
+                for (int y = surfaceHeight + 1; y <= waterTop && y < 256; y++)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Water);
+                }
+            }
+        }
+
+        private BiomeType DetermineLandBiome(double temperature, double humidity)
+        {
+            if (temperature > 0.7 && humidity < 0.35)
+                return BiomeType.Desert;
+            if (temperature < 0.3)
+                return BiomeType.Tundra;
+            if (humidity > 0.6)
+                return BiomeType.Forest;
+            return BiomeType.Plains;
+        }
+
+        private static double NormalizeNoise(double value)
+        {
+            return Math.Clamp((value + 1.0) * 0.5, 0.0, 1.0);
+        }
+
+        private double SampleRidgedNoise(double worldX, double worldZ, double frequency, int octaves, double amplitude, double persistence, int seed)
+        {
+            var noise = SimplexNoise.Generate(worldX, worldZ, frequency, octaves, amplitude, persistence, seed);
+            noise = Math.Clamp(noise, -1.0, 1.0);
+            return 1.0 - Math.Abs(noise);
         }
 
         /// <summary>
         /// 개선된 3D 동굴 생성 시스템 - 더 자연스럽고 다양한 동굴 구조
         /// </summary>
-        private void GenerateCaves(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateCaves(TerrainGenerationContext context)
         {
-            var rand = new Random((chunkX * 73856093) ^ (chunkZ * 19349663));
+            var chunk = context.Chunk;
+            var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
             GenerateMainCaveSystem(chunk, rand);
@@ -380,9 +583,10 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 던전 생성 시스템 - 더 복잡하고 다양한 구조의 던전
         /// </summary>
-        private void GenerateDungeons(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateDungeons(TerrainGenerationContext context)
         {
-            var rand = new Random((chunkX * 83492791) ^ (chunkZ * 297657976));
+            var chunk = context.Chunk;
+            var rand = new Random((context.ChunkX * 83492791) ^ (context.ChunkZ * 297657976));
             if (rand.NextDouble() > 0.15) return; // 15% 확률로 증가
 
             // 던전 타입 결정
@@ -402,16 +606,21 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateRivers(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateRivers(TerrainGenerationContext context)
         {
+            var chunk = context.Chunk;
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
-                    var worldX = chunkX * 16 + x;
-                    var worldZ = chunkZ * 16 + z;
+                    var worldX = context.ChunkX * 16 + x;
+                    var worldZ = context.ChunkZ * 16 + z;
 
-                    double riverNoise = SimplexNoise.Generate(worldX * 0.0012, worldZ * 0.0012, 0.6, 5, 1.0, 0.45, 91111);
+                    var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
+                    double sampleX = worldX + warp.dx;
+                    double sampleZ = worldZ + warp.dz;
+
+                    double riverNoise = SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
                     double intensity = Math.Abs(riverNoise);
 
                     if (intensity < RiverCenterThreshold)
@@ -429,13 +638,17 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateLakes(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateLakes(TerrainGenerationContext context)
         {
-            double lakeNoise = SimplexNoise.Generate(chunkX * 0.035, chunkZ * 0.035, 0.55, 3, 1.0, 0.55, 67891);
+            var chunk = context.Chunk;
+            var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
+            double lakeSimplex = SimplexNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);
+            double lakePerlin = PerlinNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.028, 2, 1.0, 0.6, 77811);
+            double lakeNoise = (lakeSimplex + lakePerlin) * 0.5;
             if (lakeNoise < 0.62)
                 return;
 
-            var rand = new Random((chunkX * 928371) ^ (chunkZ * 72341) ^ 0xC0FFEE);
+            var rand = new Random((context.ChunkX * 928371) ^ (context.ChunkZ * 72341) ^ 0xC0FFEE);
             if (rand.NextDouble() > (lakeNoise - 0.62) * 1.8)
                 return;
 
@@ -471,16 +684,20 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateClouds(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateClouds(TerrainGenerationContext context)
         {
+            var chunk = context.Chunk;
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
-                    var worldX = chunkX * 16 + x;
-                    var worldZ = chunkZ * 16 + z;
+                    var worldX = context.ChunkX * 16 + x;
+                    var worldZ = context.ChunkZ * 16 + z;
 
-                    double noise = SimplexNoise.Generate(worldX * 0.0009, worldZ * 0.0009, 0.65, 4, 1.0, 0.6, 44444);
+                    var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0005, 0.001, 12.0, 6.0, 44444);
+                    double noiseSimplex = SimplexNoise.Generate(worldX + warp.dx, worldZ + warp.dz, 0.0009, 4, 1.0, 0.6, 44444);
+                    double noisePerlin = PerlinNoise.Generate(worldX + warp.dx, worldZ + warp.dz, 0.0012, 2, 1.0, 0.55, 55444);
+                    double noise = (noiseSimplex * 0.65) + (noisePerlin * 0.35);
                     if (noise <= 0.68)
                         continue;
 
@@ -658,7 +875,7 @@ namespace GameServerApp.World
             int oy = rand.Next(15, 40); // 더 깊은 지하
             int oz = rand.Next(2, 16 - roomDepth - 2);
 
-            BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+            BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
             
             // 보물 상자 위치 (중앙)
             int treasureX = ox + roomWidth / 2;
@@ -684,7 +901,7 @@ namespace GameServerApp.World
                 int oy = rand.Next(15, 35);
                 int oz = rand.Next(1, 16 - roomDepth - 1);
                 
-                BuildDungeonRoom(chunk, ox, oy, oz, roomWidth, roomHeight, roomDepth);
+                BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
                 
                 // 방들 사이에 복도 연결 (간단한 버전)
                 if (i > 0)
@@ -738,7 +955,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 던전 방 건설
         /// </summary>
-        private void BuildDungeonRoom(ChunkData chunk, int ox, int oy, int oz, int width, int height, int depth)
+        private void BuildDungeonRoom(ChunkData chunk, Random rand, int ox, int oy, int oz, int width, int height, int depth)
         {
             // 내부 비우기
             for (int x = ox + 1; x < ox + width - 1; x++)
@@ -765,7 +982,7 @@ namespace GameServerApp.World
                         if (isWall)
                         {
                             // 다양한 재료 사용
-                            BlockType wallMaterial = GetDungeonWallMaterial();
+                            BlockType wallMaterial = GetDungeonWallMaterial(rand);
                             chunk.SetBlock(x, y, z, wallMaterial);
                         }
                     }
@@ -774,15 +991,16 @@ namespace GameServerApp.World
 
             // 입구 생성 (더 자연스럽게)
             CreateDungeonEntrance(chunk, ox, oy, oz, width, depth);
+
+            DecorateDungeonInterior(chunk, ox, oy, oz, width, height, depth, rand);
         }
         
         /// <summary>
         /// 던전 벽 재료 결정
         /// </summary>
-        private BlockType GetDungeonWallMaterial()
+        private BlockType GetDungeonWallMaterial(Random rand)
         {
             var materials = new[] { BlockType.Cobblestone, BlockType.Stone, BlockType.Stone };
-            var rand = new Random();
             return materials[rand.Next(materials.Length)];
         }
         
@@ -800,7 +1018,63 @@ namespace GameServerApp.World
                 }
             }
         }
-        
+
+        private void DecorateDungeonInterior(ChunkData chunk, int ox, int oy, int oz, int width, int height, int depth, Random rand)
+        {
+            if (width > 4 && depth > 4)
+            {
+                var supports = new (int x, int z)[]
+                {
+                    (ox + 1, oz + 1),
+                    (ox + width - 2, oz + 1),
+                    (ox + 1, oz + depth - 2),
+                    (ox + width - 2, oz + depth - 2)
+                };
+
+                int supportTop = Math.Max(oy + 1, Math.Min(oy + height - 2, 255));
+                foreach (var (sx, sz) in supports)
+                {
+                    if (sx <= ox || sx >= ox + width - 1 || sz <= oz || sz >= oz + depth - 1)
+                    {
+                        continue;
+                    }
+
+                    for (int y = oy + 1; y <= supportTop; y++)
+                    {
+                        if (chunk.GetBlock(sx, y, sz) == BlockType.Air)
+                        {
+                            chunk.SetBlock(sx, y, sz, BlockType.Cobblestone);
+                        }
+                    }
+                }
+            }
+
+            if (width > 6 && depth > 6 && rand.NextDouble() < 0.35)
+            {
+                int poolX = rand.Next(ox + 2, ox + width - 2);
+                int poolZ = rand.Next(oz + 2, oz + depth - 2);
+                var fluid = rand.NextDouble() < 0.55 ? BlockType.Water : BlockType.Lava;
+                chunk.SetBlock(poolX, oy, poolZ, fluid);
+            }
+
+            if (width > 3 && depth > 3)
+            {
+                int treasureCount = rand.Next(1, 1 + Math.Max(1, (width * depth) / 24));
+                for (int i = 0; i < treasureCount; i++)
+                {
+                    int lootX = rand.Next(ox + 1, ox + width - 1);
+                    int lootZ = rand.Next(oz + 1, oz + depth - 1);
+
+                    if (chunk.GetBlock(lootX, oy + 1, lootZ) == BlockType.Air)
+                    {
+                        chunk.SetBlock(lootX, oy, lootZ, BlockType.Cobblestone);
+                        var lootBlock = rand.NextDouble() < 0.7 ? BlockType.GoldOre : BlockType.DiamondOre;
+                        chunk.SetBlock(lootX, oy + 1, lootZ, lootBlock);
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 방들을 복도로 연결
         /// </summary>
@@ -829,35 +1103,32 @@ namespace GameServerApp.World
 
         private int GenerateHeight(int worldX, int worldZ)
         {
-            var noise1 = SimplexNoise.Generate(worldX * 0.01, worldZ * 0.01, 0.5, 4, 1.0, 0.5, 12345);
-            var noise2 = SimplexNoise.Generate(worldX * 0.005, worldZ * 0.005, 0.3, 6, 1.0, 0.4, 54321);
-            
-            var height = 64 + (int)(noise1 * 32 + noise2 * 16);
-            return Math.Clamp(height, 5, 120);
+            var profile = CalculateTerrainProfile(worldX, worldZ);
+            var columnTop = profile.HasWater
+                ? Math.Max(profile.SurfaceHeight, profile.WaterLevel)
+                : profile.SurfaceHeight;
+            return Math.Clamp(columnTop, 0, 255);
         }
 
         private BiomeType GenerateBiome(int worldX, int worldZ)
         {
-            var temperature = SimplexNoise.Generate(worldX * 0.003, worldZ * 0.003, 0.5, 3, 1.0, 0.5, 11111);
-            var humidity = SimplexNoise.Generate(worldX * 0.004, worldZ * 0.004, 0.5, 3, 1.0, 0.5, 22222);
-            
-            if (temperature > 0.6 && humidity < 0.3)
-                return BiomeType.Desert;
-            else if (temperature < -0.3)
-                return BiomeType.Tundra;
-            else if (humidity > 0.4)
-                return BiomeType.Forest;
-            else
-                return BiomeType.Plains;
+            var profile = CalculateTerrainProfile(worldX, worldZ);
+            return profile.Biome;
+        }
+
+        public BiomeType SampleBiome(int worldX, int worldZ)
+        {
+            return CalculateTerrainProfile(worldX, worldZ).Biome;
         }
 
         /// <summary>
         /// 개선된 광물 생성 시스템 - 더 현실적이고 균형 잡힌 분배
         /// </summary>
-        private void GenerateOres(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateOres(TerrainGenerationContext context)
         {
-            var rand = new Random(chunkX * 1000 + chunkZ);
-            
+            var chunk = context.Chunk;
+            var rand = new Random(context.ChunkX * 1000 + context.ChunkZ);
+
             // 각 광물별로 사실적인 깊이와 희귀성 설정
             GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // 석탄: 언제나, 여러 층에서
             GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // 철: 중간 깊이
@@ -938,20 +1209,26 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateVegetation(ChunkData chunk, int chunkX, int chunkZ)
+        private void GenerateVegetation(TerrainGenerationContext context)
         {
-            var rand = new Random(chunkX * 2000 + chunkZ);
-            
+            var chunk = context.Chunk;
+            var rand = new Random(context.ChunkX * 2000 + context.ChunkZ);
+
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
                     var biome = chunk.GetBiome(x, z);
                     var surfaceY = FindSurfaceLevel(chunk, x, z);
-                    
+                    var globalX = context.ChunkX * 16 + x;
+                    var globalZ = context.ChunkZ * 16 + z;
+                    var vegetationWarp = SimplexNoise.DomainWarp(globalX, globalZ, 0.0015, 0.0028, 6.0, 3.0, 9127);
+                    double patchiness = NormalizeNoise(PerlinNoise.Generate(globalX + vegetationWarp.dx, globalZ + vegetationWarp.dz, 0.008, 2, 1.0, 0.5, 9127));
+                    double density = GetVegetationDensity(biome) * (0.5 + patchiness * 0.5);
+
                     if (surfaceY > 0 && chunk.GetBlock(x, surfaceY, z) == BlockType.Grass)
                     {
-                        if (rand.NextDouble() < GetVegetationDensity(biome))
+                        if (rand.NextDouble() < density)
                         {
                             if (surfaceY + 1 < 256)
                             {
@@ -1004,8 +1281,13 @@ namespace GameServerApp.World
             {
                 BiomeType.Forest => 0.8,
                 BiomeType.Plains => 0.3,
+                BiomeType.Hills => 0.25,
+                BiomeType.Mountains => 0.1,
                 BiomeType.Desert => 0.05,
-                BiomeType.Tundra => 0.1,
+                BiomeType.Tundra => 0.12,
+                BiomeType.Cliffs => 0.02,
+                BiomeType.Beach => 0.03,
+                BiomeType.Ocean => 0.0,
                 _ => 0.2
             };
         }
@@ -1016,6 +1298,8 @@ namespace GameServerApp.World
             {
                 BiomeType.Forest => rand.NextDouble() < 0.3 ? BlockType.Wood : BlockType.TallGrass,
                 BiomeType.Desert => BlockType.DeadBush,
+                BiomeType.Beach => BlockType.DeadBush,
+                BiomeType.Cliffs => BlockType.DeadBush,
                 _ => BlockType.TallGrass
             };
         }
@@ -1239,11 +1523,26 @@ namespace GameServerApp.World
         Forest = 1,
         Desert = 2,
         Tundra = 3,
-        Ocean = 4
+        Ocean = 4,
+        Mountains = 5,
+        Hills = 6,
+        Cliffs = 7,
+        Beach = 8
     }
 
     public static class SimplexNoise
     {
+        public static (double dx, double dz) DomainWarp(double x, double z, double simplexFrequency, double perlinFrequency, double simplexAmplitude, double perlinAmplitude, int seed)
+        {
+            double simplexOffsetX = Generate(x, z, simplexFrequency, 3, 1.0, 0.5, seed) * simplexAmplitude;
+            double simplexOffsetZ = Generate(x + 37.0, z + 53.0, simplexFrequency, 3, 1.0, 0.5, seed ^ 0x5F5F5F5F) * simplexAmplitude;
+
+            double perlinOffsetX = PerlinNoise.Generate(x, z, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x00FF00FF) * perlinAmplitude;
+            double perlinOffsetZ = PerlinNoise.Generate(x + 17.0, z + 23.0, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x7F00EF00) * perlinAmplitude;
+
+            return (simplexOffsetX + perlinOffsetX, simplexOffsetZ + perlinOffsetZ);
+        }
+
         public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
         {
             var random = new Random(seed);
@@ -1291,5 +1590,87 @@ namespace GameServerApp.World
         private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         private static double Lerp(double a, double b, double t) => a + t * (b - a);
         private static double Grad(int hash, double x, double y) => ((hash & 1) == 0 ? x : -x) + ((hash & 2) == 0 ? y : -y);
+    }
+
+    public static class PerlinNoise
+    {
+        public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
+        {
+            var random = new Random(seed);
+            var permutation = BuildPermutation(random);
+
+            double total = 0.0;
+            double maxValue = 0.0;
+            double currentFrequency = frequency;
+            double currentAmplitude = amplitude;
+
+            for (int i = 0; i < octaves; i++)
+            {
+                total += Perlin(permutation, x * currentFrequency, y * currentFrequency) * currentAmplitude;
+                maxValue += currentAmplitude;
+                currentFrequency *= 2.0;
+                currentAmplitude *= persistence;
+            }
+
+            return maxValue == 0 ? 0 : total / maxValue;
+        }
+
+        private static double Perlin(int[] permutation, double x, double y)
+        {
+            int xi = (int)Math.Floor(x) & 255;
+            int yi = (int)Math.Floor(y) & 255;
+
+            double xf = x - Math.Floor(x);
+            double yf = y - Math.Floor(y);
+
+            double u = Fade(xf);
+            double v = Fade(yf);
+
+            int aa = permutation[permutation[xi] + yi];
+            int ab = permutation[permutation[xi] + yi + 1];
+            int ba = permutation[permutation[xi + 1] + yi];
+            int bb = permutation[permutation[xi + 1] + yi + 1];
+
+            double x1 = Lerp(Grad(aa, xf, yf), Grad(ba, xf - 1, yf), u);
+            double x2 = Lerp(Grad(ab, xf, yf - 1), Grad(bb, xf - 1, yf - 1), u);
+
+            return Lerp(x1, x2, v);
+        }
+
+        private static int[] BuildPermutation(Random random)
+        {
+            var baseArray = new int[256];
+            for (int i = 0; i < 256; i++)
+            {
+                baseArray[i] = i;
+            }
+
+            for (int i = 255; i > 0; i--)
+            {
+                int swapIndex = random.Next(i + 1);
+                var temp = baseArray[i];
+                baseArray[i] = baseArray[swapIndex];
+                baseArray[swapIndex] = temp;
+            }
+
+            var permutation = new int[512];
+            for (int i = 0; i < 512; i++)
+            {
+                permutation[i] = baseArray[i & 255];
+            }
+
+            return permutation;
+        }
+
+        private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
+        private static double Lerp(double a, double b, double t) => a + t * (b - a);
+
+        private static double Grad(int hash, double x, double y)
+        {
+            int h = hash & 7;
+            double u = h < 4 ? x : y;
+            double v = h < 4 ? y : x;
+            return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+        }
     }
 }

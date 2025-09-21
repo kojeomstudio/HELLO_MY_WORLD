@@ -47,28 +47,53 @@ public class RoomLeaveHandler : MessageHandler<RoomLeaveRequest>
             return;
         }
 
-        _rooms.RemovePlayer(session.UserName!);
-        _rooms.AssignPlayerToRoom(session.UserName!, RoomManager.DefaultLobbyId);
-        _sessions.UpdatePlayerWorld(session.UserName!, worldId: 1, chunkX: 0, chunkZ: 0);
+        var removal = _rooms.RemovePlayer(session.UserName!);
+        if (!removal.Success || removal.Room == null)
+        {
+            await SendFailure(session, "방을 떠나는 중 오류가 발생했습니다.");
+            return;
+        }
+
+        bool returnedToLobby = false;
+        if (!string.Equals(removal.RoomId, RoomManager.DefaultLobbyId, StringComparison.OrdinalIgnoreCase))
+        {
+            var lobbyResult = _rooms.TryAssignPlayerToRoom(
+                session.UserName!,
+                RoomManager.DefaultLobbyId,
+                new RoomJoinOptions { AllowQueue = false });
+
+            if (lobbyResult.Success && !lobbyResult.Queued)
+            {
+                returnedToLobby = true;
+                _sessions.UpdatePlayerWorld(session.UserName!, worldId: 1, chunkX: 0, chunkZ: 0);
+            }
+        }
 
         var response = new RoomLeaveResponse
         {
             Success = true,
-            Message = "로비로 이동했습니다.",
-            PreviousRoomId = currentRoomId
+            Message = returnedToLobby ? "로비로 이동했습니다." : "방을 떠났습니다.",
+            PreviousRoomId = removal.RoomId,
+            PromotedFromQueue = removal.PromotedMember != null,
+            PromotedUser = removal.PromotedMember?.UserName ?? string.Empty,
+            ReturnedToLobby = returnedToLobby
         };
 
         await session.SendAsync(MessageType.RoomLeaveResponse, response);
 
-        var leaveNotice = new ChatMessage
+        if (removal.Room != null && removal.WasActiveMember)
         {
-            SenderId = "System",
-            SenderName = "System",
-            Type = (int)ChatType.System,
-            Message = $"{session.UserName} 님이 방을 떠났습니다.",
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-        await _rooms.BroadcastToRoomAsync(currentRoomId, MessageType.ChatMessage, leaveNotice);
+            var leaveNotice = new ChatMessage
+            {
+                SenderId = "System",
+                SenderName = "System",
+                Type = (int)ChatType.System,
+                Message = $"{session.UserName} 님이 방을 떠났습니다.",
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            await _rooms.BroadcastToRoomAsync(removal.Room.RoomId, MessageType.ChatMessage, leaveNotice);
+        }
     }
 
     private Task SendFailure(Session session, string message)

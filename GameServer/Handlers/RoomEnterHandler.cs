@@ -28,47 +28,75 @@ public class RoomEnterHandler : MessageHandler<RoomEnterRequest>
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(message.RoomId))
+        var options = new RoomJoinOptions
         {
-            await SendFailure(session, "유효하지 않은 방 ID 입니다.");
+            AllowQueue = message.AllowQueue,
+            JoinAsSpectator = message.JoinAsSpectator,
+            PreferredRole = Enum.IsDefined(typeof(RoomRole), message.PreferredRole)
+                ? (RoomRole)message.PreferredRole
+                : RoomRole.Player,
+            Password = message.Password
+        };
+
+        RoomAssignmentResult result;
+        if (message.AutoAssign)
+        {
+            var lobbyId = string.IsNullOrWhiteSpace(message.LobbyId)
+                ? RoomManager.DefaultLobbyId
+                : message.LobbyId;
+            result = _rooms.AutoAssign(session.UserName!, lobbyId, options);
+        }
+        else
+        {
+            var roomId = string.IsNullOrWhiteSpace(message.RoomId)
+                ? RoomManager.DefaultLobbyId
+                : message.RoomId;
+            result = _rooms.TryAssignPlayerToRoom(session.UserName!, roomId, options);
+        }
+
+        if (!result.Success || result.Room == null)
+        {
+            await SendFailure(session, string.IsNullOrEmpty(result.FailureReason)
+                ? "방이 가득 찼거나 입장할 수 없습니다."
+                : result.FailureReason);
             return;
         }
 
-        var room = _rooms.GetRoom(message.RoomId);
-        if (room == null)
-        {
-            await SendFailure(session, "존재하지 않는 방입니다.");
-            return;
-        }
-
-        if (!_rooms.AssignPlayerToRoom(session.UserName!, room.RoomId))
-        {
-            await SendFailure(session, "방이 가득 찼거나 입장할 수 없습니다.");
-            return;
-        }
-
+        var room = result.Room;
         _sessions.UpdatePlayerWorld(session.UserName!, room.WorldId, 0, 0);
 
         var response = new RoomEnterResponse
         {
             Success = true,
-            Message = $"{room.DisplayName} 방에 입장했습니다.",
+            Message = result.Queued
+                ? "방이 가득 차 대기열에 등록되었습니다."
+                : $"{room.DisplayName} 방에 입장했습니다.",
             Room = room.ToRoomInfo(),
-            Members = room.GetMemberSnapshot()
+            Members = room.GetMemberSnapshot(),
+            IsQueued = result.Queued,
+            QueuePosition = result.QueuePosition,
+            JoinedAsSpectator = result.Member?.Role == RoomRole.Spectator,
+            EstimatedWaitMs = result.Queued ? Math.Max(0, result.QueuePosition - 1) * 15000L : 0,
+            Member = result.Member != null ? room.BuildMemberInfo(result.Member) : null
         };
 
         await session.SendAsync(MessageType.RoomEnterResponse, response);
 
-        // Broadcast join notification to other members
-        var joinNotice = new ChatMessage
+        if (!result.Queued && !result.AlreadyInRoom)
         {
-            SenderId = "System",
-            SenderName = "System",
-            Type = (int)ChatType.System,
-            Message = $"{session.UserName} 님이 방에 입장했습니다.",
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-        await _rooms.BroadcastToRoomAsync(room.RoomId, MessageType.ChatMessage, joinNotice);
+            var joinNotice = new ChatMessage
+            {
+                SenderId = "System",
+                SenderName = "System",
+                Type = (int)ChatType.System,
+                Message = response.JoinedAsSpectator
+                    ? $"{session.UserName} 님이 관전 모드로 방에 합류했습니다."
+                    : $"{session.UserName} 님이 방에 입장했습니다.",
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            await _rooms.BroadcastToRoomAsync(room.RoomId, MessageType.ChatMessage, joinNotice);
+        }
     }
 
     private Task SendFailure(Session session, string message)

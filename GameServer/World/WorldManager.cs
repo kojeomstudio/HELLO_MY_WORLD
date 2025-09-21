@@ -20,6 +20,11 @@ namespace GameServerApp.World
         private const int MinSurfaceHeight = 45;
         private const int MaxSurfaceHeight = 150;
         private const double CliffThreshold = 0.55;
+        private const double DomainWarpSimplexFrequency = 0.00065;
+        private const double DomainWarpPerlinFrequency = 0.0011;
+        private const double DomainWarpSimplexAmplitude = 32.0;
+        private const double DomainWarpPerlinAmplitude = 18.0;
+        private const double ValleyDepthMultiplier = 12.0;
 
         private struct TerrainProfile
         {
@@ -198,16 +203,32 @@ namespace GameServerApp.World
 
         private TerrainProfile CalculateTerrainProfile(int worldX, int worldZ)
         {
-            var continentalness = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.00045, 5, 1.0, 0.55, 934113));
-            var erosion = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0012, 4, 1.0, 0.6, 811223));
-            var peaks = SampleRidgedNoise(worldX, worldZ, 0.0018, 4, 1.0, 0.5, 51277);
-            var hills = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0025, 4, 1.0, 0.55, 22119));
-            var humidity = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.00095, 3, 1.0, 0.6, 6711));
-            var temperature = NormalizeNoise(SimplexNoise.Generate(worldX, worldZ, 0.0008, 3, 1.0, 0.6, 9987));
+            var warp = SimplexNoise.DomainWarp(
+                worldX,
+                worldZ,
+                DomainWarpSimplexFrequency,
+                DomainWarpPerlinFrequency,
+                DomainWarpSimplexAmplitude,
+                DomainWarpPerlinAmplitude,
+                925113);
 
-            if (continentalness < OceanThreshold)
+            double sampleX = worldX + warp.dx;
+            double sampleZ = worldZ + warp.dz;
+
+            var continentalness = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.00045, 5, 1.0, 0.52, 934113));
+            var macroPerlin = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.00038, 4, 1.0, 0.5, 420031));
+            var erosion = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 4, 1.0, 0.58, 811223));
+            var peaks = SampleRidgedNoise(sampleX, sampleZ, 0.0018, 4, 1.0, 0.48, 51277);
+            var hills = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.0028, 4, 1.0, 0.54, 22119));
+            var valleyNoise = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.0036, 3, 1.0, 0.45, 20317));
+            var humidity = NormalizeNoise(SimplexNoise.Generate(sampleX, sampleZ, 0.00095, 3, 1.0, 0.58, 6711));
+            var temperature = NormalizeNoise(PerlinNoise.Generate(sampleX, sampleZ, 0.00075, 3, 1.0, 0.6, 9987));
+
+            double blendedContinental = Math.Clamp(continentalness * 0.65 + macroPerlin * 0.35, 0.0, 1.0);
+
+            if (blendedContinental < OceanThreshold)
             {
-                double oceanDepthFactor = Math.Clamp((OceanThreshold - continentalness) / OceanThreshold, 0.0, 1.0);
+                double oceanDepthFactor = Math.Clamp((OceanThreshold - blendedContinental) / OceanThreshold, 0.0, 1.0);
                 int depth = 14 + (int)(oceanDepthFactor * 28);
                 int seafloor = Math.Max(6, GlobalWaterLevel - depth);
 
@@ -224,7 +245,7 @@ namespace GameServerApp.World
                 };
             }
 
-            bool isBeach = continentalness < BeachThreshold;
+            bool isBeach = blendedContinental < BeachThreshold;
 
             var profile = new TerrainProfile
             {
@@ -237,22 +258,24 @@ namespace GameServerApp.World
                 UseCliffFace = false
             };
 
-            double landFactor = continentalness - OceanThreshold;
-            int baseHeight = 60 + (int)(landFactor * 48) - (int)(erosion * 10);
-            baseHeight = Math.Clamp(baseHeight, 55, 95);
+            int baseHeight = (int)(MinSurfaceHeight + blendedContinental * 62);
+            baseHeight -= (int)(erosion * 10);
+            baseHeight -= (int)(Math.Max(0.0, 0.55 - valleyNoise) * ValleyDepthMultiplier);
+            baseHeight = Math.Clamp(baseHeight, MinSurfaceHeight, MaxSurfaceHeight);
 
-            double hillWeight = Math.Max(0.0, hills - 0.35);
-            double mountainWeight = Math.Max(0.0, peaks - 0.45) * (1.0 - erosion * 0.6);
+            double hillWeight = Math.Max(0.0, hills - 0.32);
+            double mountainWeight = Math.Max(0.0, peaks - 0.46) * (1.0 - erosion * 0.6);
+            mountainWeight += Math.Max(0.0, valleyNoise - 0.7) * 0.25;
 
-            int hillContribution = (int)(hillWeight * 18);
-            int mountainContribution = (int)(mountainWeight * 60);
+            int hillContribution = (int)(hillWeight * 20);
+            int mountainContribution = (int)(mountainWeight * 64);
 
             int surfaceHeight = baseHeight + hillContribution + mountainContribution;
             surfaceHeight = Math.Clamp(surfaceHeight, MinSurfaceHeight, MaxSurfaceHeight);
             profile.SurfaceHeight = surfaceHeight;
 
             bool steep = mountainWeight > CliffThreshold && erosion < 0.35;
-            bool mountainous = surfaceHeight > 105 || mountainContribution > 25;
+            bool mountainous = surfaceHeight > 108 || mountainContribution > 28;
 
             if (steep)
             {
@@ -293,6 +316,8 @@ namespace GameServerApp.World
                 profile.Biome = BiomeType.Beach;
                 profile.SurfaceBlock = BlockType.Sand;
                 profile.SubSurfaceBlock = BlockType.Sand;
+                profile.HasWater = true;
+                profile.WaterLevel = Math.Max(GlobalWaterLevel - 1, profile.SurfaceHeight + 1);
             }
 
             return profile;
@@ -356,7 +381,7 @@ namespace GameServerApp.World
             return Math.Clamp((value + 1.0) * 0.5, 0.0, 1.0);
         }
 
-        private double SampleRidgedNoise(int worldX, int worldZ, double frequency, int octaves, double amplitude, double persistence, int seed)
+        private double SampleRidgedNoise(double worldX, double worldZ, double frequency, int octaves, double amplitude, double persistence, int seed)
         {
             var noise = SimplexNoise.Generate(worldX, worldZ, frequency, octaves, amplitude, persistence, seed);
             noise = Math.Clamp(noise, -1.0, 1.0);
@@ -581,7 +606,11 @@ namespace GameServerApp.World
                     var worldX = chunkX * 16 + x;
                     var worldZ = chunkZ * 16 + z;
 
-                    double riverNoise = SimplexNoise.Generate(worldX * 0.0012, worldZ * 0.0012, 0.6, 5, 1.0, 0.45, 91111);
+                    var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
+                    double sampleX = worldX + warp.dx;
+                    double sampleZ = worldZ + warp.dz;
+
+                    double riverNoise = SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
                     double intensity = Math.Abs(riverNoise);
 
                     if (intensity < RiverCenterThreshold)
@@ -601,7 +630,10 @@ namespace GameServerApp.World
 
         private void GenerateLakes(ChunkData chunk, int chunkX, int chunkZ)
         {
-            double lakeNoise = SimplexNoise.Generate(chunkX * 0.035, chunkZ * 0.035, 0.55, 3, 1.0, 0.55, 67891);
+            var warp = SimplexNoise.DomainWarp(chunkX * 16, chunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
+            double lakeSimplex = SimplexNoise.Generate(chunkX + warp.dx, chunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);
+            double lakePerlin = PerlinNoise.Generate(chunkX + warp.dx, chunkZ + warp.dz, 0.028, 2, 1.0, 0.6, 77811);
+            double lakeNoise = (lakeSimplex + lakePerlin) * 0.5;
             if (lakeNoise < 0.62)
                 return;
 
@@ -650,7 +682,10 @@ namespace GameServerApp.World
                     var worldX = chunkX * 16 + x;
                     var worldZ = chunkZ * 16 + z;
 
-                    double noise = SimplexNoise.Generate(worldX * 0.0009, worldZ * 0.0009, 0.65, 4, 1.0, 0.6, 44444);
+                    var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0005, 0.001, 12.0, 6.0, 44444);
+                    double noiseSimplex = SimplexNoise.Generate(worldX + warp.dx, worldZ + warp.dz, 0.0009, 4, 1.0, 0.6, 44444);
+                    double noisePerlin = PerlinNoise.Generate(worldX + warp.dx, worldZ + warp.dz, 0.0012, 2, 1.0, 0.55, 55444);
+                    double noise = (noiseSimplex * 0.65) + (noisePerlin * 0.35);
                     if (noise <= 0.68)
                         continue;
 
@@ -1171,10 +1206,15 @@ namespace GameServerApp.World
                 {
                     var biome = chunk.GetBiome(x, z);
                     var surfaceY = FindSurfaceLevel(chunk, x, z);
-                    
+                    var globalX = chunkX * 16 + x;
+                    var globalZ = chunkZ * 16 + z;
+                    var vegetationWarp = SimplexNoise.DomainWarp(globalX, globalZ, 0.0015, 0.0028, 6.0, 3.0, 9127);
+                    double patchiness = NormalizeNoise(PerlinNoise.Generate(globalX + vegetationWarp.dx, globalZ + vegetationWarp.dz, 0.008, 2, 1.0, 0.5, 9127));
+                    double density = GetVegetationDensity(biome) * (0.5 + patchiness * 0.5);
+
                     if (surfaceY > 0 && chunk.GetBlock(x, surfaceY, z) == BlockType.Grass)
                     {
-                        if (rand.NextDouble() < GetVegetationDensity(biome))
+                        if (rand.NextDouble() < density)
                         {
                             if (surfaceY + 1 < 256)
                             {
@@ -1478,6 +1518,17 @@ namespace GameServerApp.World
 
     public static class SimplexNoise
     {
+        public static (double dx, double dz) DomainWarp(double x, double z, double simplexFrequency, double perlinFrequency, double simplexAmplitude, double perlinAmplitude, int seed)
+        {
+            double simplexOffsetX = Generate(x, z, simplexFrequency, 3, 1.0, 0.5, seed) * simplexAmplitude;
+            double simplexOffsetZ = Generate(x + 37.0, z + 53.0, simplexFrequency, 3, 1.0, 0.5, seed ^ 0x5F5F5F5F) * simplexAmplitude;
+
+            double perlinOffsetX = PerlinNoise.Generate(x, z, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x00FF00FF) * perlinAmplitude;
+            double perlinOffsetZ = PerlinNoise.Generate(x + 17.0, z + 23.0, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x7F00EF00) * perlinAmplitude;
+
+            return (simplexOffsetX + perlinOffsetX, simplexOffsetZ + perlinOffsetZ);
+        }
+
         public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
         {
             var random = new Random(seed);
@@ -1525,5 +1576,87 @@ namespace GameServerApp.World
         private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         private static double Lerp(double a, double b, double t) => a + t * (b - a);
         private static double Grad(int hash, double x, double y) => ((hash & 1) == 0 ? x : -x) + ((hash & 2) == 0 ? y : -y);
+    }
+
+    public static class PerlinNoise
+    {
+        public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
+        {
+            var random = new Random(seed);
+            var permutation = BuildPermutation(random);
+
+            double total = 0.0;
+            double maxValue = 0.0;
+            double currentFrequency = frequency;
+            double currentAmplitude = amplitude;
+
+            for (int i = 0; i < octaves; i++)
+            {
+                total += Perlin(permutation, x * currentFrequency, y * currentFrequency) * currentAmplitude;
+                maxValue += currentAmplitude;
+                currentFrequency *= 2.0;
+                currentAmplitude *= persistence;
+            }
+
+            return maxValue == 0 ? 0 : total / maxValue;
+        }
+
+        private static double Perlin(int[] permutation, double x, double y)
+        {
+            int xi = (int)Math.Floor(x) & 255;
+            int yi = (int)Math.Floor(y) & 255;
+
+            double xf = x - Math.Floor(x);
+            double yf = y - Math.Floor(y);
+
+            double u = Fade(xf);
+            double v = Fade(yf);
+
+            int aa = permutation[permutation[xi] + yi];
+            int ab = permutation[permutation[xi] + yi + 1];
+            int ba = permutation[permutation[xi + 1] + yi];
+            int bb = permutation[permutation[xi + 1] + yi + 1];
+
+            double x1 = Lerp(Grad(aa, xf, yf), Grad(ba, xf - 1, yf), u);
+            double x2 = Lerp(Grad(ab, xf, yf - 1), Grad(bb, xf - 1, yf - 1), u);
+
+            return Lerp(x1, x2, v);
+        }
+
+        private static int[] BuildPermutation(Random random)
+        {
+            var baseArray = new int[256];
+            for (int i = 0; i < 256; i++)
+            {
+                baseArray[i] = i;
+            }
+
+            for (int i = 255; i > 0; i--)
+            {
+                int swapIndex = random.Next(i + 1);
+                var temp = baseArray[i];
+                baseArray[i] = baseArray[swapIndex];
+                baseArray[swapIndex] = temp;
+            }
+
+            var permutation = new int[512];
+            for (int i = 0; i < 512; i++)
+            {
+                permutation[i] = baseArray[i & 255];
+            }
+
+            return permutation;
+        }
+
+        private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
+        private static double Lerp(double a, double b, double t) => a + t * (b - a);
+
+        private static double Grad(int hash, double x, double y)
+        {
+            int h = hash & 7;
+            double u = h < 4 ? x : y;
+            double v = h < 4 ? y : x;
+            return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+        }
     }
 }

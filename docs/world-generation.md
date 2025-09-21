@@ -6,9 +6,9 @@ The 2024 refresh of `WorldManager` adds coastal oceans, navigable rivers, inland
 
 Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
-1. **Continentalness mask** – low-frequency Simplex noise determines whether a column lies on land, shallow coast, or deep ocean. Columns that fall below the `OceanThreshold` are marked as Ocean biomes and automatically filled with water up to the global sea level (Y=62).
-2. **Erosion & ridges** – additional noise samples shape hills versus mountains. A ridged profile produces sharp peaks while an erosion signal dampens steep slopes, giving rolling foothills and dramatic ridgelines.
-3. **Biome selection** – temperature/humidity noise still decides between plains, forest, desert, and tundra. New biome identifiers were added for `Mountains`, `Hills`, `Cliffs`, and `Beach` so the client can render appropriate ambience.
+1. **Continentalness mask** – low-frequency Simplex noise blended with classic Perlin through domain warping determines whether a column lies on land, shallow coast, or deep ocean. Columns that fall below the `OceanThreshold` are marked as Ocean biomes and automatically filled with water up to the global sea level (Y=62).
+2. **Erosion & ridges** – additional Simplex/Perlin passes shape hills versus mountains. A ridged profile produces sharp peaks while the erosion signal dampens steep slopes, giving rolling foothills and dramatic ridgelines.
+3. **Biome selection** – temperature/humidity noise now uses both Simplex and Perlin samplers. The result drives the existing biomes as well as the extended highland set (`Mountains`, `Hills`, `Cliffs`, `Beach`).
 4. **Column sculpting** – the pipeline lays down bedrock, filler stone, biome-specific topsoil (grass/dirt, sand, cobblestone cliffs) and applies water caps for oceans and freshwater pockets.
 5. **Post-processing** – after the base terrain is in place we apply ore generation, caves, dungeons, rivers, lakes, vegetation, and clouds.
 
@@ -44,7 +44,7 @@ Vegetation density now respects the extended biome list:
 - Deserts and beaches sprinkle dead bushes.
 - Mountains and cliffs keep vegetation minimal to preserve rocky silhouettes.
 
-Clouds still float above the world but now vary in altitude based on noise-driven coverage.
+Clouds still float above the world but now vary in altitude based on a domain-warped Simplex/Perlin blend, producing broken skies instead of parallel bands.
 
 ## Biome & Block Enumerations
 

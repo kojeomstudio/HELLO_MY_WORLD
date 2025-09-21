@@ -733,6 +733,7 @@ namespace Minecraft.Core
                 if (response.IsQueued)
                 {
                     Debug.Log($"Waiting in queue position {response.QueuePosition} (est. {response.EstimatedWaitMs} ms).");
+                    response.Room.QueueCount = Math.Max(response.Room.QueueCount, response.QueuePosition);
                 }
             }
 
@@ -755,6 +756,17 @@ namespace Minecraft.Core
                     : string.Empty;
                 var destination = response.ReturnedToLobby ? "returned to lobby" : "left room";
                 Debug.Log($"Left room {response.PreviousRoomId}; {destination}.{promotionSuffix}");
+                if (_knownRooms.TryGetValue(response.PreviousRoomId, out var info))
+                {
+                    if (info.PlayerCount > 0 && response.ReturnedToLobby)
+                    {
+                        info.PlayerCount = Math.Max(0, info.PlayerCount - 1);
+                    }
+                    if (response.PromotedFromQueue && info.QueueCount > 0)
+                    {
+                        info.QueueCount = Math.Max(0, info.QueueCount - 1);
+                    }
+                }
             }
 
             RoomLeft?.Invoke(response);
@@ -764,6 +776,10 @@ namespace Minecraft.Core
         {
             var waiting = message.Queue?.Count ?? 0;
             Debug.Log($"Queue update for room {message.RoomId}: {waiting} players waiting.");
+            if (_knownRooms.TryGetValue(message.RoomId, out var info))
+            {
+                info.QueueCount = waiting;
+            }
             RoomQueueUpdated?.Invoke(message);
         }
 
@@ -776,6 +792,19 @@ namespace Minecraft.Core
             else
             {
                 Debug.Log($"Received room promotion notice for {message.RoomId}.");
+            }
+
+            if (message.Room != null && !string.IsNullOrEmpty(message.Room.RoomId))
+            {
+                _knownRooms[message.Room.RoomId] = message.Room;
+            }
+            else if (_knownRooms.TryGetValue(message.RoomId, out var info))
+            {
+                info.QueueCount = Math.Max(0, info.QueueCount - 1);
+                if (message.Member != null && !message.Member.IsSpectator)
+                {
+                    info.PlayerCount += 1;
+                }
             }
 
             RoomPromotionReceived?.Invoke(message);

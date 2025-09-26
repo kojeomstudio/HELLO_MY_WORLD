@@ -1,7 +1,7 @@
-using Microsoft.Data.Sqlite;
+using System;
 using System.Collections.Generic;
+using Microsoft.Data.Sqlite;
 using GameServerApp.Models;
-using System.Text.Json;
 
 namespace GameServerApp.Database
 {
@@ -125,58 +125,88 @@ namespace GameServerApp.Database
             cmd.ExecuteNonQuery();
         }
 
+        private async Task ExecuteAsync(Func<SqliteConnection, Task> work)
+        {
+            await using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            await work(connection);
+        }
+
+        private async Task<T> ExecuteAsync<T>(Func<SqliteConnection, Task<T>> work)
+        {
+            await using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            return await work(connection);
+        }
+
+        private async Task ExecuteInTransactionAsync(Func<SqliteConnection, SqliteTransaction, Task> work)
+        {
+            await using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            await using var dbTransaction = await connection.BeginTransactionAsync();
+            var transaction = (SqliteTransaction)dbTransaction;
+            try
+            {
+                await work(connection, transaction);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
         public async Task<Character?> GetPlayerByNameAsync(string name)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                SELECT Id, Name, PasswordHash, Salt, X, Y, Z, Level, Health, MaxHealth, 
-                       Experience, GameMode, CreatedAt, LastLoginAt, IsOnline 
-                FROM Players WHERE Name = $name;";
-            cmd.Parameters.AddWithValue("$name", name);
-            
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            return await ExecuteAsync(async connection =>
             {
-                int idxName = reader.GetOrdinal("Name");
-                int idxX = reader.GetOrdinal("X");
-                int idxY = reader.GetOrdinal("Y");
-                int idxZ = reader.GetOrdinal("Z");
-                int idxPasswordHash = reader.GetOrdinal("PasswordHash");
-                int idxSalt = reader.GetOrdinal("Salt");
-                int idxLevel = reader.GetOrdinal("Level");
-                int idxHealth = reader.GetOrdinal("Health");
-                int idxMaxHealth = reader.GetOrdinal("MaxHealth");
-                int idxCreatedAt = reader.GetOrdinal("CreatedAt");
-                int idxLastLoginAt = reader.GetOrdinal("LastLoginAt");
-                int idxId = reader.GetOrdinal("Id");
-
-                var character = new Character(reader.GetString(idxName), 
-                    reader.GetDouble(idxX), reader.GetDouble(idxY), reader.GetDouble(idxZ))
-                {
-                    PasswordHash = reader.GetString(idxPasswordHash),
-                    Salt = reader.GetString(idxSalt),
-                    Level = reader.GetInt32(idxLevel),
-                    Health = reader.GetInt32(idxHealth),
-                    MaxHealth = reader.GetInt32(idxMaxHealth),
-                    CreatedAt = reader.GetDateTime(idxCreatedAt),
-                    LastLoginAt = reader.GetDateTime(idxLastLoginAt)
-                };
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT Id, Name, PasswordHash, Salt, X, Y, Z, Level, Health, MaxHealth, 
+                           Experience, GameMode, CreatedAt, LastLoginAt, IsOnline 
+                    FROM Players WHERE Name = $name;";
+                cmd.Parameters.AddWithValue("$name", name);
                 
-                await LoadPlayerInventory(character, reader.GetInt32(idxId));
-                return character;
-            }
-            return null;
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    int idxName = reader.GetOrdinal("Name");
+                    int idxX = reader.GetOrdinal("X");
+                    int idxY = reader.GetOrdinal("Y");
+                    int idxZ = reader.GetOrdinal("Z");
+                    int idxPasswordHash = reader.GetOrdinal("PasswordHash");
+                    int idxSalt = reader.GetOrdinal("Salt");
+                    int idxLevel = reader.GetOrdinal("Level");
+                    int idxHealth = reader.GetOrdinal("Health");
+                    int idxMaxHealth = reader.GetOrdinal("MaxHealth");
+                    int idxCreatedAt = reader.GetOrdinal("CreatedAt");
+                    int idxLastLoginAt = reader.GetOrdinal("LastLoginAt");
+                    int idxId = reader.GetOrdinal("Id");
+
+                    var character = new Character(reader.GetString(idxName), 
+                        reader.GetDouble(idxX), reader.GetDouble(idxY), reader.GetDouble(idxZ))
+                    {
+                        PasswordHash = reader.GetString(idxPasswordHash),
+                        Salt = reader.GetString(idxSalt),
+                        Level = reader.GetInt32(idxLevel),
+                        Health = reader.GetInt32(idxHealth),
+                        MaxHealth = reader.GetInt32(idxMaxHealth),
+                        CreatedAt = reader.GetDateTime(idxCreatedAt),
+                        LastLoginAt = reader.GetDateTime(idxLastLoginAt)
+                    };
+                    
+                    await LoadPlayerInventory(character, reader.GetInt32(idxId), connection);
+                    return character;
+                }
+                return null;
+            });
         }
         
-        private async Task LoadPlayerInventory(Character character, int playerId)
+        private async Task LoadPlayerInventory(Character character, int playerId, SqliteConnection connection, SqliteTransaction? transaction = null)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
             var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText = @"
                 SELECT ItemId, ItemName, Quantity, Slot 
                 FROM PlayerInventories 
@@ -198,11 +228,7 @@ namespace GameServerApp.Database
 
         public async Task SavePlayerAsync(Character player)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            using var transaction = connection.BeginTransaction();
-            try
+            await ExecuteInTransactionAsync(async (connection, transaction) =>
             {
                 var cmd = connection.CreateCommand();
                 cmd.Transaction = transaction;
@@ -235,17 +261,10 @@ namespace GameServerApp.Database
                 
                 var playerId = await GetPlayerIdByName(player.Name, connection, transaction);
                 await SavePlayerInventory(playerId, player.Inventory, connection, transaction);
-                
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            });
         }
         
-        private async Task<int> GetPlayerIdByName(string name, SqliteConnection connection, SqliteTransaction transaction)
+        private async Task<int> GetPlayerIdByName(string name, SqliteConnection connection, SqliteTransaction? transaction)
         {
             var cmd = connection.CreateCommand();
             cmd.Transaction = transaction;
@@ -253,6 +272,10 @@ namespace GameServerApp.Database
             cmd.Parameters.AddWithValue("$name", name);
             
             var result = await cmd.ExecuteScalarAsync();
+            if (result == null || result == DBNull.Value)
+            {
+                throw new InvalidOperationException($"Player '{name}' was not found in the database.");
+            }
             return Convert.ToInt32(result);
         }
         
@@ -264,157 +287,158 @@ namespace GameServerApp.Database
             deleteCmd.Parameters.AddWithValue("$playerId", playerId);
             await deleteCmd.ExecuteNonQueryAsync();
             
+            var insertCmd = connection.CreateCommand();
+            insertCmd.Transaction = transaction;
+            insertCmd.CommandText = @"
+                INSERT INTO PlayerInventories (PlayerId, ItemId, ItemName, Quantity, Slot)
+                VALUES ($playerId, $itemId, $itemName, $quantity, $slot);";
+            insertCmd.Parameters.AddWithValue("$playerId", playerId);
+            var itemIdParam = insertCmd.Parameters.Add("$itemId", SqliteType.Integer);
+            var itemNameParam = insertCmd.Parameters.Add("$itemName", SqliteType.Text);
+            var quantityParam = insertCmd.Parameters.Add("$quantity", SqliteType.Integer);
+            var slotParam = insertCmd.Parameters.Add("$slot", SqliteType.Integer);
+
             for (int i = 0; i < inventory.Count; i++)
             {
                 var item = inventory[i];
-                var insertCmd = connection.CreateCommand();
-                insertCmd.Transaction = transaction;
-                insertCmd.CommandText = @"
-                    INSERT INTO PlayerInventories (PlayerId, ItemId, ItemName, Quantity, Slot)
-                    VALUES ($playerId, $itemId, $itemName, $quantity, $slot);";
-                insertCmd.Parameters.AddWithValue("$playerId", playerId);
-                insertCmd.Parameters.AddWithValue("$itemId", item.Id);
-                insertCmd.Parameters.AddWithValue("$itemName", item.Name);
-                insertCmd.Parameters.AddWithValue("$quantity", item.Quantity);
-                insertCmd.Parameters.AddWithValue("$slot", i);
+                itemIdParam.Value = item.Id;
+                itemNameParam.Value = item.Name;
+                quantityParam.Value = item.Quantity;
+                slotParam.Value = i;
                 await insertCmd.ExecuteNonQueryAsync();
             }
         }
 
         public async Task<string> CreateSessionAsync(string playerName)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var playerId = await GetPlayerIdByName(playerName, connection, null);
-            var sessionToken = Guid.NewGuid().ToString();
-            var expiresAt = DateTime.UtcNow.AddHours(24);
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                INSERT INTO PlayerSessions (PlayerId, SessionToken, ExpiresAt)
-                VALUES ($playerId, $sessionToken, $expiresAt);";
-            cmd.Parameters.AddWithValue("$playerId", playerId);
-            cmd.Parameters.AddWithValue("$sessionToken", sessionToken);
-            cmd.Parameters.AddWithValue("$expiresAt", expiresAt);
-            
-            await cmd.ExecuteNonQueryAsync();
-            return sessionToken;
+            return await ExecuteAsync(async connection =>
+            {
+                var playerId = await GetPlayerIdByName(playerName, connection, null);
+                var sessionToken = Guid.NewGuid().ToString();
+                var expiresAt = DateTime.UtcNow.AddHours(24);
+                
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO PlayerSessions (PlayerId, SessionToken, ExpiresAt)
+                    VALUES ($playerId, $sessionToken, $expiresAt);";
+                cmd.Parameters.AddWithValue("$playerId", playerId);
+                cmd.Parameters.AddWithValue("$sessionToken", sessionToken);
+                cmd.Parameters.AddWithValue("$expiresAt", expiresAt);
+                
+                await cmd.ExecuteNonQueryAsync();
+                return sessionToken;
+            });
         }
         
         public async Task<bool> ValidateSessionAsync(string sessionToken)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                SELECT COUNT(*) FROM PlayerSessions 
-                WHERE SessionToken = $token AND ExpiresAt > datetime('now') AND IsActive = 1;";
-            cmd.Parameters.AddWithValue("$token", sessionToken);
-            
-            var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-            return count > 0;
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT COUNT(*) FROM PlayerSessions 
+                    WHERE SessionToken = $token AND ExpiresAt > datetime('now') AND IsActive = 1;";
+                cmd.Parameters.AddWithValue("$token", sessionToken);
+                
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                return count > 0;
+            });
         }
 
-        public async Task SaveChunkAsync(int worldId, int chunkX, int chunkZ, byte[] blockData, byte[] biomeData = null)
+        public async Task SaveChunkAsync(int worldId, int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                INSERT INTO Chunks (WorldId, ChunkX, ChunkZ, BlockData, BiomeData, IsLoaded)
-                VALUES ($worldId, $chunkX, $chunkZ, $blockData, $biomeData, 1)
-                ON CONFLICT(WorldId, ChunkX, ChunkZ) DO UPDATE SET
-                    BlockData = excluded.BlockData,
-                    BiomeData = excluded.BiomeData,
-                    LastModified = CURRENT_TIMESTAMP,
-                    IsLoaded = 1;";
-            
-            cmd.Parameters.AddWithValue("$worldId", worldId);
-            cmd.Parameters.AddWithValue("$chunkX", chunkX);
-            cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
-            cmd.Parameters.AddWithValue("$blockData", blockData);
-            cmd.Parameters.AddWithValue("$biomeData", biomeData ?? Array.Empty<byte>());
-            
-            await cmd.ExecuteNonQueryAsync();
+            await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO Chunks (WorldId, ChunkX, ChunkZ, BlockData, BiomeData, IsLoaded)
+                    VALUES ($worldId, $chunkX, $chunkZ, $blockData, $biomeData, 1)
+                    ON CONFLICT(WorldId, ChunkX, ChunkZ) DO UPDATE SET
+                        BlockData = excluded.BlockData,
+                        BiomeData = excluded.BiomeData,
+                        LastModified = CURRENT_TIMESTAMP,
+                        IsLoaded = 1;";
+                
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$chunkX", chunkX);
+                cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
+                cmd.Parameters.AddWithValue("$blockData", blockData);
+                cmd.Parameters.Add("$biomeData", SqliteType.Blob).Value = biomeData ?? (object)DBNull.Value;
+                
+                await cmd.ExecuteNonQueryAsync();
+            });
         }
         
         public async Task<(byte[] blockData, byte[] biomeData)?> LoadChunkAsync(int worldId, int chunkX, int chunkZ)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                SELECT BlockData, BiomeData FROM Chunks 
-                WHERE WorldId = $worldId AND ChunkX = $chunkX AND ChunkZ = $chunkZ;";
-            cmd.Parameters.AddWithValue("$worldId", worldId);
-            cmd.Parameters.AddWithValue("$chunkX", chunkX);
-            cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
-            
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            return await ExecuteAsync(async connection =>
             {
-                var blockData = (byte[])reader["BlockData"];
-                var biomeData = (byte[])reader["BiomeData"];
-                return (blockData, biomeData);
-            }
-            
-            return null;
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT BlockData, BiomeData FROM Chunks 
+                    WHERE WorldId = $worldId AND ChunkX = $chunkX AND ChunkZ = $chunkZ;";
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$chunkX", chunkX);
+                cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
+                
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var blockData = reader["BlockData"] as byte[] ?? Array.Empty<byte>();
+                    var biomeData = reader["BiomeData"] as byte[] ?? Array.Empty<byte>();
+                    return (blockData, biomeData);
+                }
+                
+                return ((byte[] blockData, byte[] biomeData)?)null;
+            });
+        }
+
+        public async Task<byte[]?> GetChunkDataAsync(int chunkX, int chunkZ)
+        {
+            var worldId = await GetDefaultWorldIdAsync();
+            var result = await LoadChunkAsync(worldId, chunkX, chunkZ);
+            return result?.blockData;
+        }
+
+        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
+        {
+            var worldId = await GetDefaultWorldIdAsync();
+            await SaveChunkAsync(worldId, chunkX, chunkZ, blockData, biomeData);
         }
         
         public async Task SaveBlockChangeAsync(int worldId, int chunkX, int chunkZ, 
             int blockX, int blockY, int blockZ, int blockType, int playerId)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
-                INSERT INTO BlockChanges (WorldId, ChunkX, ChunkZ, BlockX, BlockY, BlockZ, BlockType, PlayerId)
-                VALUES ($worldId, $chunkX, $chunkZ, $blockX, $blockY, $blockZ, $blockType, $playerId);";
-            
-            cmd.Parameters.AddWithValue("$worldId", worldId);
-            cmd.Parameters.AddWithValue("$chunkX", chunkX);
-            cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
-            cmd.Parameters.AddWithValue("$blockX", blockX);
-            cmd.Parameters.AddWithValue("$blockY", blockY);
-            cmd.Parameters.AddWithValue("$blockZ", blockZ);
-            cmd.Parameters.AddWithValue("$blockType", blockType);
-            cmd.Parameters.AddWithValue("$playerId", playerId);
-            
-            await cmd.ExecuteNonQueryAsync();
+            await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO BlockChanges (WorldId, ChunkX, ChunkZ, BlockX, BlockY, BlockZ, BlockType, PlayerId)
+                    VALUES ($worldId, $chunkX, $chunkZ, $blockX, $blockY, $blockZ, $blockType, $playerId);";
+                
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$chunkX", chunkX);
+                cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
+                cmd.Parameters.AddWithValue("$blockX", blockX);
+                cmd.Parameters.AddWithValue("$blockY", blockY);
+                cmd.Parameters.AddWithValue("$blockZ", blockZ);
+                cmd.Parameters.AddWithValue("$blockType", blockType);
+                cmd.Parameters.AddWithValue("$playerId", playerId);
+                
+                await cmd.ExecuteNonQueryAsync();
+            });
         }
 
         public async Task<int> GetDefaultWorldIdAsync()
         {
-            using var connection = new SqliteConnection(_connectionString);
-            await connection.OpenAsync();
-            
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT Id FROM Worlds WHERE Name = 'default' LIMIT 1;";
-            
-            var result = await cmd.ExecuteScalarAsync();
-            return result != null ? Convert.ToInt32(result) : 1;
-        }
-
-        /// <summary>
-        /// 청크 데이터 가져오기 (마인크래프트 핸들러용)
-        /// </summary>
-        public async Task<byte[]?> GetChunkDataAsync(int chunkX, int chunkZ, int worldId = 1)
-        {
-            var chunkData = await LoadChunkAsync(worldId, chunkX, chunkZ);
-            return chunkData?.blockData;
-        }
-
-        /// <summary>
-        /// 청크 데이터 저장하기 (마인크래프트 핸들러용)
-        /// </summary>
-        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, int worldId = 1)
-        {
-            await SaveChunkAsync(worldId, chunkX, chunkZ, blockData);
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = "SELECT Id FROM Worlds WHERE Name = 'default' LIMIT 1;";
+                
+                var result = await cmd.ExecuteScalarAsync();
+                return result != null ? Convert.ToInt32(result) : 1;
+            });
         }
     }
 }

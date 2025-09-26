@@ -109,7 +109,7 @@ The enhanced “minecraft” messages extend the base `MessageType` enum. The nu
 - 130–133: Entity spawn/despawn/update
 - 140–143: Time/weather/effect broadcasts
 
-When the Unity client writes one of these messages it feeds the raw integer ID into `TcpNetworkTransport`, which happily forwards any four-byte code even if it is outside the `MessageType` enum. On receipt the server’s `Session.ReceiveAsync()` returns the raw payload to the `MinecraftMessageDispatcher` so strongly-typed handlers can pick it up.
+When the Unity client writes one of these messages it feeds the raw integer ID into `TcpNetworkTransport`, which happily forwards any four-byte code even if it is outside the `MessageType` enum. On receipt the server’s `Session.ReceiveAsync()` produces an `IncomingMessage` that exposes both the raw integer and the optional typed enum. Unknown values keep their payload as `byte[]` so specialised dispatchers (e.g. `MinecraftMessageDispatcher`) can deserialize them without having to patch the core enum.
 
 ### Chunk Payload Encoding
 
@@ -127,7 +127,7 @@ Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Gam
 
 - `SharedProtocol/Session.cs` now supports:
   - `SendAsync(int rawMessageType, byte[] payload)` for raw (non-enum) message types.
-  - `ReceiveAsync()` returns raw `byte[]` payload for unknown message type codes (e.g., Minecraft 100+). This prevents exceptions and lets higher-level handlers deserialize.
+- `ReceiveAsync()` returns an `IncomingMessage` exposing `RawType`, `MessageType?`, and the payload. Unknown message codes (e.g., Minecraft 100+) surface as `byte[]` while still reporting the raw integer so higher-level handlers can deserialize without enum churn.
 
 ## Versioning and Backwards Compatibility
 

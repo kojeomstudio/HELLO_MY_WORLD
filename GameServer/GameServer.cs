@@ -6,6 +6,7 @@ using GameServerApp.Handlers;
 using GameServerApp.World;
 using SharedProtocol;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace GameServerApp
 {
@@ -143,7 +144,9 @@ namespace GameServerApp
             {
                 while (_isRunning && client.Connected)
                 {
-                    var (type, message) = await session.ReceiveAsync();
+                    var incoming = await session.ReceiveAsync();
+                    var type = incoming.Type;
+                    var message = incoming.Payload;
 
                     // 간단한 세션별 메시지 레이트 리미팅 (초당 최대 N개)
                     if (_config.Security.EnableRateLimiting && !string.IsNullOrEmpty(session.UserName))
@@ -159,7 +162,19 @@ namespace GameServerApp
                     {
                         _sessions.UpdateHeartbeat(session.UserName);
                     }
-                    
+
+                    if (!_dispatcher.RegisteredMessageTypes.Contains(type))
+                    {
+                        if (message is byte[] rawPayload && Enum.IsDefined(typeof(MinecraftMessageType), incoming.RawType))
+                        {
+                            await _minecraftDispatcher.DispatchMinecraftMessageAsync(session, (MinecraftMessageType)incoming.RawType, rawPayload);
+                            continue;
+                        }
+
+                        Console.WriteLine($"No handler registered for message type {incoming.RawType}. Dropping.");
+                        continue;
+                    }
+
                     await _dispatcher.DispatchAsync(session, type, message);
                 }
             }

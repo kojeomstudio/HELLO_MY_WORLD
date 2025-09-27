@@ -52,32 +52,37 @@ namespace GameServerApp.World.Generation
         }
     }
 
+    public interface ITerrainGenerationStage
+    {
+        string Name { get; }
+        void Execute(TerrainGenerationContext context);
+    }
+
     /// <summary>
     /// Simple pipeline to execute ordered terrain features for a chunk.
     /// </summary>
     public sealed class TerrainGenerationPipeline
     {
-        private readonly List<(string name, Action<TerrainGenerationContext> stage)> _stages = new();
+        private readonly List<ITerrainGenerationStage> _stages = new();
 
-        public TerrainGenerationPipeline AddStage(string name, Action<TerrainGenerationContext> stage)
+        public TerrainGenerationPipeline AddStage(ITerrainGenerationStage stage)
         {
-            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Stage name required", nameof(name));
             if (stage == null) throw new ArgumentNullException(nameof(stage));
-            _stages.Add((name, stage));
+            _stages.Add(stage);
             return this;
         }
 
         public void Execute(TerrainGenerationContext context)
         {
-            foreach (var (name, stage) in _stages)
+            foreach (var stage in _stages)
             {
                 try
                 {
-                    stage(context);
+                    stage.Execute(context);
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Terrain stage '{name}' failed for chunk ({context.ChunkX},{context.ChunkZ}).", ex);
+                    throw new InvalidOperationException($"Terrain stage '{stage.Name}' failed for chunk ({context.ChunkX},{context.ChunkZ}).", ex);
                 }
             }
         }

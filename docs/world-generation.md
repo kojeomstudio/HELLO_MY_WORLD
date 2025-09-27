@@ -16,7 +16,7 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 ### Stage-based Execution
 
-`WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of stages. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable.
+`WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of `ITerrainGenerationStage` implementations. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable and testable.
 
 ## Water Features
 

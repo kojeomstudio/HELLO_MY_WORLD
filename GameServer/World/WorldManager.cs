@@ -47,14 +47,14 @@ namespace GameServerApp.World
             _worldId = worldId;
             _random = new Random();
             _terrainPipeline = new TerrainGenerationPipeline()
-                .AddStage("base-terrain", GenerateBaseTerrain)
-                .AddStage("ores", GenerateOres)
-                .AddStage("caves", GenerateCaves)
-                .AddStage("dungeons", GenerateDungeons)
-                .AddStage("rivers", GenerateRivers)
-                .AddStage("lakes", GenerateLakes)
-                .AddStage("vegetation", GenerateVegetation)
-                .AddStage("clouds", GenerateClouds);
+                .AddStage(new BaseTerrainStage(this))
+                .AddStage(new OreGenerationStage(this))
+                .AddStage(new CaveGenerationStage(this))
+                .AddStage(new DungeonGenerationStage(this))
+                .AddStage(new RiverGenerationStage(this))
+                .AddStage(new LakeGenerationStage(this))
+                .AddStage(new VegetationGenerationStage(this))
+                .AddStage(new CloudGenerationStage(this));
         }
 
         public async Task<ChunkData?> GetChunkAsync(int chunkX, int chunkZ)
@@ -304,7 +304,7 @@ namespace GameServerApp.World
             return profile;
         }
 
-        private void GenerateBaseTerrain(TerrainGenerationContext context)
+        private void GenerateBaseTerrainInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var profiles = context.GetOrAddMetadata(TerrainProfilesKey, () => new TerrainProfile[16, 16]);
@@ -401,7 +401,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 3D 동굴 생성 시스템 - 더 자연스럽고 다양한 동굴 구조
         /// </summary>
-        private void GenerateCaves(TerrainGenerationContext context)
+        private void GenerateCavesInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
@@ -586,7 +586,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 던전 생성 시스템 - 더 복잡하고 다양한 구조의 던전
         /// </summary>
-        private void GenerateDungeons(TerrainGenerationContext context)
+        private void GenerateDungeonsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 83492791) ^ (context.ChunkZ * 297657976));
@@ -609,7 +609,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateRivers(TerrainGenerationContext context)
+        private void GenerateRiversInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             TerrainProfile[,]? profiles = null;
@@ -652,7 +652,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateLakes(TerrainGenerationContext context)
+        private void GenerateLakesInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
@@ -698,7 +698,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateClouds(TerrainGenerationContext context)
+        private void GenerateCloudsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             for (int x = 0; x < 16; x++)
@@ -1138,7 +1138,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 광물 생성 시스템 - 더 현실적이고 균형 잡힌 분배
         /// </summary>
-        private void GenerateOres(TerrainGenerationContext context)
+        private void GenerateOresInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random(context.ChunkX * 1000 + context.ChunkZ);
@@ -1223,7 +1223,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateVegetation(TerrainGenerationContext context)
+        private void GenerateVegetationInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random(context.ChunkX * 2000 + context.ChunkZ);
@@ -1316,6 +1316,70 @@ namespace GameServerApp.World
                 BiomeType.Cliffs => BlockType.DeadBush,
                 _ => BlockType.TallGrass
             };
+        }
+
+        private sealed class BaseTerrainStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public BaseTerrainStage(WorldManager owner) => _owner = owner;
+            public string Name => "base-terrain";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateBaseTerrainInternal(context);
+        }
+
+        private sealed class OreGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public OreGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "ores";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateOresInternal(context);
+        }
+
+        private sealed class CaveGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public CaveGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "caves";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateCavesInternal(context);
+        }
+
+        private sealed class DungeonGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public DungeonGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "dungeons";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateDungeonsInternal(context);
+        }
+
+        private sealed class RiverGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public RiverGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "rivers";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateRiversInternal(context);
+        }
+
+        private sealed class LakeGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public LakeGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "lakes";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateLakesInternal(context);
+        }
+
+        private sealed class VegetationGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public VegetationGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "vegetation";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateVegetationInternal(context);
+        }
+
+        private sealed class CloudGenerationStage : ITerrainGenerationStage
+        {
+            private readonly WorldManager _owner;
+            public CloudGenerationStage(WorldManager owner) => _owner = owner;
+            public string Name => "clouds";
+            public void Execute(TerrainGenerationContext context) => _owner.GenerateCloudsInternal(context);
         }
 
         private string GetChunkKey(int x, int z) => $"{x},{z}";

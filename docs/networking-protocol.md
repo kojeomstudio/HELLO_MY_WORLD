@@ -108,13 +108,15 @@ The enhanced “minecraft” messages extend the base `MessageType` enum. The nu
 - 120–152: Inventory/container events
 - 130–133: Entity spawn/despawn/update
 - 140–143: Time/weather/effect broadcasts
+- `BlockChangeNotification` is broadcast to players occupying the affected chunk and includes optional `Drops` entries (item stacks) so clients can surface survival loot events.
 
 When the Unity client writes one of these messages it feeds the raw integer ID into `TcpNetworkTransport`, which happily forwards any four-byte code even if it is outside the `MessageType` enum. On receipt the server’s `Session.ReceiveAsync()` produces an `IncomingMessage` that exposes both the raw integer and the optional typed enum. Unknown values keep their payload as `byte[]` so specialised dispatchers (e.g. `MinecraftMessageDispatcher`) can deserialize them without having to patch the core enum.
 
 ### Chunk Payload Encoding
 
-- Server: `GameServer/Handlers/MinecraftChunkHandler` packs each chunk into a 65 536 byte block array (16×256×16). If the payload exceeds 1 KB it is gzipped before being written as `ChunkDataResponseMessage.CompressedBlockData`.
+- Server: `GameServer/Handlers/MinecraftChunkHandler` packs each chunk into a 65,536 byte block array (16x256x16). If the payload exceeds 1 KB it is gzipped before being written as `ChunkDataResponseMessage.CompressedBlockData`.
 - Client: `MinecraftGameClient` runs the buffer through `ChunkCompression.DecodeBlocks`, which detects the gzip magic bytes and inflates the array if required. The decoded result is stored in a `ChunkSnapshot` for subsequent mesh generation and block mutation.
+- `ChunkDataResponseMessage.IsFromCache` is set when the server serves a cached payload or the player re-requests an already streamed chunk; the client logs cache hits and `_pendingChunkRequests` deduplicate outstanding chunk loads.
 - `ChunkManager` rehydrates the snapshot into a `byte[,,]` during `ChunkRenderer.GenerateMesh`. Server-driven block updates (`BlockChangeNotification` or `WorldBlockChangeBroadcast`) update the snapshot first, then schedule a mesh refresh so the change is visible locally.
 
 Because both sides are dealing with raw byte arrays (rather than a repeated list of per-block messages) the protocol stays compact and avoids excessive allocations inside the Unity player.

@@ -1,8 +1,10 @@
 using GameServerApp.Database;
 using GameServerApp.World;
 using SharedProtocol;
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
+using System.Threading.Tasks;
 
 namespace GameServerApp.Handlers
 {
@@ -23,6 +25,19 @@ namespace GameServerApp.Handlers
         
         // 청크 압축 임계값 (바이트)
         private const int COMPRESSION_THRESHOLD = 1024;
+
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, byte>> _playerLoadedChunks = new();
+
+
+        private static long ToChunkKey(int chunkX, int chunkZ)
+        {
+            return ((long)chunkX << 32) | (uint)chunkZ;
+        }
+
+        private bool HasPlayerLoadedChunk(string playerId, int chunkX, int chunkZ)
+        {
+            return _playerLoadedChunks.TryGetValue(playerId, out var chunkSet) && chunkSet.ContainsKey(ToChunkKey(chunkX, chunkZ));
+        }
 
         public MinecraftChunkHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager)
         {
@@ -76,20 +91,19 @@ namespace GameServerApp.Handlers
                 }
 
                 // 청크 데이터 로드 또는 생성
-                var chunkData = await LoadOrGenerateChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                if (chunkData == null)
+                var chunkResult = await LoadOrGenerateChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
+                if (chunkResult == null)
                 {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "청크 데이터를 로드할 수 없습니다.");
+                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "Unable to load chunk data.");
                     return;
                 }
 
-                // 청크 내 엔티티 정보 수집
-                var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
+                var (chunkData, isFromCache) = chunkResult.Value;
+                var alreadyServed = HasPlayerLoadedChunk(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
 
-                // 바이옴 데이터 생성
+                var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
                 var biomeData = GenerateBiomeData(chunkRequest.ChunkX, chunkRequest.ChunkZ);
 
-                // 응답 생성 및 전송
                 var response = new ChunkDataResponseMessage
                 {
                     ChunkX = chunkRequest.ChunkX,
@@ -98,12 +112,11 @@ namespace GameServerApp.Handlers
                     CompressedBlockData = chunkData,
                     Entities = entities.Select(ConvertToEntityInfo).ToList(),
                     BiomeData = biomeData,
-                    IsFromCache = false // TODO: 캐시 여부 추적
+                    IsFromCache = isFromCache || alreadyServed
                 };
 
                 await SendChunkResponse(session, response);
 
-                // 플레이어의 로드된 청크 목록 업데이트
                 await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
 
                 Console.WriteLine($"청크 [{chunkRequest.ChunkX}, {chunkRequest.ChunkZ}] 데이터를 플레이어 {session.UserName}에게 전송 완료");
@@ -118,31 +131,28 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 청크 데이터를 로드하거나 새로 생성
         /// </summary>
-        private async Task<byte[]?> LoadOrGenerateChunk(int chunkX, int chunkZ)
+        private async Task<(byte[] Data, bool IsFromCache)?> LoadOrGenerateChunk(int chunkX, int chunkZ)
         {
             try
             {
-                // 먼저 데이터베이스에서 기존 청크 데이터 확인
                 var existingChunkData = await _database.GetChunkDataAsync(chunkX, chunkZ);
                 if (existingChunkData != null)
                 {
-                    return CompressChunkData(existingChunkData);
+                    return (CompressChunkData(existingChunkData), true);
                 }
 
-                // 기존 데이터가 없으면 새로 생성
                 var generatedData = await GenerateNewChunk(chunkX, chunkZ);
                 if (generatedData != null)
                 {
-                    // 생성된 데이터를 데이터베이스에 저장
                     await _database.SaveChunkDataAsync(chunkX, chunkZ, generatedData);
-                    return CompressChunkData(generatedData);
+                    return (CompressChunkData(generatedData), false);
                 }
 
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"청크 [{chunkX}, {chunkZ}] 로드/생성 오류: {ex.Message}");
+                Console.WriteLine($"Chunk [{chunkX}, {chunkZ}] load/generation error: {ex.Message}");
                 return null;
             }
         }
@@ -408,11 +418,18 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 플레이어의 로드된 청크 목록 업데이트
         /// </summary>
-        private async Task UpdatePlayerLoadedChunks(string playerId, int chunkX, int chunkZ)
+        private Task UpdatePlayerLoadedChunks(string playerId, int chunkX, int chunkZ)
         {
-            // TODO: 플레이어별 로드된 청크 추적 및 관리
-            // 시야 거리를 벗어난 청크는 언로드하고, 새로운 청크는 로드 목록에 추가
+            var chunkKey = ToChunkKey(chunkX, chunkZ);
+            var chunkSet = _playerLoadedChunks.GetOrAdd(playerId, _ => new ConcurrentDictionary<long, byte>());
+            chunkSet.TryAdd(chunkKey, 0);
+
+            var playerState = _sessions.GetPlayerState(playerId);
+            var worldId = playerState?.CurrentWorldId ?? 1;
+            _sessions.UpdatePlayerWorld(playerId, worldId, chunkX, chunkZ);
+
             Console.WriteLine($"Player {playerId} loaded chunk [{chunkX}, {chunkZ}]");
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,6 +1,9 @@
 using GameServerApp.Database;
 using GameServerApp.World;
 using SharedProtocol;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 
 namespace GameServerApp.Handlers
@@ -147,7 +150,7 @@ namespace GameServerApp.Handlers
             var playerState = _sessions.GetPlayerState(playerId);
             if (playerState != null && (GameMode)playerState.GameMode == GameMode.Creative)
             {
-                await DestroyBlockAsync(session, blockPos, blockInfo);
+                await DestroyBlockAsync(session, blockPos, blockInfo, response);
                 response.Success = true;
                 response.BreakProgress = 1.0f;
                 return;
@@ -194,7 +197,7 @@ namespace GameServerApp.Handlers
                 var blockInfo = await _worldManager.GetBlockAsync(breakInfo.Position.X, breakInfo.Position.Y, breakInfo.Position.Z);
                 if (blockInfo != null)
                 {
-                    await DestroyBlockAsync(session, breakInfo.Position, blockInfo);
+                    await DestroyBlockAsync(session, breakInfo.Position, blockInfo, response);
                     response.Success = true;
                     response.BreakProgress = 1.0f;
                     response.Message = "블록 파괴 완료";
@@ -348,12 +351,11 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 실제 블록 파괴 처리 및 드롭 아이템 생성
         /// </summary>
-        private async Task DestroyBlockAsync(Session session, Vector3I position, Models.BlockData blockInfo)
+        private async Task DestroyBlockAsync(Session session, Vector3I position, Models.BlockData blockInfo, PlayerActionResponseMessage response)
         {
-            // 블록 제거
             await _worldManager.RemoveBlockAsync(position.X, position.Y, position.Z);
-            
-            // 드롭 아이템 생성 (게임 모드에 따라)
+
+            List<ItemDropInfo>? drops = null;
             var playerState = _sessions.GetPlayerState(session.UserName!);
             if (playerState != null && (GameMode)playerState.GameMode == GameMode.Survival)
             {
@@ -367,13 +369,13 @@ namespace GameServerApp.Handlers
                         Velocity = new Vector3D(0, 0.2, 0),
                         EntityId = Guid.NewGuid().ToString()
                     };
-                    
-                    // TODO: 드롭 아이템 엔티티 생성 및 브로드캐스트
+
+                    drops = new List<ItemDropInfo> { dropInfo };
+                    response.DroppedItems.Add(dropInfo);
                 }
             }
 
-            // 다른 플레이어들에게 블록 변경 알림
-            await BroadcastBlockChange(session.UserName!, position, blockInfo.BlockId, 0);
+            await BroadcastBlockChange(session.UserName!, position, blockInfo.BlockId, 0, drops);
         }
 
         /// <summary>
@@ -422,7 +424,7 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 블록 변경 브로드캐스트
         /// </summary>
-        private async Task BroadcastBlockChange(string playerName, Vector3I position, int oldBlockId, int newBlockId)
+        private async Task BroadcastBlockChange(string playerName, Vector3I position, int oldBlockId, int newBlockId, IReadOnlyCollection<ItemDropInfo>? drops = null)
         {
             var notification = new BlockChangeNotificationMessage
             {
@@ -433,7 +435,18 @@ namespace GameServerApp.Handlers
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
 
-            // TODO: 청크 범위 내 플레이어들에게만 브로드캐스트
+            if (drops != null)
+            {
+                notification.Drops.AddRange(drops);
+            }
+
+            var playerState = _sessions.GetPlayerState(playerName);
+            var worldId = playerState?.CurrentWorldId ?? 1;
+            var chunkX = position.X >> 4;
+            var chunkZ = position.Z >> 4;
+
+            await _sessions.BroadcastToAreaAsync(worldId, chunkX, chunkZ, (MessageType)MinecraftMessageType.BlockChangeNotification, notification);
+
             Console.WriteLine($"Block changed at [{position.X}, {position.Y}, {position.Z}]: {oldBlockId} -> {newBlockId} by {playerName}");
         }
 

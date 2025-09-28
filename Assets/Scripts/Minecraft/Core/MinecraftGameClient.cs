@@ -33,6 +33,7 @@ namespace Minecraft.Core
 
         private PlayerStateInfo _playerState = new();
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
+        private readonly HashSet<Vector2Int> _pendingChunkRequests = new();
         private readonly Dictionary<string, EntityInfo> _entities = new();
         private readonly Dictionary<string, RecipeData> _knownRecipes = new();
         private readonly Dictionary<string, RoomInfo> _knownRooms = new();
@@ -45,6 +46,7 @@ namespace Minecraft.Core
         public event Action<PlayerStateInfo> PlayerStateUpdated;
         public event Action<ChunkSnapshot> ChunkLoaded;
         public event Action<Vector3Int, int, int> BlockChanged;
+        public event Action<Vector3Int, IReadOnlyList<ItemDropInfo>> BlockDropsReceived;
         public event Action<EntityInfo> EntitySpawned;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
@@ -144,6 +146,7 @@ namespace Minecraft.Core
                 _sessionToken = string.Empty;
                 _playerState = new PlayerStateInfo();
                 _loadedChunks.Clear();
+                _pendingChunkRequests.Clear();
                 _entities.Clear();
                 _outgoingMessages.Clear();
                 _incomingMessages.Clear();
@@ -202,6 +205,14 @@ namespace Minecraft.Core
 
         public void RequestChunk(int chunkX, int chunkZ)
         {
+            var chunkKey = new Vector2Int(chunkX, chunkZ);
+            if (_loadedChunks.ContainsKey(chunkKey) || _pendingChunkRequests.Contains(chunkKey))
+            {
+                return;
+            }
+
+            _pendingChunkRequests.Add(chunkKey);
+
             var request = new ChunkDataRequestMessage
             {
                 ChunkX = chunkX,
@@ -570,11 +581,25 @@ namespace Minecraft.Core
         private void HandleChunkResponse(ChunkDataResponseMessage response)
         {
             var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
+            _pendingChunkRequests.Remove(chunkKey);
+
+            if (!response.Success)
+            {
+                ErrorOccurred?.Invoke($"Failed to load chunk {response.ChunkX},{response.ChunkZ} from server.");
+                return;
+            }
+
             var blocks = ChunkCompression.DecodeBlocks(response.CompressedBlockData);
             var entities = response.Entities ?? new List<EntityInfo>();
             var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache);
 
             _loadedChunks[chunkKey] = snapshot;
+
+            if (response.IsFromCache)
+            {
+                Debug.Log($"Chunk {response.ChunkX},{response.ChunkZ} served from cache.");
+            }
+
             ChunkLoaded?.Invoke(snapshot);
         }
 
@@ -592,6 +617,11 @@ namespace Minecraft.Core
             var previousBlockId = UpdateLocalChunkCache(position, message.NewBlockId);
             var oldId = message.OldBlockId != 0 ? message.OldBlockId : previousBlockId;
             BlockChanged?.Invoke(position, oldId, message.NewBlockId);
+
+            if (message.Drops != null && message.Drops.Count > 0)
+            {
+                BlockDropsReceived?.Invoke(position, message.Drops);
+            }
         }
 
         private void HandleWorldBlockBroadcast(WorldBlockChangeBroadcast message)

@@ -118,6 +118,7 @@ When the Unity client writes one of these messages it feeds the raw integer ID i
 - Client: `MinecraftGameClient` runs the buffer through `ChunkCompression.DecodeBlocks`, which detects the gzip magic bytes and inflates the array if required. The decoded result is stored in a `ChunkSnapshot` for subsequent mesh generation and block mutation.
 - `ChunkDataResponseMessage.IsFromCache` is set when the server serves a cached payload or the player re-requests an already streamed chunk; the client logs cache hits and `_pendingChunkRequests` deduplicate outstanding chunk loads.
 - `ChunkManager` rehydrates the snapshot into a `byte[,,]` during `ChunkRenderer.GenerateMesh`. Server-driven block updates (`BlockChangeNotification` or `WorldBlockChangeBroadcast`) update the snapshot first, then schedule a mesh refresh so the change is visible locally.
+- Residency pruning: the server evicts per-player chunk residency using `WorldSettings.ChunkUnloadTimeoutMinutes` and the configured load radius, so clients may occasionally receive a fresh chunk stream for areas that fell out of cache.
 
 Because both sides are dealing with raw byte arrays (rather than a repeated list of per-block messages) the protocol stays compact and avoids excessive allocations inside the Unity player.
 

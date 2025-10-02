@@ -14,20 +14,24 @@ namespace GameServerApp.Handlers
     /// </summary>
     public class MinecraftChunkHandler : IMessageHandler
     {
+        private sealed record PlayerChunkResidency(int ChunkX, int ChunkZ, DateTime LastServedUtc);
+
         private readonly DatabaseHelper _database;
         private readonly SessionManager _sessions;
         private readonly WorldManager _worldManager;
-        
-        // 청크 크기 상수 (표준 마인크래프트)
+        private readonly WorldSettings _worldSettings;
+
         private const int CHUNK_SIZE_X = 16;
-        private const int CHUNK_SIZE_Z = 16; 
+        private const int CHUNK_SIZE_Z = 16;
         private const int CHUNK_HEIGHT = 256;
-        
-        // 청크 압축 임계값 (바이트)
+
         private const int COMPRESSION_THRESHOLD = 1024;
+        private const int RESIDENCY_DISTANCE_PADDING = 1;
 
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, byte>> _playerLoadedChunks = new();
-
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, PlayerChunkResidency>> _playerLoadedChunks = new();
+        private readonly TimeSpan _chunkResidencyTimeout;
+        private readonly TimeSpan _residencyCleanupInterval = TimeSpan.FromMinutes(5);
+        private DateTime _lastCleanup = DateTime.MinValue;
 
         private static long ToChunkKey(int chunkX, int chunkZ)
         {
@@ -39,11 +43,13 @@ namespace GameServerApp.Handlers
             return _playerLoadedChunks.TryGetValue(playerId, out var chunkSet) && chunkSet.ContainsKey(ToChunkKey(chunkX, chunkZ));
         }
 
-        public MinecraftChunkHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager)
+        public MinecraftChunkHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, WorldSettings worldSettings)
         {
             _database = database;
             _sessions = sessions;
             _worldManager = worldManager;
+            _worldSettings = worldSettings;
+            _chunkResidencyTimeout = TimeSpan.FromMinutes(Math.Max(1, _worldSettings.ChunkUnloadTimeoutMinutes));
         }
 
         public MessageType Type => (MessageType)MinecraftMessageType.ChunkDataRequest;
@@ -117,7 +123,7 @@ namespace GameServerApp.Handlers
 
                 await SendChunkResponse(session, response);
 
-                await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
+                await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ, chunkRequest.ViewDistance);
 
                 Console.WriteLine($"청크 [{chunkRequest.ChunkX}, {chunkRequest.ChunkZ}] 데이터를 플레이어 {session.UserName}에게 전송 완료");
 
@@ -418,18 +424,130 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 플레이어의 로드된 청크 목록 업데이트
         /// </summary>
-        private Task UpdatePlayerLoadedChunks(string playerId, int chunkX, int chunkZ)
+        private Task UpdatePlayerLoadedChunks(string playerId, int chunkX, int chunkZ, int requestedViewDistance)
         {
+            var now = DateTime.UtcNow;
             var chunkKey = ToChunkKey(chunkX, chunkZ);
-            var chunkSet = _playerLoadedChunks.GetOrAdd(playerId, _ => new ConcurrentDictionary<long, byte>());
-            chunkSet.TryAdd(chunkKey, 0);
+            var chunkSet = _playerLoadedChunks.GetOrAdd(playerId, _ => new ConcurrentDictionary<long, PlayerChunkResidency>());
+
+            chunkSet.AddOrUpdate(
+                chunkKey,
+                _ => new PlayerChunkResidency(chunkX, chunkZ, now),
+                (_, existing) => existing with { LastServedUtc = now });
 
             var playerState = _sessions.GetPlayerState(playerId);
             var worldId = playerState?.CurrentWorldId ?? 1;
             _sessions.UpdatePlayerWorld(playerId, worldId, chunkX, chunkZ);
 
+            var trimmed = TrimPlayerResidency(playerId, chunkSet, requestedViewDistance, playerState, chunkX, chunkZ, now);
+            if (trimmed > 0)
+            {
+                Console.WriteLine($"Trimmed {trimmed} stale chunks for {playerId}");
+            }
+
+            if (chunkSet.IsEmpty)
+            {
+                _playerLoadedChunks.TryRemove(playerId, out _);
+            }
+
             Console.WriteLine($"Player {playerId} loaded chunk [{chunkX}, {chunkZ}]");
             return Task.CompletedTask;
+        }
+
+        private int TrimPlayerResidency(string playerId, ConcurrentDictionary<long, PlayerChunkResidency> chunkSet, int requestedViewDistance, PlayerState? playerState, int latestChunkX, int latestChunkZ, DateTime now)
+        {
+            if (now - _lastCleanup >= _residencyCleanupInterval)
+            {
+                CleanupExpiredResidency(now);
+                _lastCleanup = now;
+
+                if (!_playerLoadedChunks.TryGetValue(playerId, out var currentSet) || !ReferenceEquals(currentSet, chunkSet))
+                {
+                    return 0;
+                }
+            }
+
+            var safeViewDistance = Math.Max(1, requestedViewDistance);
+            var maxRadius = Math.Min(safeViewDistance, Math.Max(1, _worldSettings.ChunkLoadRadius));
+
+            var playerChunkX = latestChunkX;
+            var playerChunkZ = latestChunkZ;
+            if (playerState != null)
+            {
+                playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
+                playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
+            }
+
+            var removed = 0;
+
+            foreach (var kvp in chunkSet.ToArray())
+            {
+                var residency = kvp.Value;
+                if (now - residency.LastServedUtc > _chunkResidencyTimeout)
+                {
+                    if (chunkSet.TryRemove(kvp.Key, out _))
+                    {
+                        removed++;
+                    }
+                    continue;
+                }
+
+                var distance = Math.Max(Math.Abs(residency.ChunkX - playerChunkX), Math.Abs(residency.ChunkZ - playerChunkZ));
+                if (distance > maxRadius + RESIDENCY_DISTANCE_PADDING)
+                {
+                    if (chunkSet.TryRemove(kvp.Key, out _))
+                    {
+                        removed++;
+                    }
+                }
+            }
+
+            var width = (maxRadius * 2) + 1;
+            var allowedChunks = width * width;
+            var currentCount = chunkSet.Count;
+
+            if (currentCount > allowedChunks)
+            {
+                var overflow = currentCount - allowedChunks;
+                foreach (var kvp in chunkSet.ToArray().OrderBy(entry => entry.Value.LastServedUtc).Take(overflow))
+                {
+                    if (chunkSet.TryRemove(kvp.Key, out _))
+                    {
+                        removed++;
+                    }
+                }
+            }
+
+            return removed;
+        }
+
+        private void CleanupExpiredResidency(DateTime now)
+        {
+            foreach (var entry in _playerLoadedChunks.ToArray())
+            {
+                var playerId = entry.Key;
+                var chunkSet = entry.Value;
+                var state = _sessions.GetPlayerState(playerId);
+
+                if (state == null || !state.IsOnline)
+                {
+                    _playerLoadedChunks.TryRemove(playerId, out _);
+                    continue;
+                }
+
+                foreach (var chunk in chunkSet.ToArray())
+                {
+                    if (now - chunk.Value.LastServedUtc > _chunkResidencyTimeout)
+                    {
+                        chunkSet.TryRemove(chunk.Key, out _);
+                    }
+                }
+
+                if (chunkSet.IsEmpty)
+                {
+                    _playerLoadedChunks.TryRemove(playerId, out _);
+                }
+            }
         }
     }
 }

@@ -23,7 +23,11 @@
     "EnableOreGeneration": true,
     "EnableVegetationGeneration": true,
     "MaxWorldHeight": 256,
-    "MinWorldHeight": -64
+    "MinWorldHeight": -64,
+    "InitialWorldTime": 0,
+    "InitialDayTime": 1000,
+    "EnableDayNightCycle": false,
+    "DayNightCycleSecondsPerDay": 1200
   },
   "Gameplay": {
     "MaxPlayersPerWorld": 20,

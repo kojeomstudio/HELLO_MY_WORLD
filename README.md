@@ -79,3 +79,5 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 ## World Generation
 - Server procedurally generates terrain, ores, caves, dungeons, and vegetation.
 - See `docs/world-generation.md` for the pipeline and extension notes.
+- Configure the day/night cycle via `WorldSettings` in `server-config.json` (`InitialWorldTime`, `InitialDayTime`, `EnableDayNightCycle`, `DayNightCycleSecondsPerDay`).
+

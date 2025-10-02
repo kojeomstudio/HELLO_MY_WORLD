@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.IO;
+using ProtoBuf;
 using SharedProtocol;
 using GameServerApp.Models;
 using GameServerApp.Rooms;
@@ -173,6 +175,22 @@ public class SessionManager
     /// <summary>
     /// Broadcasts a message to all connected players.
     /// </summary>
+    public async Task BroadcastMinecraftAsync<T>(MinecraftMessageType messageType, T message) where T : class
+    {
+        using var stream = new MemoryStream();
+        Serializer.Serialize(stream, message);
+        var payload = stream.ToArray();
+
+        var tasks = new List<Task>(_sessions.Count);
+
+        foreach (var session in _sessions.Values)
+        {
+            tasks.Add(session.SendAsync((int)messageType, payload));
+        }
+
+        await Task.WhenAll(tasks);
+    }
+
     public async Task BroadcastToAllAsync<T>(MessageType messageType, T message) where T : class
     {
         var tasks = new List<Task>();

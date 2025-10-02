@@ -1,4 +1,7 @@
-﻿using System;\r\nusing System.Threading;\r\nusing System.Threading.Tasks;\r\nusing SharedProtocol;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using SharedProtocol;
 
 namespace GameServerApp.Systems
 {

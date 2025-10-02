@@ -76,6 +76,10 @@ public class WorldSettings
     public long WorldSeed { get; set; } = 12345;
     public int ChunkLoadRadius { get; set; } = 8;
     public int ChunkUnloadTimeoutMinutes { get; set; } = 30;
+    public long InitialWorldTime { get; set; } = 0;
+    public long InitialDayTime { get; set; } = 1000;
+    public bool EnableDayNightCycle { get; set; } = false;
+    public int DayNightCycleSecondsPerDay { get; set; } = 1200;
     public bool EnableTerrainGeneration { get; set; } = true;
     public bool EnableOreGeneration { get; set; } = true;
     public bool EnableVegetationGeneration { get; set; } = true;

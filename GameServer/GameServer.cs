@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using GameServerApp.Database;
 using GameServerApp.Handlers;
+using GameServerApp.Systems;
 using GameServerApp.World;
 using SharedProtocol;
 using System.Collections.Concurrent;
@@ -17,6 +18,7 @@ namespace GameServerApp
         private readonly MessageDispatcher _dispatcher;
         private readonly MinecraftMessageDispatcher _minecraftDispatcher;
         private readonly SessionManager _sessions;
+        private readonly ServerMetricsService _metrics;
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
         private readonly Timer _maintenanceTimer;
@@ -30,6 +32,7 @@ namespace GameServerApp
             _database = new DatabaseHelper(databaseFile);
             _dispatcher = new MessageDispatcher();
             _sessions = new SessionManager();
+            _metrics = new ServerMetricsService(_sessions);
             _rooms = new Rooms.RoomManager(_sessions);
             _worldManager = new WorldManager(_database);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
@@ -71,6 +74,7 @@ namespace GameServerApp
             // Communication & Network
             _dispatcher.Register(new ChatHandler(_database, _sessions, _rooms));
             _dispatcher.Register(new PingHandler(_database, _sessions));
+            _dispatcher.Register(new ServerStatusHandler(_sessions, _metrics));
             
             // === 마인크래프트 전용 핸들러 등록 ===
             RegisterMinecraftHandlers();
@@ -102,6 +106,7 @@ namespace GameServerApp
         public async Task StartAsync()
         {
             _isRunning = true;
+            _metrics.MarkServerStarted();
             _listener.Start();
             var port = ((_listener.LocalEndpoint as IPEndPoint)?.Port) ?? 0;
             
@@ -132,6 +137,7 @@ namespace GameServerApp
             _listener?.Stop();
             _maintenanceTimer?.Dispose();
             _sessions?.Dispose();
+            _metrics.MarkServerStopped();
             Console.WriteLine("Server stopped.");
         }
 

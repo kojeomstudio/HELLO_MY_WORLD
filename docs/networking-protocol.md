@@ -67,6 +67,16 @@ Message type IDs mirror `SharedProtocol.MessageType` on the server and must rema
 - 96: `RoomQueueUpdate`
 - 97: `RoomPromotionNotice`
 
+### Server Status Query
+
+Authenticated clients may send `ServerStatusRequest` (type 42) after login. The payload must echo the session token issued during authentication. The server replies with `ServerStatusResponse` (type 43) containing:
+
+- `OnlinePlayers`: current authenticated player count.
+- `ServerVersion`: semantic version reported by the dedicated server build.
+- `ServerUptime`: elapsed milliseconds since the listener entered the running state.
+
+Requests with missing or mismatched session tokens are ignored; no error payload is emitted to avoid leaking metrics to unauthenticated clients.
+
 Minecraft-specific extensions (100+) can be added similarly; the server now accepts unknown types and will deliver raw payloads to handlers.
 
 ## Room & Lobby Messages
@@ -148,4 +158,5 @@ Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Gam
 
 - Server: `dotnet build SharedProtocol/SharedProtocol.csproj` then `dotnet build GameServer/GameServer.csproj`.
 - Unity: Ensure `Google.Protobuf` runtime is present (see `Assets/link.xml`). Generated C# files from `.proto` go under `Assets/Generated/Protobuf/`.
+
 

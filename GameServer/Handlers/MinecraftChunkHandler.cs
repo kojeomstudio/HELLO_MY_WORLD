@@ -12,7 +12,7 @@ namespace GameServerApp.Handlers
     /// 마인크래프트 청크 데이터 요청을 처리하는 핸들러
     /// 클라이언트의 시야 거리에 따른 청크 로딩 및 언로딩을 관리합니다.
     /// </summary>
-    public class MinecraftChunkHandler : IMessageHandler
+    public class MinecraftChunkHandler : IMessageHandler, IMinecraftMessageHandler<ChunkUnloadNotificationMessage>
     {
         private sealed record PlayerChunkResidency(int ChunkX, int ChunkZ, DateTime LastServedUtc);
 
@@ -67,6 +67,18 @@ namespace GameServerApp.Handlers
             {
                 Console.WriteLine("Invalid message format for MinecraftChunkHandler");
             }
+        }
+
+        async Task IMinecraftMessageHandler.HandleAsync(Session session, byte[] messageData)
+        {
+            using var stream = new MemoryStream(messageData);
+            var message = ProtoBuf.Serializer.Deserialize<ChunkUnloadNotificationMessage>(stream);
+            await HandleAsync(session, message);
+        }
+
+        public Task HandleAsync(Session session, ChunkUnloadNotificationMessage message)
+        {
+            return HandleChunkUnloadAsync(session, message);
         }
 
         /// <summary>
@@ -424,6 +436,84 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 플레이어의 로드된 청크 목록 업데이트
         /// </summary>
+        private async Task HandleChunkUnloadAsync(Session session, ChunkUnloadNotificationMessage message)
+        {
+            var playerId = session.UserName;
+            if (string.IsNullOrWhiteSpace(playerId))
+            {
+                playerId = string.IsNullOrWhiteSpace(message.PlayerId) ? string.Empty : message.PlayerId;
+            }
+
+            if (string.IsNullOrWhiteSpace(playerId))
+            {
+                var ack = new ChunkUnloadAcknowledgeMessage
+                {
+                    ChunkX = message.ChunkX,
+                    ChunkZ = message.ChunkZ,
+                    Accepted = false,
+                    RemainingChunks = 0,
+                    Note = "Unauthenticated session"
+                };
+                await SendChunkUnloadAckAsync(session, ack);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(message.PlayerId) && message.PlayerId != playerId)
+            {
+                Console.WriteLine($"Chunk unload identity mismatch: session {playerId} reported payload for {message.PlayerId}");
+            }
+
+            if (!_playerLoadedChunks.TryGetValue(playerId, out var chunkSet))
+            {
+                var ack = new ChunkUnloadAcknowledgeMessage
+                {
+                    ChunkX = message.ChunkX,
+                    ChunkZ = message.ChunkZ,
+                    Accepted = false,
+                    RemainingChunks = 0,
+                    Note = "Chunk residency not tracked"
+                };
+                await SendChunkUnloadAckAsync(session, ack);
+                return;
+            }
+
+            var chunkKey = ToChunkKey(message.ChunkX, message.ChunkZ);
+            var removed = chunkSet.TryRemove(chunkKey, out _);
+            if (chunkSet.IsEmpty)
+            {
+                _playerLoadedChunks.TryRemove(playerId, out _);
+            }
+
+            var remaining = chunkSet.Count;
+
+            var ackMessage = new ChunkUnloadAcknowledgeMessage
+            {
+                ChunkX = message.ChunkX,
+                ChunkZ = message.ChunkZ,
+                Accepted = removed,
+                RemainingChunks = remaining,
+                Note = removed ? message.Reason.ToString() : "Chunk residency not found"
+            };
+
+            await SendChunkUnloadAckAsync(session, ackMessage);
+
+            if (removed)
+            {
+                Console.WriteLine($"Player {playerId} unloaded chunk [{message.ChunkX}, {message.ChunkZ}] (reason: {message.Reason})");
+            }
+            else
+            {
+                Console.WriteLine($"Player {playerId} attempted to unload unknown chunk [{message.ChunkX}, {message.ChunkZ}]");
+            }
+        }
+
+        private async Task SendChunkUnloadAckAsync(Session session, ChunkUnloadAcknowledgeMessage ack)
+        {
+            using var stream = new MemoryStream();
+            ProtoBuf.Serializer.Serialize(stream, ack);
+            await session.SendAsync((int)MinecraftMessageType.ChunkUnloadAcknowledge, stream.ToArray());
+        }
+
         private Task UpdatePlayerLoadedChunks(string playerId, int chunkX, int chunkZ, int requestedViewDistance)
         {
             var now = DateTime.UtcNow;

@@ -85,7 +85,9 @@ namespace GameServerApp
         {
             // 마인크래프트 전용 메시지 핸들러들을 기본 디스패처에 등록
             _dispatcher.Register(new MinecraftPlayerActionHandler(_database, _sessions, _worldManager, _minecraftDispatcher));
-            _dispatcher.Register(new MinecraftChunkHandler(_database, _sessions, _worldManager, _config.World));
+            var chunkHandler = new MinecraftChunkHandler(_database, _sessions, _worldManager, _config.World);
+            _dispatcher.Register(chunkHandler);
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ChunkUnloadNotification, chunkHandler);
             
             Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
             Console.WriteLine("✓ Advanced Block Breaking System");

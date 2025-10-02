@@ -213,7 +213,33 @@ message ChunkLoadResponse {
   int32 total_sent = 3;
 }
 
+message ChunkUnloadNotification {
+  string player_id = 1;
+  int32 chunk_x = 2;
+  int32 chunk_z = 3;
+  ChunkUnloadReason reason = 4;
+  int32 view_distance = 5;
+  int64 timestamp_ms = 6;
+}
+
+// 청크 언로드 사유
+enum ChunkUnloadReason {
+  UNLOAD_VIEW_DISTANCE = 0;
+  UNLOAD_MANUAL = 1;
+  UNLOAD_WORLD_TRANSFER = 2;
+  UNLOAD_SHUTDOWN = 3;
+}
+
+message ChunkUnloadAck {
+  int32 chunk_x = 1;
+  int32 chunk_z = 2;
+  bool accepted = 3;
+  int32 remaining_chunks = 4;
+  string note = 5;
+}
+
 message ChunkData {
+
   int32 chunk_x = 1;
   int32 chunk_z = 2;
   bytes block_data = 3;           // 압축된 블록 데이터

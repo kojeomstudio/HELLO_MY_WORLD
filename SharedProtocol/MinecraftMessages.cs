@@ -20,6 +20,8 @@ namespace SharedProtocol
         ChunkDataResponse = 111,
         BlockChangeNotification = 112,
         MultiBlockChange = 113,
+        ChunkUnloadNotification = 114,
+        ChunkUnloadAcknowledge = 115,
         
         // 인벤토리 및 아이템
         InventoryUpdate = 120,
@@ -251,7 +253,36 @@ namespace SharedProtocol
         [ProtoMember(6)] public BiomeInfo BiomeData { get; set; } = new();
         [ProtoMember(7)] public bool IsFromCache { get; set; }
     }
-    
+
+    [ProtoContract]
+    public class ChunkUnloadNotificationMessage
+    {
+        [ProtoMember(1)] public string PlayerId { get; set; } = string.Empty;
+        [ProtoMember(2)] public int ChunkX { get; set; }
+        [ProtoMember(3)] public int ChunkZ { get; set; }
+        [ProtoMember(4)] public ChunkUnloadReason Reason { get; set; } = ChunkUnloadReason.ViewDistance;
+        [ProtoMember(5)] public int ViewDistance { get; set; }
+        [ProtoMember(6)] public long TimestampMs { get; set; }
+    }
+
+    public enum ChunkUnloadReason
+    {
+        ViewDistance = 0,
+        Manual = 1,
+        WorldTransfer = 2,
+        Shutdown = 3
+    }
+
+    [ProtoContract]
+    public class ChunkUnloadAcknowledgeMessage
+    {
+        [ProtoMember(1)] public int ChunkX { get; set; }
+        [ProtoMember(2)] public int ChunkZ { get; set; }
+        [ProtoMember(3)] public bool Accepted { get; set; }
+        [ProtoMember(4)] public int RemainingChunks { get; set; }
+        [ProtoMember(5)] public string Note { get; set; } = string.Empty;
+    }
+
     [ProtoContract]
     public class BiomeInfo
     {

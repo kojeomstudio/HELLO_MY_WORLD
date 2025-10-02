@@ -34,6 +34,7 @@ namespace Minecraft.Core
         private PlayerStateInfo _playerState = new();
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
         private readonly HashSet<Vector2Int> _pendingChunkRequests = new();
+        private readonly List<Vector2Int> _chunksToUnload = new();
         private readonly Dictionary<string, EntityInfo> _entities = new();
         private readonly Dictionary<string, RecipeData> _knownRecipes = new();
         private readonly Dictionary<string, RoomInfo> _knownRooms = new();
@@ -45,6 +46,7 @@ namespace Minecraft.Core
         public event Action<string> ErrorOccurred;
         public event Action<PlayerStateInfo> PlayerStateUpdated;
         public event Action<ChunkSnapshot> ChunkLoaded;
+        public event Action<Vector2Int, ChunkSnapshot> ChunkUnloaded;
         public event Action<Vector3Int, int, int> BlockChanged;
         public event Action<Vector3Int, IReadOnlyList<ItemDropInfo>> BlockDropsReceived;
         public event Action<EntityInfo> EntitySpawned;
@@ -72,6 +74,11 @@ namespace Minecraft.Core
         {
             ProcessOutgoingMessages();
             ProcessIncomingMessages();
+
+            if (_isConnected)
+            {
+                EvaluateChunkResidency();
+            }
 
             if (_isConnected && networkTickRate > 0f && Time.time - _lastNetworkUpdate >= 1f / networkTickRate)
             {
@@ -147,6 +154,7 @@ namespace Minecraft.Core
                 _playerState = new PlayerStateInfo();
                 _loadedChunks.Clear();
                 _pendingChunkRequests.Clear();
+                _chunksToUnload.Clear();
                 _entities.Clear();
                 _outgoingMessages.Clear();
                 _incomingMessages.Clear();
@@ -455,6 +463,7 @@ namespace Minecraft.Core
                     {
                         MinecraftMessageType.PlayerActionResponse => ProtoBuf.Serializer.Deserialize<PlayerActionResponseMessage>(stream),
                         MinecraftMessageType.ChunkDataResponse => ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream),
+                        MinecraftMessageType.ChunkUnloadAcknowledge => ProtoBuf.Serializer.Deserialize<ChunkUnloadAcknowledgeMessage>(stream),
                         MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
                         MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
                         MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
@@ -491,6 +500,9 @@ namespace Minecraft.Core
                     break;
                 case ChunkDataResponseMessage chunkResponse:
                     HandleChunkResponse(chunkResponse);
+                    break;
+                case ChunkUnloadAcknowledgeMessage unloadAck:
+                    HandleChunkUnloadAcknowledge(unloadAck);
                     break;
                 case PlayerActionResponseMessage actionResponse:
                     HandlePlayerActionResponse(actionResponse);
@@ -601,6 +613,99 @@ namespace Minecraft.Core
             }
 
             ChunkLoaded?.Invoke(snapshot);
+        }
+
+        private void EvaluateChunkResidency()
+        {
+            if (!_isConnected || _loadedChunks.Count == 0)
+            {
+                return;
+            }
+
+            var position = _playerState?.Position;
+            if (position == null)
+            {
+                return;
+            }
+
+            var chunkSize = ChunkSnapshot.ChunkSize;
+            var playerChunkX = Mathf.FloorToInt((float)position.X / chunkSize);
+            var playerChunkZ = Mathf.FloorToInt((float)position.Z / chunkSize);
+            var radius = Mathf.Max(1, renderDistance);
+
+            if (_chunksToUnload.Count > 0)
+            {
+                _chunksToUnload.Clear();
+            }
+
+            foreach (var chunkKey in _loadedChunks.Keys)
+            {
+                var distance = Mathf.Max(Mathf.Abs(chunkKey.x - playerChunkX), Mathf.Abs(chunkKey.y - playerChunkZ));
+                if (distance > radius)
+                {
+                    _chunksToUnload.Add(chunkKey);
+                }
+            }
+
+            if (_chunksToUnload.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var chunkKey in _chunksToUnload)
+            {
+                UnloadChunk(chunkKey, ChunkUnloadReason.ViewDistance);
+            }
+
+            _chunksToUnload.Clear();
+        }
+
+        private void UnloadChunk(Vector2Int chunkKey, ChunkUnloadReason reason)
+        {
+            if (!_loadedChunks.TryGetValue(chunkKey, out var chunk))
+            {
+                return;
+            }
+
+            _loadedChunks.Remove(chunkKey);
+            ChunkUnloaded?.Invoke(chunkKey, chunk);
+            SendChunkUnloadNotification(chunkKey, reason);
+        }
+
+        private void SendChunkUnloadNotification(Vector2Int chunkKey, ChunkUnloadReason reason)
+        {
+            if (!_isConnected)
+            {
+                return;
+            }
+
+            var notification = new ChunkUnloadNotificationMessage
+            {
+                PlayerId = _playerState?.PlayerId ?? string.Empty,
+                ChunkX = chunkKey.x,
+                ChunkZ = chunkKey.y,
+                Reason = reason,
+                ViewDistance = renderDistance,
+                TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            EnqueueMessage((int)MinecraftMessageType.ChunkUnloadNotification, notification);
+        }
+
+        private void HandleChunkUnloadAcknowledge(ChunkUnloadAcknowledgeMessage ack)
+        {
+            if (ack == null)
+            {
+                return;
+            }
+
+            if (!ack.Accepted)
+            {
+                Debug.LogWarning($"Server rejected chunk unload {ack.ChunkX},{ack.ChunkZ}: {ack.Note}");
+                return;
+            }
+
+            Debug.Log($"Server acknowledged chunk unload {ack.ChunkX},{ack.ChunkZ} (remaining tracked: {ack.RemainingChunks})");
         }
 
         private void HandlePlayerActionResponse(PlayerActionResponseMessage response)

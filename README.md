@@ -71,6 +71,8 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 ## Networking Protocol (Client ↔ Server)
 - The client and server communicate over a simple framed protocol: `[TotalLength:int][MessageType:int][Payload:protobuf]`.
 - See `docs/networking-protocol.md` for details, message type IDs, and client integration notes.
+- Clients now emit `ChunkUnloadNotificationMessage` when dropping chunks and await `ChunkUnloadAcknowledgeMessage` so the server can free residency immediately.
+- After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
 
 ## Server Rooms
 - The server supports a room-based architecture to scope chat and block broadcasts.

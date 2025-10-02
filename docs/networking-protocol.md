@@ -105,6 +105,21 @@ When introducing new room/lobby concepts, prefer extending these DTOs with addit
 
 For legacy systems the lightweight `ProtobufNetworkClient` remains available, but new gameplay should use `MinecraftGameClient` so chunk and entity handling stays consistent with the authoritative server pipeline.
 
+## Day/Night & Weather Broadcasts
+The enhanced server now pushes two real-time world-state messages alongside chunk and block traffic:
+
+- `TimeUpdateMessage` (`MinecraftMessageType.TimeUpdate`, id 140) carries `WorldTime` and `DayTime` ticks. The `WorldTimeSystem` emits it once per second while the day/night cycle is enabled and immediately when sessions log in so late joiners stay synchronised.
+- `WeatherChangeMessage` (`MinecraftMessageType.WeatherChange`, id 141) carries the current `WeatherType`, remaining duration (seconds), and intensity scalar. Snapshots are sent on login and whenever the weather wheel advances.
+
+Both payloads use the protobuf-net DTOs defined in `SharedProtocol/MinecraftMessages.cs`; the Unity client can consume the matching Google.Protobuf classes in `Assets/Generated/Protobuf`.
+
+Server behaviour is driven by the `WorldSettings` keys in `server-config.json` (`EnableWeatherCycle`, `WeatherTickIntervalSeconds`, `ClearWeatherDurationSeconds`, `RainWeatherDurationSeconds`, `StormWeatherDurationSeconds`, `SnowWeatherDurationSeconds`, `WeatherStormProbability`, `WeatherSnowProbability`, plus the existing day/night options).
+
+Client action items:
+- Drive skybox lighting and ambient audio from `TimeUpdateMessage.DayTime`.
+- Trigger precipitation, particles, and ambient FX based on `WeatherChangeMessage`.
+- Cache the most recent broadcast so reconnecting players can resume visuals immediately.
+
 ## Minecraft Message Extensions
 
 The enhanced ?minecraft??messages extend the base `MessageType` enum. The numeric IDs live in `SharedProtocol/MinecraftMessages.cs` and mirror the values generated for the client (`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`). Key assignments:

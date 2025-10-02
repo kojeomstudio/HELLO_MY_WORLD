@@ -27,7 +27,15 @@
     "InitialWorldTime": 0,
     "InitialDayTime": 1000,
     "EnableDayNightCycle": false,
-    "DayNightCycleSecondsPerDay": 1200
+    "DayNightCycleSecondsPerDay": 1200,
+    "EnableWeatherCycle": true,
+    "WeatherTickIntervalSeconds": 30,
+    "ClearWeatherDurationSeconds": 360,
+    "RainWeatherDurationSeconds": 180,
+    "StormWeatherDurationSeconds": 120,
+    "SnowWeatherDurationSeconds": 240,
+    "WeatherStormProbability": 0.1,
+    "WeatherSnowProbability": 0.05
   },
   "Gameplay": {
     "MaxPlayersPerWorld": 20,

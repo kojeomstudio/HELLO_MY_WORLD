@@ -80,6 +80,14 @@ public class WorldSettings
     public long InitialDayTime { get; set; } = 1000;
     public bool EnableDayNightCycle { get; set; } = false;
     public int DayNightCycleSecondsPerDay { get; set; } = 1200;
+    public bool EnableWeatherCycle { get; set; } = true;
+    public int WeatherTickIntervalSeconds { get; set; } = 30;
+    public int ClearWeatherDurationSeconds { get; set; } = 360;
+    public int RainWeatherDurationSeconds { get; set; } = 180;
+    public int StormWeatherDurationSeconds { get; set; } = 120;
+    public int SnowWeatherDurationSeconds { get; set; } = 240;
+    public double WeatherStormProbability { get; set; } = 0.1;
+    public double WeatherSnowProbability { get; set; } = 0.05;
     public bool EnableTerrainGeneration { get; set; } = true;
     public bool EnableOreGeneration { get; set; } = true;
     public bool EnableVegetationGeneration { get; set; } = true;
@@ -136,7 +144,7 @@ public static class ServerLauncher
         try
         {
             var config = ServerConfig.LoadFromFile();
-            var server = new GameServer(config.Network.Port, config.Database.DatabaseFile);
+            var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 
             Console.WriteLine($"Server Configuration:");
             Console.WriteLine($"  Network Port: {config.Network.Port}");

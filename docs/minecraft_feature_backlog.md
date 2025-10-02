@@ -22,11 +22,12 @@ This backlog captures the feature sets required to deliver core Minecraft-style 
 | DONE | Room and lobby management | `RoomManager` keeps lobby and room membership in sync. |
 | DONE | Server status endpoint | `ServerStatusHandler` replies with online players, version, and uptime metrics. |
 | TODO | Entity simulation loop | AI tick and server-side pathing tracking outstanding. |
-| TODO | Weather broadcast scheduling | World time system needs weather triggers and caching. |
+| IN PROGRESS | Weather broadcast scheduling | Server now emits time/weather snapshots; client particles & skybox still pending. |
 
 ## Near-Term Work Queue
-1. Expose server status metrics to the Unity client HUD.
-2. Capture chunk residency metrics for future capacity planning.
-3. Automate protocol regression tests around inventory and chunk mutations.
+1. Surface server status metrics to the Unity client HUD.
+2. Bind day/night lighting & weather FX in Unity to the new broadcasts.
+3. Capture chunk residency metrics for future capacity planning.
+4. Automate protocol regression tests around inventory and chunk mutations.
 
 All future tasks should stay within the 200-line function guideline and update associated docs when wire contracts evolve.

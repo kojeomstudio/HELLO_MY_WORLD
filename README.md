@@ -74,6 +74,12 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - Clients now emit `ChunkUnloadNotificationMessage` when dropping chunks and await `ChunkUnloadAcknowledgeMessage` so the server can free residency immediately.
 - After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
 
+## Time & Weather Systems
+- The server now boots `WorldTimeSystem` to push `TimeUpdateMessage` snapshots on login and every tick so late joiners stay in sync.
+- A companion `WeatherSystem` schedules configurable `WeatherChangeMessage` broadcasts driven by the new `WorldSettings` keys (`EnableWeatherCycle`, `WeatherTickIntervalSeconds`, `ClearWeatherDurationSeconds`, `RainWeatherDurationSeconds`, `StormWeatherDurationSeconds`, `SnowWeatherDurationSeconds`, `WeatherStormProbability`, `WeatherSnowProbability`).
+- Tweak those values in `server-config.json` before launch to control cycle speed, duration, and precipitation mix.
+- Unity clients should bind these packets to skybox lighting, precipitation FX, and ambient audio (see `docs/minecraft-feature-plan.md` F-10).
+
 ## Server Rooms
 - The server supports a room-based architecture to scope chat and block broadcasts.
 - See `docs/server-rooms-architecture.md` for lifecycle and integration details.

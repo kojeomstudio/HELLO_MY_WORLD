@@ -24,26 +24,34 @@ namespace GameServerApp
         private readonly Timer _maintenanceTimer;
         private readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _rateCounters = new();
         private readonly ServerConfig _config;
+        private readonly WorldTimeSystem _worldTimeSystem;
+        private readonly WeatherSystem _weatherSystem;
         private bool _isRunning;
 
-        public GameServer(int port = 9000, string databaseFile = "minecraft_game.db")
+        public GameServer(int port = 9000, string databaseFile = "minecraft_game.db", ServerConfig? config = null)
         {
-            _listener = new TcpListener(IPAddress.Any, port);
-            _database = new DatabaseHelper(databaseFile);
+            _config = config ?? ServerConfig.LoadFromFile();
+
+            var resolvedPort = config?.Network.Port ?? port;
+            var resolvedDatabaseFile = config?.Database.DatabaseFile ?? databaseFile;
+
+            _listener = new TcpListener(IPAddress.Any, resolvedPort);
+            _database = new DatabaseHelper(resolvedDatabaseFile);
             _dispatcher = new MessageDispatcher();
             _sessions = new SessionManager();
             _metrics = new ServerMetricsService(_sessions);
             _rooms = new Rooms.RoomManager(_sessions);
             _worldManager = new WorldManager(_database);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
-            _config = ServerConfig.LoadFromFile();
-            
+            _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
+            _weatherSystem = new WeatherSystem(_sessions, _config.World);
+
             RegisterMessageHandlers();
-            
-            _maintenanceTimer = new Timer(PerformMaintenance, null, 
+
+            _maintenanceTimer = new Timer(PerformMaintenance, null,
                 TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
-        
+
         private void RegisterMessageHandlers()
         {
             // Authentication & Session Management
@@ -135,6 +143,8 @@ namespace GameServerApp
         {
             _isRunning = false;
             _listener?.Stop();
+            _weatherSystem?.Dispose();
+            _worldTimeSystem?.Dispose();
             _maintenanceTimer?.Dispose();
             _sessions?.Dispose();
             _metrics.MarkServerStopped();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using ProtoBuf;
@@ -16,6 +17,8 @@ public class SessionManager
     private readonly ConcurrentDictionary<string, PlayerState> _playerStates = new();
     private readonly ConcurrentDictionary<string, DateTime> _lastHeartbeat = new();
     private readonly Timer _heartbeatTimer;
+
+    public event Action<Session>? SessionAdded;
 
     public SessionManager()
     {
@@ -50,6 +53,8 @@ public class SessionManager
             _playerStates[session.UserName].IsOnline = true;
             _playerStates[session.UserName].LoginTime = DateTime.UtcNow;
         }
+
+        SessionAdded?.Invoke(session);
     }
 
     /// <summary>

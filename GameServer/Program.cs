@@ -27,7 +27,7 @@ namespace GameServerApp
                 try
                 {
                     var config = ServerConfig.LoadFromFile();
-                    var server = new GameServer(config.Network.Port, config.Database.DatabaseFile);
+                    var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 
                     var cts = new CancellationTokenSource();
                     var serverTask = server.StartAsync();
@@ -116,7 +116,7 @@ namespace GameServerApp
                 Console.WriteLine("\n=== Starting Enhanced Minecraft Server ===");
                 
                 var config = ServerConfig.LoadFromFile();
-                var server = new GameServer(config.Network.Port, config.Database.DatabaseFile);
+                var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
                 
                 var cts = new CancellationTokenSource();
                 Console.CancelKeyPress += (sender, e) =>

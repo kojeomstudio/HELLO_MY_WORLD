@@ -9,7 +9,7 @@ This backlog captures the feature sets required to deliver core Minecraft-style 
 | DONE | Chunk streaming and mesh rebuild | `ChunkManager` and `ChunkRenderer` keep meshes synced with server snapshots. |
 | DONE | Block interaction flow | `MinecraftGameClient` routes place and break actions through the server authority. |
 | DONE | UI for login, chat, and inventory | Core UI available; further polish tracked separately. |
-| TODO | Server status overlay | Wire the new server status response into the Unity HUD. |
+| DONE | Server status overlay | Unity HUD auto-refreshes `ServerStatusResponse` every 15s with manual refresh support in `MinecraftGameManager`. |
 | TODO | Entity rendering refresh | Add interpolation and animation states for spawned mobs. |
 
 ## Server Feature Checklist
@@ -25,9 +25,10 @@ This backlog captures the feature sets required to deliver core Minecraft-style 
 | IN PROGRESS | Weather broadcast scheduling | Server now emits time/weather snapshots; client particles & skybox still pending. |
 
 ## Near-Term Work Queue
-1. Surface server status metrics to the Unity client HUD.
-2. Bind day/night lighting & weather FX in Unity to the new broadcasts.
+1. Bind day/night lighting & weather FX in Unity to the new broadcasts.
+2. Extend the pause menu with live server metrics (players/uptime) sourced from the HUD overlay pipeline.
 3. Capture chunk residency metrics for future capacity planning.
 4. Automate protocol regression tests around inventory and chunk mutations.
 
 All future tasks should stay within the 200-line function guideline and update associated docs when wire contracts evolve.
+

@@ -26,6 +26,10 @@ namespace Minecraft.Core
         [SerializeField] private int renderDistance = 8;
         [SerializeField] private float networkTickRate = 20f;
 
+        [Header("Server Status")]
+        [SerializeField] private bool autoRefreshServerStatus = true;
+        [SerializeField] private float serverStatusRefreshInterval = 15f;
+
         private INetworkTransport _transport;
         private bool _isConnected;
         private string _sessionToken = string.Empty;
@@ -41,6 +45,9 @@ namespace Minecraft.Core
 
         private readonly Queue<OutgoingMessage> _outgoingMessages = new();
         private readonly Queue<object> _incomingMessages = new();
+
+        private float _nextServerStatusRequestTime;
+        private ServerStatusResponse _latestServerStatus;
 
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
@@ -59,10 +66,12 @@ namespace Minecraft.Core
         public event Action<RoomLeaveResponse> RoomLeft;
         public event Action<RoomQueueUpdateMessage> RoomQueueUpdated;
         public event Action<RoomPromotionMessage> RoomPromotionReceived;
+        public event Action<ServerStatusResponse> ServerStatusReceived;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
         public string SessionToken => _sessionToken;
+        public ServerStatusResponse LatestServerStatus => _latestServerStatus;
         public int LoadedChunkCount => _loadedChunks.Count;
 
         private void Awake()
@@ -78,6 +87,14 @@ namespace Minecraft.Core
             if (_isConnected)
             {
                 EvaluateChunkResidency();
+            }
+
+            if (_isConnected && !string.IsNullOrEmpty(_sessionToken) && autoRefreshServerStatus && serverStatusRefreshInterval > 0f)
+            {
+                if (Time.time >= _nextServerStatusRequestTime)
+                {
+                    RequestServerStatus();
+                }
             }
 
             if (_isConnected && networkTickRate > 0f && Time.time - _lastNetworkUpdate >= 1f / networkTickRate)
@@ -158,6 +175,9 @@ namespace Minecraft.Core
                 _entities.Clear();
                 _outgoingMessages.Clear();
                 _incomingMessages.Clear();
+                _nextServerStatusRequestTime = 0f;
+                _latestServerStatus = null;
+                ServerStatusReceived?.Invoke(null);
             }
 
             ConnectionStatusChanged?.Invoke(isConnected);
@@ -231,20 +251,34 @@ namespace Minecraft.Core
             EnqueueMessage((int)MinecraftMessageType.ChunkDataRequest, request);
         }
 
-        public void SendChatMessage(string message, ChatType chatType = ChatType.Global, string targetPlayer = "")
+        public void RequestServerStatus()
         {
-            var request = new ChatRequest
+            if (!_isConnected)
             {
-                Message = message,
-                Type = (int)chatType,
-                TargetPlayer = targetPlayer
+                Debug.LogWarning("Cannot request server status while disconnected.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_sessionToken))
+            {
+                Debug.LogWarning("Cannot request server status before login.");
+                return;
+            }
+
+            var request = new ServerStatusRequest
+            {
+                SessionToken = _sessionToken
             };
 
-            EnqueueMessage((int)MessageType.ChatRequest, request);
+            EnqueueMessage((int)MessageType.ServerStatusRequest, request);
+
+            if (autoRefreshServerStatus && serverStatusRefreshInterval > 0f)
+            {
+                _nextServerStatusRequestTime = Time.time + serverStatusRefreshInterval;
+            }
         }
 
         #region Crafting API
-
         public void RequestAllRecipes()
         {
             var request = new RecipeListRequest { CraftingType = -1 };
@@ -442,6 +476,7 @@ namespace Minecraft.Core
                         MessageType.ChatResponse => ProtoBuf.Serializer.Deserialize<ChatResponse>(stream),
                         MessageType.ChatMessage => ProtoBuf.Serializer.Deserialize<ChatMessage>(stream),
                         MessageType.PingResponse => ProtoBuf.Serializer.Deserialize<PingResponse>(stream),
+                        MessageType.ServerStatusResponse => ProtoBuf.Serializer.Deserialize<ServerStatusResponse>(stream),
                         MessageType.WorldBlockChangeBroadcast => ProtoBuf.Serializer.Deserialize<WorldBlockChangeBroadcast>(stream),
                         MessageType.WorldBlockChangeResponse => ProtoBuf.Serializer.Deserialize<WorldBlockChangeResponse>(stream),
                         MessageType.CraftingResponse => ProtoBuf.Serializer.Deserialize<CraftingResponse>(stream),
@@ -549,6 +584,9 @@ namespace Minecraft.Core
                 case PingResponse pingResponse:
                     HandlePingResponse(pingResponse);
                     break;
+                case ServerStatusResponse serverStatus:
+                    HandleServerStatusResponse(serverStatus);
+                    break;
                 default:
                     Debug.LogWarning($"Unhandled message type: {message.GetType().Name}");
                     break;
@@ -569,6 +607,8 @@ namespace Minecraft.Core
                 _playerState = ConvertToPlayerStateInfo(response.PlayerInfo);
                 PlayerStateUpdated?.Invoke(_playerState);
             }
+
+            RequestServerStatus();
         }
 
         private void HandleMoveResponse(MoveResponse response)
@@ -965,6 +1005,17 @@ namespace Minecraft.Core
             Debug.Log($"Ping: {latency} ms");
         }
 
+        private void HandleServerStatusResponse(ServerStatusResponse response)
+        {
+            if (response == null)
+            {
+                return;
+            }
+
+            _latestServerStatus = response;
+            ServerStatusReceived?.Invoke(response);
+        }
+
         private void UpdateLocalPlayerState(Vector3 position, Vector3 rotation, bool isOnGround,
             bool isSneaking, bool isSprinting, bool isFlying)
         {
@@ -1071,3 +1122,15 @@ namespace Minecraft.Core
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

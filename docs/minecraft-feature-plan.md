@@ -1,4 +1,4 @@
-ï»¿# Minecraft Feature Plan
+# Minecraft Feature Plan
 
 ## Feature Matrix
 | ID | Feature | Description | Server Status | Client Status | Notes |
@@ -15,28 +15,33 @@
 | F-10 | World Time & Weather Sync | Broadcast day/night and weather deltas with smoothing | In progress (new WorldTimeSystem & WeatherSystem) | Planned (skybox & lighting hooks pending) | Server now streams timed snapshots; Unity still needs visual binding. |
 | F-11 | Entity Interpolation & Culling | Smooth remote actors and cull entities beyond view radius | Planned | Planned | Requires velocity deltas and client interpolation buffers. |
 | F-12 | Crafting & Container Persistence | Sync crafting grids and shared containers across sessions | Planned | Planned | Builds on F-09 plus container open/close protocol wiring. |
-
+| F-13 | Server Status HUD | Poll server metrics and render overlay with manual refresh | Done (MinecraftGameClient auto polling & events) | Done (MinecraftGameManager overlay + refresh button) | Auto-refresh every 15s with manual override tapping latest `ServerStatusResponse`. |
 ## Implementation Order
 - [x] Enhance chunk streaming on the server (`MinecraftChunkHandler`) to report cache hits and persist player chunk residency via `SessionManager`.
 - [x] Deliver authoritative block change broadcasts with drop metadata from `MinecraftPlayerActionHandler` and reuse `SessionManager` proximity helpers.
 - [x] Extend the Unity client (`MinecraftGameClient`) to avoid duplicate chunk requests, react to server cache hints, and surface block drop notifications to listeners.
 - [x] F-07 Server chunk residency eviction with TTL enforcement and per-player budget pruning.
 - [x] F-08 Client chunk unload notifications with matching server acknowledgements.
+- [x] F-13 Server status HUD wiring server metrics to the Unity overlay.
 - [ ] F-09 Inventory snapshot persistence and reconnect diffs.
-- [ ] F-10 Time/weather broadcast parity (client skybox & HUD bindings) â€” server broadcast live via WorldTimeSystem + WeatherSystem.
+- [ ] F-10 Time/weather broadcast parity (client skybox & HUD bindings) ? server broadcast live via WorldTimeSystem + WeatherSystem.
 - [ ] F-11 Entity interpolation and culling heuristics.
 
 ## Implementation Notes
 - `MinecraftChunkHandler` now tracks per-player served chunks and folds cache-hit insights into `ChunkDataResponseMessage.IsFromCache`.
-- `MinecraftPlayerActionHandler` pushes block changes (including drops) to chunk peers using `SessionManager.BroadcastToAreaAsync`, while responses include the initiating playerâ€™s drop summary.
+- `MinecraftPlayerActionHandler` pushes block changes (including drops) to chunk peers using `SessionManager.BroadcastToAreaAsync`, while responses include the initiating player¡¯s drop summary.
 - `MinecraftGameClient` keeps a `_pendingChunkRequests` set to suppress duplicate fetches, clears it on disconnect, and emits a new `BlockDropsReceived` event when servers advertise drops.
 - Server chunk residency eviction now enforces TTL and radius budgets from `WorldSettings` and drops offline players during cleanup (F-07).
 - Added `ChunkUnloadNotificationMessage`/`ChunkUnloadAcknowledgeMessage` handshake so the server trims residency immediately after the client unloads a chunk (F-08).
 - World time snapshots now go out immediately on login, and the new `WeatherSystem` drives configurable weather broadcasts (F-10 server side).
+- `MinecraftGameClient` emits `ServerStatusReceived` events with a 15s auto-poll while `MinecraftGameManager` exposes the HUD overlay and manual refresh control for server metrics (F-13).
 
 ## Backlog & Follow-ups
 - **F-09** Inventory snapshot persistence and reconnect diff streaming (server/client).
 - **F-10** Client-facing time/weather visuals (server broadcasts ready; Unity skybox + UI outstanding).
 - **F-11** Remote entity interpolation and view-distance aware culling.
 - **F-12** Crafting/container persistence alignment with survival gameplay.
+
+
+
 

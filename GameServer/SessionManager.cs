@@ -1,5 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.IO;
 using ProtoBuf;
 using SharedProtocol;
@@ -230,6 +233,22 @@ public class SessionManager
     }
 
     /// <summary>
+    /// Returns a snapshot of all active sessions. The list is safe to enumerate without holding locks.
+    /// </summary>
+    public IReadOnlyCollection<Session> GetSessionsSnapshot()
+    {
+        return _sessions.Values.ToList();
+    }
+
+    /// <summary>
+    /// Returns a snapshot of all tracked player states.
+    /// </summary>
+    public IReadOnlyCollection<PlayerState> GetPlayerStatesSnapshot()
+    {
+        return _playerStates.Values.ToList();
+    }
+
+    /// <summary>
     /// Gets a snapshot of currently connected user names.
     /// </summary>
     public IReadOnlyCollection<string> ConnectedUsers => _sessions.Keys.ToList();
@@ -325,3 +344,5 @@ public class Vector3
         Z = z;
     }
 }
+
+

@@ -375,7 +375,7 @@ namespace SharedProtocol
         [ProtoMember(5)] public float Health { get; set; }
         [ProtoMember(6)] public EntityUpdateFlags UpdateFlags { get; set; } = new();
     }
-    
+
     [ProtoContract]
     public class EntityUpdateFlags
     {
@@ -384,13 +384,28 @@ namespace SharedProtocol
         [ProtoMember(3)] public bool VelocityUpdated { get; set; }
         [ProtoMember(4)] public bool HealthUpdated { get; set; }
     }
-    
+
+    [ProtoContract]
+    public class EntityDespawnMessage
+    {
+        [ProtoMember(1)] public string EntityId { get; set; } = string.Empty;
+        [ProtoMember(2)] public DespawnReason Reason { get; set; } = DespawnReason.Unknown;
+    }
+
+    public enum DespawnReason
+    {
+        Unknown = 0,
+        Logout = 1,
+        Distance = 2,
+        Manual = 3
+    }
+
     // =============================================================================
-    // 게임 환경 및 효과
+    // World time and weather synchronisation
     // =============================================================================
-    
+
     /// <summary>
-    /// 게임 시간 업데이트
+    /// Server authoritative time snapshot.
     /// </summary>
     [ProtoContract]
     public class TimeUpdateMessage
@@ -398,18 +413,18 @@ namespace SharedProtocol
         [ProtoMember(1)] public long WorldTime { get; set; }
         [ProtoMember(2)] public long DayTime { get; set; } // 0-24000
     }
-    
+
     /// <summary>
-    /// 날씨 변경
+    /// Notifies clients about weather changes.
     /// </summary>
     [ProtoContract]
     public class WeatherChangeMessage
     {
         [ProtoMember(1)] public WeatherType WeatherType { get; set; }
-        [ProtoMember(2)] public int Duration { get; set; } // 틱 단위
+        [ProtoMember(2)] public int Duration { get; set; }
         [ProtoMember(3)] public float Intensity { get; set; } // 0.0 - 1.0
     }
-    
+
     public enum WeatherType
     {
         Clear = 0,

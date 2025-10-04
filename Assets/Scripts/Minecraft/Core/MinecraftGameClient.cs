@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -100,6 +100,34 @@ namespace Minecraft.Core
         {
             snapshot = _lastWeatherChange;
             return snapshot != null;
+        }
+
+        public bool TryGetEntity(string entityId, out EntityInfo entity)
+        {
+            if (string.IsNullOrWhiteSpace(entityId))
+            {
+                entity = null;
+                return false;
+            }
+
+            if (_entities.TryGetValue(entityId, out var stored))
+            {
+                entity = CloneEntity(stored);
+                return true;
+            }
+
+            entity = null;
+            return false;
+        }
+
+        public IReadOnlyCollection<EntityInfo> GetEntitySnapshot()
+        {
+            if (_entities.Count == 0)
+            {
+                return Array.Empty<EntityInfo>();
+            }
+
+            return _entities.Values.Select(CloneEntity).ToArray();
         }
 
         private void Awake()
@@ -1227,16 +1255,105 @@ namespace Minecraft.Core
 
         private void HandleEntitySpawn(EntitySpawnMessage message)
         {
-            if (message.Entity == null || string.IsNullOrEmpty(message.Entity.EntityId)) return;
-            _entities[message.Entity.EntityId] = message.Entity;
-            EntitySpawned?.Invoke(message.Entity);
+            if (message?.Entity == null || string.IsNullOrEmpty(message.Entity.EntityId))
+            {
+                return;
+            }
+
+            var snapshot = CloneEntity(message.Entity);
+            _entities[message.Entity.EntityId] = snapshot;
+            EntitySpawned?.Invoke(CloneEntity(snapshot));
+        }
+
+        private void HandleEntityUpdate(EntityUpdateMessage message)
+        {
+            if (message == null || string.IsNullOrEmpty(message.EntityId))
+            {
+                return;
+            }
+
+            EntityInfo entity;
+            if (_entities.TryGetValue(message.EntityId, out var existing))
+            {
+                entity = CloneEntity(existing);
+            }
+            else
+            {
+                entity = new EntityInfo
+                {
+                    EntityId = message.EntityId,
+                    EntityType = EntityType.Player
+                };
+            }
+
+            if (message.UpdateFlags?.PositionUpdated == true && message.Position != null)
+            {
+                entity.Position = CloneVector(message.Position);
+            }
+
+            if (message.UpdateFlags?.RotationUpdated == true && message.Rotation != null)
+            {
+                entity.Rotation = CloneVector(message.Rotation);
+            }
+
+            if (message.UpdateFlags?.VelocityUpdated == true && message.Velocity != null)
+            {
+                entity.Velocity = CloneVector(message.Velocity);
+            }
+
+            if (message.UpdateFlags?.HealthUpdated == true)
+            {
+                entity.Health = message.Health;
+            }
+
+            _entities[message.EntityId] = entity;
+            EntityUpdated?.Invoke(CloneEntity(entity));
         }
 
         private void HandleEntityDespawn(EntityDespawnMessage message)
         {
-            if (string.IsNullOrEmpty(message.EntityId)) return;
+            if (string.IsNullOrEmpty(message.EntityId))
+            {
+                return;
+            }
+
             _entities.Remove(message.EntityId);
             EntityDespawned?.Invoke(message.EntityId);
+        }
+
+        private static EntityInfo CloneEntity(EntityInfo source)
+        {
+            if (source == null)
+            {
+                return new EntityInfo();
+            }
+
+            return new EntityInfo
+            {
+                EntityId = source.EntityId,
+                EntityType = source.EntityType,
+                Position = CloneVector(source.Position),
+                Rotation = CloneVector(source.Rotation),
+                Velocity = CloneVector(source.Velocity),
+                Health = source.Health,
+                MaxHealth = source.MaxHealth,
+                CustomData = source.CustomData
+            };
+        }
+
+        private static Vector3D CloneVector(Vector3D source)
+        {
+            if (source == null)
+            {
+                return new Vector3D();
+            }
+
+            return new Vector3D
+            {
+                X = source.X,
+                Y = source.Y,
+                Z = source.Z
+            };
         }
 
         private void HandlePingResponse(PingResponse response)
@@ -1362,6 +1479,7 @@ namespace Minecraft.Core
         }
     }
 }
+
 
 
 

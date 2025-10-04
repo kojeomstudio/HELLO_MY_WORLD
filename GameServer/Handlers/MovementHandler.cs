@@ -1,95 +1,99 @@
+﻿using System;
 using GameServerApp.Models;
 using GameServerApp.Database;
+using GameServerApp.Systems;
 using SharedProtocol;
 
 namespace GameServerApp.Handlers;
 
 /// <summary>
-/// 플레이어 이동 요청을 처리하는 핸들러
-/// 이동 유효성 검증, 위치 업데이트, 다른 플레이어에게 알림 등을 담당합니다.
+/// ?뚮젅?댁뼱 ?대룞 ?붿껌??泥섎━?섎뒗 ?몃뱾??
+/// ?대룞 ?좏슚??寃利? ?꾩튂 ?낅뜲?댄듃, ?ㅻⅨ ?뚮젅?댁뼱?먭쾶 ?뚮┝ ?깆쓣 ?대떦?⑸땲??
 /// </summary>
 public class MovementHandler : MessageHandler<MoveRequest>
 {
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
+    private readonly EntitySyncService _entitySync;
     
-    // 이동 속도 제한 (단위: 유닛/초)
+    // ?대룞 ?띾룄 ?쒗븳 (?⑥쐞: ?좊떅/珥?
     private const float MAX_MOVEMENT_SPEED = 10.0f;
     private const float MIN_MOVEMENT_SPEED = 0.1f;
 
-    public MovementHandler(DatabaseHelper database, SessionManager sessions) : base(MessageType.MoveRequest)
+    public MovementHandler(DatabaseHelper database, SessionManager sessions, EntitySyncService entitySync) : base(MessageType.MoveRequest)
     {
         _database = database;
         _sessions = sessions;
+        _entitySync = entitySync;
     }
 
     protected override async Task HandleAsync(Session session, MoveRequest message)
     {
         try
         {
-            // 세션 인증 확인
+            // ?몄뀡 ?몄쬆 ?뺤씤
             if (string.IsNullOrEmpty(session.SessionToken) || string.IsNullOrEmpty(session.UserName))
             {
-                await SendMoveFailure(session, "인증되지 않은 세션입니다.");
+                await SendMoveFailure(session, "?몄쬆?섏? ?딆? ?몄뀡?낅땲??");
                 return;
             }
 
-            // 등록된 세션인지 확인
+            // ?깅줉???몄뀡?몄? ?뺤씤
             if (_sessions.GetSession(session.UserName) != session)
             {
-                await SendMoveFailure(session, "잘못된 세션입니다.");
+                await SendMoveFailure(session, "?섎せ???몄뀡?낅땲??");
                 return;
             }
 
-            // 입력 검증
+            // ?낅젰 寃利?
             if (message.TargetPosition == null)
             {
-                await SendMoveFailure(session, "목표 위치가 지정되지 않았습니다.");
+                await SendMoveFailure(session, "紐⑺몴 ?꾩튂媛 吏?뺣릺吏 ?딆븯?듬땲??");
                 return;
             }
 
-            // 이동 속도 검증
+            // ?대룞 ?띾룄 寃利?
             if (message.MovementSpeed < MIN_MOVEMENT_SPEED || message.MovementSpeed > MAX_MOVEMENT_SPEED)
             {
-                await SendMoveFailure(session, $"잘못된 이동 속도입니다. (허용 범위: {MIN_MOVEMENT_SPEED} - {MAX_MOVEMENT_SPEED})");
+                await SendMoveFailure(session, $"?섎せ???대룞 ?띾룄?낅땲?? (?덉슜 踰붿쐞: {MIN_MOVEMENT_SPEED} - {MAX_MOVEMENT_SPEED})");
                 return;
             }
 
-            // 현재 플레이어 상태 가져오기
+            // ?꾩옱 ?뚮젅?댁뼱 ?곹깭 媛?몄삤湲?
             var playerState = _sessions.GetPlayerState(session.UserName);
             if (playerState == null)
             {
-                await SendMoveFailure(session, "플레이어 상태를 찾을 수 없습니다.");
+                await SendMoveFailure(session, "?뚮젅?댁뼱 ?곹깭瑜?李얠쓣 ???놁뒿?덈떎.");
                 return;
             }
 
-            // 이동 거리 및 유효성 검증
+            // ?대룞 嫄곕━ 諛??좏슚??寃利?
             var currentPos = new SharedProtocol.Vector3((float)playerState.Position.X, (float)playerState.Position.Y, (float)playerState.Position.Z);
             var targetPos = message.TargetPosition;
             
             if (!await ValidateMovement(currentPos, targetPos, message.MovementSpeed))
             {
-                await SendMoveFailure(session, "잘못된 이동 요청입니다.");
+                await SendMoveFailure(session, "?섎せ???대룞 ?붿껌?낅땲??");
                 return;
             }
 
-            // 플레이어 위치 업데이트 (SessionManager를 통해)
+            // ?뚮젅?댁뼱 ?꾩튂 ?낅뜲?댄듃 (SessionManager瑜??듯빐)
             var newPositionClient = new SharedProtocol.Vector3(targetPos.X, targetPos.Y, targetPos.Z);
             var newPositionServer = new GameServerApp.Vector3(targetPos.X, targetPos.Y, targetPos.Z);
             _sessions.UpdatePlayerState(session.UserName, newPositionServer, 0f, 0f);
 
-            // 청크 정보 업데이트
+            // 泥?겕 ?뺣낫 ?낅뜲?댄듃
             var chunkX = (int)Math.Floor(targetPos.X / 16);
             var chunkZ = (int)Math.Floor(targetPos.Z / 16);
             _sessions.UpdatePlayerWorld(session.UserName, playerState.CurrentWorldId, chunkX, chunkZ);
 
-            // 세션의 플레이어 정보도 업데이트
+            // ?몄뀡???뚮젅?댁뼱 ?뺣낫???낅뜲?댄듃
             if (session.PlayerInfo != null)
             {
                 session.PlayerInfo.Position = newPositionClient;
             }
 
-            // 성공 응답 전송
+            // ?깃났 ?묐떟 ?꾩넚
             var response = new MoveResponse
             {
                 Success = true,
@@ -99,7 +103,7 @@ public class MovementHandler : MessageHandler<MoveRequest>
             
             await session.SendAsync(MessageType.MoveResponse, response);
 
-            // 다른 플레이어들에게 위치 업데이트 브로드캐스트 (선택사항)
+            // ?ㅻⅨ ?뚮젅?댁뼱?ㅼ뿉寃??꾩튂 ?낅뜲?댄듃 釉뚮줈?쒖틦?ㅽ듃 (?좏깮?ы빆)
             await BroadcastPlayerMovement(session, targetPos);
 
             Console.WriteLine($"Player {session.UserName} moved to ({targetPos.X:F2}, {targetPos.Y:F2}, {targetPos.Z:F2})");
@@ -107,12 +111,12 @@ public class MovementHandler : MessageHandler<MoveRequest>
         catch (Exception ex)
         {
             Console.WriteLine($"Movement error for user '{session.UserName}': {ex.Message}");
-            await SendMoveFailure(session, "이동 처리 중 오류가 발생했습니다.");
+            await SendMoveFailure(session, "?대룞 泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.");
         }
     }
 
     /// <summary>
-    /// 이동 실패 응답을 보냅니다.
+    /// ?대룞 ?ㅽ뙣 ?묐떟??蹂대깄?덈떎.
     /// </summary>
     private async Task SendMoveFailure(Session session, string errorMessage)
     {
@@ -127,46 +131,51 @@ public class MovementHandler : MessageHandler<MoveRequest>
     }
 
     /// <summary>
-    /// 이동 요청의 유효성을 검증합니다.
+    /// ?대룞 ?붿껌???좏슚?깆쓣 寃利앺빀?덈떎.
     /// </summary>
     private async Task<bool> ValidateMovement(SharedProtocol.Vector3 currentPos, SharedProtocol.Vector3 targetPos, float movementSpeed)
     {
-        await Task.Delay(5); // 검증 처리 시뮬레이션
+        await Task.Delay(5); // 寃利?泥섎━ ?쒕??덉씠??
         
-        // 거리 계산
+        // 嫄곕━ 怨꾩궛
         var deltaX = targetPos.X - currentPos.X;
         var deltaY = targetPos.Y - currentPos.Y;
         var deltaZ = targetPos.Z - currentPos.Z;
         var distance = Math.Sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
         
-        // 너무 멀리 이동하는 것을 방지 (치트 방지)
-        const double MAX_SINGLE_MOVE_DISTANCE = 50.0; // 한 번에 최대 50유닛까지만 이동 가능
+        // ?덈Т 硫由??대룞?섎뒗 寃껋쓣 諛⑹? (移섑듃 諛⑹?)
+        const double MAX_SINGLE_MOVE_DISTANCE = 50.0; // ??踰덉뿉 理쒕? 50?좊떅源뚯?留??대룞 媛??
         if (distance > MAX_SINGLE_MOVE_DISTANCE)
         {
             Console.WriteLine($"Movement rejected: distance too large ({distance:F2} > {MAX_SINGLE_MOVE_DISTANCE})");
             return false;
         }
 
-        // TODO: 추가 검증
-        // - 장애물 충돌 검사
-        // - 맵 경계 검사
-        // - 플레이어 상태 확인 (기절, 정지 등)
-        // - 이동 가능 지형 확인
+        // TODO: 異붽? 寃利?
+        // - ?μ븷臾?異⑸룎 寃??
+        // - 留?寃쎄퀎 寃??
+        // - ?뚮젅?댁뼱 ?곹깭 ?뺤씤 (湲곗젅, ?뺤? ??
+        // - ?대룞 媛??吏???뺤씤
         
         return true;
     }
 
     /// <summary>
-    /// 다른 플레이어들에게 플레이어의 이동을 브로드캐스트합니다.
+    /// ?ㅻⅨ ?뚮젅?댁뼱?ㅼ뿉寃??뚮젅?댁뼱???대룞??釉뚮줈?쒖틦?ㅽ듃?⑸땲??
     /// </summary>
     private async Task BroadcastPlayerMovement(Session movedSession, SharedProtocol.Vector3 newPosition)
     {
-        // TODO: 실제로는 근처에 있는 플레이어들에게만 브로드캐스트해야 함
-        // 현재는 간단한 구현으로 모든 플레이어에게 전송하지 않음 (성능상 이유)
-        
-        // 실제 구현 시에는 PlayerInfoUpdate 메시지를 사용하여
-        // 근처 플레이어들에게만 위치 업데이트를 전송할 수 있음
-        
-        await Task.CompletedTask; // 현재는 브로드캐스트하지 않음
+        try
+        {
+            await _entitySync.BroadcastPlayerUpdateAsync(movedSession, newPosition);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EntitySync] Movement broadcast failed for {movedSession.UserName}: {ex.Message}");
+        }
     }
 }
+
+
+
+

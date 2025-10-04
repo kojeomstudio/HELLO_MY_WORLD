@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-05: Introduced EntitySyncService and the Unity RemoteEntityManager for server-authoritative remote player interpolation (see docs/minecraft_feature_execution.md).
 - 2025-10-03: Added server-side inventory snapshot persistence with SQLite JSON storage and login-time broadcast sync (see docs/minecraft-feature-plan.md).
 - 2025-10-04: Unity now consumes time and weather broadcasts for lighting, ambient FX, and HUD readouts (see docs/minecraft_feature_execution.md).
 
@@ -83,6 +84,11 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - A companion `WeatherSystem` schedules configurable `WeatherChangeMessage` broadcasts driven by the new `WorldSettings` keys (`EnableWeatherCycle`, `WeatherTickIntervalSeconds`, `ClearWeatherDurationSeconds`, `RainWeatherDurationSeconds`, `StormWeatherDurationSeconds`, `SnowWeatherDurationSeconds`, `WeatherStormProbability`, `WeatherSnowProbability`).
 - Tweak those values in `server-config.json` before launch to control cycle speed, duration, and precipitation mix.
 - Unity clients should bind these packets to skybox lighting, precipitation FX, and ambient audio (see `docs/minecraft-feature-plan.md` F-10).
+
+## Remote Player Entity Sync
+- `EntitySyncService` now broadcasts player spawn, update, and despawn messages so remote avatars remain authoritative and discoverable by late joiners.
+- Unity ships a `RemoteEntityManager` MonoBehaviour that subscribes to `MinecraftGameClient.EntityUpdated`, spawns remote player prefabs (or a fallback capsule), and smooths transforms with configurable lerp speeds.
+- Attach `RemoteEntityManager` to your network scene root and assign a prefab to override the default capsule. See `docs/minecraft_feature_execution.md` (F-11) for remaining velocity and culling follow-ups.
 
 ## Server Rooms
 - The server supports a room-based architecture to scope chat and block broadcasts.

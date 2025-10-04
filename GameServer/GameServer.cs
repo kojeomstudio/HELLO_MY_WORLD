@@ -18,6 +18,7 @@ namespace GameServerApp
         private readonly MessageDispatcher _dispatcher;
         private readonly MinecraftMessageDispatcher _minecraftDispatcher;
         private readonly SessionManager _sessions;
+        private readonly EntitySyncService _entitySync;
         private readonly ServerMetricsService _metrics;
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
@@ -39,6 +40,7 @@ namespace GameServerApp
             _database = new DatabaseHelper(resolvedDatabaseFile);
             _dispatcher = new MessageDispatcher();
             _sessions = new SessionManager();
+            _entitySync = new EntitySyncService(_sessions);
             _metrics = new ServerMetricsService(_sessions);
             _rooms = new Rooms.RoomManager(_sessions);
             _worldManager = new WorldManager(_database);
@@ -73,12 +75,29 @@ namespace GameServerApp
                 }, TaskScheduler.Default);
             };
 
+            _sessions.SessionRemoved += session =>
+            {
+                if (string.IsNullOrEmpty(session.UserName))
+                {
+                    return;
+                }
+
+                _ = _entitySync.BroadcastPlayerDespawnAsync(session.UserName).ContinueWith(task =>
+                {
+                    if (task.IsFaulted && task.Exception != null)
+                    {
+                        var error = task.Exception.InnerException?.Message ?? task.Exception.Message;
+                        Console.WriteLine($"[EntitySync] Failed to broadcast despawn for {session.UserName}: {error}");
+                    }
+                }, TaskScheduler.Default);
+            };
+
             // Authentication & Session Management
-            _dispatcher.Register(new LoginHandler(_database, _sessions, _rooms, inventorySystem));
+            _dispatcher.Register(new LoginHandler(_database, _sessions, _rooms, inventorySystem, _entitySync));
 
             // Player Movement & Positioning (Enhanced Minecraft-style)
             //_dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new MovementHandler(_database, _sessions));
+            _dispatcher.Register(new MovementHandler(_database, _sessions, _entitySync));
 
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));

@@ -26,6 +26,8 @@ namespace Minecraft.UI
         [SerializeField] private Text statusText;
         [SerializeField] private Text connectionStatusText;
         [SerializeField] private Text serverStatusText;
+        [SerializeField] private Text timeOfDayText;
+        [SerializeField] private Text weatherStatusText;
         [SerializeField] private Button refreshStatusButton;
 
         [Header("Game Components")]
@@ -39,6 +41,8 @@ namespace Minecraft.UI
 
         private bool _isLoggedIn;
         private bool _isConnected;
+        private TimeUpdateMessage _lastTimeUpdate;
+        private WeatherChangeMessage _lastWeatherUpdate;
 
         private void Start()
         {
@@ -83,6 +87,7 @@ namespace Minecraft.UI
 
             UpdateStatusText("Ready to connect", Color.white);
             UpdateServerStatusText(null);
+            RefreshTimeWeatherUI();
         }
 
         private void InitializeGameSystems()
@@ -132,6 +137,20 @@ namespace Minecraft.UI
             gameClient.BlockChanged += OnBlockChanged;
             gameClient.ChatMessageReceived += OnChatMessageReceived;
             gameClient.ServerStatusReceived += OnServerStatusReceived;
+            gameClient.TimeUpdated += OnTimeUpdated;
+            gameClient.WeatherChanged += OnWeatherChanged;
+
+            if (gameClient.TryGetLastTimeSnapshot(out var timeSnapshot) && timeSnapshot != null)
+            {
+                _lastTimeUpdate = timeSnapshot;
+            }
+
+            if (gameClient.TryGetLastWeatherSnapshot(out var weatherSnapshot) && weatherSnapshot != null)
+            {
+                _lastWeatherUpdate = weatherSnapshot;
+            }
+
+            RefreshTimeWeatherUI();
         }
 
         private async void OnConnectButtonClicked()
@@ -225,6 +244,9 @@ namespace Minecraft.UI
                 _isLoggedIn = false;
                 UpdateStatusText("Disconnected from server", Color.red);
                 UpdateServerStatusText(null);
+                _lastTimeUpdate = null;
+                _lastWeatherUpdate = null;
+                RefreshTimeWeatherUI();
 
                 if (loginPanel != null)
                 {
@@ -312,6 +334,18 @@ namespace Minecraft.UI
             Debug.Log($"[Chat] {sender}: {chatMessage.Message}");
         }
 
+        private void OnTimeUpdated(TimeUpdateMessage message)
+        {
+            _lastTimeUpdate = message;
+            RefreshTimeWeatherUI();
+        }
+
+        private void OnWeatherChanged(WeatherChangeMessage message)
+        {
+            _lastWeatherUpdate = message;
+            RefreshTimeWeatherUI();
+        }
+
         private void OnServerStatusReceived(ServerStatusResponse status)
         {
             UpdateServerStatusText(status);
@@ -345,6 +379,92 @@ namespace Minecraft.UI
 
             var uptime = TimeSpan.FromMilliseconds(Math.Max(0, status.ServerUptime));
             serverStatusText.text = $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | Uptime: {FormatUptime(uptime)}";
+        }
+
+        private void RefreshTimeWeatherUI()
+        {
+            UpdateTimeText();
+            UpdateWeatherText();
+        }
+
+        private void UpdateTimeText()
+        {
+            if (timeOfDayText == null)
+            {
+                return;
+            }
+
+            if (_lastTimeUpdate == null)
+            {
+                timeOfDayText.text = "Time: --:--";
+                return;
+            }
+
+            var formatted = FormatDayTime(_lastTimeUpdate.WorldTime, _lastTimeUpdate.DayTime);
+            timeOfDayText.text = $"Time: {formatted}";
+        }
+
+        private void UpdateWeatherText()
+        {
+            if (weatherStatusText == null)
+            {
+                return;
+            }
+
+            if (_lastWeatherUpdate == null)
+            {
+                weatherStatusText.text = "Weather: --";
+                return;
+            }
+
+            weatherStatusText.text = $"Weather: {FormatWeather(_lastWeatherUpdate)}";
+        }
+
+        private static string FormatDayTime(long worldTime, long dayTime)
+        {
+            var dayIndex = worldTime >= 0 ? worldTime / 24000 : 0;
+            var totalHours = ((dayTime / 1000.0) + 6.0) % 24.0;
+            if (totalHours < 0)
+            {
+                totalHours += 24.0;
+            }
+
+            var hour = (int)Math.Floor(totalHours);
+            var minute = (int)Math.Round((totalHours - hour) * 60.0);
+            if (minute >= 60)
+            {
+                minute -= 60;
+                hour = (hour + 1) % 24;
+            }
+
+            return $"Day {dayIndex + 1} {hour:D2}:{minute:D2}";
+        }
+
+        private static string FormatWeather(WeatherChangeMessage weather)
+        {
+            if (weather == null)
+            {
+                return "Clear";
+            }
+
+            string label = weather.WeatherType switch
+            {
+                WeatherType.Clear => "Clear",
+                WeatherType.Rain => "Rain",
+                WeatherType.Thunderstorm => "Storm",
+                WeatherType.Snow => "Snow",
+                _ => weather.WeatherType.ToString()
+            };
+
+            if (weather.WeatherType == WeatherType.Clear)
+            {
+                return label;
+            }
+
+            int intensityPercent = Mathf.RoundToInt(Mathf.Clamp01(weather.Intensity) * 100f);
+            string durationPart = weather.Duration > 0 ? $" - {weather.Duration}s" : string.Empty;
+
+            return $"{label} {intensityPercent}%{durationPart}";
         }
 
         private string FormatUptime(TimeSpan uptime)
@@ -445,6 +565,8 @@ namespace Minecraft.UI
             gameClient.BlockChanged -= OnBlockChanged;
             gameClient.ChatMessageReceived -= OnChatMessageReceived;
             gameClient.ServerStatusReceived -= OnServerStatusReceived;
+            gameClient.TimeUpdated -= OnTimeUpdated;
+            gameClient.WeatherChanged -= OnWeatherChanged;
         }
 
         #endregion

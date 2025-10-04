@@ -12,7 +12,7 @@
 | F-07 | Chunk Residency Eviction | Evict stale per-player chunk residency entries and cap budgets using server config | Done (TTL pruning + budget caps) | Passive (no change) | Uses `WorldSettings.ChunkUnloadTimeoutMinutes` and periodic cleanup to drop offline players. |
 | F-08 | Client Chunk Unload Signal | Send explicit unload notices so server can drop residency immediately | Done (explicit ack via `HandleChunkUnloadAsync`) | Done (automatic unload sweep + notifications) | Bidirectional ack gives residency telemetry for diagnostics. |
 | F-09 | Inventory Snapshot Persistence | Persist inventory snapshots on logout and push diffs on reconnect | Done (server JSON snapshots persisted) | Done (Unity consumes diff snapshots via `InventoryItemsUpdated`) | Snapshot pipeline now feeds MinecraftGameClient hotbar/events; docs and backlog updated. |
-| F-10 | World Time & Weather Sync | Broadcast day/night and weather deltas with smoothing | In progress (new WorldTimeSystem & WeatherSystem) | Planned (skybox & lighting hooks pending) | Server now streams timed snapshots; Unity still needs visual binding. |
+| F-10 | World Time & Weather Sync | Broadcast day/night and weather deltas with smoothing | Done | Done | WorldTimeSystem + WeatherSystem feed Unity lighting, HUD, and weather FX controllers. |
 | F-11 | Entity Interpolation & Culling | Smooth remote actors and cull entities beyond view radius | Planned | Planned | Requires velocity deltas and client interpolation buffers. |
 | F-12 | Crafting & Container Persistence | Sync crafting grids and shared containers across sessions | Planned | Planned | Builds on F-09 plus container open/close protocol wiring. |
 | F-13 | Server Status HUD | Poll server metrics and render overlay with manual refresh | Done (MinecraftGameClient auto polling & events) | Done (MinecraftGameManager overlay + refresh button) | Auto-refresh every 15s with manual override tapping latest `ServerStatusResponse`. |
@@ -24,7 +24,7 @@
 - [x] F-08 Client chunk unload notifications with matching server acknowledgements.
 - [x] F-13 Server status HUD wiring server metrics to the Unity overlay.
 - [x] F-09 Inventory snapshot persistence and reconnect diffs (server snapshot storage ✅, Unity diff consumer delivered).
-- [ ] F-10 Time/weather broadcast parity (client skybox & HUD bindings) ? server broadcast live via WorldTimeSystem + WeatherSystem.
+- [x] F-10 Time/weather broadcast parity (client skybox & HUD bindings) — server broadcasts now drive Unity visuals.
 - [ ] F-11 Entity interpolation and culling heuristics.
 
 ## Implementation Notes
@@ -38,7 +38,7 @@
 
 ## Backlog & Follow-ups
 - **F-09** Inventory snapshot persistence now delivers diff snapshots to Unity; next follow-up is telemetry dashboards and inventory UI polish.
-- **F-10** Client-facing time/weather visuals (server broadcasts ready; Unity skybox + UI outstanding).
+- **F-10** Time/weather sync delivered; tune ambient presets and asset bindings next.
 - **F-11** Remote entity interpolation and view-distance aware culling.
 - **F-12** Crafting/container persistence alignment with survival gameplay.
 

@@ -119,6 +119,7 @@ Client action items:
 - Drive skybox lighting and ambient audio from `TimeUpdateMessage.DayTime`.
 - Trigger precipitation, particles, and ambient FX based on `WeatherChangeMessage`.
 - Cache the most recent broadcast so reconnecting players can resume visuals immediately.
+- Unity implements this via `MinecraftGameClient.TimeUpdated`/`WeatherChanged` events feeding `WorldTimeController` and `WorldWeatherController`.
 
 ## Minecraft Message Extensions
 

@@ -56,6 +56,8 @@ namespace Minecraft.Core
 
         private float _nextServerStatusRequestTime;
         private ServerStatusResponse _latestServerStatus;
+        private TimeUpdateMessage _lastTimeUpdate;
+        private WeatherChangeMessage _lastWeatherChange;
 
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
@@ -76,12 +78,29 @@ namespace Minecraft.Core
         public event Action<RoomPromotionMessage> RoomPromotionReceived;
         public event Action<ServerStatusResponse> ServerStatusReceived;
         public event Action<IReadOnlyList<ItemInfo>> InventoryItemsUpdated;
+        public event Action<TimeUpdateMessage> TimeUpdated;
+        public event Action<WeatherChangeMessage> WeatherChanged;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
         public string SessionToken => _sessionToken;
         public ServerStatusResponse LatestServerStatus => _latestServerStatus;
         public int LoadedChunkCount => _loadedChunks.Count;
+        public long CurrentWorldTime => _lastTimeUpdate != null ? _lastTimeUpdate.WorldTime : 0;
+        public long CurrentDayTime => _lastTimeUpdate != null ? _lastTimeUpdate.DayTime : 0;
+        public WeatherType CurrentWeather => _lastWeatherChange != null ? _lastWeatherChange.WeatherType : WeatherType.Clear;
+
+        public bool TryGetLastTimeSnapshot(out TimeUpdateMessage snapshot)
+        {
+            snapshot = _lastTimeUpdate;
+            return snapshot != null;
+        }
+
+        public bool TryGetLastWeatherSnapshot(out WeatherChangeMessage snapshot)
+        {
+            snapshot = _lastWeatherChange;
+            return snapshot != null;
+        }
 
         private void Awake()
         {
@@ -186,7 +205,11 @@ namespace Minecraft.Core
                 _incomingMessages.Clear();
                 _nextServerStatusRequestTime = 0f;
                 _latestServerStatus = null;
+                _lastTimeUpdate = null;
+                _lastWeatherChange = null;
                 ServerStatusReceived?.Invoke(null);
+                TimeUpdated?.Invoke(null);
+                WeatherChanged?.Invoke(null);
             }
 
             ConnectionStatusChanged?.Invoke(isConnected);
@@ -511,6 +534,8 @@ namespace Minecraft.Core
                         MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
                         MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
                         MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
+                        MinecraftMessageType.TimeUpdate => ProtoBuf.Serializer.Deserialize<TimeUpdateMessage>(stream),
+                        MinecraftMessageType.WeatherChange => ProtoBuf.Serializer.Deserialize<WeatherChangeMessage>(stream),
                         _ => null
                     };
                 }
@@ -596,10 +621,49 @@ namespace Minecraft.Core
                 case ServerStatusResponse serverStatus:
                     HandleServerStatusResponse(serverStatus);
                     break;
+                case TimeUpdateMessage timeUpdate:
+                    HandleTimeUpdate(timeUpdate);
+                    break;
+                case WeatherChangeMessage weatherChange:
+                    HandleWeatherChange(weatherChange);
+                    break;
                 default:
                     Debug.LogWarning($"Unhandled message type: {message.GetType().Name}");
                     break;
             }
+        }
+
+        private void HandleTimeUpdate(TimeUpdateMessage message)
+        {
+            if (message == null)
+            {
+                return;
+            }
+
+            _lastTimeUpdate = new TimeUpdateMessage
+            {
+                WorldTime = message.WorldTime,
+                DayTime = message.DayTime
+            };
+
+            TimeUpdated?.Invoke(_lastTimeUpdate);
+        }
+
+        private void HandleWeatherChange(WeatherChangeMessage message)
+        {
+            if (message == null)
+            {
+                return;
+            }
+
+            _lastWeatherChange = new WeatherChangeMessage
+            {
+                WeatherType = message.WeatherType,
+                Duration = message.Duration,
+                Intensity = message.Intensity
+            };
+
+            WeatherChanged?.Invoke(_lastWeatherChange);
         }
 
         private void HandleLoginResponse(LoginResponse response)

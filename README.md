@@ -29,6 +29,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 
 ## Recent Updates
 - 2025-10-03: Added server-side inventory snapshot persistence with SQLite JSON storage and login-time broadcast sync (see docs/minecraft-feature-plan.md).
+- 2025-10-04: Unity now consumes time and weather broadcasts for lighting, ambient FX, and HUD readouts (see docs/minecraft_feature_execution.md).
 
 ## Development Environment
 - Unity Engine **6000.0.23f1**

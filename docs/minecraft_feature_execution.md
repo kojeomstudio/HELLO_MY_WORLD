@@ -1,44 +1,36 @@
 # Minecraft Feature Execution Tracking
 
-This document aggregates the core Minecraft-style features across the Unity client and .NET server, captures their current status, and records the next actionable items. It complements `minecraft-feature-plan.md` by offering a compact execution view for day-to-day work sequencing.
+This document enumerates the Minecraft-style features required across the Unity client and .NET server and captures the task queue for sequential delivery. Update this file whenever scope or status changes so future iterations can resume quickly.
 
 ## Feature Catalogue
-
 | ID | Feature | Server Status | Client Status | Notes |
 |----|---------|---------------|---------------|-------|
-| F-01 | Authentication & Session | Done | Done | Login/heartbeat solid via `LoginHandler` and `MinecraftGameClient`. |
-| F-02 | Player Movement Sync | Done | Done | Tick updates authoritative; Unity reconciles corrections. |
-| F-03 | Chunk Streaming & Caching | Done | Done | Cache hints + duplicate suppression live. |
-| F-04 | Block Interaction Broadcast | Done | Done | Broadcast + drop summaries in place. |
-| F-05 | Item Drop Visibility | Done | Done | Drop stream surfaced through Unity events. |
-| F-06 | Chunk Residency Tracking | Done | Done | Residency + eviction budgets wired. |
-| F-07 | Chunk Residency Eviction | Done | Passive | Server pruning only; client unaffected. |
-| F-08 | Client Chunk Unload Signal | Done | Done | Bidirectional unload handshake. |
-| F-09 | Inventory Snapshot Persistence | Done | Done | Unity now applies diff snapshots via `InventoryItemsUpdated`. |
-| F-10 | World Time & Weather Sync | In progress | Planned | Need skybox/day-night binding + HUD indicators. |
-| F-11 | Entity Interpolation & Culling | Planned | Planned | Requires interpolation buffers and culling heuristics. |
-| F-12 | Crafting & Container Persistence | Planned | Planned | Build on F-09 plus shared container protocol. |
-| F-13 | Server Status HUD | Done | Done | Overlay + auto-refresh complete. |
+| F-01 | Authentication & session heartbeat | Done | Done | Login handlers issue tokens; Unity login flow covers reconnect and heartbeat. |
+| F-02 | Player movement & state sync | Done | Done | Tick-based corrections already in place. |
+| F-03 | Chunk streaming & caching | Done | Done | Cache hints and duplicate suppression live on both sides. |
+| F-04 | Block interaction broadcast | Done | Done | Broadcast with drop metadata via SessionManager helpers. |
+| F-05 | Item drop visibility | Done | Done | Unity surfaces drop events for UI and pickups. |
+| F-06 | Chunk residency tracking | Done | Done | Residency registry with TTL pruning runs server-side; client maintains loaded set. |
+| F-07 | Chunk residency eviction | Done | Passive | Server enforces budgets; client unaffected. |
+| F-08 | Client chunk unload signal | Done | Done | Bidirectional unload handshake trims residency instantly. |
+| F-09 | Inventory snapshot persistence | Done | Done | Server snapshots and Unity diff consumer online. |
+| F-10 | World time and weather broadcasts | Done | Done | Server systems stream ticks; Unity drives lighting, HUD, and weather events. |
+| F-11 | Entity interpolation and culling | Planned | Planned | Needs velocity deltas, buffers, and view radius heuristics. |
+| F-12 | Crafting and container persistence | Planned | Planned | Builds on inventory diff support; requires shared container sync. |
+| F-13 | Server status HUD | Done | Done | Overlay refreshes metrics automatically every 15 seconds. |
+| F-14 | Weather FX and ambient audio | In progress | In progress | Weather controller routes intensity to particles and audio; asset wiring remains. |
+| F-15 | Combat feedback and damage numbers | Planned | Planned | Requires combat log events and client damage indicators. |
 
-## Current Execution Order
+## Active Task Queue (Oct 2025)
+1. [x] Task-10A - Hook `MinecraftGameClient` into `TimeUpdateMessage`, expose events, and cache the latest world and day ticks.
+2. [x] Task-10B - Drive Unity skybox lighting and ambient settings via a `WorldTimeController` using the cached ticks.
+3. [x] Task-10C - Surface `WeatherChangeMessage` through client events and a `WorldWeatherController` for FX toggles.
+4. [x] Task-10D - Present formatted time and weather status in the HUD (`MinecraftGameManager`).
+5. [ ] Task-11A - Prototype remote entity interpolation buffers and distance-based culling.
+6. [ ] Task-10E - Author ambient presets and scene bindings for the new weather controller.
 
-1. ✅ Task-09B — Unity inventory snapshot/diff consumer (hotbar wiring + event feed).
-2. 🔄 Task-09C — Session shutdown hook to persist final snapshot and analytics counters.
-3. ⏭ Task-10A — Bind Unity skybox/day-night controller to `TimeUpdateBroadcast` and surface HUD time/weather text.
-4. ⏭ Task-10B — Author weather FX toggles and lerped intensity handlers in Unity.
-5. ⏭ Task-11A — Prototype remote entity interpolation buffers and culling heuristics.
-
-Progress should proceed in order; if any task proves too large for a single iteration, capture the remaining work here before moving on.
-
-## Recent Highlights
-
-- Unity client now parses server-provided inventory snapshots, builds stable numeric IDs, and raises `InventoryItemsUpdated` for UI systems.
-- `MinecraftPlayerController` consumes the new event to keep the hotbar aligned with server state.
-- Documentation and backlog entries updated to reflect the completed inventory diff consumer.
-
-## Next Steps Checklist
-
-- [ ] Implement Task-09C persist-on-shutdown pipeline.
-- [ ] Deliver Task-10A/10B time & weather visual binding.
-- [ ] Spike Task-11A interpolation buffers; capture metrics for tuning.
+## Recently Completed
+- Unity inventory snapshot diff consumer kept hotbar in sync with server reconnections.
+- Server chunk residency eviction now enforces TTL and budgets without leaks.
+- Time and weather broadcasts now update Unity lighting, HUD, and FX controllers.
 

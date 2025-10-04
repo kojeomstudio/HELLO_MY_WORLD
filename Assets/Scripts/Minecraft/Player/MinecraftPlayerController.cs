@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using SharedProtocol;
 using Minecraft.Core;
@@ -86,11 +87,12 @@ namespace Minecraft.Player
             {
                 _gameClient.PlayerStateUpdated += OnPlayerStateUpdated;
                 _gameClient.BlockChanged += OnBlockChanged;
+                _gameClient.InventoryItemsUpdated += OnInventoryItemsUpdated;
             }
-            
+
             InitializeHotbar();
         }
-        
+
         private void Update()
         {
             HandleInput();
@@ -386,10 +388,16 @@ namespace Minecraft.Player
         
         private void InitializeHotbar()
         {
+            for (int i = 0; i < _hotbar.Length; i++)
+            {
+                _hotbar[i] = new ItemInfo();
+            }
+
             _hotbar[0] = new ItemInfo { Id = 1, Name = "Stone", Quantity = 64, Type = ItemType.Block };
             _hotbar[1] = new ItemInfo { Id = 2, Name = "Grass", Quantity = 64, Type = ItemType.Block };
             _hotbar[2] = new ItemInfo { Id = 3, Name = "Dirt", Quantity = 64, Type = ItemType.Block };
         }
+
         
         private void OnPlayerStateUpdated(PlayerStateInfo playerState)
         {
@@ -423,44 +431,79 @@ namespace Minecraft.Player
             Debug.Log($"Block changed at {position}: {oldBlockId} -> {newBlockId}");
         }
         
-        private void UpdateHotbarFromInventory(System.Collections.Generic.IList<ItemInfo> inventory)
+        private void UpdateHotbarFromInventory(IList<InventoryItemInfo> inventory)
         {
-            for (int i = 0; i < 9 && i < inventory.Count; i++)
+            if (inventory == null || inventory.Count == 0)
             {
-                _hotbar[i] = inventory[i];
+                return;
+            }
+
+            for (int i = 0; i < _hotbar.Length; i++)
+            {
+                if (i < inventory.Count)
+                {
+                    _hotbar[i] = ConvertInventoryItem(inventory[i]);
+                }
+                else
+                {
+                    _hotbar[i] = new ItemInfo();
+                }
             }
         }
-        
-        public void Teleport(Vector3 position)
+
+
+        private void OnInventoryItemsUpdated(IReadOnlyList<ItemInfo> items)
         {
-            _characterController.enabled = false;
-            transform.position = position;
-            _characterController.enabled = true;
-            
-            _velocity = Vector3.zero;
-            _lastSentPosition = position;
-        }
-        
-        public void SetGameMode(GameModeType gameMode)
-        {
-            _gameMode = gameMode;
-            
-            if (gameMode == GameModeType.Creative)
+            if (items == null)
             {
-                _isFlying = true;
+                return;
             }
-            else
+
+            for (int i = 0; i < _hotbar.Length; i++)
             {
-                _isFlying = false;
+                if (i < items.Count && items[i] != null)
+                {
+                    _hotbar[i] = items[i].Clone();
+                }
+                else
+                {
+                    _hotbar[i] = new ItemInfo();
+                }
             }
         }
+
+
+        private ItemInfo ConvertInventoryItem(InventoryItemInfo inventoryItem)
+        {
+            if (inventoryItem == null)
+            {
+                return new ItemInfo();
+            }
+
+            var name = string.IsNullOrEmpty(inventoryItem.ItemName)
+                ? $"Item {inventoryItem.ItemId}"
+                : inventoryItem.ItemName;
+
+            return new ItemInfo
+            {
+                Id = inventoryItem.ItemId,
+                Name = name,
+                Quantity = inventoryItem.Quantity,
+                Type = inventoryItem.ItemType,
+                CustomData = inventoryItem.CustomData ?? string.Empty
+            };
+        }
+
         
         private void OnDestroy()
         {
             if (_gameClient != null)
             {
                 _gameClient.PlayerStateUpdated -= OnPlayerStateUpdated;
+
                 _gameClient.BlockChanged -= OnBlockChanged;
+
+                _gameClient.InventoryItemsUpdated -= OnInventoryItemsUpdated;
             }
         }
         

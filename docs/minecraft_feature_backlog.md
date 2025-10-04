@@ -26,7 +26,7 @@ This backlog captures the feature sets required to deliver core Minecraft-style 
 
 ## Near-Term Work Queue
 1. [Done] Task-09A — Persist inventory snapshots to SQLite and surface JSON for reconnect diffs (server).
-2. [Todo] Task-09B — Unity client inventory snapshot/diff consumer (UI + data binding).
+2. [Done] Task-09B — Unity client inventory snapshot/diff consumer (hotbar wiring + event feed).
 3. [Todo] Bind day/night lighting & weather FX in Unity to the new broadcasts.
 4. [Todo] Extend the pause menu with live server metrics (players/uptime) sourced from the HUD overlay pipeline.
 5. [Todo] Capture chunk residency metrics for future capacity planning.

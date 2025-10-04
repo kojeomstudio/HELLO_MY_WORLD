@@ -1,12 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using UnityEngine;
 using Networking.Core;
 using SharedProtocol;
+using Minecraft.Inventory;
+using Minecraft.Player;
 using Minecraft.World;
 
 namespace Minecraft.Core
@@ -42,6 +47,9 @@ namespace Minecraft.Core
         private readonly Dictionary<string, EntityInfo> _entities = new();
         private readonly Dictionary<string, RecipeData> _knownRecipes = new();
         private readonly Dictionary<string, RoomInfo> _knownRooms = new();
+        private ClientInventorySnapshot _inventorySnapshot = ClientInventorySnapshot.Empty;
+        private readonly List<ItemInfo> _inventoryItems = new();
+        private readonly Dictionary<string, int> _itemIdLookup = new(StringComparer.OrdinalIgnoreCase);
 
         private readonly Queue<OutgoingMessage> _outgoingMessages = new();
         private readonly Queue<object> _incomingMessages = new();
@@ -67,6 +75,7 @@ namespace Minecraft.Core
         public event Action<RoomQueueUpdateMessage> RoomQueueUpdated;
         public event Action<RoomPromotionMessage> RoomPromotionReceived;
         public event Action<ServerStatusResponse> ServerStatusReceived;
+        public event Action<IReadOnlyList<ItemInfo>> InventoryItemsUpdated;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
@@ -819,27 +828,7 @@ namespace Minecraft.Core
 
             if (!string.IsNullOrWhiteSpace(response.UpdatedInventory))
             {
-                try
-                {
-                    using var doc = JsonDocument.Parse(response.UpdatedInventory);
-                    if (doc.RootElement.TryGetProperty("Slots", out var slotsElement))
-                    {
-                        int occupied = 0;
-                        foreach (var slot in slotsElement.EnumerateArray())
-                        {
-                            if (slot.TryGetProperty("ItemId", out var idProp) && !string.IsNullOrEmpty(idProp.GetString()))
-                            {
-                                occupied++;
-                            }
-                        }
-
-                        Debug.Log($"Inventory snapshot received. Occupied slots: {occupied}.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning($"Failed to parse inventory snapshot from crafting response: {ex.Message}");
-                }
+                ApplyInventorySnapshot(response.UpdatedInventory);
             }
 
             if (!string.IsNullOrEmpty(response.RecipeId) && _knownRecipes.TryGetValue(response.RecipeId, out var recipe))
@@ -851,6 +840,193 @@ namespace Minecraft.Core
             }
 
             CraftingCompleted?.Invoke(response);
+        }
+        private void ApplyInventorySnapshot(string snapshotJson)
+        {
+            if (!ClientInventorySnapshot.TryParse(snapshotJson, out var snapshot, out var error))
+            {
+                Debug.LogWarning($"Failed to parse inventory snapshot: {error}");
+                return;
+            }
+
+            var changedSlots = snapshot.GetChangedSlots(_inventorySnapshot);
+            if (changedSlots.Count == 0)
+            {
+                return;
+            }
+
+            _inventorySnapshot = snapshot;
+
+            var orderedSlots = snapshot.GetOrderedSlots();
+            const int TotalInventorySlots = 41;
+
+            _inventoryItems.Clear();
+            for (int i = 0; i < TotalInventorySlots; i++)
+            {
+                _inventoryItems.Add(new ItemInfo());
+            }
+
+            if (orderedSlots.Count > 0)
+            {
+                foreach (var slot in orderedSlots)
+                {
+                    if (slot.SlotIndex >= 0 && slot.SlotIndex < TotalInventorySlots)
+                    {
+                        _inventoryItems[slot.SlotIndex] = ConvertSlotToItemInfo(slot);
+                    }
+                }
+            }
+
+            UpdatePlayerStateInventory(snapshot);
+
+            InventoryItemsUpdated?.Invoke(_inventoryItems
+                .Select(item => item.Clone())
+                .ToArray());
+
+            PlayerStateUpdated?.Invoke(_playerState);
+
+            Debug.Log($"Inventory snapshot applied with {changedSlots.Count} changed slot(s).");
+        }
+
+        private void UpdatePlayerStateInventory(ClientInventorySnapshot snapshot)
+        {
+            if (_playerState == null)
+            {
+                _playerState = new PlayerStateInfo();
+            }
+
+            var protocolItems = new List<InventoryItemInfo>();
+            foreach (var slot in snapshot.GetOrderedSlots())
+            {
+                if (slot.IsEmpty)
+                {
+                    continue;
+                }
+
+                protocolItems.Add(ConvertSlotToProtocolItem(slot));
+            }
+
+            _playerState.Inventory = protocolItems;
+
+            if (_playerState.Inventory.Count > 0)
+            {
+                var selectedIndex = _playerState.SelectedSlot;
+                if (selectedIndex < 0 || selectedIndex >= _playerState.Inventory.Count)
+                {
+                    selectedIndex = 0;
+                    _playerState.SelectedSlot = 0;
+                }
+
+                _playerState.HeldItem = _playerState.Inventory[selectedIndex];
+            }
+            else
+            {
+                _playerState.HeldItem = new InventoryItemInfo();
+            }
+        }
+
+        private ItemInfo ConvertSlotToItemInfo(ClientInventorySlot slot)
+        {
+            if (slot.IsEmpty)
+            {
+                return new ItemInfo();
+            }
+
+            return new ItemInfo
+            {
+                Id = ResolveItemNumericId(slot.ItemId),
+                Name = FormatItemName(slot.ItemId),
+                Quantity = slot.Amount,
+                Type = GuessItemType(slot.ItemId),
+                CustomData = slot.ItemData
+            };
+        }
+
+        private InventoryItemInfo ConvertSlotToProtocolItem(ClientInventorySlot slot)
+        {
+            return new InventoryItemInfo
+            {
+                ItemId = ResolveItemNumericId(slot.ItemId),
+                ItemName = FormatItemName(slot.ItemId),
+                Quantity = slot.Amount,
+                Durability = 0,
+                MaxDurability = 0,
+                ItemType = GuessItemType(slot.ItemId),
+                CustomData = slot.ItemData ?? string.Empty
+            };
+        }
+
+        private int ResolveItemNumericId(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return 0;
+            }
+
+            if (_itemIdLookup.TryGetValue(itemId, out var numericId))
+            {
+                return numericId;
+            }
+
+            var computed = ComputeStableItemId(itemId);
+            _itemIdLookup[itemId] = computed;
+            return computed;
+        }
+
+        private static int ComputeStableItemId(string value)
+        {
+            using var sha1 = SHA1.Create();
+            var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(value));
+            return BitConverter.ToInt32(hash, 0) & int.MaxValue;
+        }
+
+        private static string FormatItemName(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return "Empty";
+            }
+
+            var core = itemId.Contains(':') ? itemId.Split(':')[1] : itemId;
+            core = core.Replace('_', ' ');
+            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(core);
+        }
+
+        private static ItemType GuessItemType(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return ItemType.Material;
+            }
+
+            var normalized = itemId.ToLowerInvariant();
+
+            if (normalized.Contains("sword") || normalized.Contains("bow") || normalized.Contains("trident"))
+            {
+                return ItemType.Weapon;
+            }
+
+            if (normalized.Contains("pickaxe") || normalized.Contains("axe") || normalized.Contains("shovel") || normalized.Contains("hoe"))
+            {
+                return ItemType.Tool;
+            }
+
+            if (normalized.Contains("helmet") || normalized.Contains("chestplate") || normalized.Contains("leggings") || normalized.Contains("boots"))
+            {
+                return ItemType.Armor;
+            }
+
+            if (normalized.Contains("bread") || normalized.Contains("apple") || normalized.Contains("stew") || normalized.Contains("food"))
+            {
+                return ItemType.Food;
+            }
+
+            if (normalized.Contains("log") || normalized.Contains("plank") || normalized.Contains("stone") || normalized.Contains("block"))
+            {
+                return ItemType.Block;
+            }
+
+            return ItemType.Material;
         }
 
         private void HandleRoomListResponse(RoomListResponse response)
@@ -1122,6 +1298,7 @@ namespace Minecraft.Core
         }
     }
 }
+
 
 
 

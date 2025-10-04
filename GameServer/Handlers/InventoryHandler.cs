@@ -1,4 +1,6 @@
+using System;
 using GameServerApp.Database;
+using GameServerApp.Systems;
 using SharedProtocol;
 
 namespace GameServerApp.Handlers;
@@ -12,12 +14,12 @@ public class InventoryHandler : MessageHandler<InventoryRequest>
     private readonly SessionManager _sessions;
     private readonly InventorySystem _inventorySystem;
 
-    public InventoryHandler(DatabaseHelper database, SessionManager sessions)
+    public InventoryHandler(DatabaseHelper database, SessionManager sessions, InventorySystem inventorySystem)
         : base(MessageType.InventoryRequest)
     {
         _database = database;
         _sessions = sessions;
-        _inventorySystem = new InventorySystem(database);
+        _inventorySystem = inventorySystem;
     }
 
     protected override async Task HandleAsync(Session session, InventoryRequest message)
@@ -137,6 +139,7 @@ public class InventoryHandler : MessageHandler<InventoryRequest>
 
         updatedSlots.Add(ConvertToSlotData(sourceSlot));
         updatedSlots.Add(ConvertToSlotData(targetSlot));
+        inventory.LastUpdate = DateTime.UtcNow;
 
         return true;
     }
@@ -159,6 +162,7 @@ public class InventoryHandler : MessageHandler<InventoryRequest>
 
         updatedSlots.Add(ConvertToSlotData(sourceSlot));
         updatedSlots.Add(ConvertToSlotData(targetSlot));
+        inventory.LastUpdate = DateTime.UtcNow;
 
         return true;
     }
@@ -181,6 +185,7 @@ public class InventoryHandler : MessageHandler<InventoryRequest>
 
         updatedSlots.Add(ConvertToSlotData(sourceSlot));
         updatedSlots.Add(ConvertToSlotData(targetSlot));
+        inventory.LastUpdate = DateTime.UtcNow;
 
         return true;
     }

@@ -19,6 +19,7 @@ public class SessionManager
     private readonly Timer _heartbeatTimer;
 
     public event Action<Session>? SessionAdded;
+    public event Action<Session>? SessionRemoved;
 
     public SessionManager()
     {
@@ -73,6 +74,8 @@ public class SessionManager
                 playerState.LastSeenTime = DateTime.UtcNow;
             }
         }
+
+        SessionRemoved?.Invoke(session);
     }
 
     /// <summary>

@@ -54,23 +54,41 @@ namespace GameServerApp
 
         private void RegisterMessageHandlers()
         {
+            var inventorySystem = new InventorySystem(_database);
+
+            _sessions.SessionRemoved += session =>
+            {
+                if (string.IsNullOrEmpty(session.UserName))
+                {
+                    return;
+                }
+
+                _ = inventorySystem.PersistSnapshotAsync(session.UserName).ContinueWith(task =>
+                {
+                    if (task.IsFaulted && task.Exception != null)
+                    {
+                        var error = task.Exception.InnerException?.Message ?? task.Exception.Message;
+                        Console.WriteLine($"[InventorySystem] Failed to persist snapshot for {session.UserName}: {error}");
+                    }
+                }, TaskScheduler.Default);
+            };
+
             // Authentication & Session Management
-            _dispatcher.Register(new LoginHandler(_database, _sessions, _rooms));
-            
+            _dispatcher.Register(new LoginHandler(_database, _sessions, _rooms, inventorySystem));
+
             // Player Movement & Positioning (Enhanced Minecraft-style)
             //_dispatcher.Register(new PlayerMoveHandler(_database, _sessions, _worldManager));
             _dispatcher.Register(new MovementHandler(_database, _sessions));
-            
+
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
             _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms));
-            
+
             // Game Mechanics & Interactions
-            var inventorySystem = new InventorySystem(_database);
             var craftingSystem = new CraftingSystem(inventorySystem);
-            var healthSystem = new GameServerApp.Systems.HealthAndHungerSystem(_database, _sessions);
-            
-            _dispatcher.Register(new InventoryHandler(_database, _sessions));
+            var healthSystem = new HealthAndHungerSystem(_database, _sessions);
+
+            _dispatcher.Register(new InventoryHandler(_database, _sessions, inventorySystem));
             _dispatcher.Register(new CraftingHandler(_database, _sessions, craftingSystem));
             _dispatcher.Register(new RecipeListHandler(_database, _sessions, craftingSystem));
             _dispatcher.Register(new RoomListHandler(_sessions, _rooms));
@@ -78,15 +96,15 @@ namespace GameServerApp
             _dispatcher.Register(new RoomLeaveHandler(_sessions, _rooms));
             _dispatcher.Register(new HealthHandler(_database, _sessions, healthSystem));
             _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem));
-            
+
             // Communication & Network
             _dispatcher.Register(new ChatHandler(_database, _sessions, _rooms));
             _dispatcher.Register(new PingHandler(_database, _sessions));
             _dispatcher.Register(new ServerStatusHandler(_sessions, _metrics));
-            
-            // === 마인크래프트 전용 핸들러 등록 ===
+
+            // === 마인?�래?�트 ?�용 ?�들???�록 ===
             RegisterMinecraftHandlers();
-            
+
             Console.WriteLine($"Registered {_dispatcher.HandlerCount} base handlers + {_minecraftDispatcher.HandlerCount} minecraft handlers");
         }
 

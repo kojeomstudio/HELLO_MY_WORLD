@@ -1,6 +1,9 @@
 using GameServerApp.Models;
 using GameServerApp.Database;
+using GameServerApp.Systems;
 using SharedProtocol;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -15,15 +18,17 @@ public class LoginHandler : MessageHandler<LoginRequest>
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
     private readonly Rooms.RoomManager _rooms;
+    private readonly InventorySystem _inventorySystem;
     
     // 지원되는 클라이언트 버전 목록
     private readonly HashSet<string> _supportedVersions = new() { "1.0.0", "1.0.1" };
 
-    public LoginHandler(DatabaseHelper database, SessionManager sessions, Rooms.RoomManager rooms) : base(MessageType.LoginRequest)
+    public LoginHandler(DatabaseHelper database, SessionManager sessions, Rooms.RoomManager rooms, InventorySystem inventorySystem) : base(MessageType.LoginRequest)
     {
         _database = database;
         _sessions = sessions;
         _rooms = rooms;
+        _inventorySystem = inventorySystem;
     }
 
     protected override async Task HandleAsync(Session session, LoginRequest message)
@@ -65,6 +70,9 @@ public class LoginHandler : MessageHandler<LoginRequest>
             
             // 플레이어 데이터 로드 또는 생성
             var character = await GetOrCreateCharacter(message.Username);
+            var playerInventory = await _inventorySystem.GetPlayerInventoryAsync(message.Username);
+            var inventorySummary = BuildInventorySummary(playerInventory);
+            var inventorySnapshot = _inventorySystem.CreateSlotSnapshot(playerInventory);
             
             // 플레이어 정보 생성
             var playerInfo = new PlayerInfo
@@ -75,7 +83,7 @@ public class LoginHandler : MessageHandler<LoginRequest>
                 Level = 1,
                 Health = 100,
                 MaxHealth = 100,
-                Inventory = new List<InventoryItem>()
+                Inventory = inventorySummary
             };
             
             session.PlayerInfo = playerInfo;
@@ -106,6 +114,15 @@ public class LoginHandler : MessageHandler<LoginRequest>
             };
             
             await session.SendAsync(MessageType.LoginResponse, response);
+
+            var inventoryBroadcast = new InventoryUpdateBroadcast
+            {
+                PlayerId = session.UserName!,
+                UpdatedSlots = inventorySnapshot,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            await session.SendAsync(MessageType.InventoryUpdateBroadcast, inventoryBroadcast);
             Console.WriteLine($"User '{message.Username}' logged in successfully.");
         }
         catch (Exception ex)
@@ -123,6 +140,25 @@ public class LoginHandler : MessageHandler<LoginRequest>
         var response = new LoginResponse { Success = false, Message = errorMessage };
         await session.SendAsync(MessageType.LoginResponse, response);
         Console.WriteLine($"Login failed: {errorMessage}");
+    }
+
+    private static List<InventoryItem> BuildInventorySummary(PlayerInventory inventory)
+    {
+        if (inventory == null)
+        {
+            return new List<InventoryItem>();
+        }
+
+        return inventory.Slots
+            .Where(slot => !slot.IsEmpty())
+            .GroupBy(slot => slot.ItemId)
+            .Select(group => new InventoryItem
+            {
+                ItemId = int.TryParse(group.Key, out var parsedId) ? parsedId : 0,
+                ItemName = group.Key,
+                Quantity = group.Sum(slot => slot.Amount)
+            })
+            .ToList();
     }
 
     /// <summary>

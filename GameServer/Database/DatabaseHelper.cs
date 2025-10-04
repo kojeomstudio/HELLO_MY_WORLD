@@ -51,6 +51,13 @@ namespace GameServerApp.Database
                     UNIQUE(PlayerId, Slot)
                 );
                 
+                CREATE TABLE IF NOT EXISTS PlayerInventorySnapshots (
+                    PlayerName TEXT PRIMARY KEY,
+                    InventoryJson TEXT NOT NULL,
+                    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_updated_at ON PlayerInventorySnapshots(UpdatedAt);
+                
                 CREATE TABLE IF NOT EXISTS Worlds (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL UNIQUE,
@@ -307,6 +314,36 @@ namespace GameServerApp.Database
                 slotParam.Value = i;
                 await insertCmd.ExecuteNonQueryAsync();
             }
+        }
+
+        public async Task<string?> LoadInventorySnapshotAsync(string playerName)
+        {
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = "SELECT InventoryJson FROM PlayerInventorySnapshots WHERE PlayerName = $playerName;";
+                cmd.Parameters.AddWithValue("$playerName", playerName);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result == null || result == DBNull.Value ? null : Convert.ToString(result);
+            });
+        }
+
+        public async Task SaveInventorySnapshotAsync(string playerName, string snapshotJson)
+        {
+            await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO PlayerInventorySnapshots (PlayerName, InventoryJson, UpdatedAt)
+                    VALUES ($playerName, $inventoryJson, CURRENT_TIMESTAMP)
+                    ON CONFLICT(PlayerName) DO UPDATE SET
+                        InventoryJson = excluded.InventoryJson,
+                        UpdatedAt = excluded.UpdatedAt;";
+                cmd.Parameters.AddWithValue("$playerName", playerName);
+                cmd.Parameters.AddWithValue("$inventoryJson", snapshotJson);
+                await cmd.ExecuteNonQueryAsync();
+            });
         }
 
         public async Task<string> CreateSessionAsync(string playerName)

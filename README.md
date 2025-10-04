@@ -27,6 +27,9 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 
+## Recent Updates
+- 2025-10-03: Added server-side inventory snapshot persistence with SQLite JSON storage and login-time broadcast sync (see docs/minecraft-feature-plan.md).
+
 ## Development Environment
 - Unity Engine **6000.0.23f1**
 - C# / .NET Framework 4.5 (Unity) & .NET 6.0 (server)

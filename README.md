@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-06: Velocity-aware remote player smoothing now clamps server velocity updates and predicts client transforms with damped interpolation (see docs/minecraft_feature_execution.md).
 - 2025-10-05: Introduced EntitySyncService and the Unity RemoteEntityManager for server-authoritative remote player interpolation (see docs/minecraft_feature_execution.md).
 - 2025-10-03: Added server-side inventory snapshot persistence with SQLite JSON storage and login-time broadcast sync (see docs/minecraft-feature-plan.md).
 - 2025-10-04: Unity now consumes time and weather broadcasts for lighting, ambient FX, and HUD readouts (see docs/minecraft_feature_execution.md).

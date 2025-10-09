@@ -16,6 +16,8 @@ namespace GameServerApp.Systems
     public sealed class EntitySyncService
     {
         private const double DefaultBroadcastRange = 128.0;
+        private const double MinimumVelocityMagnitude = 0.05d;
+        private const double MaxVelocityMagnitude = 48.0d;
 
         private readonly SessionManager _sessions;
         private readonly ConcurrentDictionary<string, PositionSample> _positionSamples = new(StringComparer.OrdinalIgnoreCase);
@@ -113,6 +115,7 @@ namespace GameServerApp.Systems
             var now = DateTime.UtcNow;
             var current = ToDoubleVector(newPosition);
             var velocity = ComputeVelocity(movedSession.UserName, current, now);
+            var sanitizedVelocity = SanitizeVelocity(velocity);
 
             _positionSamples[movedSession.UserName] = new PositionSample(current, now);
 
@@ -126,13 +129,13 @@ namespace GameServerApp.Systems
                     Y = playerState.RotationY,
                     Z = 0d
                 },
-                Velocity = new Vector3D { X = velocity.X, Y = velocity.Y, Z = velocity.Z },
+                Velocity = new Vector3D { X = sanitizedVelocity.X, Y = sanitizedVelocity.Y, Z = sanitizedVelocity.Z },
                 Health = playerState.Health,
                 UpdateFlags = new EntityUpdateFlags
                 {
                     PositionUpdated = true,
                     RotationUpdated = Math.Abs(playerState.RotationX) > double.Epsilon || Math.Abs(playerState.RotationY) > double.Epsilon,
-                    VelocityUpdated = velocity.HasMagnitude,
+                    VelocityUpdated = true,
                     HealthUpdated = false
                 }
             };
@@ -263,6 +266,35 @@ namespace GameServerApp.Systems
             return DoubleVector.Zero;
         }
 
+        private static DoubleVector SanitizeVelocity(DoubleVector velocity)
+        {
+            if (!velocity.HasMagnitude)
+            {
+                return DoubleVector.Zero;
+            }
+
+            var magnitudeSquared = velocity.SquaredMagnitude;
+            if (magnitudeSquared < MinimumVelocityMagnitude * MinimumVelocityMagnitude)
+            {
+                return DoubleVector.Zero;
+            }
+
+            var maxMagnitudeSquared = MaxVelocityMagnitude * MaxVelocityMagnitude;
+            if (magnitudeSquared <= maxMagnitudeSquared)
+            {
+                return velocity;
+            }
+
+            var magnitude = Math.Sqrt(magnitudeSquared);
+            if (magnitude < double.Epsilon)
+            {
+                return DoubleVector.Zero;
+            }
+
+            var scale = MaxVelocityMagnitude / magnitude;
+            return new DoubleVector(velocity.X * scale, velocity.Y * scale, velocity.Z * scale);
+        }
+
         private static byte[] Serialize<T>(T message)
         {
             using var stream = new MemoryStream();
@@ -297,12 +329,12 @@ namespace GameServerApp.Systems
 
             public bool HasMagnitude => Math.Abs(X) > double.Epsilon || Math.Abs(Y) > double.Epsilon || Math.Abs(Z) > double.Epsilon;
 
+            public double SquaredMagnitude => (X * X) + (Y * Y) + (Z * Z);
+
             public static DoubleVector Zero => new DoubleVector(0d, 0d, 0d);
         }
     }
 }
-
-
 
 
 

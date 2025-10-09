@@ -17,6 +17,10 @@ namespace Minecraft.World
         [SerializeField] private float positionLerpSpeed = 8f;
         [SerializeField] private float rotationLerpSpeed = 6f;
         [SerializeField] private float teleportThreshold = 12f;
+        [SerializeField] private float positionSmoothTime = 0.12f;
+        [SerializeField] private float predictionLeadTime = 0.2f;
+        [SerializeField] private float jitterBufferDistance = 0.05f;
+        [SerializeField] private float velocityDeadZone = 0.05f;
 
         private readonly Dictionary<string, RemoteEntity> _entities = new(StringComparer.OrdinalIgnoreCase);
         private string _localPlayerId = string.Empty;
@@ -70,9 +74,18 @@ namespace Minecraft.World
             }
 
             var deltaTime = Time.deltaTime;
+            var currentTime = Time.time;
+            var config = new RemoteSmoothingConfig(
+                positionSmoothTime,
+                positionLerpSpeed,
+                rotationLerpSpeed,
+                teleportThreshold,
+                jitterBufferDistance,
+                predictionLeadTime);
+
             foreach (var remote in _entities.Values)
             {
-                remote.Update(deltaTime, positionLerpSpeed, rotationLerpSpeed, teleportThreshold);
+                remote.Update(deltaTime, currentTime, in config);
             }
         }
 
@@ -176,7 +189,7 @@ namespace Minecraft.World
             if (!_entities.TryGetValue(entityId, out var remote))
             {
                 var avatar = CreateAvatar(snapshot);
-                remote = new RemoteEntity(avatar);
+                remote = new RemoteEntity(avatar, velocityDeadZone);
                 _entities[entityId] = remote;
             }
 
@@ -270,20 +283,47 @@ namespace Minecraft.World
             return Quaternion.Euler((float)rotation.X, (float)rotation.Y, (float)rotation.Z);
         }
 
+        private readonly struct RemoteSmoothingConfig
+        {
+            public RemoteSmoothingConfig(float positionSmoothTime, float maxCatchupSpeed, float rotationLerpSpeed, float teleportThreshold, float jitterBuffer, float predictionLeadTime)
+            {
+                PositionSmoothTime = Mathf.Max(positionSmoothTime, 0.0001f);
+                MaxCatchupSpeed = Mathf.Max(maxCatchupSpeed, 0f);
+                RotationLerpSpeed = Mathf.Max(rotationLerpSpeed, 0f);
+                TeleportThreshold = Mathf.Max(teleportThreshold, 0f);
+                JitterBuffer = Mathf.Max(jitterBuffer, 0f);
+                PredictionLeadTime = Mathf.Max(predictionLeadTime, 0f);
+            }
+
+            public float PositionSmoothTime { get; }
+            public float MaxCatchupSpeed { get; }
+            public float RotationLerpSpeed { get; }
+            public float TeleportThreshold { get; }
+            public float JitterBuffer { get; }
+            public float PredictionLeadTime { get; }
+        }
+
         private sealed class RemoteEntity
         {
             private readonly GameObject _root;
             private readonly Transform _transform;
+            private readonly float _velocityDeadZone;
             private Vector3 _targetPosition;
             private Quaternion _targetRotation = Quaternion.identity;
+            private Vector3 _targetVelocity;
+            private Vector3 _currentVelocity;
             private bool _hasTarget;
             private bool _hasRotation;
+            private bool _hasVelocity;
+            private float _lastSnapshotTime;
 
-            public RemoteEntity(GameObject root)
+            public RemoteEntity(GameObject root, float velocityDeadZone)
             {
                 _root = root;
                 _transform = root.transform;
                 _targetPosition = _transform.position;
+                _velocityDeadZone = Mathf.Max(velocityDeadZone, 0f);
+                _lastSnapshotTime = Time.time;
             }
 
             public void ApplySnapshot(EntityInfo snapshot, bool immediate)
@@ -300,9 +340,32 @@ namespace Minecraft.World
                     _hasRotation = true;
                 }
 
+                if (snapshot?.Velocity != null)
+                {
+                    var velocity = ToUnityVector(snapshot.Velocity);
+                    if (velocity.sqrMagnitude <= _velocityDeadZone * _velocityDeadZone)
+                    {
+                        _targetVelocity = Vector3.zero;
+                        _hasVelocity = false;
+                    }
+                    else
+                    {
+                        _targetVelocity = velocity;
+                        _hasVelocity = true;
+                    }
+                }
+                else
+                {
+                    _targetVelocity = Vector3.zero;
+                    _hasVelocity = false;
+                }
+
+                _lastSnapshotTime = Time.time;
+
                 if (immediate && _hasTarget)
                 {
                     _transform.position = _targetPosition;
+                    _currentVelocity = Vector3.zero;
                 }
 
                 if (immediate && _hasRotation)
@@ -311,29 +374,43 @@ namespace Minecraft.World
                 }
             }
 
-            public void Update(float deltaTime, float positionSpeed, float rotationSpeed, float teleportThreshold)
+            public void Update(float deltaTime, float currentTime, in RemoteSmoothingConfig config)
             {
                 if (!_hasTarget)
                 {
                     return;
                 }
 
-                var current = _transform.position;
-                var distance = Vector3.Distance(current, _targetPosition);
-
-                if (teleportThreshold > 0f && distance > teleportThreshold)
+                var predictedTarget = _targetPosition;
+                if (_hasVelocity && config.PredictionLeadTime > 0f)
                 {
-                    _transform.position = _targetPosition;
+                    var elapsed = Mathf.Clamp(currentTime - _lastSnapshotTime, 0f, config.PredictionLeadTime);
+                    predictedTarget += _targetVelocity * elapsed;
+                }
+
+                var current = _transform.position;
+                var distance = Vector3.Distance(current, predictedTarget);
+
+                if (config.TeleportThreshold > 0f && distance > config.TeleportThreshold)
+                {
+                    _transform.position = predictedTarget;
+                    _currentVelocity = Vector3.zero;
+                }
+                else if (distance <= config.JitterBuffer)
+                {
+                    _transform.position = predictedTarget;
+                    _currentVelocity = Vector3.zero;
                 }
                 else
                 {
-                    var t = positionSpeed <= 0f ? 1f : Mathf.Clamp01(positionSpeed * deltaTime);
-                    _transform.position = Vector3.Lerp(current, _targetPosition, t);
+                    var smoothTime = Mathf.Max(config.PositionSmoothTime, 0.0001f);
+                    var maxSpeed = config.MaxCatchupSpeed > 0f ? config.MaxCatchupSpeed : float.PositiveInfinity;
+                    _transform.position = Vector3.SmoothDamp(current, predictedTarget, ref _currentVelocity, smoothTime, maxSpeed, deltaTime);
                 }
 
                 if (_hasRotation)
                 {
-                    var tRot = rotationSpeed <= 0f ? 1f : Mathf.Clamp01(rotationSpeed * deltaTime);
+                    var tRot = config.RotationLerpSpeed <= 0f ? 1f : Mathf.Clamp01(config.RotationLerpSpeed * deltaTime);
                     _transform.rotation = Quaternion.Slerp(_transform.rotation, _targetRotation, tRot);
                 }
             }

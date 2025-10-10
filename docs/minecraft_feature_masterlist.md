@@ -1,4 +1,4 @@
-﻿# Minecraft Feature Master List
+# Minecraft Feature Master List
 
 This master list enumerates the Minecraft-style gameplay features spanning both the .NET server and the Unity client. Keep statuses and next steps updated so future sessions can resume implementation without rediscovery.
 
@@ -14,7 +14,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-08 | Client Chunk Unload Signal | Accept unload requests, ack residency removal | Emit unload notifications when chunks despawn | Done | Expand telemetry counters |
 | F-09 | Inventory Snapshot Persistence | Store JSON snapshots, diff on reconnect | Consume diffs, refresh hotbar/inventory UI | Done | Integrate crafting containers |
 | F-10 | World Time & Weather Sync | Tick world time, schedule weather broadcasts | Update lighting, HUD, FX, ambient audio | Done | Author ambient presets (Task-10E) |
-| F-11 | Remote Player Entity Sync | Broadcast spawn/update/despawn with velocity samples | Spawn avatars, smooth transforms, cull & pool | In progress | Complete Task-11C (distance culling + pooling) |
+| F-11 | Remote Player Entity Sync | Broadcast spawn/update/despawn with velocity samples | Spawn avatars, smooth transforms, cull & pool | Done | Monitor culling thresholds and pooling hit rate |
 | F-12 | Crafting & Container Persistence | Persist crafting grids, shared containers, recipes | Present crafting UI, request crafting ops | Planned | Design container diff protocol |
 | F-13 | Server Status HUD | Supply metrics endpoint & responses | Render overlay, support manual refresh | Done | Extend to pause menu (Task-13A) |
 | F-14 | Weather FX & Ambient Audio | Provide intensity, weather types, durations | Bind intensity to particle/audio presets | In progress | Author preset assets (Task-10E) |
@@ -24,9 +24,10 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-18 | Block Lighting & Sky Light | Compute light levels per block, sync to client | Apply lightmaps/shaders per chunk | Planned | Analyse existing chunk mesh data |
 
 ## Sequenced Work Items
-- Task-11C – Add remote player distance culling and avatar pooling (current focus).
-- Task-10E – Provide default ambient presets & bindings for weather intensity.
-- Task-12A – Draft crafting container diff protocol between client/server.
-- Task-13A – Surface server metrics in the pause menu overlay.
-- Task-13B – Capture chunk residency metrics for server observability.
+- [x] Task-11C ? Remote player distance culling and avatar pooling delivered.
+- [ ] Task-10E ? Provide default ambient presets & bindings for weather intensity.
+- [ ] Task-12A ? Draft crafting container diff protocol between client/server.
+- [ ] Task-13A ? Surface server metrics in the pause menu overlay.
+- [ ] Task-13B ? Capture chunk residency metrics for server observability.
+
 

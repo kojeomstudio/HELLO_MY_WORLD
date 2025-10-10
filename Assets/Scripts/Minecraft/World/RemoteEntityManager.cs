@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Minecraft.Core;
@@ -22,7 +22,15 @@ namespace Minecraft.World
         [SerializeField] private float jitterBufferDistance = 0.05f;
         [SerializeField] private float velocityDeadZone = 0.05f;
 
+        [Header("Culling & Pooling")]
+        [SerializeField] private float cullDistance = 96f;
+        [SerializeField] private float reactivationBuffer = 12f;
+        [SerializeField] private int remoteAvatarPoolCapacity = 32;
+
         private readonly Dictionary<string, RemoteEntity> _entities = new(StringComparer.OrdinalIgnoreCase);
+        private RemoteAvatarPool _avatarPool;
+        private Vector3 _lastLocalPlayerPosition;
+        private bool _hasLocalPlayerPosition;
         private string _localPlayerId = string.Empty;
 
         private void Awake()
@@ -31,6 +39,8 @@ namespace Minecraft.World
             {
                 gameClient = FindObjectOfType<MinecraftGameClient>();
             }
+
+            _avatarPool = new RemoteAvatarPool(this, remoteAvatarPoolCapacity);
         }
 
         private void OnEnable()
@@ -47,7 +57,7 @@ namespace Minecraft.World
 
             if (gameClient.PlayerState != null)
             {
-                UpdateLocalPlayerId(gameClient.PlayerState);
+                UpdateLocalPlayerState(gameClient.PlayerState);
             }
 
             SyncExistingEntities();
@@ -64,6 +74,7 @@ namespace Minecraft.World
             }
 
             ClearEntities();
+            _avatarPool?.Clear();
         }
 
         private void Update()
@@ -83,9 +94,37 @@ namespace Minecraft.World
                 jitterBufferDistance,
                 predictionLeadTime);
 
+            var hasLocalPosition = TryGetLocalPlayerPosition(out var localPosition);
+            var maxDistance = Mathf.Max(cullDistance, 0f);
+            var activationDistance = maxDistance;
+
+            if (maxDistance > 0f && reactivationBuffer > 0f)
+            {
+                activationDistance = Mathf.Max(0.1f, maxDistance - reactivationBuffer);
+                if (activationDistance > maxDistance)
+                {
+                    activationDistance = maxDistance;
+                }
+            }
+
             foreach (var remote in _entities.Values)
             {
                 remote.Update(deltaTime, currentTime, in config);
+
+                if (!hasLocalPosition || maxDistance <= 0f)
+                {
+                    continue;
+                }
+
+                var distance = remote.DistanceTo(localPosition);
+                if (!remote.IsCulled && distance > maxDistance)
+                {
+                    remote.SetCulled(true);
+                }
+                else if (remote.IsCulled && distance <= activationDistance)
+                {
+                    remote.SetCulled(false);
+                }
             }
         }
 
@@ -119,10 +158,10 @@ namespace Minecraft.World
 
         private void OnPlayerStateUpdated(PlayerStateInfo state)
         {
-            UpdateLocalPlayerId(state);
+            UpdateLocalPlayerState(state);
         }
 
-        private void UpdateLocalPlayerId(PlayerStateInfo state)
+        private void UpdateLocalPlayerState(PlayerStateInfo state)
         {
             if (state == null)
             {
@@ -130,13 +169,38 @@ namespace Minecraft.World
             }
 
             var nextId = !string.IsNullOrWhiteSpace(state.PlayerId) ? state.PlayerId : state.Username;
-            if (string.Equals(_localPlayerId, nextId, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(_localPlayerId, nextId, StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                _localPlayerId = nextId ?? string.Empty;
+                PruneLocalGhost();
             }
 
-            _localPlayerId = nextId ?? string.Empty;
-            PruneLocalGhost();
+            if (state.Position != null)
+            {
+                _lastLocalPlayerPosition = ToUnityVector(state.Position);
+                _hasLocalPlayerPosition = true;
+            }
+        }
+
+        private bool TryGetLocalPlayerPosition(out Vector3 position)
+        {
+            if (_hasLocalPlayerPosition)
+            {
+                position = _lastLocalPlayerPosition;
+                return true;
+            }
+
+            var snapshot = gameClient != null ? gameClient.PlayerState : null;
+            if (snapshot?.Position != null)
+            {
+                position = ToUnityVector(snapshot.Position);
+                _lastLocalPlayerPosition = position;
+                _hasLocalPlayerPosition = true;
+                return true;
+            }
+
+            position = Vector3.zero;
+            return false;
         }
 
         private void SyncExistingEntities()
@@ -188,15 +252,27 @@ namespace Minecraft.World
         {
             if (!_entities.TryGetValue(entityId, out var remote))
             {
-                var avatar = CreateAvatar(snapshot);
-                remote = new RemoteEntity(avatar, velocityDeadZone);
+                var avatar = AcquireAvatar(snapshot);
+                remote = new RemoteEntity(entityId, avatar, velocityDeadZone);
                 _entities[entityId] = remote;
             }
 
             return remote;
         }
 
-        private GameObject CreateAvatar(EntityInfo snapshot)
+        private GameObject AcquireAvatar(EntityInfo snapshot)
+        {
+            if (_avatarPool != null)
+            {
+                return _avatarPool.Rent(snapshot);
+            }
+
+            var instance = InstantiateAvatar();
+            ConfigureAvatar(instance, snapshot);
+            return instance;
+        }
+
+        private GameObject InstantiateAvatar()
         {
             GameObject instance;
 
@@ -215,16 +291,32 @@ namespace Minecraft.World
                 }
             }
 
-            instance.name = string.IsNullOrEmpty(snapshot?.EntityId)
+            return instance;
+        }
+
+        private void ConfigureAvatar(GameObject instance, EntityInfo snapshot)
+        {
+            if (instance == null)
+            {
+                return;
+            }
+
+            instance.transform.SetParent(transform, false);
+
+            var label = string.IsNullOrEmpty(snapshot?.EntityId)
                 ? "RemotePlayer"
                 : $"RemotePlayer-{snapshot.EntityId}";
+            instance.name = label;
 
             if (snapshot?.Position != null)
             {
                 instance.transform.position = ToUnityVector(snapshot.Position);
             }
 
-            return instance;
+            if (!instance.activeSelf)
+            {
+                instance.SetActive(true);
+            }
         }
 
         private void RemoveEntity(string entityId)
@@ -236,7 +328,7 @@ namespace Minecraft.World
 
             if (_entities.Remove(entityId, out var remote))
             {
-                remote.Destroy();
+                ReleaseEntity(remote);
             }
         }
 
@@ -249,7 +341,7 @@ namespace Minecraft.World
 
             if (_entities.Remove(_localPlayerId, out var remote))
             {
-                remote.Destroy();
+                ReleaseEntity(remote);
             }
         }
 
@@ -257,10 +349,33 @@ namespace Minecraft.World
         {
             foreach (var remote in _entities.Values)
             {
-                remote.Destroy();
+                ReleaseEntity(remote);
             }
 
             _entities.Clear();
+        }
+
+        private void ReleaseEntity(RemoteEntity remote)
+        {
+            if (remote == null)
+            {
+                return;
+            }
+
+            var avatar = remote.Detach();
+            if (avatar == null)
+            {
+                return;
+            }
+
+            if (_avatarPool != null)
+            {
+                _avatarPool.Return(avatar);
+            }
+            else
+            {
+                Destroy(avatar);
+            }
         }
 
         private static Vector3 ToUnityVector(Vector3D value)
@@ -305,9 +420,10 @@ namespace Minecraft.World
 
         private sealed class RemoteEntity
         {
-            private readonly GameObject _root;
-            private readonly Transform _transform;
+            private readonly string _entityId;
             private readonly float _velocityDeadZone;
+            private GameObject _root;
+            private Transform _transform;
             private Vector3 _targetPosition;
             private Quaternion _targetRotation = Quaternion.identity;
             private Vector3 _targetVelocity;
@@ -316,14 +432,40 @@ namespace Minecraft.World
             private bool _hasRotation;
             private bool _hasVelocity;
             private float _lastSnapshotTime;
+            private bool _isCulled;
 
-            public RemoteEntity(GameObject root, float velocityDeadZone)
+            public RemoteEntity(string entityId, GameObject root, float velocityDeadZone)
             {
+                _entityId = entityId ?? string.Empty;
+                _velocityDeadZone = Mathf.Max(velocityDeadZone, 0f);
+                Attach(root);
+            }
+
+            public bool IsCulled => _isCulled;
+
+            public void Attach(GameObject root)
+            {
+                if (root == null)
+                {
+                    throw new ArgumentNullException(nameof(root));
+                }
+
                 _root = root;
                 _transform = root.transform;
                 _targetPosition = _transform.position;
-                _velocityDeadZone = Mathf.Max(velocityDeadZone, 0f);
+                _targetRotation = _transform.rotation;
+                _targetVelocity = Vector3.zero;
+                _currentVelocity = Vector3.zero;
+                _hasTarget = true;
+                _hasRotation = true;
+                _hasVelocity = false;
+                _isCulled = false;
                 _lastSnapshotTime = Time.time;
+
+                if (!_root.activeSelf)
+                {
+                    _root.SetActive(true);
+                }
             }
 
             public void ApplySnapshot(EntityInfo snapshot, bool immediate)
@@ -362,6 +504,11 @@ namespace Minecraft.World
 
                 _lastSnapshotTime = Time.time;
 
+                if (_transform == null)
+                {
+                    return;
+                }
+
                 if (immediate && _hasTarget)
                 {
                     _transform.position = _targetPosition;
@@ -376,6 +523,11 @@ namespace Minecraft.World
 
             public void Update(float deltaTime, float currentTime, in RemoteSmoothingConfig config)
             {
+                if (_transform == null || _isCulled)
+                {
+                    return;
+                }
+
                 if (!_hasTarget)
                 {
                     return;
@@ -415,14 +567,124 @@ namespace Minecraft.World
                 }
             }
 
-            public void Destroy()
+            public void SetCulled(bool culled)
             {
-                if (_root != null)
+                if (_transform == null || _isCulled == culled)
                 {
-                    UnityEngine.Object.Destroy(_root);
+                    return;
+                }
+
+                _isCulled = culled;
+
+                if (culled)
+                {
+                    _transform.gameObject.SetActive(false);
+                    _currentVelocity = Vector3.zero;
+                }
+                else
+                {
+                    _transform.gameObject.SetActive(true);
+                    if (_hasTarget)
+                    {
+                        _transform.position = _targetPosition;
+                    }
+
+                    if (_hasRotation)
+                    {
+                        _transform.rotation = _targetRotation;
+                    }
+
+                    _lastSnapshotTime = Time.time;
+                }
+            }
+
+            public float DistanceTo(Vector3 position)
+            {
+                if (_hasTarget)
+                {
+                    return Vector3.Distance(_targetPosition, position);
+                }
+
+                if (_transform != null)
+                {
+                    return Vector3.Distance(_transform.position, position);
+                }
+
+                return float.PositiveInfinity;
+            }
+
+            public GameObject Detach()
+            {
+                var avatar = _root;
+                _root = null;
+                _transform = null;
+                _currentVelocity = Vector3.zero;
+                _targetVelocity = Vector3.zero;
+                _hasTarget = false;
+                _hasRotation = false;
+                _hasVelocity = false;
+                _isCulled = false;
+                return avatar;
+            }
+        }
+
+        private sealed class RemoteAvatarPool
+        {
+            private readonly RemoteEntityManager _owner;
+            private readonly Queue<GameObject> _pool;
+            private readonly int _capacity;
+
+            public RemoteAvatarPool(RemoteEntityManager owner, int capacity)
+            {
+                _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+                _capacity = Mathf.Max(capacity, 0);
+                _pool = new Queue<GameObject>(_capacity > 0 ? _capacity : 0);
+            }
+
+            public GameObject Rent(EntityInfo snapshot)
+            {
+                GameObject avatar = _pool.Count > 0 ? _pool.Dequeue() : _owner.InstantiateAvatar();
+                if (avatar != null)
+                {
+                    _owner.ConfigureAvatar(avatar, snapshot);
+                }
+
+                return avatar;
+            }
+
+            public void Return(GameObject avatar)
+            {
+                if (avatar == null)
+                {
+                    return;
+                }
+
+                avatar.SetActive(false);
+                avatar.transform.SetParent(_owner.transform, false);
+
+                if (_pool.Count < _capacity)
+                {
+                    _pool.Enqueue(avatar);
+                }
+                else
+                {
+                    UnityEngine.Object.Destroy(avatar);
+                }
+            }
+
+            public void Clear()
+            {
+                while (_pool.Count > 0)
+                {
+                    var avatar = _pool.Dequeue();
+                    if (avatar != null)
+                    {
+                        UnityEngine.Object.Destroy(avatar);
+                    }
                 }
             }
         }
+
     }
 }
 

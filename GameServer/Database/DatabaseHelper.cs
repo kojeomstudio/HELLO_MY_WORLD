@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using GameServerApp.Models;
+using SharedProtocol;
 
 namespace GameServerApp.Database
 {
@@ -110,9 +112,25 @@ namespace GameServerApp.Database
                     IsActive INTEGER NOT NULL DEFAULT 1,
                     FOREIGN KEY (PlayerId) REFERENCES Players(Id) ON DELETE CASCADE
                 );
+
+                CREATE TABLE IF NOT EXISTS Containers (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    WorldId INTEGER NOT NULL,
+                    X INTEGER NOT NULL,
+                    Y INTEGER NOT NULL,
+                    Z INTEGER NOT NULL,
+                    ContainerType INTEGER NOT NULL,
+                    SlotCount INTEGER NOT NULL,
+                    ItemsJson TEXT NOT NULL,
+                    LastUpdatedUtc DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (WorldId) REFERENCES Worlds(Id) ON DELETE CASCADE,
+                    UNIQUE(WorldId, X, Y, Z, ContainerType)
+                );
                 
                 CREATE INDEX IF NOT EXISTS idx_chunks_world_pos ON Chunks(WorldId, ChunkX, ChunkZ);
                 CREATE INDEX IF NOT EXISTS idx_block_changes_world_chunk ON BlockChanges(WorldId, ChunkX, ChunkZ);
+                CREATE INDEX IF NOT EXISTS idx_containers_world_position ON Containers(WorldId, X, Z);
+                CREATE INDEX IF NOT EXISTS idx_containers_type ON Containers(ContainerType);
                 CREATE INDEX IF NOT EXISTS idx_player_sessions_token ON PlayerSessions(SessionToken);
                 CREATE INDEX IF NOT EXISTS idx_players_name ON Players(Name);";
             cmd.ExecuteNonQuery();
@@ -466,6 +484,90 @@ namespace GameServerApp.Database
             });
         }
 
+
+        public async Task<ContainerRecord?> LoadContainerAsync(int worldId, int x, int y, int z, ContainerType containerType)
+        {
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT Id, WorldId, X, Y, Z, ContainerType, SlotCount, ItemsJson, LastUpdatedUtc
+                    FROM Containers
+                    WHERE WorldId = $worldId AND X = $x AND Y = $y AND Z = $z AND ContainerType = $containerType
+                    LIMIT 1;";
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$x", x);
+                cmd.Parameters.AddWithValue("$y", y);
+                cmd.Parameters.AddWithValue("$z", z);
+                cmd.Parameters.AddWithValue("$containerType", (int)containerType);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new ContainerRecord
+                    {
+                        Id = reader.GetInt32(0),
+                        WorldId = reader.GetInt32(1),
+                        X = reader.GetInt32(2),
+                        Y = reader.GetInt32(3),
+                        Z = reader.GetInt32(4),
+                        ContainerType = (ContainerType)reader.GetInt32(5),
+                        SlotCount = reader.GetInt32(6),
+                        ItemsJson = reader.GetString(7),
+                        LastUpdatedUtc = reader.GetDateTime(8)
+                    };
+                }
+
+                return null;
+            });
+        }
+
+        public async Task<int> InsertContainerAsync(int worldId, int x, int y, int z, ContainerType containerType, int slotCount, string itemsJson)
+        {
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT INTO Containers (WorldId, X, Y, Z, ContainerType, SlotCount, ItemsJson, LastUpdatedUtc)
+                    VALUES ($worldId, $x, $y, $z, $containerType, $slotCount, $itemsJson, datetime('now'))
+                    ON CONFLICT(WorldId, X, Y, Z, ContainerType) DO UPDATE SET
+                        SlotCount = excluded.SlotCount,
+                        ItemsJson = excluded.ItemsJson,
+                        LastUpdatedUtc = datetime('now');
+                    SELECT Id FROM Containers
+                    WHERE WorldId = $worldId AND X = $x AND Y = $y AND Z = $z AND ContainerType = $containerType
+                    LIMIT 1;";
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$x", x);
+                cmd.Parameters.AddWithValue("$y", y);
+                cmd.Parameters.AddWithValue("$z", z);
+                cmd.Parameters.AddWithValue("$containerType", (int)containerType);
+                cmd.Parameters.AddWithValue("$slotCount", slotCount);
+                cmd.Parameters.AddWithValue("$itemsJson", itemsJson ?? string.Empty);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return Convert.ToInt32(result);
+            });
+        }
+
+        public async Task UpdateContainerItemsAsync(int containerId, int slotCount, string itemsJson)
+        {
+            await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    UPDATE Containers
+                    SET SlotCount = $slotCount,
+                        ItemsJson = $itemsJson,
+                        LastUpdatedUtc = datetime('now')
+                    WHERE Id = $containerId;";
+                cmd.Parameters.AddWithValue("$slotCount", slotCount);
+                cmd.Parameters.AddWithValue("$itemsJson", itemsJson ?? string.Empty);
+                cmd.Parameters.AddWithValue("$containerId", containerId);
+
+                await cmd.ExecuteNonQueryAsync();
+            });
+        }
         public async Task<int> GetDefaultWorldIdAsync()
         {
             return await ExecuteAsync(async connection =>

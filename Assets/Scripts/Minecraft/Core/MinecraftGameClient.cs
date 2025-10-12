@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -80,6 +80,9 @@ namespace Minecraft.Core
         public event Action<IReadOnlyList<ItemInfo>> InventoryItemsUpdated;
         public event Action<TimeUpdateMessage> TimeUpdated;
         public event Action<WeatherChangeMessage> WeatherChanged;
+        public event Action<ContainerOpenResponseMessage> ContainerOpened;
+        public event Action<ContainerUpdateBroadcastMessage> ContainerUpdated;
+        public event Action<ContainerCloseNotificationMessage> ContainerClosed;
 
         public bool IsConnected => _isConnected;
         public PlayerStateInfo PlayerState => _playerState;
@@ -413,6 +416,49 @@ namespace Minecraft.Core
 
         public IReadOnlyDictionary<string, RoomInfo> GetKnownRooms() => _knownRooms;
 
+        public void RequestContainerOpen(Vector3Int position, ContainerType containerType)
+        {
+            var request = new ContainerOpenRequestMessage
+            {
+                Position = new Vector3I { X = position.x, Y = position.y, Z = position.z },
+                ContainerType = containerType
+            };
+
+            EnqueueMessage((int)MinecraftMessageType.ContainerOpen, request);
+        }
+
+        public void RequestContainerClose(int containerId)
+        {
+            var request = new ContainerCloseRequestMessage
+            {
+                ContainerId = containerId
+            };
+
+            EnqueueMessage((int)MinecraftMessageType.ContainerClose, request);
+        }
+
+        public void SendContainerUpdate(int containerId, IEnumerable<SlotUpdate> updates, bool forceFullSync)
+        {
+            var normalizedUpdates = (updates ?? Array.Empty<SlotUpdate>())
+                .Where(update => update != null)
+                .Select(CloneSlotUpdate)
+                .ToList();
+
+            if (normalizedUpdates.Count == 0 && !forceFullSync)
+            {
+                return;
+            }
+
+            var request = new ContainerUpdateRequestMessage
+            {
+                ContainerId = containerId,
+                SlotUpdates = normalizedUpdates,
+                ForceFullSync = forceFullSync
+            };
+
+            EnqueueMessage((int)MinecraftMessageType.ContainerUpdate, request);
+        }
+
         #endregion
 
         private void SendHeartbeat()
@@ -651,6 +697,15 @@ namespace Minecraft.Core
                     break;
                 case TimeUpdateMessage timeUpdate:
                     HandleTimeUpdate(timeUpdate);
+                    break;
+                case ContainerOpenResponseMessage containerOpen:
+                    ContainerOpened?.Invoke(containerOpen);
+                    break;
+                case ContainerUpdateBroadcastMessage containerUpdate:
+                    ContainerUpdated?.Invoke(containerUpdate);
+                    break;
+                case ContainerCloseNotificationMessage containerClose:
+                    ContainerClosed?.Invoke(containerClose);
                     break;
                 case WeatherChangeMessage weatherChange:
                     HandleWeatherChange(weatherChange);
@@ -1446,6 +1501,43 @@ namespace Minecraft.Core
 
         #endregion
 
+        private static SlotUpdate CloneSlotUpdate(SlotUpdate update)
+        {
+            if (update == null)
+            {
+                return new SlotUpdate();
+            }
+
+            return new SlotUpdate
+            {
+                Slot = update.Slot,
+                ItemIdentifier = update.ItemIdentifier ?? string.Empty,
+                Item = CloneInventoryItem(update.Item)
+            };
+        }
+
+        private static InventoryItemInfo CloneInventoryItem(InventoryItemInfo item)
+        {
+            if (item == null)
+            {
+                return new InventoryItemInfo();
+            }
+
+            return new InventoryItemInfo
+            {
+                ItemId = item.ItemId,
+                ItemName = item.ItemName ?? string.Empty,
+                Quantity = item.Quantity,
+                Durability = item.Durability,
+                MaxDurability = item.MaxDurability,
+                ItemType = item.ItemType,
+                CustomData = item.CustomData ?? string.Empty,
+                Enchantments = item.Enchantments != null
+                    ? item.Enchantments.Select(e => new EnchantmentInfo { EnchantId = e.EnchantId, Level = e.Level }).ToList()
+                    : new List<EnchantmentInfo>()
+            };
+        }
+
         private readonly struct OutgoingMessage
         {
             public OutgoingMessage(int typeCode, object payload)
@@ -1479,17 +1571,3 @@ namespace Minecraft.Core
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

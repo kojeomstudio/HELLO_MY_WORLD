@@ -57,6 +57,7 @@ namespace GameServerApp
         private void RegisterMessageHandlers()
         {
             var inventorySystem = new InventorySystem(_database);
+            var containerSystem = new ContainerSystem(_database, _sessions);
 
             _sessions.SessionRemoved += session =>
             {
@@ -122,7 +123,7 @@ namespace GameServerApp
             _dispatcher.Register(new ServerStatusHandler(_sessions, _metrics));
 
             // === 마인?�래?�트 ?�용 ?�들???�록 ===
-            RegisterMinecraftHandlers();
+            RegisterMinecraftHandlers(containerSystem);
 
             Console.WriteLine($"Registered {_dispatcher.HandlerCount} base handlers + {_minecraftDispatcher.HandlerCount} minecraft handlers");
         }
@@ -130,13 +131,16 @@ namespace GameServerApp
         /// <summary>
         /// 마인크래프트 전용 핸들러들을 등록합니다.
         /// </summary>
-        private void RegisterMinecraftHandlers()
+        private void RegisterMinecraftHandlers(ContainerSystem containerSystem)
         {
             // 마인크래프트 전용 메시지 핸들러들을 기본 디스패처에 등록
             _dispatcher.Register(new MinecraftPlayerActionHandler(_database, _sessions, _worldManager, _minecraftDispatcher));
             var chunkHandler = new MinecraftChunkHandler(_database, _sessions, _worldManager, _config.World);
             _dispatcher.Register(chunkHandler);
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ChunkUnloadNotification, chunkHandler);
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerOpen, new MinecraftContainerOpenHandler(containerSystem));
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerClose, new MinecraftContainerCloseHandler(containerSystem));
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerUpdate, new MinecraftContainerUpdateHandler(containerSystem));
             
             Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
             Console.WriteLine("✓ Advanced Block Breaking System");

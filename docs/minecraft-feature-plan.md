@@ -31,6 +31,7 @@
 - [x] F-10 Time/weather broadcast parity (server systems + Unity bindings).
 - [x] F-11A Entity sync groundwork (spawn/update/despawn plus RemoteEntityManager baseline).
 - [x] F-11B Velocity-aware interpolation (velocity clamps + predictive smoothing) with culling deferred to Task-11C.
+- [x] F-12A Container diff hash handshake so server/client reconcile snapshot mismatches.
 - [ ] F-12 Crafting/container persistence alignment with survival gameplay.
 
 ## Implementation Notes
@@ -43,10 +44,11 @@
 - MinecraftGameClient emits ServerStatusReceived events with a 15s auto-poll while MinecraftGameManager exposes the HUD overlay and manual refresh control for server metrics (F-13).
 - EntitySyncService now serialises player spawn/update/despawn messages for nearby sessions, enabling the Unity RemoteEntityManager to spawn and smooth remote avatars (F-11A).
 - Velocity samples are sanitised server-side and RemoteEntityManager predicts positions with configurable damping (F-11B).
+- ContainerSystem now stamps snapshot hashes into open/update messages and resends full diffs when the client hash disagrees (Task-12A).
 
 ## Backlog & Follow-ups
 - **F-11C** Distance-based culling & pooled avatar reuse remains after velocity smoothing (see Task-11C).
-- **F-12** Crafting/container persistence alignment with survival gameplay.
+- **F-12** Crafting/container persistence alignment with survival gameplay (Task-12B/12C outstanding).
 - **F-14** Author ambient presets and asset bindings for weather-driven audio/FX.
 - **F-16** Prototype mob spawning, AI ticks, and client proxy lifecycle.
 
@@ -62,4 +64,6 @@
 9. [x] Task-11B - Velocity-aware smoothing and teleport safeguards for remote players (server clamps velocity, client predicts & dampens).
 10. [ ] Task-11C - Distance-based culling & pooling for remote player avatars.
 11. [ ] Task-10E - Ambient preset authoring for weather-driven lighting/audio.
+12. [x] Task-12A - Container snapshot hash handshake with client resync on mismatch.
+13. [ ] Task-12B - Surface container hash mismatch telemetry via diagnostics endpoint.
 

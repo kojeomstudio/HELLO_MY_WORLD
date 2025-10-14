@@ -99,7 +99,9 @@ namespace GameServerApp.Systems
                 Slots = BuildSlotUpdates(instance),
                 ContainerTitle = BuildContainerTitle(instance.ContainerType),
                 Properties = BuildProperties(instance),
-                ErrorMessage = string.Empty
+                ErrorMessage = string.Empty,
+                ContainerType = instance.ContainerType,
+                SnapshotHash = ComputeSnapshotHash(instance)
             };
 
             await SendMinecraftAsync(session, MinecraftMessageType.ContainerOpen, response);
@@ -161,6 +163,25 @@ namespace GameServerApp.Systems
                 return;
             }
 
+            var currentHash = ComputeSnapshotHash(container);
+            if (!string.IsNullOrWhiteSpace(request.ClientSnapshotHash) &&
+                !string.Equals(request.ClientSnapshotHash, currentHash, StringComparison.OrdinalIgnoreCase) &&
+                !request.ForceFullSync)
+            {
+                var correction = new ContainerUpdateBroadcastMessage
+                {
+                    ContainerId = container.ContainerId,
+                    SlotUpdates = BuildSlotUpdates(container),
+                    Properties = BuildProperties(container),
+                    IsFullSync = true,
+                    ContainerType = container.ContainerType,
+                    SnapshotHash = currentHash
+                };
+
+                await SendMinecraftAsync(session, MinecraftMessageType.ContainerUpdate, correction);
+                return;
+            }
+
             var playerName = session.UserName;
             if (!string.IsNullOrWhiteSpace(playerName))
             {
@@ -204,13 +225,16 @@ namespace GameServerApp.Systems
             }
 
             await PersistContainerAsync(container);
+            var snapshotHash = ComputeSnapshotHash(container);
 
             var broadcast = new ContainerUpdateBroadcastMessage
             {
                 ContainerId = container.ContainerId,
                 SlotUpdates = request.ForceFullSync ? BuildSlotUpdates(container) : appliedSlots,
                 Properties = BuildProperties(container),
-                IsFullSync = request.ForceFullSync
+                IsFullSync = request.ForceFullSync,
+                ContainerType = container.ContainerType,
+                SnapshotHash = snapshotHash
             };
 
             await BroadcastToSubscribersAsync(container, broadcast, null);
@@ -505,6 +529,36 @@ namespace GameServerApp.Systems
             };
 
             return JsonSerializer.Serialize(payload, SnapshotSerializerOptions);
+        }
+
+        private string ComputeSnapshotHash(ContainerInstance instance)
+        {
+            List<(int Slot, string Identifier, int Amount, string CustomData)> snapshot;
+            var slotCount = instance.SlotCount;
+
+            lock (_syncRoot)
+            {
+                snapshot = instance.Slots.Values
+                    .Select(slot => (slot.Slot, slot.ItemIdentifier, slot.Amount, slot.CustomData))
+                    .OrderBy(tuple => tuple.Slot)
+                    .ToList();
+            }
+
+            var builder = new StringBuilder();
+            builder.Append(slotCount).Append('|');
+            foreach (var entry in snapshot)
+            {
+                builder
+                    .Append(entry.Slot).Append(':')
+                    .Append(entry.Identifier).Append(':')
+                    .Append(entry.Amount).Append(':')
+                    .Append(entry.CustomData)
+                    .Append(';');
+            }
+
+            using var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));
+            return Convert.ToHexString(hash);
         }
 
         private static string BuildEmptySnapshotJson(int slotCount)

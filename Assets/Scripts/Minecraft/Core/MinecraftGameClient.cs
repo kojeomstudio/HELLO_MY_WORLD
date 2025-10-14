@@ -437,7 +437,7 @@ namespace Minecraft.Core
             EnqueueMessage((int)MinecraftMessageType.ContainerClose, request);
         }
 
-        public void SendContainerUpdate(int containerId, IEnumerable<SlotUpdate> updates, bool forceFullSync)
+        public void SendContainerUpdate(int containerId, IEnumerable<SlotUpdate> updates, bool forceFullSync, string? clientSnapshotHash = null)
         {
             var normalizedUpdates = (updates ?? Array.Empty<SlotUpdate>())
                 .Where(update => update != null)
@@ -453,7 +453,8 @@ namespace Minecraft.Core
             {
                 ContainerId = containerId,
                 SlotUpdates = normalizedUpdates,
-                ForceFullSync = forceFullSync
+                ForceFullSync = forceFullSync,
+                ClientSnapshotHash = clientSnapshotHash ?? string.Empty
             };
 
             EnqueueMessage((int)MinecraftMessageType.ContainerUpdate, request);

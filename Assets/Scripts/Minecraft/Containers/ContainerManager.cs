@@ -81,6 +81,10 @@ namespace Minecraft.Containers
                 return;
             }
 
+            var currentHash = _containers.TryGetValue(containerId, out var knownState)
+                ? knownState.SnapshotHash
+                : string.Empty;
+
             var slotUpdates = updates
                 .Where(update => update != null)
                 .Select(CreateSlotUpdate)
@@ -88,7 +92,7 @@ namespace Minecraft.Containers
                 .Cast<SlotUpdate>()
                 .ToList();
 
-            _client.SendContainerUpdate(containerId, slotUpdates, forceFullSync);
+            _client.SendContainerUpdate(containerId, slotUpdates, forceFullSync, currentHash);
         }
 
         private void HandleContainerOpened(ContainerOpenResponseMessage response)
@@ -220,29 +224,43 @@ namespace Minecraft.Containers
     {
         private readonly Dictionary<int, ContainerSlotState> _slots;
 
-        private ContainerState(int containerId, ContainerType containerType, ContainerProperties properties, Dictionary<int, ContainerSlotState> slots)
+        private ContainerState(int containerId, ContainerType containerType, ContainerProperties properties, Dictionary<int, ContainerSlotState> slots, string snapshotHash)
         {
             ContainerId = containerId;
             ContainerType = containerType;
             Properties = properties ?? new ContainerProperties();
+            SnapshotHash = snapshotHash ?? string.Empty;
             _slots = slots;
         }
 
         public int ContainerId { get; }
         public ContainerType ContainerType { get; }
         public ContainerProperties Properties { get; private set; }
+        public string SnapshotHash { get; private set; } = string.Empty;
         public IReadOnlyDictionary<int, ContainerSlotState> Slots => _slots;
+        public int SlotCount => Properties?.SlotCount ?? 0;
 
         public static ContainerState FromOpenResponse(ContainerOpenResponseMessage response)
         {
             var slots = BuildSlotDictionary(response.Slots);
-            return new ContainerState(response.ContainerId, response.ContainerType, response.Properties ?? new ContainerProperties(), slots);
+            var properties = response.Properties ?? new ContainerProperties();
+            var snapshotHash = !string.IsNullOrWhiteSpace(response.SnapshotHash)
+                ? response.SnapshotHash
+                : ComputeLocalSnapshotHash(slots, properties.SlotCount);
+
+            return new ContainerState(response.ContainerId, response.ContainerType, properties, slots, snapshotHash);
         }
 
         public static ContainerState FromUpdate(ContainerUpdateBroadcastMessage update)
         {
             var slots = BuildSlotDictionary(update.SlotUpdates);
-            return new ContainerState(update.ContainerId, ContainerType.Chest, update.Properties ?? new ContainerProperties(), slots);
+            var properties = update.Properties ?? new ContainerProperties();
+            var snapshotHash = !string.IsNullOrWhiteSpace(update.SnapshotHash)
+                ? update.SnapshotHash
+                : ComputeLocalSnapshotHash(slots, properties.SlotCount);
+
+            var containerType = update.ContainerType;
+            return new ContainerState(update.ContainerId, containerType, properties, slots, snapshotHash);
         }
 
         public void ApplyUpdate(ContainerUpdateBroadcastMessage update)
@@ -273,6 +291,31 @@ namespace Minecraft.Containers
                     }
                 }
             }
+
+            SnapshotHash = !string.IsNullOrWhiteSpace(update.SnapshotHash)
+                ? update.SnapshotHash
+                : ComputeLocalSnapshotHash(_slots, SlotCount);
+        }
+
+        private static string ComputeLocalSnapshotHash(Dictionary<int, ContainerSlotState> slots, int slotCount)
+        {
+            var builder = new StringBuilder();
+            builder.Append(slotCount).Append('|');
+
+            foreach (var entry in slots.Values.OrderBy(s => s.Slot))
+            {
+                var item = entry.Item ?? new InventoryItemInfo();
+                builder
+                    .Append(entry.Slot).Append(':')
+                    .Append(entry.ItemIdentifier).Append(':')
+                    .Append(item.Quantity).Append(':')
+                    .Append(item.CustomData ?? string.Empty)
+                    .Append(';');
+            }
+
+            using var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));
+            return Convert.ToHexString(hash);
         }
 
         private static Dictionary<int, ContainerSlotState> BuildSlotDictionary(IEnumerable<SlotUpdate>? updates)

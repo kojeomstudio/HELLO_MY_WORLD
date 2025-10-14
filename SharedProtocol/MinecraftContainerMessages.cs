@@ -40,6 +40,8 @@ namespace SharedProtocol
         [ProtoMember(4)] public string ContainerTitle { get; set; } = string.Empty;
         [ProtoMember(5)] public ContainerProperties Properties { get; set; } = new();
         [ProtoMember(6)] public string ErrorMessage { get; set; } = string.Empty;
+        [ProtoMember(7)] public ContainerType ContainerType { get; set; }
+        [ProtoMember(8)] public string SnapshotHash { get; set; } = string.Empty;
     }
 
     [ProtoContract]
@@ -70,6 +72,7 @@ namespace SharedProtocol
         [ProtoMember(1)] public int ContainerId { get; set; }
         [ProtoMember(2)] public List<SlotUpdate> SlotUpdates { get; set; } = new();
         [ProtoMember(3)] public bool ForceFullSync { get; set; }
+        [ProtoMember(4)] public string ClientSnapshotHash { get; set; } = string.Empty;
     }
 
     [ProtoContract]
@@ -79,5 +82,7 @@ namespace SharedProtocol
         [ProtoMember(2)] public List<SlotUpdate> SlotUpdates { get; set; } = new();
         [ProtoMember(3)] public ContainerProperties Properties { get; set; } = new();
         [ProtoMember(4)] public bool IsFullSync { get; set; }
+        [ProtoMember(5)] public ContainerType ContainerType { get; set; }
+        [ProtoMember(6)] public string SnapshotHash { get; set; } = string.Empty;
     }
 }

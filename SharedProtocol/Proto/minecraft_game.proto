@@ -616,6 +616,8 @@ message ContainerOpenResponse {
   repeated InventoryItem items = 3;
   string container_title = 4;
   ContainerProperties properties = 5;
+  ContainerType container_type = 6;
+  string snapshot_hash = 7;
 }
 
 message ContainerProperties {
@@ -629,10 +631,20 @@ message ContainerCloseRequest {
   int32 container_id = 1;
 }
 
+message ContainerUpdateRequest {
+  int32 container_id = 1;
+  repeated SlotUpdate slot_updates = 2;
+  bool force_full_sync = 3;
+  string client_snapshot_hash = 4;
+}
+
 message ContainerUpdateBroadcast {
   int32 container_id = 1;
   repeated SlotUpdate slot_updates = 2;
   ContainerProperties properties = 3;
+  bool is_full_sync = 4;
+  ContainerType container_type = 5;
+  string snapshot_hash = 6;
 }
 
 // 텔레포트 및 차원 이동

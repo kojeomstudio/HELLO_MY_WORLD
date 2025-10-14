@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-12: Container snapshot hash handshake ensures clients resync on mismatches (see docs/minecraft_container_feature_plan.md).
 - 2025-10-09: Remote player distance culling and object pooling keeps remote avatars lightweight (see docs/minecraft_feature_execution.md).
 - 2025-10-06: Velocity-aware remote player smoothing now clamps server velocity updates and predicts client transforms with damped interpolation (see docs/minecraft_feature_execution.md).
 - 2025-10-05: Introduced EntitySyncService and the Unity RemoteEntityManager for server-authoritative remote player interpolation (see docs/minecraft_feature_execution.md).
@@ -78,6 +79,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 ## Networking Protocol (Client ↔ Server)
 - The client and server communicate over a simple framed protocol: `[TotalLength:int][MessageType:int][Payload:protobuf]`.
 - See `docs/networking-protocol.md` for details, message type IDs, and client integration notes.
+- Container messages now carry `container_type` and `snapshot_hash` fields so clients can validate diffs and request full resyncs on hash mismatches.
 - Clients now emit `ChunkUnloadNotificationMessage` when dropping chunks and await `ChunkUnloadAcknowledgeMessage` so the server can free residency immediately.
 - After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
 

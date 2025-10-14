@@ -138,6 +138,12 @@ The enhanced ?minecraft??messages extend the base `MessageType` enum. The numeri
 - 140??43: Time/weather/effect broadcasts
 - `BlockChangeNotification` is broadcast to players occupying the affected chunk and includes optional `Drops` entries (item stacks) so clients can surface survival loot events.
 
+### Container Snapshot Hash Handshake
+
+- `ContainerOpenResponse` now carries both `container_type` and a `snapshot_hash` so the client knows which UI to render and the precise container snapshot it represents.
+- `ContainerUpdateRequest` includes `client_snapshot_hash`; the server compares this value before applying slot diffs. If the hashes diverge it returns a `ContainerUpdateBroadcast` flagged as `is_full_sync` with the authoritative slots and hash.
+- `ContainerUpdateBroadcast` mirrors the hash so clients can update their local cache and send the latest value with subsequent mutations. Unity falls back to a locally computed hash only when the server omits the field.
+
 When the Unity client writes one of these messages it feeds the raw integer ID into `TcpNetworkTransport`, which happily forwards any four-byte code even if it is outside the `MessageType` enum. On receipt the server?s `Session.ReceiveAsync()` produces an `IncomingMessage` that exposes both the raw integer and the optional typed enum. Unknown values keep their payload as `byte[]` so specialised dispatchers (e.g. `MinecraftMessageDispatcher`) can deserialize them without having to patch the core enum.
 
 ### Chunk Payload Encoding

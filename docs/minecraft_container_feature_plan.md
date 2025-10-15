@@ -13,9 +13,9 @@ This plan tracks the client and server work required to finish shared container 
 | C6 | Shared | Expand regression tests for container protobuf round-trip | After C1-C4 | Cover open/update/close flows | Backlog |
 
 ## Active Work Queue (Oct Sprint)
-1. Capture container hash mismatch metrics and surface via diagnostics endpoint (supports C6 prep).
-2. Prototype chest UI binding for C5 once event data is stable.
-3. Draft regression test cases for C6 (ser/deser + diff replay).
+- [x] Capture container hash mismatch metrics and surface via diagnostics endpoint (supports C6 prep, landed 2025-10-15).
+- [ ] Prototype chest UI binding for C5 once event data is stable.
+- [ ] Draft regression test cases for C6 (ser/deser + diff replay).
 
 ## Parking Lot / Follow-ups
 - Author lightweight Unity chest UI using existing UI framework once data events fire.

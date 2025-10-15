@@ -18,6 +18,7 @@ namespace GameServerApp.Systems
     {
         private readonly DatabaseHelper _database;
         private readonly SessionManager _sessions;
+        private readonly ServerMetricsService? _metrics;
         private readonly Dictionary<ContainerKey, ContainerInstance> _containersByKey = new();
         private readonly Dictionary<int, ContainerInstance> _containersById = new();
         private readonly Dictionary<string, HashSet<int>> _subscriptionsByPlayer = new(StringComparer.OrdinalIgnoreCase);
@@ -29,10 +30,11 @@ namespace GameServerApp.Systems
             WriteIndented = false
         };
 
-        public ContainerSystem(DatabaseHelper database, SessionManager sessions)
+        public ContainerSystem(DatabaseHelper database, SessionManager sessions, ServerMetricsService? metrics)
         {
             _database = database;
             _sessions = sessions;
+            _metrics = metrics;
             _sessions.SessionRemoved += HandleSessionRemoved;
         }
 
@@ -164,14 +166,16 @@ namespace GameServerApp.Systems
             }
 
             var currentHash = ComputeSnapshotHash(container);
-            if (!string.IsNullOrWhiteSpace(request.ClientSnapshotHash) &&
-                !string.Equals(request.ClientSnapshotHash, currentHash, StringComparison.OrdinalIgnoreCase) &&
-                !request.ForceFullSync)
-            {
-                var correction = new ContainerUpdateBroadcastMessage
-                {
-                    ContainerId = container.ContainerId,
-                    SlotUpdates = BuildSlotUpdates(container),
+              if (!string.IsNullOrWhiteSpace(request.ClientSnapshotHash) &&
+                  !string.Equals(request.ClientSnapshotHash, currentHash, StringComparison.OrdinalIgnoreCase) &&
+                  !request.ForceFullSync)
+              {
+                  _metrics?.IncrementContainerHashMismatch();
+
+                  var correction = new ContainerUpdateBroadcastMessage
+                  {
+                      ContainerId = container.ContainerId,
+                      SlotUpdates = BuildSlotUpdates(container),
                     Properties = BuildProperties(container),
                     IsFullSync = true,
                     ContainerType = container.ContainerType,

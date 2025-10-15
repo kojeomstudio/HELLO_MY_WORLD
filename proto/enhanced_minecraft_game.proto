@@ -774,16 +774,17 @@ message WorldBorder {
   double damage_buffer = 8;
 }
 
-message ServerStatusResponse {
-  string server_version = 1;
-  int32 protocol_version = 2;
-  int32 online_players = 3;
-  int32 max_players = 4;
-  float server_tps = 5;
-  int64 server_uptime = 6;
-  string motd = 7;                 // Message of the Day
-  WorldInfo world_info = 8;
-}
+  message ServerStatusResponse {
+    string server_version = 1;
+    int32 protocol_version = 2;
+    int32 online_players = 3;
+    int32 max_players = 4;
+    float server_tps = 5;
+    int64 server_uptime = 6;
+    string motd = 7;                 // Message of the Day
+    WorldInfo world_info = 8;
+    int64 container_hash_mismatches = 9;
+  }
 
 message TimeUpdateBroadcast {
   int64 world_time = 1;

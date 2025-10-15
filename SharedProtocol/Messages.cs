@@ -243,12 +243,13 @@ public class ServerStatusRequest
 }
 
 [ProtoContract]
-public class ServerStatusResponse
-{
-    [ProtoMember(1)] public int OnlinePlayers { get; set; }
-    [ProtoMember(2)] public string ServerVersion { get; set; } = string.Empty;
-    [ProtoMember(3)] public long ServerUptime { get; set; }
-}
+  public class ServerStatusResponse
+  {
+      [ProtoMember(1)] public int OnlinePlayers { get; set; }
+      [ProtoMember(2)] public string ServerVersion { get; set; } = string.Empty;
+      [ProtoMember(3)] public long ServerUptime { get; set; }
+      [ProtoMember(4)] public long ContainerHashMismatches { get; set; }
+  }
 
 [ProtoContract]
 public class PlayerInfoUpdate

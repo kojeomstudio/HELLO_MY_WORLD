@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 
 namespace GameServerApp.Systems;
 
@@ -12,6 +13,7 @@ public class ServerMetricsService
     private readonly SessionManager _sessions;
     private readonly Stopwatch _uptimeStopwatch = new();
     private readonly string _serverVersion;
+    private long _containerHashMismatchCount;
 
     public ServerMetricsService(SessionManager sessions)
     {
@@ -51,8 +53,14 @@ public class ServerMetricsService
         {
             OnlinePlayers = _sessions.OnlinePlayerCount,
             ServerVersion = _serverVersion,
-            Uptime = _uptimeStopwatch.Elapsed
+            Uptime = _uptimeStopwatch.Elapsed,
+            ContainerHashMismatches = Interlocked.Read(ref _containerHashMismatchCount)
         };
+    }
+
+    public void IncrementContainerHashMismatch()
+    {
+        Interlocked.Increment(ref _containerHashMismatchCount);
     }
 }
 
@@ -61,6 +69,7 @@ public record ServerStatusSnapshot
     public int OnlinePlayers { get; init; }
     public string ServerVersion { get; init; } = string.Empty;
     public TimeSpan Uptime { get; init; }
+    public long ContainerHashMismatches { get; init; }
 
     public long UptimeMilliseconds => (long)Uptime.TotalMilliseconds;
 }

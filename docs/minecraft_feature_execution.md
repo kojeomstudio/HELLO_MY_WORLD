@@ -16,22 +16,21 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-09 | Inventory snapshot persistence | Done | Done | Server snapshots and Unity diff consumer online. |
 | F-10 | World time and weather broadcasts | Done | Done | Server systems stream ticks; Unity drives lighting, HUD, and weather events. |
 | F-11 | Remote player entity sync & interpolation | Done | Done | Velocity samples, distance culling, and pooled avatars keep remote players responsive without leaks. |
-| F-12 | Crafting and container persistence | Planned | Planned | Builds on inventory diff support; requires shared container sync. |
+| F-12 | Crafting and container persistence | In progress (snapshot hashes + telemetry) | Planned (UI wiring pending) | Builds on inventory diff support; Task-12C will bind UI; telemetry shipped 2025-10-15. |
 | F-13 | Server status HUD | Done | Done | Overlay refreshes metrics automatically every 15 seconds. |
 | F-14 | Weather FX and ambient audio | In progress | In progress | Weather controller routes intensity to particles and audio; asset wiring remains. |
 | F-15 | Combat feedback and damage numbers | Planned | Planned | Requires combat log events and client damage indicators. |
 | F-16 | Mob AI & spawning framework | Planned | Planned | Needs server mob simulation, pathing, and client proxy actors. |
 
 ## Active Task Queue (Oct 2025)
-1. [x] Task-11A - Introduce server-side EntitySyncService broadcasting player spawn/update/despawn and pair it with Unity's RemoteEntityManager for baseline interpolation.
-2. [x] Task-11B - Feed velocity deltas into updates and add damped interpolation with jitter protection (server sanitises velocity; client predicts & smooths).
-3. [x] Task-11C - Add distance-based culling plus pooled avatar reuse for remote players.
-4. [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
-5. [ ] Task-12A - Draft crafting container diff protocol between client/server.
-6. [ ] Task-13A - Surface server metrics in the pause menu overlay.
-7. [ ] Task-13B - Capture chunk residency metrics for server observability.
+- [x] Task-12B - Instrument container hash mismatches and expose the counter via ServerStatusResponse.
+- [ ] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates.
+- [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
+- [ ] Task-13A - Surface server metrics in the pause menu overlay.
+- [ ] Task-13B - Capture chunk residency metrics for server observability.
 
 ## Recently Completed
+- Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
 - Remote player distance culling and avatar pooling landed, keeping remote entities lightweight and out of view when far away.
 - Unity inventory snapshot diff consumer kept hotbar in sync with server reconnections.
 - Server chunk residency eviction now enforces TTL and budgets without leaks.

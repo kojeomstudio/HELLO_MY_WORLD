@@ -851,16 +851,17 @@ message ServerStatusRequest {
   string session_token = 1;
 }
 
-message ServerStatusResponse {
-  int32 online_players = 1;
-  string server_version = 2;
-  int64 server_uptime = 3;
-  float tps = 4;                   // 서버 TPS (Ticks Per Second)
-  int64 world_time = 5;
-  WeatherInfo current_weather = 6;
-  int32 loaded_chunks = 7;
-  float memory_usage = 8;          // MB 단위
-}
+  message ServerStatusResponse {
+    int32 online_players = 1;
+    string server_version = 2;
+    int64 server_uptime = 3;
+    float tps = 4;                   // 서버 TPS (Ticks Per Second)
+    int64 world_time = 5;
+    WeatherInfo current_weather = 6;
+    int32 loaded_chunks = 7;
+    float memory_usage = 8;          // MB 단위
+    int64 container_hash_mismatches = 9;
+  }
 
 // 시간 동기화
 message TimeUpdateBroadcast {

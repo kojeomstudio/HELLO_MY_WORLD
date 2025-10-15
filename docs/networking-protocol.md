@@ -74,6 +74,7 @@ Authenticated clients may send `ServerStatusRequest` (type 42) after login. The 
 - `OnlinePlayers`: current authenticated player count.
 - `ServerVersion`: semantic version reported by the dedicated server build.
 - `ServerUptime`: elapsed milliseconds since the listener entered the running state.
+- `ContainerHashMismatches`: running count of container snapshot hash mismatches corrected by the server.
 
 Requests with missing or mismatched session tokens are ignored; no error payload is emitted to avoid leaking metrics to unauthenticated clients.
 

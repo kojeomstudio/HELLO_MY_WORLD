@@ -378,7 +378,8 @@ namespace Minecraft.UI
             }
 
             var uptime = TimeSpan.FromMilliseconds(Math.Max(0, status.ServerUptime));
-            serverStatusText.text = $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | Uptime: {FormatUptime(uptime)}";
+            serverStatusText.text =
+                $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | Hash mismatches: {status.ContainerHashMismatches} | Uptime: {FormatUptime(uptime)}";
         }
 
         private void RefreshTimeWeatherUI()

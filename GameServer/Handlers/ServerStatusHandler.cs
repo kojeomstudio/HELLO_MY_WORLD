@@ -40,7 +40,8 @@ public class ServerStatusHandler : MessageHandler<ServerStatusRequest>
         {
             OnlinePlayers = snapshot.OnlinePlayers,
             ServerVersion = snapshot.ServerVersion,
-            ServerUptime = snapshot.UptimeMilliseconds
+            ServerUptime = snapshot.UptimeMilliseconds,
+            ContainerHashMismatches = snapshot.ContainerHashMismatches
         };
 
         await session.SendAsync(MessageType.ServerStatusResponse, response);

@@ -57,7 +57,7 @@ namespace GameServerApp
         private void RegisterMessageHandlers()
         {
             var inventorySystem = new InventorySystem(_database);
-            var containerSystem = new ContainerSystem(_database, _sessions);
+            var containerSystem = new ContainerSystem(_database, _sessions, _metrics);
 
             _sessions.SessionRemoved += session =>
             {

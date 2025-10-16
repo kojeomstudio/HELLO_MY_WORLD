@@ -11,6 +11,7 @@ This backlog captures the feature sets required to deliver core Minecraft-style 
 | DONE | UI for login, chat, and inventory | Core UI available; further polish tracked separately. |
 | DONE | Server status overlay | Unity HUD auto-refreshes `ServerStatusResponse` every 15s with manual refresh support in `MinecraftGameManager`. |
 | DONE | Time and weather visual binding | `MinecraftGameClient` events feed `WorldTimeController` and `WorldWeatherController`; HUD shows live snapshots. |
+| TODO | Shared container UI | `ContainerPanelUI` + `ContainerSlotView` scripts in repo; hook into HUD prefab and author drag/drop input for chests/furnaces. |
 | TODO | Entity rendering refresh | Add interpolation and animation states for spawned mobs. |
 
 ## Server Feature Checklist

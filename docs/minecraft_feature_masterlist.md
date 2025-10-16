@@ -15,7 +15,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-09 | Inventory Snapshot Persistence | Store JSON snapshots, diff on reconnect | Consume diffs, refresh hotbar/inventory UI | Done | Integrate crafting containers |
 | F-10 | World Time & Weather Sync | Tick world time, schedule weather broadcasts | Update lighting, HUD, FX, ambient audio | Done | Author ambient presets (Task-10E) |
 | F-11 | Remote Player Entity Sync | Broadcast spawn/update/despawn with velocity samples | Spawn avatars, smooth transforms, cull & pool | Done | Monitor culling thresholds and pooling hit rate |
-| F-12 | Crafting & Container Persistence | Persist crafting grids, shared containers, recipes with hash validation, log hash mismatches | Present crafting UI, reconcile hash diffs | In progress | Task-12A delivered (snapshot hashes); Task-12B telemetry live; wire UI next (Task-12C) |
+| F-12 | Crafting & Container Persistence | Persist crafting grids, shared containers, recipes with hash validation, log hash mismatches | Present crafting UI, reconcile hash diffs | In progress | Task-12A delivered (snapshot hashes); Task-12B telemetry live; ContainerPanelUI scaffolding done; wire prefabs & interactions (Task-12C) |
 | F-13 | Server Status HUD | Supply metrics endpoint & responses | Render overlay, support manual refresh | Done | Extend to pause menu (Task-13A) |
 | F-14 | Weather FX & Ambient Audio | Provide intensity, weather types, durations | Bind intensity to particle/audio presets | In progress | Author preset assets (Task-10E) |
 | F-15 | Combat Feedback & Damage Numbers | Emit combat events, damage payloads | Display damage popups & hit feedback | Planned | Define combat event schema |

@@ -224,12 +224,19 @@ namespace Minecraft.Containers
     {
         private readonly Dictionary<int, ContainerSlotState> _slots;
 
-        private ContainerState(int containerId, ContainerType containerType, ContainerProperties properties, Dictionary<int, ContainerSlotState> slots, string snapshotHash)
+        private ContainerState(
+            int containerId,
+            ContainerType containerType,
+            ContainerProperties properties,
+            Dictionary<int, ContainerSlotState> slots,
+            string snapshotHash,
+            string title)
         {
             ContainerId = containerId;
             ContainerType = containerType;
             Properties = properties ?? new ContainerProperties();
             SnapshotHash = snapshotHash ?? string.Empty;
+            Title = FormatTitle(containerType, title);
             _slots = slots;
         }
 
@@ -237,6 +244,7 @@ namespace Minecraft.Containers
         public ContainerType ContainerType { get; }
         public ContainerProperties Properties { get; private set; }
         public string SnapshotHash { get; private set; } = string.Empty;
+        public string Title { get; private set; } = string.Empty;
         public IReadOnlyDictionary<int, ContainerSlotState> Slots => _slots;
         public int SlotCount => Properties?.SlotCount ?? 0;
 
@@ -248,7 +256,7 @@ namespace Minecraft.Containers
                 ? response.SnapshotHash
                 : ComputeLocalSnapshotHash(slots, properties.SlotCount);
 
-            return new ContainerState(response.ContainerId, response.ContainerType, properties, slots, snapshotHash);
+            return new ContainerState(response.ContainerId, response.ContainerType, properties, slots, snapshotHash, response.ContainerTitle);
         }
 
         public static ContainerState FromUpdate(ContainerUpdateBroadcastMessage update)
@@ -260,7 +268,7 @@ namespace Minecraft.Containers
                 : ComputeLocalSnapshotHash(slots, properties.SlotCount);
 
             var containerType = update.ContainerType;
-            return new ContainerState(update.ContainerId, containerType, properties, slots, snapshotHash);
+            return new ContainerState(update.ContainerId, containerType, properties, slots, snapshotHash, string.Empty);
         }
 
         public void ApplyUpdate(ContainerUpdateBroadcastMessage update)
@@ -295,6 +303,27 @@ namespace Minecraft.Containers
             SnapshotHash = !string.IsNullOrWhiteSpace(update.SnapshotHash)
                 ? update.SnapshotHash
                 : ComputeLocalSnapshotHash(_slots, SlotCount);
+        }
+
+        private static string FormatTitle(ContainerType containerType, string title)
+        {
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                return title.Trim();
+            }
+
+            return containerType switch
+            {
+                ContainerType.Furnace => "Furnace",
+                ContainerType.CraftingTable => "Crafting Table",
+                ContainerType.EnchantingTable => "Enchanting Table",
+                ContainerType.BrewingStand => "Brewing Stand",
+                ContainerType.Dispenser => "Dispenser",
+                ContainerType.Hopper => "Hopper",
+                ContainerType.Beacon => "Beacon",
+                ContainerType.Anvil => "Anvil",
+                _ => "Chest"
+            };
         }
 
         private static string ComputeLocalSnapshotHash(Dictionary<int, ContainerSlotState> slots, int slotCount)

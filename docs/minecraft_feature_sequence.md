@@ -29,7 +29,7 @@ Legend: Done | In Progress | Planned
 ## Sequential Work Items
 - [x] Task-12A - Introduced container snapshot hashes and diff validation (delivered 2025-10-12).
 - [x] Task-12B - Recorded container hash mismatches and exposed the counter via diagnostics (delivered 2025-10-15).
-- [ ] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates.
+- [ ] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates. *Scripts for panel & slot views landed; prefab wiring + user input still pending.*
 - [x] Task-11C - Added distance-based culling and pooled avatar reuse for remote players.
 - [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
 

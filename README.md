@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-15: ContainerPanelUI scaffolding exposes shared container contents in the Unity HUD (see docs/minecraft_container_feature_plan.md).
 - 2025-10-15: Server status telemetry now reports container hash mismatches and the Unity HUD surfaces the counter (see docs/minecraft_feature_masterlist.md).
 - 2025-10-12: Container snapshot hash handshake ensures clients resync on mismatches (see docs/minecraft_container_feature_plan.md).
 - 2025-10-09: Remote player distance culling and object pooling keeps remote avatars lightweight (see docs/minecraft_feature_execution.md).

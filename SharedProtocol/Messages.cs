@@ -249,6 +249,10 @@ public class ServerStatusRequest
       [ProtoMember(2)] public string ServerVersion { get; set; } = string.Empty;
       [ProtoMember(3)] public long ServerUptime { get; set; }
       [ProtoMember(4)] public long ContainerHashMismatches { get; set; }
+      [ProtoMember(5)] public long TotalTrackedChunks { get; set; }
+      [ProtoMember(6)] public int ActiveChunkResidencyPlayers { get; set; }
+      [ProtoMember(7)] public int PeakChunksPerPlayer { get; set; }
+      [ProtoMember(8)] public string BusiestChunkPlayer { get; set; } = string.Empty;
   }
 
 [ProtoContract]

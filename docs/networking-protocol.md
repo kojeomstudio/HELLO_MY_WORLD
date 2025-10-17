@@ -75,6 +75,10 @@ Authenticated clients may send `ServerStatusRequest` (type 42) after login. The 
 - `ServerVersion`: semantic version reported by the dedicated server build.
 - `ServerUptime`: elapsed milliseconds since the listener entered the running state.
 - `ContainerHashMismatches`: running count of container snapshot hash mismatches corrected by the server.
+- `TotalTrackedChunks`: sum of loaded chunk entries currently tracked across all connected players.
+- `ActiveChunkResidencyPlayers`: number of players contributing to the residency counters.
+- `PeakChunksPerPlayer`: highest chunk residency count recorded for any single player in the current snapshot.
+- `BusiestChunkPlayer`: username associated with the current peak residency (empty when no players are tracked).
 
 Requests with missing or mismatched session tokens are ignored; no error payload is emitted to avoid leaking metrics to unauthenticated clients.
 

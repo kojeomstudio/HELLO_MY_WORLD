@@ -1,4 +1,5 @@
 using GameServerApp.Database;
+using GameServerApp.Systems;
 using GameServerApp.World;
 using SharedProtocol;
 using System.Collections.Concurrent;
@@ -20,6 +21,7 @@ namespace GameServerApp.Handlers
         private readonly SessionManager _sessions;
         private readonly WorldManager _worldManager;
         private readonly WorldSettings _worldSettings;
+        private readonly ServerMetricsService _metrics;
 
         private const int CHUNK_SIZE_X = 16;
         private const int CHUNK_SIZE_Z = 16;
@@ -43,12 +45,13 @@ namespace GameServerApp.Handlers
             return _playerLoadedChunks.TryGetValue(playerId, out var chunkSet) && chunkSet.ContainsKey(ToChunkKey(chunkX, chunkZ));
         }
 
-        public MinecraftChunkHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, WorldSettings worldSettings)
+        public MinecraftChunkHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, WorldSettings worldSettings, ServerMetricsService metrics)
         {
             _database = database;
             _sessions = sessions;
             _worldManager = worldManager;
             _worldSettings = worldSettings;
+            _metrics = metrics;
             _chunkResidencyTimeout = TimeSpan.FromMinutes(Math.Max(1, _worldSettings.ChunkUnloadTimeoutMinutes));
         }
 
@@ -482,6 +485,11 @@ namespace GameServerApp.Handlers
             if (chunkSet.IsEmpty)
             {
                 _playerLoadedChunks.TryRemove(playerId, out _);
+                UpdateResidencyMetrics(playerId, null);
+            }
+            else
+            {
+                UpdateResidencyMetrics(playerId, chunkSet);
             }
 
             var remaining = chunkSet.Count;
@@ -538,6 +546,11 @@ namespace GameServerApp.Handlers
             if (chunkSet.IsEmpty)
             {
                 _playerLoadedChunks.TryRemove(playerId, out _);
+                UpdateResidencyMetrics(playerId, null);
+            }
+            else
+            {
+                UpdateResidencyMetrics(playerId, chunkSet);
             }
 
             Console.WriteLine($"Player {playerId} loaded chunk [{chunkX}, {chunkZ}]");
@@ -622,6 +635,7 @@ namespace GameServerApp.Handlers
                 if (state == null || !state.IsOnline)
                 {
                     _playerLoadedChunks.TryRemove(playerId, out _);
+                    UpdateResidencyMetrics(playerId, null);
                     continue;
                 }
 
@@ -636,7 +650,29 @@ namespace GameServerApp.Handlers
                 if (chunkSet.IsEmpty)
                 {
                     _playerLoadedChunks.TryRemove(playerId, out _);
+                    UpdateResidencyMetrics(playerId, null);
                 }
+                else
+                {
+                    UpdateResidencyMetrics(playerId, chunkSet);
+                }
+            }
+        }
+
+        private void UpdateResidencyMetrics(string playerId, ConcurrentDictionary<long, PlayerChunkResidency>? chunkSet)
+        {
+            if (_metrics == null || string.IsNullOrWhiteSpace(playerId))
+            {
+                return;
+            }
+
+            if (chunkSet == null || chunkSet.IsEmpty)
+            {
+                _metrics.ClearChunkResidency(playerId);
+            }
+            else
+            {
+                _metrics.UpdateChunkResidency(playerId, chunkSet.Count);
             }
         }
     }

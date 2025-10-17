@@ -378,8 +378,24 @@ namespace Minecraft.UI
             }
 
             var uptime = TimeSpan.FromMilliseconds(Math.Max(0, status.ServerUptime));
+            string residencyPart;
+            if (status.ActiveChunkResidencyPlayers > 0)
+            {
+                residencyPart =
+                    $"Residency: {status.TotalTrackedChunks} chunks/{status.ActiveChunkResidencyPlayers} players";
+                if (!string.IsNullOrEmpty(status.BusiestChunkPlayer) && status.PeakChunksPerPlayer > 0)
+                {
+                    residencyPart +=
+                        $" (top {status.BusiestChunkPlayer}: {status.PeakChunksPerPlayer})";
+                }
+            }
+            else
+            {
+                residencyPart = "Residency: --";
+            }
+
             serverStatusText.text =
-                $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | Hash mismatches: {status.ContainerHashMismatches} | Uptime: {FormatUptime(uptime)}";
+                $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | {residencyPart} | Hash mismatches: {status.ContainerHashMismatches} | Uptime: {FormatUptime(uptime)}";
         }
 
         private void RefreshTimeWeatherUI()

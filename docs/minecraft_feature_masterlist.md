@@ -9,7 +9,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-03 | Chunk Streaming & Caching | Serve chunk payloads, cache residency per player | Request chunks, avoid duplicates, rebuild meshes | Done | Evaluate memcache eviction metrics |
 | F-04 | Block Interaction Broadcast | Apply block changes, broadcast deltas & drops | Trigger actions, refresh local chunk data, play FX | Done | Add particle/audio polish |
 | F-05 | Item Drop Visibility | Persist dropped items, include metadata in updates | Spawn pickup visuals, attach loot UI | Done | None |
-| F-06 | Chunk Residency Tracking | Maintain loaded chunk registry per session | Maintain loaded set to avoid redundant fetches | Done | Add residency analytics (Task-13B) |
+| F-06 | Chunk Residency Tracking | Maintain loaded chunk registry per session | Maintain loaded set to avoid redundant fetches | Done | Residency analytics feed the status HUD (Task-13B delivered). |
 | F-07 | Residency Eviction Policies | TTL pruning, budget caps, offline cleanup | Passive | Done | Periodic metrics logging |
 | F-08 | Client Chunk Unload Signal | Accept unload requests, ack residency removal | Emit unload notifications when chunks despawn | Done | Expand telemetry counters |
 | F-09 | Inventory Snapshot Persistence | Store JSON snapshots, diff on reconnect | Consume diffs, refresh hotbar/inventory UI | Done | Integrate crafting containers |
@@ -30,6 +30,6 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 - [ ] Task-12C ? Bind container diff events into chest/furnace UI prefabs.
 - [ ] Task-10E ? Provide default ambient presets & bindings for weather intensity.
 - [ ] Task-13A ? Surface server metrics in the pause menu overlay.
-- [ ] Task-13B ? Capture chunk residency metrics for server observability.
+- [x] Task-13B ? Capture chunk residency metrics for server observability.
 
 

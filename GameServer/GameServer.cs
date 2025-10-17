@@ -135,7 +135,7 @@ namespace GameServerApp
         {
             // 마인크래프트 전용 메시지 핸들러들을 기본 디스패처에 등록
             _dispatcher.Register(new MinecraftPlayerActionHandler(_database, _sessions, _worldManager, _minecraftDispatcher));
-            var chunkHandler = new MinecraftChunkHandler(_database, _sessions, _worldManager, _config.World);
+            var chunkHandler = new MinecraftChunkHandler(_database, _sessions, _worldManager, _config.World, _metrics);
             _dispatcher.Register(chunkHandler);
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ChunkUnloadNotification, chunkHandler);
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerOpen, new MinecraftContainerOpenHandler(containerSystem));

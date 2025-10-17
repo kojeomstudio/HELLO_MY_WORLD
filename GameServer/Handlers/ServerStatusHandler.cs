@@ -41,7 +41,11 @@ public class ServerStatusHandler : MessageHandler<ServerStatusRequest>
             OnlinePlayers = snapshot.OnlinePlayers,
             ServerVersion = snapshot.ServerVersion,
             ServerUptime = snapshot.UptimeMilliseconds,
-            ContainerHashMismatches = snapshot.ContainerHashMismatches
+            ContainerHashMismatches = snapshot.ContainerHashMismatches,
+            TotalTrackedChunks = snapshot.TotalTrackedChunks,
+            ActiveChunkResidencyPlayers = snapshot.PlayersWithChunkResidency,
+            PeakChunksPerPlayer = snapshot.PeakChunksPerPlayer,
+            BusiestChunkPlayer = snapshot.BusiestChunkPlayer
         };
 
         await session.SendAsync(MessageType.ServerStatusResponse, response);

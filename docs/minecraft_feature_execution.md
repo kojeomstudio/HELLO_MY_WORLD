@@ -27,10 +27,11 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [ ] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates.
 - [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
 - [ ] Task-13A - Surface server metrics in the pause menu overlay.
-- [ ] Task-13B - Capture chunk residency metrics for server observability.
+- [x] Task-13B - Capture chunk residency metrics for server observability.
 
 ## Recently Completed
 - Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
+- Server status requests now return chunk residency counters so the HUD can track total and peak residency.
 - Remote player distance culling and avatar pooling landed, keeping remote entities lightweight and out of view when far away.
 - Unity inventory snapshot diff consumer kept hotbar in sync with server reconnections.
 - Server chunk residency eviction now enforces TTL and budgets without leaks.

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
+using System.Linq;
 
 namespace GameServerApp.Systems;
 
@@ -14,6 +16,12 @@ public class ServerMetricsService
     private readonly Stopwatch _uptimeStopwatch = new();
     private readonly string _serverVersion;
     private long _containerHashMismatchCount;
+    private readonly ConcurrentDictionary<string, int> _chunkResidencyByPlayer = new(StringComparer.OrdinalIgnoreCase);
+    private long _totalChunkResidency;
+    private int _playersWithChunkResidency;
+    private int _peakChunksPerPlayer;
+    private string _busiestChunkPlayer = string.Empty;
+    private readonly object _chunkResidencyLock = new();
 
     public ServerMetricsService(SessionManager sessions)
     {
@@ -54,13 +62,77 @@ public class ServerMetricsService
             OnlinePlayers = _sessions.OnlinePlayerCount,
             ServerVersion = _serverVersion,
             Uptime = _uptimeStopwatch.Elapsed,
-            ContainerHashMismatches = Interlocked.Read(ref _containerHashMismatchCount)
+            ContainerHashMismatches = Interlocked.Read(ref _containerHashMismatchCount),
+            TotalTrackedChunks = Interlocked.Read(ref _totalChunkResidency),
+            PlayersWithChunkResidency = Volatile.Read(ref _playersWithChunkResidency),
+            PeakChunksPerPlayer = Volatile.Read(ref _peakChunksPerPlayer),
+            BusiestChunkPlayer = Volatile.Read(ref _busiestChunkPlayer) ?? string.Empty
         };
     }
 
     public void IncrementContainerHashMismatch()
     {
         Interlocked.Increment(ref _containerHashMismatchCount);
+    }
+
+    public void UpdateChunkResidency(string playerId, int chunkCount)
+    {
+        if (string.IsNullOrWhiteSpace(playerId))
+        {
+            return;
+        }
+
+        _chunkResidencyByPlayer.AddOrUpdate(playerId,
+            _ => Math.Max(0, chunkCount),
+            (_, _) => Math.Max(0, chunkCount));
+
+        RecalculateChunkResidency();
+    }
+
+    public void ClearChunkResidency(string playerId)
+    {
+        if (string.IsNullOrWhiteSpace(playerId))
+        {
+            return;
+        }
+
+        _chunkResidencyByPlayer.TryRemove(playerId, out _);
+        RecalculateChunkResidency();
+    }
+
+    private void RecalculateChunkResidency()
+    {
+        lock (_chunkResidencyLock)
+        {
+            if (_chunkResidencyByPlayer.IsEmpty)
+            {
+                Interlocked.Exchange(ref _totalChunkResidency, 0);
+                Volatile.Write(ref _playersWithChunkResidency, 0);
+                Volatile.Write(ref _peakChunksPerPlayer, 0);
+                Interlocked.Exchange(ref _busiestChunkPlayer, string.Empty);
+                return;
+            }
+
+            var snapshot = _chunkResidencyByPlayer.ToArray();
+            long total = 0;
+            var peak = 0;
+            var topPlayer = string.Empty;
+
+            foreach (var entry in snapshot)
+            {
+                total += entry.Value;
+                if (entry.Value > peak)
+                {
+                    peak = entry.Value;
+                    topPlayer = entry.Key;
+                }
+            }
+
+            Interlocked.Exchange(ref _totalChunkResidency, total);
+            Volatile.Write(ref _playersWithChunkResidency, snapshot.Length);
+            Volatile.Write(ref _peakChunksPerPlayer, peak);
+            Interlocked.Exchange(ref _busiestChunkPlayer, topPlayer);
+        }
     }
 }
 
@@ -70,6 +142,12 @@ public record ServerStatusSnapshot
     public string ServerVersion { get; init; } = string.Empty;
     public TimeSpan Uptime { get; init; }
     public long ContainerHashMismatches { get; init; }
+    public long TotalTrackedChunks { get; init; }
+    public int PlayersWithChunkResidency { get; init; }
+    public int PeakChunksPerPlayer { get; init; }
+    public string BusiestChunkPlayer { get; init; } = string.Empty;
 
     public long UptimeMilliseconds => (long)Uptime.TotalMilliseconds;
+    public double AverageChunksPerPlayer =>
+        PlayersWithChunkResidency <= 0 ? 0 : (double)TotalTrackedChunks / PlayersWithChunkResidency;
 }

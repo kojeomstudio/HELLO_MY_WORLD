@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using GameServerApp.Database;
 using GameServerApp.Systems;
 using SharedProtocol;
@@ -169,8 +173,26 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
 
-        // TODO: 모든 세션에 브로드캐스트 (SessionManager 개선 필요)
-        Console.WriteLine($"Player {userName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z})");
+        var recipients = _sessions.GetSessionsSnapshot()
+            .Where(session =>
+                !string.IsNullOrEmpty(session.UserName) &&
+                !string.Equals(session.UserName, userName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var sendTasks = new List<Task>(recipients.Count);
+        foreach (var targetSession in recipients)
+        {
+            sendTasks.Add(targetSession.SendAsync(MessageType.PlayerRespawnBroadcast, broadcast));
+        }
+
+        await Task.WhenAll(sendTasks);
+
+        Console.WriteLine($"Player {userName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z}); notified {recipients.Count} session(s).");
     }
 
     private async Task SendFailureResponse(Session session, string errorMessage)

@@ -23,6 +23,7 @@ This sequence lists the Unity client and .NET server features that bring the pro
 | F-16 | Mob AI & Spawning | Simulate mobs, pathing, spawn rules | Render mob proxies, animate, cull | Planned | Prototype tick scheduler (Task-16A). |
 | F-17 | World Persistence & Backup | Save world/chunks, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split (Task-17A). |
 | F-18 | Block Lighting & Sky Light | Compute light levels & propagate | Apply lightmaps/shaders | Planned | Requires chunk mesh analysis (Task-18A). |
+| F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads to world peers, persist respawn anchors | Refresh remote avatars, surface death feed, trigger respawn UI | In Progress | Task-19A broadcasts respawn; follow-up tasks wire death feed & Unity HUD. |
 
 Legend: Done | In Progress | Planned
 
@@ -33,8 +34,11 @@ Legend: Done | In Progress | Planned
 - [x] Task-11C - Added distance-based culling and pooled avatar reuse for remote players.
 - [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
 - [x] Task-13B - Captured chunk residency metrics and exposed them through the server status path (delivered 2025-10-16).
+- [x] Task-19A - Broadcast PlayerRespawn events from the server to online sessions (delivered 2025-10-17).
+- [ ] Task-19B - Consume PlayerRespawn broadcasts inside the Unity remote entity manager and HUD death feed.
 
 ## Parking Lot
 - After Task-12C, expand the self-test harness to cover container open/update/close flows.
 - Document the container hash handshake in docs/networking-protocol.md once UI churn settles.
 - Revisit crafting grid persistence once UI validation is complete (Task-12D placeholder).
+- Extend Task-19B with death broadcast wiring and respawn UI polish once Unity handlers are in place.

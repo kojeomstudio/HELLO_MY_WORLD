@@ -21,6 +21,9 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-14 | Weather FX and ambient audio | In progress | In progress | Weather controller routes intensity to particles and audio; asset wiring remains. |
 | F-15 | Combat feedback and damage numbers | Planned | Planned | Requires combat log events and client damage indicators. |
 | F-16 | Mob AI & spawning framework | Planned | Planned | Needs server mob simulation, pathing, and client proxy actors. |
+| F-17 | World persistence & backup automation | Planned | Planned | Needs incremental world saves, rotation policies, and client save notifications. |
+| F-18 | Block lighting & sky light propagation | Planned | Planned | Waiting on chunk mesh analysis to carry block light values. |
+| F-19 | Death & respawn notifications | In progress (server broadcast added) | Planned (remote entity/HUD wiring) | Respawn broadcast now ships to peers; Unity still needs handlers and death feed. |
 
 ## Active Task Queue (Oct 2025)
 - [x] Task-12B - Instrument container hash mismatches and expose the counter via ServerStatusResponse.
@@ -28,6 +31,8 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
 - [ ] Task-13A - Surface server metrics in the pause menu overlay.
 - [x] Task-13B - Capture chunk residency metrics for server observability.
+- [x] Task-19A - Broadcast PlayerRespawn messages to active sessions.
+- [ ] Task-19B - Unity consumes PlayerRespawn broadcasts to refresh remote avatars and death feed.
 
 ## Recently Completed
 - Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
@@ -37,3 +42,4 @@ This document enumerates the Minecraft-style features required across the Unity 
 - Server chunk residency eviction now enforces TTL and budgets without leaks.
 - Time and weather broadcasts now update Unity lighting, HUD, and FX controllers.
 - Entity sync groundwork landed: server now emits spawn/update/despawn messages while the client spawns and smooths remote player avatars.
+- Player respawn broadcasts now reach all connected sessions, unblocking client-side death feed work.

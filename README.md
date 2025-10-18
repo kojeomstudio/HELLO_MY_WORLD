@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-17: Player respawn broadcasts now notify active sessions; follow the rollout in docs/minecraft_respawn_feature_plan.md.
 - 2025-10-16: Server status HUD now reports chunk residency totals and peak players (see docs/minecraft_chunk_residency_metrics_plan.md).
 - 2025-10-15: ContainerPanelUI scaffolding exposes shared container contents in the Unity HUD (see docs/minecraft_container_feature_plan.md).
 - 2025-10-15: Server status telemetry now reports container hash mismatches and the Unity HUD surfaces the counter (see docs/minecraft_feature_masterlist.md).

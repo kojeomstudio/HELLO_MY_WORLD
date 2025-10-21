@@ -13,13 +13,16 @@ The death and respawn flow requires both server and client work so that remote p
 | Task-19A | Broadcast `PlayerRespawnBroadcast` to all online sessions and update documentation. | Server + Docs | Done (2025-10-17) | Implemented in this session; `RespawnHandler` now pushes events through `SessionManager`. |
 | Task-19B | Consume respawn broadcasts inside Unity (remote entity manager + HUD death feed) and update README instructions. | Client | Planned | Requires wiring the new message into the Unity networking bridge plus UI updates. |
 | Task-19C | Surface respawn events in the .NET self-test harness with assertions for multiple clients. | Server/Test | Planned | Add regression coverage once client consumption exists. |
-| Task-19D | Extend death handling to broadcast `PlayerDeathMessage` and record analytics counters. | Server | Planned | Share metadata (damage type, killer) for HUD and telemetry. |
+| Task-19D | Extend death handling to broadcast `PlayerDeathMessage` and record analytics counters. | Server | Done (2025-10-21) | Broadcast now reaches all sessions; analytics counters to follow in Task-19E. |
+| Task-19E | Instrument death/respawn analytics counters and expose them via diagnostics. | Server | Planned | Requires client consumption so metrics reflect in-world usage. |
 
 ## Current Session Outcome
-- Server now pushes respawn events to all active sessions using strongly typed messages.
+- Server now pushes respawn and death events to all active sessions using strongly typed messages.
 - Shared docs (`minecraft_feature_sequence.md`, `minecraft_feature_execution.md`, and this plan) outline the remaining client and testing work so follow-up sessions can continue sequentially.
 
 ## Next Recommended Steps
-1. Implement Unity-side message handling for `PlayerRespawnBroadcast`, updating remote avatar state and death feed (Task-19B).
+1. Implement Unity-side message handling for `PlayerRespawnBroadcast` and `PlayerDeath` messages so remote avatars and the HUD death feed update in sync (Task-19B).
 2. Add a regression scenario to the self-test or smoke harness that verifies multi-client respawn propagation (Task-19C).
-3. Revisit death broadcasts and analytics (Task-19D) once respawn consumption stabilises.
+3. Instrument death/respawn analytics counters once the client death feed lands (Task-19E).
+
+

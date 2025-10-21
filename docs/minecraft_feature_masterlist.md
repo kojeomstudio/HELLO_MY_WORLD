@@ -22,7 +22,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-16 | Mob AI & Spawning Framework | Simulate mobs, pathing, spawn rules | Render mob proxies, animate, cull | Planned | Prototype server tick scheduler |
 | F-17 | World Persistence & Backup | Save chunks/players to disk, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split |
 | F-18 | Block Lighting & Sky Light | Compute light levels per block, sync to client | Apply lightmaps/shaders per chunk | Planned | Analyse existing chunk mesh data |
-| F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads, persist spawn anchors, expose analytics | Refresh remote avatars, show death feed, manage respawn UI | In progress | Task-19A delivered server respawn broadcast; Task-19B wires Unity handlers. |
+| F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads, persist spawn anchors, expose analytics | Refresh remote avatars, show death feed, manage respawn UI | In progress | Task-19A delivered respawn broadcast; Task-19D server death broadcast landed; Task-19B Unity wiring pending. |
 
 ## Sequenced Work Items
 - [x] Task-11C ? Remote player distance culling and avatar pooling delivered.

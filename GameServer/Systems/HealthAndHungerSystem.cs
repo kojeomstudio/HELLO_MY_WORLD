@@ -5,7 +5,7 @@ using SharedProtocol;
 namespace GameServerApp.Systems;
 
 /// <summary>
-/// 플레이어 체력과 허기 시스템
+/// ?�레?�어 체력�??�기 ?�스??
 /// </summary>
 public class HealthAndHungerSystem
 {
@@ -21,11 +21,11 @@ public class HealthAndHungerSystem
         _sessions = sessions;
         _playerHealthCache = new Dictionary<string, PlayerHealthData>();
 
-        // 체력 재생 타이머 (3초마다)
+        // 체력 ?�생 ?�?�머 (3초마??
         _healthRegenTimer = new Timer(ProcessHealthRegeneration, null, 
             TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
 
-        // 허기 감소 타이머 (18초마다)
+        // ?�기 감소 ?�?�머 (18초마??
         _hungerDecayTimer = new Timer(ProcessHungerDecay, null, 
             TimeSpan.FromSeconds(18), TimeSpan.FromSeconds(18));
     }
@@ -44,7 +44,7 @@ public class HealthAndHungerSystem
             return healthData;
         }
 
-        // 새 플레이어 생성
+        // ???�레?�어 ?�성
         var newHealthData = new PlayerHealthData(userName);
         _playerHealthCache[userName] = newHealthData;
         await SavePlayerHealthToDatabase(newHealthData);
@@ -57,7 +57,7 @@ public class HealthAndHungerSystem
         var healthData = await GetPlayerHealthAsync(userName);
         
         if (healthData.Health <= 0)
-            return false; // 이미 죽은 상태
+            return false; // ?��? 죽�? ?�태
 
         healthData.Health = Math.Max(0, healthData.Health - damage);
         healthData.LastDamageTime = DateTime.UtcNow;
@@ -81,7 +81,7 @@ public class HealthAndHungerSystem
         var healthData = await GetPlayerHealthAsync(userName);
         
         if (healthData.Health >= healthData.MaxHealth)
-            return false; // 이미 최대 체력
+            return false; // ?��? 최�? 체력
 
         float oldHealth = healthData.Health;
         healthData.Health = Math.Min(healthData.MaxHealth, healthData.Health + healAmount);
@@ -136,10 +136,10 @@ public class HealthAndHungerSystem
 
             foreach (var healthData in playersToRegen)
             {
-                if (healthData.Hunger >= 18) // 허기가 충분할 때만 재생
+                if (healthData.Hunger >= 18) // ?�기가 충분???�만 ?�생
                 {
                     await HealPlayerAsync(healthData.UserName, 1.0f, HealType.NaturalRegen);
-                    await ConsumeHungerAsync(healthData.UserName, 1); // 체력 재생시 허기 소모
+                    await ConsumeHungerAsync(healthData.UserName, 1); // 체력 ?�생???�기 ?�모
                 }
             }
         }
@@ -159,17 +159,17 @@ public class HealthAndHungerSystem
 
             foreach (var healthData in playersToProcess)
             {
-                // 포화도가 있으면 먼저 포화도 소모
+                // ?�화?��? ?�으�?먼�? ?�화???�모
                 if (healthData.Saturation > 0)
                 {
                     healthData.Saturation = Math.Max(0, healthData.Saturation - 1);
                 }
                 else
                 {
-                    // 포화도가 없으면 허기 감소
+                    // ?�화?��? ?�으�??�기 감소
                     await ConsumeHungerAsync(healthData.UserName, 1);
                     
-                    // 허기가 0이면 체력 감소 (기아)
+                    // ?�기가 0?�면 체력 감소 (기아)
                     if (healthData.Hunger <= 0 && healthData.Health > 1)
                     {
                         await DamagePlayerAsync(healthData.UserName, 1.0f, DamageType.Starvation);
@@ -191,17 +191,17 @@ public class HealthAndHungerSystem
         if (healthData.Health <= 0)
             return false;
 
-        // 마지막 피해 후 5초 이후부터 재생 시작
+        // 마�?�??�해 ??5�??�후부???�생 ?�작
         return (DateTime.UtcNow - healthData.LastDamageTime).TotalSeconds >= 5;
     }
 
     private bool ShouldProcessHunger(PlayerHealthData healthData)
     {
-        // 죽은 플레이어는 허기 처리 안함
+        // 죽�? ?�레?�어???�기 처리 ?�함
         if (healthData.Health <= 0)
             return false;
 
-        // 마지막 허기 업데이트로부터 18초 이상 경과
+        // 마�?�??�기 ?�데?�트로�???18�??�상 경과
         return (DateTime.UtcNow - healthData.LastHungerUpdate).TotalSeconds >= 18;
     }
 
@@ -212,12 +212,12 @@ public class HealthAndHungerSystem
         healthData.LastDeathTime = DateTime.UtcNow;
         healthData.LastDeathCause = damageType;
 
-        // 리스폰 위치 설정 (나중에 침대/스폰포인트 시스템으로 확장 가능)
-        healthData.RespawnPosition = new SharedProtocol.Vector3(0, 64, 0); // 기본 스폰 위치
+        // 리스???�치 ?�정 (?�중??침�?/?�폰?�인???�스?�으�??�장 가??
+        healthData.RespawnPosition = new SharedProtocol.Vector3(0, 64, 0); // 기본 ?�폰 ?�치
 
         await SavePlayerHealthToDatabase(healthData);
         
-        // 죽음 메시지 브로드캐스트
+        // 죽음 메시지 브로?�캐?�트
         await BroadcastPlayerDeath(userName, damageType);
 
         Console.WriteLine($"Player {userName} died from {damageType}. Death count: {healthData.DeathCount}");
@@ -228,9 +228,9 @@ public class HealthAndHungerSystem
         var healthData = await GetPlayerHealthAsync(userName);
         
         if (healthData.Health > 0)
-            return false; // 이미 살아있음
+            return false; // ?��? ?�아?�음
 
-        // 체력과 허기 복구
+        // 체력�??�기 복구
         healthData.Health = healthData.MaxHealth;
         healthData.Hunger = healthData.MaxHunger;
         healthData.Saturation = 5.0f;
@@ -264,39 +264,63 @@ public class HealthAndHungerSystem
 
     private async Task BroadcastPlayerDeath(string userName, DamageType damageType)
     {
-        var deathMessage = GenerateDeathMessage(userName, damageType);
-        
-        // TODO: 모든 플레이어에게 죽음 메시지 전송 (SessionManager 개선 필요)
-        Console.WriteLine($"Broadcasting player death: {deathMessage}");
+        var deathText = GenerateDeathMessage(userName, damageType);
+        var broadcast = new PlayerDeathMessage
+        {
+            PlayerName = userName,
+            DeathMessage = deathText,
+            DamageType = (int)damageType,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        var recipients = _sessions.GetSessionsSnapshot()
+            .Where(session => !string.IsNullOrWhiteSpace(session.UserName))
+            .ToList();
+
+        if (recipients.Count == 0)
+        {
+            Console.WriteLine($"Broadcasting player death skipped (no active sessions): {deathText}");
+            return;
+        }
+
+        var sendTasks = new List<Task>(recipients.Count);
+        foreach (var session in recipients)
+        {
+            sendTasks.Add(session.SendAsync(MessageType.PlayerDeath, broadcast));
+        }
+
+        await Task.WhenAll(sendTasks);
+
+        Console.WriteLine($"Broadcasting player death: {deathText}; notified {recipients.Count} session(s).");
     }
 
     private string GenerateDeathMessage(string userName, DamageType damageType)
     {
         return damageType switch
         {
-            DamageType.Fall => $"{userName}이(가) 떨어져서 죽었습니다.",
-            DamageType.Drowning => $"{userName}이(가) 익사했습니다.",
-            DamageType.Fire => $"{userName}이(가) 불에 타 죽었습니다.",
-            DamageType.Lava => $"{userName}이(가) 용암에 빠져 죽었습니다.",
-            DamageType.Starvation => $"{userName}이(가) 굶어 죽었습니다.",
-            DamageType.PvP => $"{userName}이(가) 다른 플레이어에게 죽었습니다.",
-            DamageType.Monster => $"{userName}이(가) 몬스터에게 죽었습니다.",
-            DamageType.Explosion => $"{userName}이(가) 폭발로 죽었습니다.",
-            DamageType.Void => $"{userName}이(가) 공허로 추락했습니다.",
-            _ => $"{userName}이(가) 죽었습니다."
+            DamageType.Fall => $"{userName}??가) ?�어?�서 죽었?�니??",
+            DamageType.Drowning => $"{userName}??가) ?�사?�습?�다.",
+            DamageType.Fire => $"{userName}??가) 불에 ?� 죽었?�니??",
+            DamageType.Lava => $"{userName}??가) ?�암??빠져 죽었?�니??",
+            DamageType.Starvation => $"{userName}??가) 굶어 죽었?�니??",
+            DamageType.PvP => $"{userName}??가) ?�른 ?�레?�어?�게 죽었?�니??",
+            DamageType.Monster => $"{userName}??가) 몬스?�에�?죽었?�니??",
+            DamageType.Explosion => $"{userName}??가) ??���?죽었?�니??",
+            DamageType.Void => $"{userName}??가) 공허�?추락?�습?�다.",
+            _ => $"{userName}??가) 죽었?�니??"
         };
     }
 
     private async Task<PlayerHealthData?> LoadPlayerHealthFromDatabase(string userName)
     {
-        // TODO: 실제 데이터베이스에서 로드
+        // TODO: ?�제 ?�이?�베?�스?�서 로드
         await Task.Delay(10);
-        return null; // 새 플레이어
+        return null; // ???�레?�어
     }
 
     private async Task SavePlayerHealthToDatabase(PlayerHealthData healthData)
     {
-        // TODO: 실제 데이터베이스에 저장
+        // TODO: ?�제 ?�이?�베?�스???�??
         await Task.Delay(10);
         Console.WriteLine($"Health data saved for {healthData.UserName}");
     }
@@ -309,7 +333,7 @@ public class HealthAndHungerSystem
 }
 
 /// <summary>
-/// 플레이어 체력 데이터
+/// ?�레?�어 체력 ?�이??
 /// </summary>
 public class PlayerHealthData
 {
@@ -353,7 +377,7 @@ public class PlayerHealthData
 }
 
 /// <summary>
-/// 데미지 타입
+/// ?��?지 ?�??
 /// </summary>
 public enum DamageType
 {
@@ -372,7 +396,7 @@ public enum DamageType
 }
 
 /// <summary>
-/// 치유 타입
+/// 치유 ?�??
 /// </summary>
 public enum HealType
 {
@@ -382,3 +406,5 @@ public enum HealType
     Potion = 3,
     Magic = 4
 }
+
+

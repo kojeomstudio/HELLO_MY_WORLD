@@ -23,7 +23,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-16 | Mob AI & spawning framework | Planned | Planned | Needs server mob simulation, pathing, and client proxy actors. |
 | F-17 | World persistence & backup automation | Planned | Planned | Needs incremental world saves, rotation policies, and client save notifications. |
 | F-18 | Block lighting & sky light propagation | Planned | Planned | Waiting on chunk mesh analysis to carry block light values. |
-| F-19 | Death & respawn notifications | In progress (server broadcast added) | Planned (remote entity/HUD wiring) | Respawn broadcast now ships to peers; Unity still needs handlers and death feed. |
+| F-19 | Death & respawn notifications | In progress (respawn + death broadcasts live) | Planned (remote entity/HUD wiring) | Server now emits respawn and death payloads; Unity still needs handlers and HUD feed. |
 
 ## Active Task Queue (Oct 2025)
 - [x] Task-12B - Instrument container hash mismatches and expose the counter via ServerStatusResponse.
@@ -35,6 +35,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [ ] Task-19B - Unity consumes PlayerRespawn broadcasts to refresh remote avatars and death feed.
 
 ## Recently Completed
+- Server now broadcasts `PlayerDeathMessage` payloads alongside respawn events so peers and the originating player receive HUD-ready death context.
 - Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
 - Server status requests now return chunk residency counters so the HUD can track total and peak residency.
 - Remote player distance culling and avatar pooling landed, keeping remote entities lightweight and out of view when far away.

@@ -62,11 +62,14 @@ namespace Minecraft.Core
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
         public event Action<PlayerStateInfo> PlayerStateUpdated;
+        public event Action<PlayerRespawnBroadcast> PlayerRespawned;
+        public event Action<PlayerDeathMessage> PlayerDeathNotified;
         public event Action<ChunkSnapshot> ChunkLoaded;
         public event Action<Vector2Int, ChunkSnapshot> ChunkUnloaded;
         public event Action<Vector3Int, int, int> BlockChanged;
         public event Action<Vector3Int, IReadOnlyList<ItemDropInfo>> BlockDropsReceived;
         public event Action<EntityInfo> EntitySpawned;
+        public event Action<EntityInfo> EntityUpdated;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
         public event Action<IReadOnlyList<RecipeData>> RecipeListReceived;
@@ -594,6 +597,8 @@ namespace Minecraft.Core
                         MessageType.RoomQueueUpdate => ProtoBuf.Serializer.Deserialize<RoomQueueUpdateMessage>(stream),
                         MessageType.RoomPromotionNotice => ProtoBuf.Serializer.Deserialize<RoomPromotionMessage>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
+                        MessageType.PlayerDeath => ProtoBuf.Serializer.Deserialize<PlayerDeathMessage>(stream),
+                        MessageType.PlayerRespawnBroadcast => ProtoBuf.Serializer.Deserialize<PlayerRespawnBroadcast>(stream),
                         _ => null
                     };
                 }
@@ -608,6 +613,7 @@ namespace Minecraft.Core
                         MinecraftMessageType.ChunkUnloadAcknowledge => ProtoBuf.Serializer.Deserialize<ChunkUnloadAcknowledgeMessage>(stream),
                         MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
                         MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
+                        MinecraftMessageType.EntityUpdate => ProtoBuf.Serializer.Deserialize<EntityUpdateMessage>(stream),
                         MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
                         MinecraftMessageType.TimeUpdate => ProtoBuf.Serializer.Deserialize<TimeUpdateMessage>(stream),
                         MinecraftMessageType.WeatherChange => ProtoBuf.Serializer.Deserialize<WeatherChangeMessage>(stream),
@@ -687,6 +693,9 @@ namespace Minecraft.Core
                 case EntitySpawnMessage spawnMessage:
                     HandleEntitySpawn(spawnMessage);
                     break;
+                case EntityUpdateMessage updateMessage:
+                    HandleEntityUpdate(updateMessage);
+                    break;
                 case EntityDespawnMessage despawnMessage:
                     HandleEntityDespawn(despawnMessage);
                     break;
@@ -710,6 +719,12 @@ namespace Minecraft.Core
                     break;
                 case WeatherChangeMessage weatherChange:
                     HandleWeatherChange(weatherChange);
+                    break;
+                case PlayerDeathMessage deathMessage:
+                    PlayerDeathNotified?.Invoke(deathMessage);
+                    break;
+                case PlayerRespawnBroadcast respawnBroadcast:
+                    HandlePlayerRespawn(respawnBroadcast);
                     break;
                 default:
                     Debug.LogWarning($"Unhandled message type: {message.GetType().Name}");
@@ -748,6 +763,31 @@ namespace Minecraft.Core
             };
 
             WeatherChanged?.Invoke(_lastWeatherChange);
+        }
+
+        private void HandlePlayerRespawn(PlayerRespawnBroadcast message)
+        {
+            if (message == null)
+            {
+                return;
+            }
+
+            var playerName = message.PlayerName;
+            if (!string.IsNullOrWhiteSpace(playerName)
+                && _playerState != null
+                && !string.IsNullOrWhiteSpace(_playerState.Username)
+                && string.Equals(_playerState.Username, playerName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (message.RespawnPosition != null)
+                {
+                    var respawn = message.RespawnPosition;
+                    _playerState.Position = new Vector3D(respawn.X, respawn.Y, respawn.Z);
+                }
+
+                PlayerStateUpdated?.Invoke(_playerState);
+            }
+
+            PlayerRespawned?.Invoke(message);
         }
 
         private void HandleLoginResponse(LoginResponse response)

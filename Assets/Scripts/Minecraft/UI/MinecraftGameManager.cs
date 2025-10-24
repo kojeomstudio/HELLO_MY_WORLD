@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using Minecraft.Core;
+using Minecraft.Containers;
 using Minecraft.World;
 using Minecraft.Player;
 using SharedProtocol;
@@ -115,6 +116,11 @@ namespace Minecraft.UI
             if (FindObjectOfType<RoomBrowserManager>() == null)
             {
                 gameObject.AddComponent<RoomBrowserManager>();
+            }
+
+            if (FindObjectOfType<ContainerManager>() == null)
+            {
+                gameObject.AddComponent<ContainerManager>();
             }
 
             if (playerController != null)

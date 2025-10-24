@@ -617,6 +617,9 @@ namespace Minecraft.Core
                         MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
                         MinecraftMessageType.TimeUpdate => ProtoBuf.Serializer.Deserialize<TimeUpdateMessage>(stream),
                         MinecraftMessageType.WeatherChange => ProtoBuf.Serializer.Deserialize<WeatherChangeMessage>(stream),
+                        MinecraftMessageType.ContainerOpen => ProtoBuf.Serializer.Deserialize<ContainerOpenResponseMessage>(stream),
+                        MinecraftMessageType.ContainerUpdate => ProtoBuf.Serializer.Deserialize<ContainerUpdateBroadcastMessage>(stream),
+                        MinecraftMessageType.ContainerClose => ProtoBuf.Serializer.Deserialize<ContainerCloseNotificationMessage>(stream),
                         _ => null
                     };
                 }

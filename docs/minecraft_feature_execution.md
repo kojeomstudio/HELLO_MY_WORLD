@@ -16,7 +16,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-09 | Inventory snapshot persistence | Done | Done | Server snapshots and Unity diff consumer online. |
 | F-10 | World time and weather broadcasts | Done | Done | Server systems stream ticks; Unity drives lighting, HUD, and weather events. |
 | F-11 | Remote player entity sync & interpolation | Done | Done | Velocity samples, distance culling, and pooled avatars keep remote players responsive without leaks. |
-| F-12 | Crafting and container persistence | In progress (snapshot hashes + telemetry) | Planned (UI wiring pending) | Builds on inventory diff support; Task-12C will bind UI; telemetry shipped 2025-10-15. |
+| F-12 | Crafting and container persistence | Done (snapshot hashes + telemetry) | In progress (UI diff wiring landed) | ContainerManager + panel consume diff broadcasts; follow-up Task-12D will trigger open/close from world interaction. |
 | F-13 | Server status HUD | Done | Done | Overlay refreshes metrics automatically every 15 seconds. |
 | F-14 | Weather FX and ambient audio | In progress | In progress | Weather controller routes intensity to particles and audio; asset wiring remains. |
 | F-15 | Combat feedback and damage numbers | Planned | Planned | Requires combat log events and client damage indicators. |
@@ -27,7 +27,8 @@ This document enumerates the Minecraft-style features required across the Unity 
 
 ## Active Task Queue (Oct 2025)
 - [x] Task-12B - Instrument container hash mismatches and expose the counter via ServerStatusResponse.
-- [ ] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates.
+- [x] Task-12C - Bind container diff events into chest/furnace UI prefabs with optimistic updates.
+- [ ] Task-12D - Detect container interactions in-world and invoke ContainerManager.RequestOpen/Close.
 - [ ] Task-10E - Author ambient presets and bind weather intensity to scene lights/sounds.
 - [ ] Task-13A - Surface server metrics in the pause menu overlay.
 - [x] Task-13B - Capture chunk residency metrics for server observability.
@@ -35,6 +36,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [ ] Task-19B - Unity consumes PlayerRespawn broadcasts to refresh remote avatars and death feed.
 
 ## Recently Completed
+- Container diff broadcasts now hydrate the ContainerPanelUI via ContainerManager so Unity reflects server slot deltas immediately.
 - Server now broadcasts `PlayerDeathMessage` payloads alongside respawn events so peers and the originating player receive HUD-ready death context.
 - Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
 - Server status requests now return chunk residency counters so the HUD can track total and peak residency.

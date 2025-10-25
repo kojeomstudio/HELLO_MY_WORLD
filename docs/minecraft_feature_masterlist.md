@@ -23,6 +23,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-17 | World Persistence & Backup | Save chunks/players to disk, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split |
 | F-18 | Block Lighting & Sky Light | Compute light levels per block, sync to client | Apply lightmaps/shaders per chunk | Planned | Analyse existing chunk mesh data |
 | F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads, persist spawn anchors, expose analytics | Refresh remote avatars, show death feed, manage respawn UI | In progress | Task-19A delivered respawn broadcast; Task-19D server death broadcast landed; Task-19B Unity wiring pending. |
+| F-20 | Server Analytics & Telemetry | Aggregate residency, performance, and death metrics; expose status snapshots | Display telemetry in HUD overlays and pause menu | In progress | Task-20A delivered death/respawn counters; Task-20B will surface the data beyond the HUD ticker. |
 
 ## Sequenced Work Items
 - [x] Task-11C ? Remote player distance culling and avatar pooling delivered.
@@ -32,5 +33,6 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 - [ ] Task-10E ? Provide default ambient presets & bindings for weather intensity.
 - [ ] Task-13A ? Surface server metrics in the pause menu overlay.
 - [x] Task-13B ? Capture chunk residency metrics for server observability.
+- [x] Task-20A ? Extend ServerStatusResponse with death/respawn counters so the HUD analytics ticker can plot mortality spikes.
 
 

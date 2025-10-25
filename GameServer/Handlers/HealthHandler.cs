@@ -103,13 +103,15 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
     private readonly HealthAndHungerSystem _healthSystem;
+    private readonly ServerMetricsService _metrics;
 
-    public RespawnHandler(DatabaseHelper database, SessionManager sessions, HealthAndHungerSystem healthSystem)
+    public RespawnHandler(DatabaseHelper database, SessionManager sessions, HealthAndHungerSystem healthSystem, ServerMetricsService metrics)
         : base(MessageType.RespawnRequest)
     {
         _database = database;
         _sessions = sessions;
         _healthSystem = healthSystem;
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
     }
 
     protected override async Task HandleAsync(Session session, RespawnRequest message)
@@ -155,6 +157,7 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
             // 다른 플레이어들에게 리스폰 알림
             await BroadcastPlayerRespawn(session.UserName, respawnPosition);
 
+            _metrics.RecordPlayerRespawn(session.UserName);
             Console.WriteLine($"Player {session.UserName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z})");
         }
         catch (Exception ex)

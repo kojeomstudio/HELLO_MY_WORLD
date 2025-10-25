@@ -24,6 +24,7 @@ This sequence lists the Unity client and .NET server features that bring the pro
 | F-17 | World Persistence & Backup | Save world/chunks, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split (Task-17A). |
 | F-18 | Block Lighting & Sky Light | Compute light levels & propagate | Apply lightmaps/shaders | Planned | Requires chunk mesh analysis (Task-18A). |
 | F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads to world peers, persist respawn anchors | Refresh remote avatars, surface death feed, trigger respawn UI | In Progress | Task-19A respawn + Task-19D death broadcasts delivered; Unity HUD wiring (Task-19B) still open. |
+| F-20 | Server Analytics & Telemetry | Capture residency, death/respawn, and performance counters | Surface analytics in HUD and pause menu overlays | In Progress | Task-20A shipped death counters; Task-20B will extend pause menu telemetry. |
 
 Legend: Done | In Progress | Planned
 
@@ -37,6 +38,7 @@ Legend: Done | In Progress | Planned
 - [x] Task-19A - Broadcast PlayerRespawn events from the server to online sessions (delivered 2025-10-17).
 - [x] Task-19D - Broadcast PlayerDeath messages to active sessions (delivered 2025-10-21).
 - [ ] Task-19B - Consume PlayerRespawn broadcasts inside the Unity remote entity manager and HUD death feed.
+- [x] Task-20A - Extend server status telemetry with death/respawn counters for HUD analytics (delivered 2025-10-25).
 
 ## Parking Lot
 - After Task-12C, expand the self-test harness to cover container open/update/close flows.

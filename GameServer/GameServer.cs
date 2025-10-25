@@ -106,7 +106,7 @@ namespace GameServerApp
 
             // Game Mechanics & Interactions
             var craftingSystem = new CraftingSystem(inventorySystem);
-            var healthSystem = new HealthAndHungerSystem(_database, _sessions);
+            var healthSystem = new HealthAndHungerSystem(_database, _sessions, _metrics);
 
             _dispatcher.Register(new InventoryHandler(_database, _sessions, inventorySystem));
             _dispatcher.Register(new CraftingHandler(_database, _sessions, craftingSystem));
@@ -115,7 +115,7 @@ namespace GameServerApp
             _dispatcher.Register(new RoomEnterHandler(_sessions, _rooms));
             _dispatcher.Register(new RoomLeaveHandler(_sessions, _rooms));
             _dispatcher.Register(new HealthHandler(_database, _sessions, healthSystem));
-            _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem));
+            _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem, _metrics));
 
             // Communication & Network
             _dispatcher.Register(new ChatHandler(_database, _sessions, _rooms));

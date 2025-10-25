@@ -24,6 +24,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-17 | World persistence & backup automation | Planned | Planned | Needs incremental world saves, rotation policies, and client save notifications. |
 | F-18 | Block lighting & sky light propagation | Planned | Planned | Waiting on chunk mesh analysis to carry block light values. |
 | F-19 | Death & respawn notifications | In progress (respawn + death broadcasts live) | Planned (remote entity/HUD wiring) | Server now emits respawn and death payloads; Unity still needs handlers and HUD feed. |
+| F-20 | Server analytics & telemetry | In progress (death/respawn counters live) | Planned (HUD overlays beyond status panel) | Server status snapshot now exposes death analytics; UI needs pause-menu surfacing. |
 
 ## Active Task Queue (Oct 2025)
 - [x] Task-12B - Instrument container hash mismatches and expose the counter via ServerStatusResponse.
@@ -34,10 +35,12 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [x] Task-13B - Capture chunk residency metrics for server observability.
 - [x] Task-19A - Broadcast PlayerRespawn messages to active sessions.
 - [ ] Task-19B - Unity consumes PlayerRespawn broadcasts to refresh remote avatars and death feed.
+- [x] Task-20A - Extend ServerStatusResponse with death/respawn counters so the Unity HUD can chart analytics spikes (delivered 2025-10-25).
 
 ## Recently Completed
 - Container diff broadcasts now hydrate the ContainerPanelUI via ContainerManager so Unity reflects server slot deltas immediately.
 - Server now broadcasts `PlayerDeathMessage` payloads alongside respawn events so peers and the originating player receive HUD-ready death context.
+- Server status requests now include death/respawn counters and the Unity HUD overlays the running totals for analytics sampling.
 - Container hash mismatch telemetry now feeds the diagnostics endpoint so the HUD can display snapshot correction counts.
 - Server status requests now return chunk residency counters so the HUD can track total and peak residency.
 - Remote player distance culling and avatar pooling landed, keeping remote entities lightweight and out of view when far away.

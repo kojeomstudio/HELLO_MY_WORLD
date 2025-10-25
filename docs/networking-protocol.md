@@ -79,6 +79,9 @@ Authenticated clients may send `ServerStatusRequest` (type 42) after login. The 
 - `ActiveChunkResidencyPlayers`: number of players contributing to the residency counters.
 - `PeakChunksPerPlayer`: highest chunk residency count recorded for any single player in the current snapshot.
 - `BusiestChunkPlayer`: username associated with the current peak residency (empty when no players are tracked).
+- `TotalDeaths`: cumulative number of player deaths recorded since the server entered the running state.
+- `DeathsLastTenMinutes`: rolling count of deaths observed within the last ten minutes (used for HUD analytics spikes).
+- `TotalRespawns`: cumulative number of respawn acknowledgements processed by the dedicated server.
 
 Requests with missing or mismatched session tokens are ignored; no error payload is emitted to avoid leaking metrics to unauthenticated clients.
 

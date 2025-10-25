@@ -788,6 +788,9 @@ message WorldBorder {
     int32 active_chunk_residency_players = 11;
     int32 peak_chunks_per_player = 12;
     string busiest_chunk_player = 13;
+    int64 total_deaths = 14;
+    int64 total_respawns = 15;
+    int64 deaths_last_ten_minutes = 16;
   }
 
 message TimeUpdateBroadcast {

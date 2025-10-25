@@ -254,112 +254,118 @@ namespace EnhancedMinecraftProtocol {
             "ARIXCg90YXJnZXRfZGlhbWV0ZXIYAyABKAESFgoOdGltZV90b190YXJnZXQY",
             "BCABKAMSGAoQd2FybmluZ19kaXN0YW5jZRgFIAEoARIUCgx3YXJuaW5nX3Rp",
             "bWUYBiABKAUSGAoQZGFtYWdlX3Blcl9ibG9jaxgHIAEoARIVCg1kYW1hZ2Vf",
-            "YnVmZmVyGAggASgBIugBChRTZXJ2ZXJTdGF0dXNSZXNwb25zZRIWCg5zZXJ2",
+            "YnVmZmVyGAggASgBIt4DChRTZXJ2ZXJTdGF0dXNSZXNwb25zZRIWCg5zZXJ2",
             "ZXJfdmVyc2lvbhgBIAEoCRIYChBwcm90b2NvbF92ZXJzaW9uGAIgASgFEhYK",
             "Dm9ubGluZV9wbGF5ZXJzGAMgASgFEhMKC21heF9wbGF5ZXJzGAQgASgFEhIK",
             "CnNlcnZlcl90cHMYBSABKAISFQoNc2VydmVyX3VwdGltZRgGIAEoAxIMCgRt",
             "b3RkGAcgASgJEjgKCndvcmxkX2luZm8YCCABKAsyJC5FbmhhbmNlZE1pbmVj",
-            "cmFmdFByb3RvY29sLldvcmxkSW5mbyI7ChNUaW1lVXBkYXRlQnJvYWRjYXN0",
-            "EhIKCndvcmxkX3RpbWUYASABKAMSEAoIZGF5X3RpbWUYAiABKAMiawoWV2Vh",
-            "dGhlclVwZGF0ZUJyb2FkY2FzdBI3Cgd3ZWF0aGVyGAEgASgLMiYuRW5oYW5j",
-            "ZWRNaW5lY3JhZnRQcm90b2NvbC5XZWF0aGVySW5mbxIYChBjaGFuZ2VfdGlt",
-            "ZXN0YW1wGAIgASgDIuMBChpBY2hpZXZlbWVudFVubG9ja0Jyb2FkY2FzdBIR",
-            "CglwbGF5ZXJfaWQYASABKAkSFgoOYWNoaWV2ZW1lbnRfaWQYAiABKAUSGAoQ",
-            "YWNoaWV2ZW1lbnRfbmFtZRgDIAEoCRIfChdhY2hpZXZlbWVudF9kZXNjcmlw",
-            "dGlvbhgEIAEoCRJEChBhY2hpZXZlbWVudF90eXBlGAUgASgOMiouRW5oYW5j",
-            "ZWRNaW5lY3JhZnRQcm90b2NvbC5BY2hpZXZlbWVudFR5cGUSGQoRZXhwZXJp",
-            "ZW5jZV9yZXdhcmQYBiABKAUibAoYU3RhdGlzdGljVXBkYXRlQnJvYWRjYXN0",
-            "EhEKCXBsYXllcl9pZBgBIAEoCRI9CgpzdGF0aXN0aWNzGAIgAygLMikuRW5o",
-            "YW5jZWRNaW5lY3JhZnRQcm90b2NvbC5TdGF0aXN0aWNFbnRyeSJ3Cg5TdGF0",
-            "aXN0aWNFbnRyeRIWCg5zdGF0aXN0aWNfbmFtZRgBIAEoCRINCgV2YWx1ZRgC",
-            "IAEoAxI+CghjYXRlZ29yeRgDIAEoDjIsLkVuaGFuY2VkTWluZWNyYWZ0UHJv",
-            "dG9jb2wuU3RhdGlzdGljQ2F0ZWdvcnkqRAoIR2FtZU1vZGUSDAoIU1VSVklW",
-            "QUwQABIMCghDUkVBVElWRRABEg0KCUFEVkVOVFVSRRACEg0KCVNQRUNUQVRP",
-            "UhADKmQKCEl0ZW1UeXBlEgkKBUJMT0NLEAASCAoEVE9PTBABEgoKBldFQVBP",
-            "ThACEgkKBUFSTU9SEAMSCAoERk9PRBAEEgwKCE1BVEVSSUFMEAUSCgoGUE9U",
-            "SU9OEAYSCAoETUlTQxAHKkkKCkl0ZW1SYXJpdHkSCgoGQ09NTU9OEAASDAoI",
-            "VU5DT01NT04QARIICgRSQVJFEAISCAoERVBJQxADEg0KCUxFR0VOREFSWRAE",
-            "Kn0KDENoYW5nZVJlYXNvbhIQCgxQTEFZRVJfQlJFQUsQABIQCgxQTEFZRVJf",
-            "UExBQ0UQARILCgdQSFlTSUNTEAISDAoIUkVEU1RPTkUQAxIKCgZHUk9XVEgQ",
-            "BBIJCgVERUNBWRAFEg0KCUVYUExPU0lPThAGEggKBEZJUkUQBypwChFDaHVu",
-            "a1VubG9hZFJlYXNvbhIYChRVTkxPQURfVklFV19ESVNUQU5DRRAAEhEKDVVO",
-            "TE9BRF9NQU5VQUwQARIZChVVTkxPQURfV09STERfVFJBTlNGRVIQAhITCg9V",
-            "TkxPQURfU0hVVERPV04QAyqEAQoOVGlsZUVudGl0eVR5cGUSCQoFQ0hFU1QQ",
-            "ABILCgdGVVJOQUNFEAESEQoNQlJFV0lOR19TVEFORBACEhQKEEVOQ0hBTlRJ",
-            "TkdfVEFCTEUQAxIKCgZCRUFDT04QBBIPCgtNT0JfU1BBV05FUhAFEggKBFNJ",
-            "R04QBhIKCgZCQU5ORVIQByqwAgoKRW50aXR5VHlwZRISCg5VTktOT1dOX0VO",
-            "VElUWRAAEgoKBlBMQVlFUhABEgoKBlpPTUJJRRAKEgwKCFNLRUxFVE9OEAsS",
-            "CwoHQ1JFRVBFUhAMEgoKBlNQSURFUhANEgwKCEVOREVSTUFOEA4SCQoFV0lU",
-            "Q0gQDxIJCgVTTElNRRAQEgcKA1BJRxAUEgcKA0NPVxAVEgkKBVNIRUVQEBYS",
-            "CwoHQ0hJQ0tFThAXEgkKBUhPUlNFEBgSCAoEV09MRhAZEgcKA0NBVBAaEgwK",
-            "CFZJTExBR0VSEBsSEAoMRFJPUFBFRF9JVEVNEB4SCQoFQVJST1cQHxISCg5F",
-            "WFBFUklFTkNFX09SQhAgEggKBEJPQVQQIRIMCghNSU5FQ0FSVBAiEgwKCEZJ",
-            "UkVCQUxMECMqhQEKC1NwYXduUmVhc29uEhEKDVNQQVdOX05BVFVSQUwQABIR",
-            "Cg1TUEFXTl9TUEFXTkVSEAESEgoOU1BBV05fQlJFRURJTkcQAhIRCg1TUEFX",
-            "Tl9DT01NQU5EEAMSEwoPU1BBV05fSVRFTV9EUk9QEAQSFAoQU1BBV05fUFJP",
-            "SkVDVElMRRAFKnoKDURlc3Bhd25SZWFzb24SEwoPREVTUEFXTl9OQVRVUkFM",
-            "EAASEQoNREVTUEFXTl9ERUFUSBABEhIKDkRFU1BBV05fUElDS1VQEAISGAoU",
-            "REVTUEFXTl9DSFVOS19VTkxPQUQQAxITCg9ERVNQQVdOX0NPTU1BTkQQBCrp",
-            "AgoMUGxheWVyQWN0aW9uEhcKE1NUQVJUX0RFU1RST1lfQkxPQ0sQABIXChNB",
-            "Qk9SVF9ERVNUUk9ZX0JMT0NLEAESGAoURklOSVNIX0RFU1RST1lfQkxPQ0sQ",
-            "AhIPCgtQTEFDRV9CTE9DSxADEhUKEVJJR0hUX0NMSUNLX0JMT0NLEAQSDAoI",
-            "VVNFX0lURU0QChINCglEUk9QX0lURU0QCxITCg9EUk9QX0lURU1fU1RBQ0sQ",
-            "DBIMCghFQVRfRk9PRBANEhAKDERSSU5LX1BPVElPThAOEhEKDUFUVEFDS19F",
-            "TlRJVFkQFBINCglTSE9PVF9CT1cQFRIVChFCTE9DS19XSVRIX1NISUVMRBAW",
-            "EgwKCElOVEVSQUNUEB4SDwoLU05FQUtfU1RBUlQQHxIOCgpTTkVBS19TVE9Q",
-            "ECASEAoMU1BSSU5UX1NUQVJUECESDwoLU1BSSU5UX1NUT1AQIhIICgRKVU1Q",
-            "ECMqpAEKDENyYWZ0aW5nVHlwZRIXChNDUkFGVElOR19QTEFZRVJfMlgyEAAS",
-            "FgoSQ1JBRlRJTkdfVEFCTEVfM1gzEAESFAoQQ1JBRlRJTkdfRlVSTkFDRRAC",
-            "EhoKFkNSQUZUSU5HX0JSRVdJTkdfU1RBTkQQAxIdChlDUkFGVElOR19FTkNI",
-            "QU5USU5HX1RBQkxFEAQSEgoOQ1JBRlRJTkdfQU5WSUwQBSpSCgpSZWNpcGVU",
-            "eXBlEgoKBlNIQVBFRBAAEg0KCVNIQVBFTEVTUxABEgwKCFNNRUxUSU5HEAIS",
-            "CwoHQlJFV0lORxADEg4KCkVOQ0hBTlRJTkcQBCrCAgoKRGFtYWdlVHlwZRIP",
-            "CgtETUdfR0VORVJJQxAAEhUKEURNR19FTlRJVFlfQVRUQUNLEAESEgoORE1H",
-            "X1BST0pFQ1RJTEUQAhIMCghETUdfRkFMTBADEgwKCERNR19GSVJFEAQSEQoN",
-            "RE1HX0ZJUkVfVElDSxAFEgwKCERNR19MQVZBEAYSEAoMRE1HX0RST1dOSU5H",
-            "EAcSEwoPRE1HX1NVRkZPQ0FUSU9OEAgSEQoNRE1HX0VYUExPU0lPThAJEgwK",
-            "CERNR19WT0lEEAoSDgoKRE1HX1BPSVNPThALEg0KCURNR19NQUdJQxAMEg4K",
-            "CkRNR19XSVRIRVIQDRINCglETUdfQU5WSUwQDhIOCgpETUdfQ0FDVFVTEA8S",
-            "EQoNRE1HX0xJR0hUTklORxAQEhIKDkRNR19TVEFSVkFUSU9OEBEqNgoKRWZm",
-            "ZWN0VHlwZRIOCgpCRU5FRklDSUFMEAASCwoHSEFSTUZVTBABEgsKB05FVVRS",
-            "QUwQAiqYAgoMUGFydGljbGVUeXBlEg8KC0JMT0NLX0JSRUFLEAASDwoLQkxP",
-            "Q0tfQ1JBQ0sQARIUChBFWFBMT1NJT05fTk9STUFMEAISEwoPRVhQTE9TSU9O",
-            "X0xBUkdFEAMSEAoMV0FURVJfU1BMQVNIEAQSDAoITEFWQV9QT1AQBRIQCgxT",
-            "TU9LRV9OT1JNQUwQBhIJCgVGTEFNRRAHEgkKBUhFQVJUEAgSCAoEQ1JJVBAJ",
-            "EhUKEUVOQ0hBTlRNRU5UX1RBQkxFEAoSCgoGUE9SVEFMEAsSCAoETk9URRAM",
-            "EhIKDkhBUFBZX1ZJTExBR0VSEA0SEgoOQU5HUllfVklMTEFHRVIQDhIUChBE",
-            "QU1BR0VfSU5ESUNBVE9SEA8qwAMKCVNvdW5kVHlwZRIVChFCTE9DS19CUkVB",
-            "S19TVE9ORRAAEhQKEEJMT0NLX0JSRUFLX1dPT0QQARIVChFCTE9DS19CUkVB",
-            "S19HUkFTUxACEhUKEUJMT0NLX1BMQUNFX1NUT05FEAMSFAoQQkxPQ0tfUExB",
-            "Q0VfV09PRBAEEg8KC0hVUlRfUExBWUVSEAoSEAoMREVBVEhfUExBWUVSEAsS",
-            "DAoITEVWRUxfVVAQDBIPCgtJVEVNX1BJQ0tVUBAUEg4KCklURU1fQlJFQUsQ",
-            "FRIHCgNFQVQQFhIJCgVEUklOSxAXEhEKDUFUVEFDS19TVFJPTkcQHhIPCgtB",
-            "VFRBQ0tfV0VBSxAfEg8KC0FSUk9XX1NIT09UECASDQoJQVJST1dfSElUECES",
-            "EgoORk9PVFNURVBfU1RPTkUQKBIRCg1GT09UU1RFUF9XT09EECkSEgoORk9P",
-            "VFNURVBfR1JBU1MQKhIQCgxBTUJJRU5UX0NBVkUQKxILCgdUSFVOREVSECwS",
-            "CAoEUkFJThAtEhMKD1VJX0JVVFRPTl9DTElDSxAyEg4KCkNIRVNUX09QRU4Q",
-            "MxIPCgtDSEVTVF9DTE9TRRA0KrABCg1Tb3VuZENhdGVnb3J5Eg4KClNORF9N",
-            "QVNURVIQABINCglTTkRfTVVTSUMQARIOCgpTTkRfUkVDT1JEEAISDwoLU05E",
-            "X1dFQVRIRVIQAxINCglTTkRfQkxPQ0sQBBIPCgtTTkRfSE9TVElMRRAFEg8K",
-            "C1NORF9ORVVUUkFMEAYSDgoKU05EX1BMQVlFUhAHEg8KC1NORF9BTUJJRU5U",
-            "EAgSDQoJU05EX1ZPSUNFEAkqyAEKCENoYXRUeXBlEg8KC0NIQVRfR0xPQkFM",
-            "EAASDgoKQ0hBVF9MT0NBTBABEhAKDENIQVRfV0hJU1BFUhACEg8KC0NIQVRf",
-            "U1lTVEVNEAMSDQoJQ0hBVF9URUFNEAQSFQoRQ0hBVF9BTk5PVU5DRU1FTlQQ",
-            "BRIOCgpDSEFUX0RFQVRIEAYSEwoPQ0hBVF9KT0lOX0xFQVZFEAcSFAoQQ0hB",
-            "VF9BQ0hJRVZFTUVOVBAIEhcKE0NIQVRfQ09NTUFORF9SRVNVTFQQCSp+ChFD",
-            "b21tYW5kUmVzdWx0VHlwZRILCgdTVUNDRVNTEAASCwoHRkFJTFVSRRABEhUK",
-            "EVBFUk1JU1NJT05fREVOSUVEEAISEgoOSU5WQUxJRF9TWU5UQVgQAxIUChBU",
-            "QVJHRVRfTk9UX0ZPVU5EEAQSDgoKSU5DT01QTEVURRAFKlkKCVdvcmxkVHlw",
-            "ZRIKCgZOT1JNQUwQABIICgRGTEFUEAESEAoMTEFSR0VfQklPTUVTEAISDQoJ",
-            "QU1QTElGSUVEEAMSCQoFREVCVUcQBBIKCgZDVVNUT00QBSpTCg9Xb3JsZERp",
-            "ZmZpY3VsdHkSEQoNRElGRl9QRUFDRUZVTBAAEg0KCURJRkZfRUFTWRABEg8K",
-            "C0RJRkZfTk9STUFMEAISDQoJRElGRl9IQVJEEAMqVwoLV2VhdGhlclR5cGUS",
-            "EQoNV0VBVEhFUl9DTEVBUhAAEhAKDFdFQVRIRVJfUkFJThABEhEKDVdFQVRI",
-            "RVJfU1RPUk0QAhIQCgxXRUFUSEVSX1NOT1cQAyo1Cg9BY2hpZXZlbWVudFR5",
-            "cGUSCQoFQkFTSUMQABINCglDSEFMTEVOR0UQARIICgRHT0FMEAIqZgoRU3Rh",
-            "dGlzdGljQ2F0ZWdvcnkSEAoMU1RBVF9HRU5FUkFMEAASDwoLU1RBVF9CTE9D",
-            "S1MQARIOCgpTVEFUX0lURU1TEAISDQoJU1RBVF9NT0JTEAMSDwoLU1RBVF9D",
-            "VVNUT00QBEIcqgIZRW5oYW5jZWRNaW5lY3JhZnRQcm90b2NvbGIGcHJvdG8z"));
+            "cmFmdFByb3RvY29sLldvcmxkSW5mbxIhChljb250YWluZXJfaGFzaF9taXNt",
+            "YXRjaGVzGAkgASgDEhwKFHRvdGFsX3RyYWNrZWRfY2h1bmtzGAogASgDEiYK",
+            "HmFjdGl2ZV9jaHVua19yZXNpZGVuY3lfcGxheWVycxgLIAEoBRIeChZwZWFr",
+            "X2NodW5rc19wZXJfcGxheWVyGAwgASgFEhwKFGJ1c2llc3RfY2h1bmtfcGxh",
+            "eWVyGA0gASgJEhQKDHRvdGFsX2RlYXRocxgOIAEoAxIWCg50b3RhbF9yZXNw",
+            "YXducxgPIAEoAxIfChdkZWF0aHNfbGFzdF90ZW5fbWludXRlcxgQIAEoAyI7",
+            "ChNUaW1lVXBkYXRlQnJvYWRjYXN0EhIKCndvcmxkX3RpbWUYASABKAMSEAoI",
+            "ZGF5X3RpbWUYAiABKAMiawoWV2VhdGhlclVwZGF0ZUJyb2FkY2FzdBI3Cgd3",
+            "ZWF0aGVyGAEgASgLMiYuRW5oYW5jZWRNaW5lY3JhZnRQcm90b2NvbC5XZWF0",
+            "aGVySW5mbxIYChBjaGFuZ2VfdGltZXN0YW1wGAIgASgDIuMBChpBY2hpZXZl",
+            "bWVudFVubG9ja0Jyb2FkY2FzdBIRCglwbGF5ZXJfaWQYASABKAkSFgoOYWNo",
+            "aWV2ZW1lbnRfaWQYAiABKAUSGAoQYWNoaWV2ZW1lbnRfbmFtZRgDIAEoCRIf",
+            "ChdhY2hpZXZlbWVudF9kZXNjcmlwdGlvbhgEIAEoCRJEChBhY2hpZXZlbWVu",
+            "dF90eXBlGAUgASgOMiouRW5oYW5jZWRNaW5lY3JhZnRQcm90b2NvbC5BY2hp",
+            "ZXZlbWVudFR5cGUSGQoRZXhwZXJpZW5jZV9yZXdhcmQYBiABKAUibAoYU3Rh",
+            "dGlzdGljVXBkYXRlQnJvYWRjYXN0EhEKCXBsYXllcl9pZBgBIAEoCRI9Cgpz",
+            "dGF0aXN0aWNzGAIgAygLMikuRW5oYW5jZWRNaW5lY3JhZnRQcm90b2NvbC5T",
+            "dGF0aXN0aWNFbnRyeSJ3Cg5TdGF0aXN0aWNFbnRyeRIWCg5zdGF0aXN0aWNf",
+            "bmFtZRgBIAEoCRINCgV2YWx1ZRgCIAEoAxI+CghjYXRlZ29yeRgDIAEoDjIs",
+            "LkVuaGFuY2VkTWluZWNyYWZ0UHJvdG9jb2wuU3RhdGlzdGljQ2F0ZWdvcnkq",
+            "RAoIR2FtZU1vZGUSDAoIU1VSVklWQUwQABIMCghDUkVBVElWRRABEg0KCUFE",
+            "VkVOVFVSRRACEg0KCVNQRUNUQVRPUhADKmQKCEl0ZW1UeXBlEgkKBUJMT0NL",
+            "EAASCAoEVE9PTBABEgoKBldFQVBPThACEgkKBUFSTU9SEAMSCAoERk9PRBAE",
+            "EgwKCE1BVEVSSUFMEAUSCgoGUE9USU9OEAYSCAoETUlTQxAHKkkKCkl0ZW1S",
+            "YXJpdHkSCgoGQ09NTU9OEAASDAoIVU5DT01NT04QARIICgRSQVJFEAISCAoE",
+            "RVBJQxADEg0KCUxFR0VOREFSWRAEKn0KDENoYW5nZVJlYXNvbhIQCgxQTEFZ",
+            "RVJfQlJFQUsQABIQCgxQTEFZRVJfUExBQ0UQARILCgdQSFlTSUNTEAISDAoI",
+            "UkVEU1RPTkUQAxIKCgZHUk9XVEgQBBIJCgVERUNBWRAFEg0KCUVYUExPU0lP",
+            "ThAGEggKBEZJUkUQBypwChFDaHVua1VubG9hZFJlYXNvbhIYChRVTkxPQURf",
+            "VklFV19ESVNUQU5DRRAAEhEKDVVOTE9BRF9NQU5VQUwQARIZChVVTkxPQURf",
+            "V09STERfVFJBTlNGRVIQAhITCg9VTkxPQURfU0hVVERPV04QAyqEAQoOVGls",
+            "ZUVudGl0eVR5cGUSCQoFQ0hFU1QQABILCgdGVVJOQUNFEAESEQoNQlJFV0lO",
+            "R19TVEFORBACEhQKEEVOQ0hBTlRJTkdfVEFCTEUQAxIKCgZCRUFDT04QBBIP",
+            "CgtNT0JfU1BBV05FUhAFEggKBFNJR04QBhIKCgZCQU5ORVIQByqwAgoKRW50",
+            "aXR5VHlwZRISCg5VTktOT1dOX0VOVElUWRAAEgoKBlBMQVlFUhABEgoKBlpP",
+            "TUJJRRAKEgwKCFNLRUxFVE9OEAsSCwoHQ1JFRVBFUhAMEgoKBlNQSURFUhAN",
+            "EgwKCEVOREVSTUFOEA4SCQoFV0lUQ0gQDxIJCgVTTElNRRAQEgcKA1BJRxAU",
+            "EgcKA0NPVxAVEgkKBVNIRUVQEBYSCwoHQ0hJQ0tFThAXEgkKBUhPUlNFEBgS",
+            "CAoEV09MRhAZEgcKA0NBVBAaEgwKCFZJTExBR0VSEBsSEAoMRFJPUFBFRF9J",
+            "VEVNEB4SCQoFQVJST1cQHxISCg5FWFBFUklFTkNFX09SQhAgEggKBEJPQVQQ",
+            "IRIMCghNSU5FQ0FSVBAiEgwKCEZJUkVCQUxMECMqhQEKC1NwYXduUmVhc29u",
+            "EhEKDVNQQVdOX05BVFVSQUwQABIRCg1TUEFXTl9TUEFXTkVSEAESEgoOU1BB",
+            "V05fQlJFRURJTkcQAhIRCg1TUEFXTl9DT01NQU5EEAMSEwoPU1BBV05fSVRF",
+            "TV9EUk9QEAQSFAoQU1BBV05fUFJPSkVDVElMRRAFKnoKDURlc3Bhd25SZWFz",
+            "b24SEwoPREVTUEFXTl9OQVRVUkFMEAASEQoNREVTUEFXTl9ERUFUSBABEhIK",
+            "DkRFU1BBV05fUElDS1VQEAISGAoUREVTUEFXTl9DSFVOS19VTkxPQUQQAxIT",
+            "Cg9ERVNQQVdOX0NPTU1BTkQQBCrpAgoMUGxheWVyQWN0aW9uEhcKE1NUQVJU",
+            "X0RFU1RST1lfQkxPQ0sQABIXChNBQk9SVF9ERVNUUk9ZX0JMT0NLEAESGAoU",
+            "RklOSVNIX0RFU1RST1lfQkxPQ0sQAhIPCgtQTEFDRV9CTE9DSxADEhUKEVJJ",
+            "R0hUX0NMSUNLX0JMT0NLEAQSDAoIVVNFX0lURU0QChINCglEUk9QX0lURU0Q",
+            "CxITCg9EUk9QX0lURU1fU1RBQ0sQDBIMCghFQVRfRk9PRBANEhAKDERSSU5L",
+            "X1BPVElPThAOEhEKDUFUVEFDS19FTlRJVFkQFBINCglTSE9PVF9CT1cQFRIV",
+            "ChFCTE9DS19XSVRIX1NISUVMRBAWEgwKCElOVEVSQUNUEB4SDwoLU05FQUtf",
+            "U1RBUlQQHxIOCgpTTkVBS19TVE9QECASEAoMU1BSSU5UX1NUQVJUECESDwoL",
+            "U1BSSU5UX1NUT1AQIhIICgRKVU1QECMqpAEKDENyYWZ0aW5nVHlwZRIXChND",
+            "UkFGVElOR19QTEFZRVJfMlgyEAASFgoSQ1JBRlRJTkdfVEFCTEVfM1gzEAES",
+            "FAoQQ1JBRlRJTkdfRlVSTkFDRRACEhoKFkNSQUZUSU5HX0JSRVdJTkdfU1RB",
+            "TkQQAxIdChlDUkFGVElOR19FTkNIQU5USU5HX1RBQkxFEAQSEgoOQ1JBRlRJ",
+            "TkdfQU5WSUwQBSpSCgpSZWNpcGVUeXBlEgoKBlNIQVBFRBAAEg0KCVNIQVBF",
+            "TEVTUxABEgwKCFNNRUxUSU5HEAISCwoHQlJFV0lORxADEg4KCkVOQ0hBTlRJ",
+            "TkcQBCrCAgoKRGFtYWdlVHlwZRIPCgtETUdfR0VORVJJQxAAEhUKEURNR19F",
+            "TlRJVFlfQVRUQUNLEAESEgoORE1HX1BST0pFQ1RJTEUQAhIMCghETUdfRkFM",
+            "TBADEgwKCERNR19GSVJFEAQSEQoNRE1HX0ZJUkVfVElDSxAFEgwKCERNR19M",
+            "QVZBEAYSEAoMRE1HX0RST1dOSU5HEAcSEwoPRE1HX1NVRkZPQ0FUSU9OEAgS",
+            "EQoNRE1HX0VYUExPU0lPThAJEgwKCERNR19WT0lEEAoSDgoKRE1HX1BPSVNP",
+            "ThALEg0KCURNR19NQUdJQxAMEg4KCkRNR19XSVRIRVIQDRINCglETUdfQU5W",
+            "SUwQDhIOCgpETUdfQ0FDVFVTEA8SEQoNRE1HX0xJR0hUTklORxAQEhIKDkRN",
+            "R19TVEFSVkFUSU9OEBEqNgoKRWZmZWN0VHlwZRIOCgpCRU5FRklDSUFMEAAS",
+            "CwoHSEFSTUZVTBABEgsKB05FVVRSQUwQAiqYAgoMUGFydGljbGVUeXBlEg8K",
+            "C0JMT0NLX0JSRUFLEAASDwoLQkxPQ0tfQ1JBQ0sQARIUChBFWFBMT1NJT05f",
+            "Tk9STUFMEAISEwoPRVhQTE9TSU9OX0xBUkdFEAMSEAoMV0FURVJfU1BMQVNI",
+            "EAQSDAoITEFWQV9QT1AQBRIQCgxTTU9LRV9OT1JNQUwQBhIJCgVGTEFNRRAH",
+            "EgkKBUhFQVJUEAgSCAoEQ1JJVBAJEhUKEUVOQ0hBTlRNRU5UX1RBQkxFEAoS",
+            "CgoGUE9SVEFMEAsSCAoETk9URRAMEhIKDkhBUFBZX1ZJTExBR0VSEA0SEgoO",
+            "QU5HUllfVklMTEFHRVIQDhIUChBEQU1BR0VfSU5ESUNBVE9SEA8qwAMKCVNv",
+            "dW5kVHlwZRIVChFCTE9DS19CUkVBS19TVE9ORRAAEhQKEEJMT0NLX0JSRUFL",
+            "X1dPT0QQARIVChFCTE9DS19CUkVBS19HUkFTUxACEhUKEUJMT0NLX1BMQUNF",
+            "X1NUT05FEAMSFAoQQkxPQ0tfUExBQ0VfV09PRBAEEg8KC0hVUlRfUExBWUVS",
+            "EAoSEAoMREVBVEhfUExBWUVSEAsSDAoITEVWRUxfVVAQDBIPCgtJVEVNX1BJ",
+            "Q0tVUBAUEg4KCklURU1fQlJFQUsQFRIHCgNFQVQQFhIJCgVEUklOSxAXEhEK",
+            "DUFUVEFDS19TVFJPTkcQHhIPCgtBVFRBQ0tfV0VBSxAfEg8KC0FSUk9XX1NI",
+            "T09UECASDQoJQVJST1dfSElUECESEgoORk9PVFNURVBfU1RPTkUQKBIRCg1G",
+            "T09UU1RFUF9XT09EECkSEgoORk9PVFNURVBfR1JBU1MQKhIQCgxBTUJJRU5U",
+            "X0NBVkUQKxILCgdUSFVOREVSECwSCAoEUkFJThAtEhMKD1VJX0JVVFRPTl9D",
+            "TElDSxAyEg4KCkNIRVNUX09QRU4QMxIPCgtDSEVTVF9DTE9TRRA0KrABCg1T",
+            "b3VuZENhdGVnb3J5Eg4KClNORF9NQVNURVIQABINCglTTkRfTVVTSUMQARIO",
+            "CgpTTkRfUkVDT1JEEAISDwoLU05EX1dFQVRIRVIQAxINCglTTkRfQkxPQ0sQ",
+            "BBIPCgtTTkRfSE9TVElMRRAFEg8KC1NORF9ORVVUUkFMEAYSDgoKU05EX1BM",
+            "QVlFUhAHEg8KC1NORF9BTUJJRU5UEAgSDQoJU05EX1ZPSUNFEAkqyAEKCENo",
+            "YXRUeXBlEg8KC0NIQVRfR0xPQkFMEAASDgoKQ0hBVF9MT0NBTBABEhAKDENI",
+            "QVRfV0hJU1BFUhACEg8KC0NIQVRfU1lTVEVNEAMSDQoJQ0hBVF9URUFNEAQS",
+            "FQoRQ0hBVF9BTk5PVU5DRU1FTlQQBRIOCgpDSEFUX0RFQVRIEAYSEwoPQ0hB",
+            "VF9KT0lOX0xFQVZFEAcSFAoQQ0hBVF9BQ0hJRVZFTUVOVBAIEhcKE0NIQVRf",
+            "Q09NTUFORF9SRVNVTFQQCSp+ChFDb21tYW5kUmVzdWx0VHlwZRILCgdTVUND",
+            "RVNTEAASCwoHRkFJTFVSRRABEhUKEVBFUk1JU1NJT05fREVOSUVEEAISEgoO",
+            "SU5WQUxJRF9TWU5UQVgQAxIUChBUQVJHRVRfTk9UX0ZPVU5EEAQSDgoKSU5D",
+            "T01QTEVURRAFKlkKCVdvcmxkVHlwZRIKCgZOT1JNQUwQABIICgRGTEFUEAES",
+            "EAoMTEFSR0VfQklPTUVTEAISDQoJQU1QTElGSUVEEAMSCQoFREVCVUcQBBIK",
+            "CgZDVVNUT00QBSpTCg9Xb3JsZERpZmZpY3VsdHkSEQoNRElGRl9QRUFDRUZV",
+            "TBAAEg0KCURJRkZfRUFTWRABEg8KC0RJRkZfTk9STUFMEAISDQoJRElGRl9I",
+            "QVJEEAMqVwoLV2VhdGhlclR5cGUSEQoNV0VBVEhFUl9DTEVBUhAAEhAKDFdF",
+            "QVRIRVJfUkFJThABEhEKDVdFQVRIRVJfU1RPUk0QAhIQCgxXRUFUSEVSX1NO",
+            "T1cQAyo1Cg9BY2hpZXZlbWVudFR5cGUSCQoFQkFTSUMQABINCglDSEFMTEVO",
+            "R0UQARIICgRHT0FMEAIqZgoRU3RhdGlzdGljQ2F0ZWdvcnkSEAoMU1RBVF9H",
+            "RU5FUkFMEAASDwoLU1RBVF9CTE9DS1MQARIOCgpTVEFUX0lURU1TEAISDQoJ",
+            "U1RBVF9NT0JTEAMSDwoLU1RBVF9DVVNUT00QBEIcqgIZRW5oYW5jZWRNaW5l",
+            "Y3JhZnRQcm90b2NvbGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::EnhancedMinecraftProtocol.GameMode), typeof(global::EnhancedMinecraftProtocol.ItemType), typeof(global::EnhancedMinecraftProtocol.ItemRarity), typeof(global::EnhancedMinecraftProtocol.ChangeReason), typeof(global::EnhancedMinecraftProtocol.ChunkUnloadReason), typeof(global::EnhancedMinecraftProtocol.TileEntityType), typeof(global::EnhancedMinecraftProtocol.EntityType), typeof(global::EnhancedMinecraftProtocol.SpawnReason), typeof(global::EnhancedMinecraftProtocol.DespawnReason), typeof(global::EnhancedMinecraftProtocol.PlayerAction), typeof(global::EnhancedMinecraftProtocol.CraftingType), typeof(global::EnhancedMinecraftProtocol.RecipeType), typeof(global::EnhancedMinecraftProtocol.DamageType), typeof(global::EnhancedMinecraftProtocol.EffectType), typeof(global::EnhancedMinecraftProtocol.ParticleType), typeof(global::EnhancedMinecraftProtocol.SoundType), typeof(global::EnhancedMinecraftProtocol.SoundCategory), typeof(global::EnhancedMinecraftProtocol.ChatType), typeof(global::EnhancedMinecraftProtocol.CommandResultType), typeof(global::EnhancedMinecraftProtocol.WorldType), typeof(global::EnhancedMinecraftProtocol.WorldDifficulty), typeof(global::EnhancedMinecraftProtocol.WeatherType), typeof(global::EnhancedMinecraftProtocol.AchievementType), typeof(global::EnhancedMinecraftProtocol.StatisticCategory), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -413,7 +419,7 @@ namespace EnhancedMinecraftProtocol {
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.WorldInfo), global::EnhancedMinecraftProtocol.WorldInfo.Parser, new[]{ "WorldName", "WorldSeed", "WorldType", "DefaultGameMode", "HardcoreMode", "WorldTime", "DayTime", "Weather", "SpawnPoint", "Difficulty", "WorldBorder" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.WeatherInfo), global::EnhancedMinecraftProtocol.WeatherInfo.Parser, new[]{ "WeatherType", "DurationTicks", "Intensity", "Thundering" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.WorldBorder), global::EnhancedMinecraftProtocol.WorldBorder.Parser, new[]{ "Center", "Diameter", "TargetDiameter", "TimeToTarget", "WarningDistance", "WarningTime", "DamagePerBlock", "DamageBuffer" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.ServerStatusResponse), global::EnhancedMinecraftProtocol.ServerStatusResponse.Parser, new[]{ "ServerVersion", "ProtocolVersion", "OnlinePlayers", "MaxPlayers", "ServerTps", "ServerUptime", "Motd", "WorldInfo" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.ServerStatusResponse), global::EnhancedMinecraftProtocol.ServerStatusResponse.Parser, new[]{ "ServerVersion", "ProtocolVersion", "OnlinePlayers", "MaxPlayers", "ServerTps", "ServerUptime", "Motd", "WorldInfo", "ContainerHashMismatches", "TotalTrackedChunks", "ActiveChunkResidencyPlayers", "PeakChunksPerPlayer", "BusiestChunkPlayer", "TotalDeaths", "TotalRespawns", "DeathsLastTenMinutes" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.TimeUpdateBroadcast), global::EnhancedMinecraftProtocol.TimeUpdateBroadcast.Parser, new[]{ "WorldTime", "DayTime" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.WeatherUpdateBroadcast), global::EnhancedMinecraftProtocol.WeatherUpdateBroadcast.Parser, new[]{ "Weather", "ChangeTimestamp" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::EnhancedMinecraftProtocol.AchievementUnlockBroadcast), global::EnhancedMinecraftProtocol.AchievementUnlockBroadcast.Parser, new[]{ "PlayerId", "AchievementId", "AchievementName", "AchievementDescription", "AchievementType", "ExperienceReward" }, null, null, null, null),
@@ -18794,6 +18800,14 @@ namespace EnhancedMinecraftProtocol {
       serverUptime_ = other.serverUptime_;
       motd_ = other.motd_;
       worldInfo_ = other.worldInfo_ != null ? other.worldInfo_.Clone() : null;
+      containerHashMismatches_ = other.containerHashMismatches_;
+      totalTrackedChunks_ = other.totalTrackedChunks_;
+      activeChunkResidencyPlayers_ = other.activeChunkResidencyPlayers_;
+      peakChunksPerPlayer_ = other.peakChunksPerPlayer_;
+      busiestChunkPlayer_ = other.busiestChunkPlayer_;
+      totalDeaths_ = other.totalDeaths_;
+      totalRespawns_ = other.totalRespawns_;
+      deathsLastTenMinutes_ = other.deathsLastTenMinutes_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -18902,6 +18916,102 @@ namespace EnhancedMinecraftProtocol {
       }
     }
 
+    /// <summary>Field number for the "container_hash_mismatches" field.</summary>
+    public const int ContainerHashMismatchesFieldNumber = 9;
+    private long containerHashMismatches_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long ContainerHashMismatches {
+      get { return containerHashMismatches_; }
+      set {
+        containerHashMismatches_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "total_tracked_chunks" field.</summary>
+    public const int TotalTrackedChunksFieldNumber = 10;
+    private long totalTrackedChunks_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long TotalTrackedChunks {
+      get { return totalTrackedChunks_; }
+      set {
+        totalTrackedChunks_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "active_chunk_residency_players" field.</summary>
+    public const int ActiveChunkResidencyPlayersFieldNumber = 11;
+    private int activeChunkResidencyPlayers_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int ActiveChunkResidencyPlayers {
+      get { return activeChunkResidencyPlayers_; }
+      set {
+        activeChunkResidencyPlayers_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "peak_chunks_per_player" field.</summary>
+    public const int PeakChunksPerPlayerFieldNumber = 12;
+    private int peakChunksPerPlayer_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int PeakChunksPerPlayer {
+      get { return peakChunksPerPlayer_; }
+      set {
+        peakChunksPerPlayer_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "busiest_chunk_player" field.</summary>
+    public const int BusiestChunkPlayerFieldNumber = 13;
+    private string busiestChunkPlayer_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string BusiestChunkPlayer {
+      get { return busiestChunkPlayer_; }
+      set {
+        busiestChunkPlayer_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "total_deaths" field.</summary>
+    public const int TotalDeathsFieldNumber = 14;
+    private long totalDeaths_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long TotalDeaths {
+      get { return totalDeaths_; }
+      set {
+        totalDeaths_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "total_respawns" field.</summary>
+    public const int TotalRespawnsFieldNumber = 15;
+    private long totalRespawns_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long TotalRespawns {
+      get { return totalRespawns_; }
+      set {
+        totalRespawns_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "deaths_last_ten_minutes" field.</summary>
+    public const int DeathsLastTenMinutesFieldNumber = 16;
+    private long deathsLastTenMinutes_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long DeathsLastTenMinutes {
+      get { return deathsLastTenMinutes_; }
+      set {
+        deathsLastTenMinutes_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -18925,6 +19035,14 @@ namespace EnhancedMinecraftProtocol {
       if (ServerUptime != other.ServerUptime) return false;
       if (Motd != other.Motd) return false;
       if (!object.Equals(WorldInfo, other.WorldInfo)) return false;
+      if (ContainerHashMismatches != other.ContainerHashMismatches) return false;
+      if (TotalTrackedChunks != other.TotalTrackedChunks) return false;
+      if (ActiveChunkResidencyPlayers != other.ActiveChunkResidencyPlayers) return false;
+      if (PeakChunksPerPlayer != other.PeakChunksPerPlayer) return false;
+      if (BusiestChunkPlayer != other.BusiestChunkPlayer) return false;
+      if (TotalDeaths != other.TotalDeaths) return false;
+      if (TotalRespawns != other.TotalRespawns) return false;
+      if (DeathsLastTenMinutes != other.DeathsLastTenMinutes) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -18940,6 +19058,14 @@ namespace EnhancedMinecraftProtocol {
       if (ServerUptime != 0L) hash ^= ServerUptime.GetHashCode();
       if (Motd.Length != 0) hash ^= Motd.GetHashCode();
       if (worldInfo_ != null) hash ^= WorldInfo.GetHashCode();
+      if (ContainerHashMismatches != 0L) hash ^= ContainerHashMismatches.GetHashCode();
+      if (TotalTrackedChunks != 0L) hash ^= TotalTrackedChunks.GetHashCode();
+      if (ActiveChunkResidencyPlayers != 0) hash ^= ActiveChunkResidencyPlayers.GetHashCode();
+      if (PeakChunksPerPlayer != 0) hash ^= PeakChunksPerPlayer.GetHashCode();
+      if (BusiestChunkPlayer.Length != 0) hash ^= BusiestChunkPlayer.GetHashCode();
+      if (TotalDeaths != 0L) hash ^= TotalDeaths.GetHashCode();
+      if (TotalRespawns != 0L) hash ^= TotalRespawns.GetHashCode();
+      if (DeathsLastTenMinutes != 0L) hash ^= DeathsLastTenMinutes.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -18990,6 +19116,38 @@ namespace EnhancedMinecraftProtocol {
         output.WriteRawTag(66);
         output.WriteMessage(WorldInfo);
       }
+      if (ContainerHashMismatches != 0L) {
+        output.WriteRawTag(72);
+        output.WriteInt64(ContainerHashMismatches);
+      }
+      if (TotalTrackedChunks != 0L) {
+        output.WriteRawTag(80);
+        output.WriteInt64(TotalTrackedChunks);
+      }
+      if (ActiveChunkResidencyPlayers != 0) {
+        output.WriteRawTag(88);
+        output.WriteInt32(ActiveChunkResidencyPlayers);
+      }
+      if (PeakChunksPerPlayer != 0) {
+        output.WriteRawTag(96);
+        output.WriteInt32(PeakChunksPerPlayer);
+      }
+      if (BusiestChunkPlayer.Length != 0) {
+        output.WriteRawTag(106);
+        output.WriteString(BusiestChunkPlayer);
+      }
+      if (TotalDeaths != 0L) {
+        output.WriteRawTag(112);
+        output.WriteInt64(TotalDeaths);
+      }
+      if (TotalRespawns != 0L) {
+        output.WriteRawTag(120);
+        output.WriteInt64(TotalRespawns);
+      }
+      if (DeathsLastTenMinutes != 0L) {
+        output.WriteRawTag(128, 1);
+        output.WriteInt64(DeathsLastTenMinutes);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -19032,6 +19190,38 @@ namespace EnhancedMinecraftProtocol {
         output.WriteRawTag(66);
         output.WriteMessage(WorldInfo);
       }
+      if (ContainerHashMismatches != 0L) {
+        output.WriteRawTag(72);
+        output.WriteInt64(ContainerHashMismatches);
+      }
+      if (TotalTrackedChunks != 0L) {
+        output.WriteRawTag(80);
+        output.WriteInt64(TotalTrackedChunks);
+      }
+      if (ActiveChunkResidencyPlayers != 0) {
+        output.WriteRawTag(88);
+        output.WriteInt32(ActiveChunkResidencyPlayers);
+      }
+      if (PeakChunksPerPlayer != 0) {
+        output.WriteRawTag(96);
+        output.WriteInt32(PeakChunksPerPlayer);
+      }
+      if (BusiestChunkPlayer.Length != 0) {
+        output.WriteRawTag(106);
+        output.WriteString(BusiestChunkPlayer);
+      }
+      if (TotalDeaths != 0L) {
+        output.WriteRawTag(112);
+        output.WriteInt64(TotalDeaths);
+      }
+      if (TotalRespawns != 0L) {
+        output.WriteRawTag(120);
+        output.WriteInt64(TotalRespawns);
+      }
+      if (DeathsLastTenMinutes != 0L) {
+        output.WriteRawTag(128, 1);
+        output.WriteInt64(DeathsLastTenMinutes);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -19065,6 +19255,30 @@ namespace EnhancedMinecraftProtocol {
       }
       if (worldInfo_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(WorldInfo);
+      }
+      if (ContainerHashMismatches != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(ContainerHashMismatches);
+      }
+      if (TotalTrackedChunks != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TotalTrackedChunks);
+      }
+      if (ActiveChunkResidencyPlayers != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(ActiveChunkResidencyPlayers);
+      }
+      if (PeakChunksPerPlayer != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(PeakChunksPerPlayer);
+      }
+      if (BusiestChunkPlayer.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(BusiestChunkPlayer);
+      }
+      if (TotalDeaths != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TotalDeaths);
+      }
+      if (TotalRespawns != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TotalRespawns);
+      }
+      if (DeathsLastTenMinutes != 0L) {
+        size += 2 + pb::CodedOutputStream.ComputeInt64Size(DeathsLastTenMinutes);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -19104,6 +19318,30 @@ namespace EnhancedMinecraftProtocol {
           WorldInfo = new global::EnhancedMinecraftProtocol.WorldInfo();
         }
         WorldInfo.MergeFrom(other.WorldInfo);
+      }
+      if (other.ContainerHashMismatches != 0L) {
+        ContainerHashMismatches = other.ContainerHashMismatches;
+      }
+      if (other.TotalTrackedChunks != 0L) {
+        TotalTrackedChunks = other.TotalTrackedChunks;
+      }
+      if (other.ActiveChunkResidencyPlayers != 0) {
+        ActiveChunkResidencyPlayers = other.ActiveChunkResidencyPlayers;
+      }
+      if (other.PeakChunksPerPlayer != 0) {
+        PeakChunksPerPlayer = other.PeakChunksPerPlayer;
+      }
+      if (other.BusiestChunkPlayer.Length != 0) {
+        BusiestChunkPlayer = other.BusiestChunkPlayer;
+      }
+      if (other.TotalDeaths != 0L) {
+        TotalDeaths = other.TotalDeaths;
+      }
+      if (other.TotalRespawns != 0L) {
+        TotalRespawns = other.TotalRespawns;
+      }
+      if (other.DeathsLastTenMinutes != 0L) {
+        DeathsLastTenMinutes = other.DeathsLastTenMinutes;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -19155,6 +19393,38 @@ namespace EnhancedMinecraftProtocol {
             input.ReadMessage(WorldInfo);
             break;
           }
+          case 72: {
+            ContainerHashMismatches = input.ReadInt64();
+            break;
+          }
+          case 80: {
+            TotalTrackedChunks = input.ReadInt64();
+            break;
+          }
+          case 88: {
+            ActiveChunkResidencyPlayers = input.ReadInt32();
+            break;
+          }
+          case 96: {
+            PeakChunksPerPlayer = input.ReadInt32();
+            break;
+          }
+          case 106: {
+            BusiestChunkPlayer = input.ReadString();
+            break;
+          }
+          case 112: {
+            TotalDeaths = input.ReadInt64();
+            break;
+          }
+          case 120: {
+            TotalRespawns = input.ReadInt64();
+            break;
+          }
+          case 128: {
+            DeathsLastTenMinutes = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -19203,6 +19473,38 @@ namespace EnhancedMinecraftProtocol {
               WorldInfo = new global::EnhancedMinecraftProtocol.WorldInfo();
             }
             input.ReadMessage(WorldInfo);
+            break;
+          }
+          case 72: {
+            ContainerHashMismatches = input.ReadInt64();
+            break;
+          }
+          case 80: {
+            TotalTrackedChunks = input.ReadInt64();
+            break;
+          }
+          case 88: {
+            ActiveChunkResidencyPlayers = input.ReadInt32();
+            break;
+          }
+          case 96: {
+            PeakChunksPerPlayer = input.ReadInt32();
+            break;
+          }
+          case 106: {
+            BusiestChunkPlayer = input.ReadString();
+            break;
+          }
+          case 112: {
+            TotalDeaths = input.ReadInt64();
+            break;
+          }
+          case 120: {
+            TotalRespawns = input.ReadInt64();
+            break;
+          }
+          case 128: {
+            DeathsLastTenMinutes = input.ReadInt64();
             break;
           }
         }

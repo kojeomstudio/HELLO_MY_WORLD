@@ -23,16 +23,16 @@ This matrix consolidates the end-to-end Minecraft-style features we are tracking
 | F-17 | World Persistence & Backup | Save world/chunk data, schedule backups | Handle save notifications, reload state | Planned | Task-17A: evaluate SQLite/world split. |
 | F-18 | Block Lighting & Sky Light | Compute and propagate light levels | Apply lightmaps/shaders per chunk | Planned | Task-18A: analyse chunk mesh data. |
 | F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads, persist respawn anchors | Refresh remote avatars, HUD death feed, respawn UI | Done | Task-19E: fold death counters into analytics and respawn UI polish. |
-| F-20 | Server Analytics & Telemetry | Aggregate residency, performance, death metrics | Display telemetry in HUD overlays | Planned | Task-20A: extend status endpoint with death counters. |
+| F-20 | Server Analytics & Telemetry | Aggregate residency, performance, death metrics | Display telemetry in HUD overlays | In Progress | Task-20A complete (death & respawn counters in ServerStatusResponse); next wire analytics into pause menu. |
 | F-21 | Chat Moderation & Social Tools | Maintain mute/block lists, profanity filtering, report ingestion | Provide mute/block UI, filter chat feed, surface moderation feedback | Planned | Task-21A: wire profanity filter pipeline and sync mute lists. |
 | F-22 | Player Options & Keybind Sync | Persist per-player settings, expose config endpoints | Present settings UI, push updates to server on change | Planned | Task-22A: define settings contract and persistence layout. |
 
 ## Sequential Work Notes
-- Completed this session: Unity now consumes `PlayerDeath` and `PlayerRespawnBroadcast` messages and surfaces them in the HUD feed (Task-19B).
-- Measurements: next follow-up is Task-19E (death analytics counters feeding the status HUD) once telemetry endpoints expand.
+- Completed this session: ServerStatusResponse now carries death/respawn counters and the Unity HUD ticker surfaces the new analytics slice (Task-20A). Previous session wired the HUD death feed to `PlayerDeath`/`PlayerRespawnBroadcast` (Task-19B).
+- Measurements: Task-19E shifts to pause-menu analytics once telemetry endpoints expand (Task-20B dependency).
 - Keep function implementations under 200 lines; split existing monoliths when touching related code.
 
 ## Next Implementation Queue
 - [ ] Task-12C ? Hook container diff events into chest/furnace UI prefabs.
 - [ ] Task-10E ? Author ambient presets and bind weather intensity to scene lights/sounds.
-- [ ] Task-20A ? Extend server status endpoint with death/respawn counters for analytics feed.
+- [x] Task-20A ? Extend server status endpoint with death/respawn counters for analytics feed.

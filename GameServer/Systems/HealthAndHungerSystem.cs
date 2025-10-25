@@ -11,14 +11,16 @@ public class HealthAndHungerSystem
 {
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
+    private readonly ServerMetricsService _metrics;
     private readonly Dictionary<string, PlayerHealthData> _playerHealthCache;
     private readonly Timer _healthRegenTimer;
     private readonly Timer _hungerDecayTimer;
 
-    public HealthAndHungerSystem(DatabaseHelper database, SessionManager sessions)
+    public HealthAndHungerSystem(DatabaseHelper database, SessionManager sessions, ServerMetricsService metrics)
     {
         _database = database;
         _sessions = sessions;
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _playerHealthCache = new Dictionary<string, PlayerHealthData>();
 
         // 체력 ?�생 ?�?�머 (3초마??
@@ -221,6 +223,7 @@ public class HealthAndHungerSystem
         await BroadcastPlayerDeath(userName, damageType);
 
         Console.WriteLine($"Player {userName} died from {damageType}. Death count: {healthData.DeathCount}");
+        _metrics.RecordPlayerDeath(userName, damageType);
     }
 
     private async Task<bool> RespawnPlayerAsync(string userName)

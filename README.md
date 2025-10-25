@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-25: Server status analytics now include death/respawn counters and surface them in the Unity HUD (Task-20A / see docs/minecraft_feature_client_server_matrix.md).
 - 2025-10-24: Unity HUD death feed now consumes `PlayerDeath` and `PlayerRespawnBroadcast` packets; see docs/minecraft_feature_client_server_matrix.md (F-19).
 - 2025-10-17: Player respawn broadcasts now notify active sessions; follow the rollout in docs/minecraft_respawn_feature_plan.md.
 - 2025-10-16: Server status HUD now reports chunk residency totals and peak players (see docs/minecraft_chunk_residency_metrics_plan.md).

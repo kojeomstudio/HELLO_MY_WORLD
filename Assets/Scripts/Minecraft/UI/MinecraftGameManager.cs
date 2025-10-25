@@ -400,8 +400,15 @@ namespace Minecraft.UI
                 residencyPart = "Residency: --";
             }
 
+            var deathPart = $"Deaths: {status.TotalDeaths}";
+            if (status.DeathsLastTenMinutes > 0)
+            {
+                deathPart += $" (10m: {status.DeathsLastTenMinutes})";
+            }
+            deathPart += $" | Respawns: {status.TotalRespawns}";
+
             serverStatusText.text =
-                $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | {residencyPart} | Hash mismatches: {status.ContainerHashMismatches} | Uptime: {FormatUptime(uptime)}";
+                $"Server v{status.ServerVersion} | Players: {status.OnlinePlayers} | {residencyPart} | {deathPart} | Hash mismatches: {status.ContainerHashMismatches} | Uptime: {FormatUptime(uptime)}";
         }
 
         private void RefreshTimeWeatherUI()

@@ -19,7 +19,7 @@ This sequence lists the Unity client and .NET server features that bring the pro
 | F-12 | Crafting & Container Persistence | Persist containers, broadcast diffs, validate hashes, track hash mismatches | Present container UI, reconcile diffs | In Progress | Task-12A hash handshake shipped; Task-12B telemetry active; Task-12C UI wiring pending. |
 | F-13 | Server Status HUD | Supply metrics endpoint & responses | Render overlay, manual refresh | Done | Extend into pause menu (Task-13A). |
 | F-14 | Weather FX & Ambient Audio | Provide intensity/duration snapshots | Bind to particle/audio presets | In Progress | Need preset authoring (Task-10E). |
-| F-15 | Combat Feedback & Damage Numbers | Emit combat events with payloads | Display popups & hit feedback | Planned | Define combat event schema (Task-15A). |
+| F-15 | Combat Feedback & Damage Numbers | Combat event schema + broadcast live | HUD damage feed overlay landed; spatial popups pending | In Progress | Task-15C covers world-space numbers + hit FX |
 | F-16 | Mob AI & Spawning | Simulate mobs, pathing, spawn rules | Render mob proxies, animate, cull | Planned | Prototype tick scheduler (Task-16A). |
 | F-17 | World Persistence & Backup | Save world/chunks, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split (Task-17A). |
 | F-18 | Block Lighting & Sky Light | Compute light levels & propagate | Apply lightmaps/shaders | Planned | Requires chunk mesh analysis (Task-18A). |
@@ -39,6 +39,9 @@ Legend: Done | In Progress | Planned
 - [x] Task-19D - Broadcast PlayerDeath messages to active sessions (delivered 2025-10-21).
 - [ ] Task-19B - Consume PlayerRespawn broadcasts inside the Unity remote entity manager and HUD death feed.
 - [x] Task-20A - Extend server status telemetry with death/respawn counters for HUD analytics (delivered 2025-10-25).
+- [x] Task-15A - Define combat event schema, server broadcast, and metrics plumbing.
+- [x] Task-15B - Implement the Unity CombatFeedbackUI to surface damage feed entries.
+- [ ] Task-15C - Spawn world-space damage popups and hook hit pause / controller rumble.
 
 ## Parking Lot
 - After Task-12C, expand the self-test harness to cover container open/update/close flows.

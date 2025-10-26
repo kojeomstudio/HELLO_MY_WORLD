@@ -55,6 +55,7 @@ public enum MessageType
     RespawnResponse = 84,
     PlayerDeath = 85,
     PlayerRespawnBroadcast = 86,
+    CombatEvent = 87,
 
     // 룸/로비 관련
     RoomListRequest = 90,
@@ -549,6 +550,11 @@ public class HealthActionRequest
     [ProtoMember(3)] public int DamageType { get; set; }
     [ProtoMember(4)] public int HealType { get; set; }
     [ProtoMember(5)] public float Saturation { get; set; }
+    [ProtoMember(6)] public string SourcePlayerName { get; set; } = string.Empty;
+    [ProtoMember(7)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(8)] public int WeaponItemId { get; set; }
+    [ProtoMember(9)] public bool IsCritical { get; set; }
+    [ProtoMember(10)] public bool IsBlocked { get; set; }
 }
 
 [ProtoContract]
@@ -604,4 +610,20 @@ public class PlayerRespawnBroadcast
     [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
     [ProtoMember(2)] public Vector3? RespawnPosition { get; set; }
     [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class CombatEventMessage
+{
+    [ProtoMember(1)] public string AttackerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string TargetName { get; set; } = string.Empty;
+    [ProtoMember(3)] public int DamageType { get; set; }
+    [ProtoMember(4)] public float RawDamage { get; set; }
+    [ProtoMember(5)] public float FinalDamage { get; set; }
+    [ProtoMember(6)] public float TargetRemainingHealth { get; set; }
+    [ProtoMember(7)] public bool IsCritical { get; set; }
+    [ProtoMember(8)] public bool IsBlocked { get; set; }
+    [ProtoMember(9)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(10)] public int WeaponItemId { get; set; }
+    [ProtoMember(11)] public long Timestamp { get; set; }
 }

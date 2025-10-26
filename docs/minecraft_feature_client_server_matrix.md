@@ -18,7 +18,7 @@ This matrix consolidates the end-to-end Minecraft-style features we are tracking
 | F-12 | Crafting & Container Persistence | Persist grids/containers, validate hash handshake, log mismatches | Wire container UI prefabs, reconcile diffs | In Progress | Task-12C: hook chest/furnace prefabs. |
 | F-13 | Server Status HUD | Supply metrics endpoint + responses | Render overlay, support manual refresh | Done | Extend into pause menu (Task-13A). |
 | F-14 | Weather FX & Ambient Audio | Provide intensity/duration snapshots | Bind intensity to particle/audio presets | In Progress | Task-10E authoring outstanding. |
-| F-15 | Combat Feedback & Damage Numbers | Emit combat event payloads with combat log context | Display damage popups & hit feedback | Planned | Task-15A: define combat event schema. |
+| F-15 | Combat Feedback & Damage Numbers | Combat event schema + broadcast emitted from HealthAndHungerSystem | HUD damage feed consumes CombatEvent payloads; world popups pending | In Progress | Task-15C: add world-space numbers and tactile feedback. |
 | F-16 | Mob AI & Spawning Framework | Simulate mobs, pathing, spawn rules, server tick loop | Render mob proxies, animate, cull | Planned | Task-16A: prototype tick scheduler. |
 | F-17 | World Persistence & Backup | Save world/chunk data, schedule backups | Handle save notifications, reload state | Planned | Task-17A: evaluate SQLite/world split. |
 | F-18 | Block Lighting & Sky Light | Compute and propagate light levels | Apply lightmaps/shaders per chunk | Planned | Task-18A: analyse chunk mesh data. |

@@ -64,6 +64,8 @@ namespace Minecraft.Core
         public event Action<PlayerStateInfo> PlayerStateUpdated;
         public event Action<PlayerRespawnBroadcast> PlayerRespawned;
         public event Action<PlayerDeathMessage> PlayerDeathNotified;
+
+        public event Action<CombatEventMessage> CombatEventReceived;
         public event Action<ChunkSnapshot> ChunkLoaded;
         public event Action<Vector2Int, ChunkSnapshot> ChunkUnloaded;
         public event Action<Vector3Int, int, int> BlockChanged;
@@ -598,7 +600,10 @@ namespace Minecraft.Core
                         MessageType.RoomPromotionNotice => ProtoBuf.Serializer.Deserialize<RoomPromotionMessage>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
                         MessageType.PlayerDeath => ProtoBuf.Serializer.Deserialize<PlayerDeathMessage>(stream),
+
                         MessageType.PlayerRespawnBroadcast => ProtoBuf.Serializer.Deserialize<PlayerRespawnBroadcast>(stream),
+
+                        MessageType.CombatEvent => ProtoBuf.Serializer.Deserialize<CombatEventMessage>(stream),
                         _ => null
                     };
                 }
@@ -723,8 +728,11 @@ namespace Minecraft.Core
                 case WeatherChangeMessage weatherChange:
                     HandleWeatherChange(weatherChange);
                     break;
-                case PlayerDeathMessage deathMessage:
-                    PlayerDeathNotified?.Invoke(deathMessage);
+                case PlayerDeathMessage deathMessage:
+                    PlayerDeathNotified?.Invoke(deathMessage);
+                    break;
+                case CombatEventMessage combatEvent:
+                    CombatEventReceived?.Invoke(combatEvent);
                     break;
                 case PlayerRespawnBroadcast respawnBroadcast:
                     HandlePlayerRespawn(respawnBroadcast);

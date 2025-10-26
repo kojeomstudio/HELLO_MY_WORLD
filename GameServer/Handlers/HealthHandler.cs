@@ -41,8 +41,27 @@ public class HealthHandler : MessageHandler<HealthActionRequest>
             switch (message.ActionType)
             {
                 case 0: // Damage
-                    success = await _healthSystem.DamagePlayerAsync(session.UserName, message.Amount, (DamageType)message.DamageType);
-                    resultMessage = success ? "데미지 적용 완료" : "데미지 적용 실패";
+                    var sourcePlayer = !string.IsNullOrWhiteSpace(message.SourcePlayerName)
+                        ? message.SourcePlayerName
+                        : session.UserName;
+
+                    var combatContext = new CombatEventContext
+                    {
+                        AttackerUserName = sourcePlayer,
+                        AttackerDisplayName = sourcePlayer,
+                        WeaponName = message.WeaponName,
+                        WeaponItemId = message.WeaponItemId,
+                        IsCritical = message.IsCritical,
+                        IsBlocked = message.IsBlocked,
+                        RawDamage = message.Amount
+                    };
+
+                    success = await _healthSystem.DamagePlayerAsync(
+                        session.UserName,
+                        message.Amount,
+                        (DamageType)message.DamageType,
+                        combatContext);
+                    resultMessage = success ? "?곕?吏 ?곸슜 ?꾨즺" : "?곕?吏 ?곸슜 ?ㅽ뙣";
                     break;
 
                 case 1: // Heal

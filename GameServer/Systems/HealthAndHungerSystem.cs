@@ -54,26 +54,38 @@ public class HealthAndHungerSystem
         return newHealthData;
     }
 
-    public async Task<bool> DamagePlayerAsync(string userName, float damage, DamageType damageType = DamageType.Generic)
+    public async Task<bool> DamagePlayerAsync(
+        string userName,
+        float damage,
+        DamageType damageType = DamageType.Generic,
+        CombatEventContext? combatContext = null)
     {
         var healthData = await GetPlayerHealthAsync(userName);
         
         if (healthData.Health <= 0)
-            return false; // ?´ë? ì£½ì? ?íƒœ
+            return false; // Already dead
 
-        healthData.Health = Math.Max(0, healthData.Health - damage);
+        var appliedDamage = Math.Max(0f, damage);
+        if (appliedDamage <= 0f)
+        {
+            return false;
+        }
+
+        healthData.Health = Math.Max(0, healthData.Health - appliedDamage);
         healthData.LastDamageTime = DateTime.UtcNow;
         healthData.LastDamageType = damageType;
 
         await SavePlayerHealthToDatabase(healthData);
         await BroadcastHealthUpdate(userName, healthData);
+        await BroadcastCombatEvent(userName, damageType, healthData, combatContext, appliedDamage);
 
         if (healthData.Health <= 0)
         {
             await HandlePlayerDeath(userName, damageType);
         }
 
-        Console.WriteLine($"Player {userName} took {damage} damage ({damageType}). Health: {healthData.Health:F1}/{healthData.MaxHealth}");
+        var attackerLabel = combatContext?.AttackerDisplayName ?? combatContext?.AttackerUserName ?? "environment";
+        Console.WriteLine($"Player {userName} took {appliedDamage} damage ({damageType}) from {attackerLabel}. Health: {healthData.Health:F1}/{healthData.MaxHealth}");
         
         return true;
     }
@@ -174,7 +186,7 @@ public class HealthAndHungerSystem
                     // ?ˆê¸°ê°€ 0?´ë©´ ì²´ë ¥ ê°ì†Œ (ê¸°ì•„)
                     if (healthData.Hunger <= 0 && healthData.Health > 1)
                     {
-                        await DamagePlayerAsync(healthData.UserName, 1.0f, DamageType.Starvation);
+                        await DamagePlayerAsync(healthData.UserName, 1.0f, DamageType.Starvation, CombatEventContext.CreateEnvironmental("Starvation", 1.0f));
                     }
                 }
             }
@@ -264,6 +276,63 @@ public class HealthAndHungerSystem
 
         await session.SendAsync(MessageType.HealthUpdate, update);
     }
+
+
+    private async Task BroadcastCombatEvent(string targetUserName, DamageType damageType, PlayerHealthData targetHealth, CombatEventContext? context, float appliedDamage)
+    {
+        if (appliedDamage <= 0f)
+        {
+            return;
+        }
+
+        var message = new CombatEventMessage
+        {
+            AttackerName = context?.AttackerDisplayName ?? context?.AttackerUserName ?? string.Empty,
+            TargetName = targetUserName,
+            DamageType = (int)damageType,
+            RawDamage = context?.RawDamage ?? appliedDamage,
+            FinalDamage = appliedDamage,
+            TargetRemainingHealth = Math.Max(0f, targetHealth.Health),
+            IsCritical = context?.IsCritical ?? false,
+            IsBlocked = context?.IsBlocked ?? false,
+            WeaponName = context?.WeaponName ?? string.Empty,
+            WeaponItemId = context?.WeaponItemId ?? 0,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        var recipients = new List<Session>();
+        var targetSession = _sessions.GetSession(targetUserName);
+        if (targetSession != null)
+        {
+            recipients.Add(targetSession);
+        }
+
+        var attackerUserName = context?.AttackerUserName;
+        if (!string.IsNullOrWhiteSpace(attackerUserName) &&
+            !string.Equals(attackerUserName, targetUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            var attackerSession = _sessions.GetSession(attackerUserName);
+            if (attackerSession != null)
+            {
+                recipients.Add(attackerSession);
+            }
+        }
+
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var sendTasks = new List<Task>(recipients.Count);
+        foreach (var session in recipients)
+        {
+            sendTasks.Add(session.SendAsync(MessageType.CombatEvent, message));
+        }
+
+        await Task.WhenAll(sendTasks);
+    }
+
+
 
     private async Task BroadcastPlayerDeath(string userName, DamageType damageType)
     {
@@ -410,4 +479,25 @@ public enum HealType
     Magic = 4
 }
 
+/// <summary>
+/// Lightweight context describing where combat damage originated.
+/// </summary>
+public sealed class CombatEventContext
+{
+    public string? AttackerUserName { get; init; }
+    public string? AttackerDisplayName { get; init; }
+    public string? WeaponName { get; init; }
+    public int WeaponItemId { get; init; }
+    public bool IsCritical { get; init; }
+    public bool IsBlocked { get; init; }
+    public float RawDamage { get; init; }
 
+    public static CombatEventContext CreateEnvironmental(string displayName, float rawDamage)
+    {
+        return new CombatEventContext
+        {
+            AttackerDisplayName = displayName,
+            RawDamage = rawDamage
+        };
+    }
+}

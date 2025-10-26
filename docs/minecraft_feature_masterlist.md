@@ -18,7 +18,7 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-12 | Crafting & Container Persistence | Persist crafting grids, shared containers, recipes with hash validation, log hash mismatches | Present crafting UI, reconcile hash diffs | In progress | Task-12A delivered (snapshot hashes); Task-12B telemetry live; ContainerPanelUI scaffolding done; wire prefabs & interactions (Task-12C) |
 | F-13 | Server Status HUD | Supply metrics endpoint & responses | Render overlay, support manual refresh | Done | Extend to pause menu (Task-13A) |
 | F-14 | Weather FX & Ambient Audio | Provide intensity, weather types, durations | Bind intensity to particle/audio presets | In progress | Author preset assets (Task-10E) |
-| F-15 | Combat Feedback & Damage Numbers | Emit combat events, damage payloads | Display damage popups & hit feedback | Planned | Define combat event schema |
+| F-15 | Combat Feedback & Damage Numbers | Emit combat event payloads with attacker/weapon context (done) | HUD damage feed renders recent hits; world popups pending | In progress | Task-15C: spawn world-space popups + hook animation feedback. |
 | F-16 | Mob AI & Spawning Framework | Simulate mobs, pathing, spawn rules | Render mob proxies, animate, cull | Planned | Prototype server tick scheduler |
 | F-17 | World Persistence & Backup | Save chunks/players to disk, schedule backups | Handle save notifications, reload state | Planned | Evaluate SQLite/world file split |
 | F-18 | Block Lighting & Sky Light | Compute light levels per block, sync to client | Apply lightmaps/shaders per chunk | Planned | Analyse existing chunk mesh data |
@@ -34,5 +34,8 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 - [ ] Task-13A ? Surface server metrics in the pause menu overlay.
 - [x] Task-13B ? Capture chunk residency metrics for server observability.
 - [x] Task-20A ? Extend ServerStatusResponse with death/respawn counters so the HUD analytics ticker can plot mortality spikes.
+- [x] Task-15A ? Define the combat event payload plus broadcast path in HealthAndHungerSystem.
+- [x] Task-15B ? Render the Unity combat damage feed via CombatFeedbackUI and the new CombatEvent message.
+- [ ] Task-15C ? Spawn world-space damage numbers, tie attacks to hit pause, and forward events to remote avatars.
 
 

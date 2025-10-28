@@ -784,21 +784,78 @@ namespace Minecraft.Core
             }
 
             var playerName = message.PlayerName;
-            if (!string.IsNullOrWhiteSpace(playerName)
+            var isLocalPlayer = !string.IsNullOrWhiteSpace(playerName)
                 && _playerState != null
                 && !string.IsNullOrWhiteSpace(_playerState.Username)
-                && string.Equals(_playerState.Username, playerName, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(_playerState.Username, playerName, StringComparison.OrdinalIgnoreCase);
+
+            if (isLocalPlayer)
             {
                 if (message.RespawnPosition != null)
                 {
                     var respawn = message.RespawnPosition;
-                    _playerState.Position = new Vector3D(respawn.X, respawn.Y, respawn.Z);
+                    _playerState.Position = new Vector3D
+                    {
+                        X = respawn.X,
+                        Y = respawn.Y,
+                        Z = respawn.Z
+                    };
                 }
 
                 PlayerStateUpdated?.Invoke(_playerState);
             }
+            else
+            {
+                UpdateRemoteRespawnState(playerName, message.RespawnPosition);
+            }
 
             PlayerRespawned?.Invoke(message);
+        }
+
+        private void UpdateRemoteRespawnState(string playerName, SharedProtocol.Vector3? respawnPosition)
+        {
+            if (string.IsNullOrWhiteSpace(playerName))
+            {
+                return;
+            }
+
+            if (!_entities.TryGetValue(playerName, out var stored))
+            {
+                return;
+            }
+
+            var snapshot = CloneEntity(stored);
+
+            if (respawnPosition != null)
+            {
+                snapshot.Position = new Vector3D
+                {
+                    X = respawnPosition.X,
+                    Y = respawnPosition.Y,
+                    Z = respawnPosition.Z
+                };
+            }
+
+            snapshot.Velocity = new Vector3D();
+
+            if (snapshot.MaxHealth > 0f)
+            {
+                snapshot.Health = snapshot.MaxHealth;
+            }
+            else
+            {
+                const float defaultHealth = 20f;
+                snapshot.MaxHealth = defaultHealth;
+                if (snapshot.Health <= 0f)
+                {
+                    snapshot.Health = defaultHealth;
+                }
+            }
+
+            snapshot.EntityType = EntityType.Player;
+
+            _entities[playerName] = snapshot;
+            EntityUpdated?.Invoke(CloneEntity(snapshot));
         }
 
         private void HandleLoginResponse(LoginResponse response)

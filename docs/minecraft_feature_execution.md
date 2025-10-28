@@ -23,7 +23,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-16 | Mob AI & spawning framework | Planned | Planned | Needs server mob simulation, pathing, and client proxy actors. |
 | F-17 | World persistence & backup automation | Planned | Planned | Needs incremental world saves, rotation policies, and client save notifications. |
 | F-18 | Block lighting & sky light propagation | Planned | Planned | Waiting on chunk mesh analysis to carry block light values. |
-| F-19 | Death & respawn notifications | In progress (respawn + death broadcasts live) | Planned (remote entity/HUD wiring) | Server now emits respawn and death payloads; Unity still needs handlers and HUD feed. |
+| F-19 | Death & respawn notifications | Done (respawn + death broadcasts live) | Done (HUD feed + remote respawn sync) | Remote avatars snap to respawn points while death analytics remain surfaced in HUD. |
 | F-20 | Server analytics & telemetry | In progress (death/respawn counters live) | Planned (HUD overlays beyond status panel) | Server status snapshot now exposes death analytics; UI needs pause-menu surfacing. |
 
 ## Active Task Queue (Oct 2025)
@@ -34,7 +34,6 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [ ] Task-13A - Surface server metrics in the pause menu overlay.
 - [x] Task-13B - Capture chunk residency metrics for server observability.
 - [x] Task-19A - Broadcast PlayerRespawn messages to active sessions.
-- [ ] Task-19B - Unity consumes PlayerRespawn broadcasts to refresh remote avatars and death feed.
 - [x] Task-20A - Extend ServerStatusResponse with death/respawn counters so the Unity HUD can chart analytics spikes (delivered 2025-10-25).
 - [x] Task-15A - Add the CombatEvent broadcast to HealthAndHungerSystem.
 - [x] Task-15B - Wire CombatFeedbackUI to the new CombatEvent payload for HUD damage numbers.
@@ -52,8 +51,10 @@ This document enumerates the Minecraft-style features required across the Unity 
 - Time and weather broadcasts now update Unity lighting, HUD, and FX controllers.
 - Entity sync groundwork landed: server now emits spawn/update/despawn messages while the client spawns and smooths remote player avatars.
 - Player respawn broadcasts now reach all connected sessions, unblocking client-side death feed work.
+- Unity remote avatars now retarget to respawn locations as soon as PlayerRespawn broadcasts arrive, keeping entity state and the death feed aligned.
 
 ## Session Task Board (2025-10-26)
 1. ✅ Task-15A – Define and emit `CombatEventMessage` packets from `HealthAndHungerSystem`.
 2. ✅ Task-15B – Surface the new payload inside the Unity HUD via `CombatFeedbackUI`.
-3. ⏭ Task-15C – Spawn world-space damage popups, hook screen shake, and add optional controller rumble. Blocked on prefabs/VFX but tracked for the next session.
+3. ✅ Task-19B – Sync PlayerRespawn broadcasts with remote avatar states and refresh the death feed message.
+4. ⏭ Task-15C – Spawn world-space damage popups, hook screen shake, and add optional controller rumble. Blocked on prefabs/VFX but tracked for the next session.

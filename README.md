@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-10-27: Unity remote avatars now snap to respawn coordinates as soon as PlayerRespawn broadcasts arrive, keeping death feed messaging and entity state in sync (Task-19B / see docs/minecraft_feature_execution.md).
 - 2025-10-26: Combat event broadcasts now drive the Unity CombatFeedbackUI damage feed (Task-15A/B). Track next steps in docs/minecraft_feature_execution.md (Task-15C).
 - 2025-10-25: Server status analytics now include death/respawn counters and surface them in the Unity HUD (Task-20A / see docs/minecraft_feature_client_server_matrix.md).
 - 2025-10-24: Unity HUD death feed now consumes `PlayerDeath` and `PlayerRespawnBroadcast` packets; see docs/minecraft_feature_client_server_matrix.md (F-19).

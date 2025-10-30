@@ -19,7 +19,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 | F-12 | Crafting and container persistence | Done (snapshot hashes + telemetry) | In progress (UI diff wiring landed) | ContainerManager + panel consume diff broadcasts; follow-up Task-12D will trigger open/close from world interaction. |
 | F-13 | Server status HUD | Done | Done | Overlay refreshes metrics automatically every 15 seconds. |
 | F-14 | Weather FX and ambient audio | In progress | In progress | Weather controller routes intensity to particles and audio; asset wiring remains. |
-| F-15 | Combat feedback and damage numbers | In progress (combat event schema + broadcast shipped) | In progress (HUD damage feed online; world popups pending) | Combat log payloads reach Unity; Task-15C will spawn world-space numbers. |
+| F-15 | Combat feedback and damage numbers | In progress (combat event schema + broadcast shipped) | In progress (HUD damage feed + world popups live; remote cues pending) | Combat events now drive HUD feed, world popups, and local hit pause; remote avatar critical feedback still outstanding. |
 | F-16 | Mob AI & spawning framework | Planned | Planned | Needs server mob simulation, pathing, and client proxy actors. |
 | F-17 | World persistence & backup automation | Planned | Planned | Needs incremental world saves, rotation policies, and client save notifications. |
 | F-18 | Block lighting & sky light propagation | Planned | Planned | Waiting on chunk mesh analysis to carry block light values. |
@@ -37,7 +37,7 @@ This document enumerates the Minecraft-style features required across the Unity 
 - [x] Task-20A - Extend ServerStatusResponse with death/respawn counters so the Unity HUD can chart analytics spikes (delivered 2025-10-25).
 - [x] Task-15A - Add the CombatEvent broadcast to HealthAndHungerSystem.
 - [x] Task-15B - Wire CombatFeedbackUI to the new CombatEvent payload for HUD damage numbers.
-- [ ] Task-15C - Spawn world-space damage popups and apply hit-pause / rumble feedback.
+- [ ] Task-15C - Mirror critical strike cues on remote avatars and broaden controller rumble (local hit pause + screen shake shipped 2025-10-30).
 
 ## Recently Completed
 - Container diff broadcasts now hydrate the ContainerPanelUI via ContainerManager so Unity reflects server slot deltas immediately.

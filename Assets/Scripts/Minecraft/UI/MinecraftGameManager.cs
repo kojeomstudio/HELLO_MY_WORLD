@@ -123,6 +123,11 @@ namespace Minecraft.UI
                 gameObject.AddComponent<ContainerManager>();
             }
 
+            if (FindObjectOfType<CombatHitFeedbackEffects>() == null)
+            {
+                gameObject.AddComponent<CombatHitFeedbackEffects>();
+            }
+
             if (playerController != null)
             {
                 playerController.enabled = false;

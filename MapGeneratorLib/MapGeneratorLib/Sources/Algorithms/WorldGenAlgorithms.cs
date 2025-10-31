@@ -551,11 +551,11 @@ namespace MapGenLib
                 {
                     // 작은 원형 물웅덩이 생성
                     int pondRadius = Utilitys.RandomInteger(2, 4);
-                    for (int x = -pondRadius; x <= pondRadius; x++)
-                    {
-                        for (int z = -pondRadius; z <= pondRadius; z++)
-                        {
-                            int worldX = pondX + x;
+                      for (int x = -pondRadius; x <= pondRadius; x++)
+                      {
+                          for (int z = -pondRadius; z <= pondRadius; z++)
+                          {
+                              int worldX = pondX + x;
                             int worldZ = pondZ + z;
                             
                             if (worldX >= 0 && worldX < subWorldSize.SizeX &&
@@ -568,13 +568,15 @@ namespace MapGenLib
                                     if (surfaceY >= 0 && surfaceY < subWorldSize.SizeY)
                                     {
                                         subWorldBlockData[worldX, surfaceY, worldZ].CurrentType = (byte)BlockTileType.WATER;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                                  }
+                              }
+                          }
+                      }
+
+                      SmoothPondBanks(subWorldBlockData, subWorldSize, pondX, pondZ, pondRadius, surfaceY);
+                  }
+              }
+        }
         }
         
         /// <summary>
@@ -607,6 +609,9 @@ namespace MapGenLib
             
             // 지하 호수 생성
             GenerateUndergroundLakes(subWorldBlockData, subWorldSize);
+
+            // 노이즈 기반 동굴 추가 - 청크 경계 일관성을 유지한다.
+            GenerateNoiseCaves(subWorldBlockData, subWorldSize);
         }
         
         /// <summary>
@@ -827,6 +832,76 @@ namespace MapGenLib
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void GenerateNoiseCaves(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
+        {
+            float horizontalScale = 48f;
+            float verticalScale = 28f;
+
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    for (int y = 6; y < CustomMathf.Min(subWorldSize.SizeY - 4, 120); y++)
+                    {
+                        double noiseValue = Noise.GetNoise(x / horizontalScale, y / verticalScale, z / horizontalScale);
+                        double density = CustomMathf.Abs((float)noiseValue);
+                        density -= CustomMathf.Clamp((y - 18) / (float)subWorldSize.SizeY, 0.0f, 0.45f);
+
+                        if (density < 0.28f)
+                        {
+                            var currentType = (BlockTileType)subWorldBlockData[x, y, z].CurrentType;
+                            if (currentType != BlockTileType.EMPTY && currentType != BlockTileType.WATER)
+                            {
+                                if (density < 0.1f && y < 14)
+                                {
+                                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                                }
+                                else
+                                {
+                                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void SmoothPondBanks(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerZ, int radius, int waterLevel)
+        {
+            int featherRadius = radius + 2;
+            for (int dx = -featherRadius; dx <= featherRadius; dx++)
+            {
+                for (int dz = -featherRadius; dz <= featherRadius; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                        continue;
+
+                    int nx = centerX + dx;
+                    int nz = centerZ + dz;
+                    if (!WorldGenerateUtils.CheckSubWorldBoundary(nx, 0, nz, subWorldSize))
+                        continue;
+
+                    float normalizedDistance = CustomMathf.Abs(dx) / (radius + 0.5f) + CustomMathf.Abs(dz) / (radius + 0.5f);
+                    if (normalizedDistance <= 1.0f || normalizedDistance > 1.35f)
+                        continue;
+
+                    int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, nx, nz);
+                    if (surface <= 0)
+                        continue;
+
+                    if (surface <= waterLevel + 2)
+                    {
+                        subWorldBlockData[nx, surface, nz].CurrentType = (byte)BlockTileType.SAND;
+                        if (surface + 1 < subWorldSize.SizeY)
+                        {
+                            subWorldBlockData[nx, surface + 1, nz].CurrentType = (byte)BlockTileType.EMPTY;
                         }
                     }
                 }

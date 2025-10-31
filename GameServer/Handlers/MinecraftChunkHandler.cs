@@ -2,6 +2,7 @@ using GameServerApp.Database;
 using GameServerApp.Systems;
 using GameServerApp.World;
 using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
@@ -124,6 +125,7 @@ namespace GameServerApp.Handlers
 
                 var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
                 var biomeData = GenerateBiomeData(chunkRequest.ChunkX, chunkRequest.ChunkZ);
+                var biomeBytes = ConvertBiomeIdsToBytes(biomeData.BiomeIds);
 
                 var response = new ChunkDataResponseMessage
                 {
@@ -135,6 +137,12 @@ namespace GameServerApp.Handlers
                     BiomeData = biomeData,
                     IsFromCache = isFromCache || alreadyServed
                 };
+
+                ChunkPayloadBuilder.ValidateChunkPayload(
+                    response.ChunkX,
+                    response.ChunkZ,
+                    response.CompressedBlockData,
+                    biomeBytes);
 
                 await SendChunkResponse(session, response);
 
@@ -371,6 +379,22 @@ namespace GameServerApp.Handlers
                 Temperature = averageTemperature,
                 Humidity = averageHumidity
             };
+        }
+
+        private static byte[] ConvertBiomeIdsToBytes(IReadOnlyList<int> biomeIds)
+        {
+            if (biomeIds.Count == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            var buffer = new byte[biomeIds.Count];
+            for (int i = 0; i < biomeIds.Count; i++)
+            {
+                buffer[i] = (byte)Math.Clamp(biomeIds[i], 0, 255);
+            }
+
+            return buffer;
         }
 
         private (double temp, double humidity) GetBiomeClimate(BiomeType biome)

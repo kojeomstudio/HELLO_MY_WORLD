@@ -27,15 +27,19 @@ This living note consolidates every Minecraft-style feature currently tracked ac
 | F-20 | Server Analytics & Telemetry | Aggregate residency + death/respawn counters, expose status snapshots | Display analytics in HUD + pause menu | In Progress | Task-20A delivered death counters; Task-20B add pause-menu telemetry. |
 | F-21 | Chat Moderation & Social Tools | Maintain mute/block lists, profanity filtering, reporting | Provide moderation UI, filtered chat feed | Planned | Task-21A wire profanity pipeline + mute sync. |
 | F-22 | Player Options & Keybind Sync | Persist per-player settings, expose config endpoints | Present settings UI, push updates | Planned | Task-22A define settings contract + persistence layout. |
+| F-23 | World Generation Fidelity | Stage-based terrain pipeline, cross-chunk caves/rivers/lakes, metadata emission | Rebuild chunk meshes with new layers, surface biome cues | In Progress | Task-23A cave/river/lake refinement & validation (this session). |
+| F-24 | Protocol Alignment & Validation | Share generated protobuf contracts, validate chunk payloads against IDL | Consume enhanced protocol payloads, migrate network stack | In Progress | Task-24A wire EnhancedMinecraftProtocol descriptors + chunk response validation (this session). |
 
 ## Sequential Delivery Plan (Next Iterations)
 1. ✅ **Task-20A** – Extended `ServerStatusResponse` with death/respawn counters and surfaced them in the Unity HUD analytics ticker (2025-10-25).
-2. ☐ **Task-12C** – Bind container diff events into chest/furnace UI prefabs with optimistic updates (requires prefab wiring + UX validation).
-3. ☐ **Task-19B** – Consume `PlayerRespawnBroadcast`/`PlayerDeath` on the Unity side for remote avatar refresh + death feed polish.
-4. ☐ **Task-10E** – Author ambient/weather presets and bind the intensity scalar to lighting and audio controllers.
-5. ☐ **Task-13A** – Mirror the server status telemetry (including new death counters) inside the pause menu overlay.
-6. ☐ **Task-12D** – Detect in-world container interactions and invoke `ContainerManager.RequestOpen/Close` to complete the loop.
-7. ☐ **Task-20B** – Extend analytics snapshots with pause-menu surfacing and rolling averages (depends on Task-13A HUD plumbing).
+2. 🔄 **Task-23A** – Refine caves/rivers/lakes algorithms in `WorldManager` + `MapGeneratorLib` and document biome impacts (current focus).
+3. 🔄 **Task-24A** – Link `EnhancedMinecraftProtocol` generated contracts into `SharedProtocol`, validate chunk payload serialization, and document workflow (current focus).
+4. ☐ **Task-12C** – Bind container diff events into chest/furnace UI prefabs with optimistic updates (requires prefab wiring + UX validation).
+5. ☐ **Task-19B** – Consume `PlayerRespawnBroadcast`/`PlayerDeath` on the Unity side for remote avatar refresh + death feed polish.
+6. ☐ **Task-10E** – Author ambient/weather presets and bind the intensity scalar to lighting and audio controllers.
+7. ☐ **Task-13A** – Mirror the server status telemetry (including new death counters) inside the pause menu overlay.
+8. ☐ **Task-12D** – Detect in-world container interactions and invoke `ContainerManager.RequestOpen/Close` to complete the loop.
+9. ☐ **Task-20B** – Extend analytics snapshots with pause-menu surfacing and rolling averages (depends on Task-13A HUD plumbing).
 
 Keep the list capped to work that fits within a single session. When picking up the next task, update the plan to reflect what was delivered and what remains.
 
@@ -46,3 +50,5 @@ Keep the list capped to work that fits within a single session. When picking up 
 - [ ] Implement pause-menu metrics panel (Task-13A) leveraging the extended server status DTO.
 - [ ] Add Task-20B pause-menu analytics once Task-13A lands, including rolling death-rate samples.
 - [ ] Kick off Task-21A profanity filter + mute list sync once analytics/containers stabilize.
+- [ ] Backport new world-generation tuning constants into Unity chunk mesh builders.
+- [ ] Draft client migration plan for EnhancedMinecraftProtocol payloads once validation passes.

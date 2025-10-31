@@ -28,6 +28,14 @@ namespace GameServerApp.World
         private const double DomainWarpPerlinAmplitude = 18.0;
         private const double ValleyDepthMultiplier = 12.0;
         private const string TerrainProfilesKey = "terrain.profiles";
+        private const double RiverFeatherThreshold = 0.018;
+        private const double RiverNeighborBlend = 0.65;
+        private const int RiverFeatherRadius = 1;
+        private const double NoiseCaveHorizontalFrequency = 0.0026;
+        private const double NoiseCaveVerticalFrequency = 0.018;
+        private const double NoiseCaveThreshold = 0.42;
+        private const double NoiseCaveLavaThreshold = 0.28;
+        private const double NoiseCaveWaterThreshold = 0.34;
 
         private struct TerrainProfile
         {
@@ -414,6 +422,9 @@ namespace GameServerApp.World
             
             // 수직 동굴 (수직갱)
             GenerateVerticalShafts(chunk, rand);
+
+            // 노이즈 기반 동굴층 추가 (연속성 보장)
+            GenerateNoiseCavePass(context, chunk);
         }
         
         /// <summary>
@@ -520,7 +531,56 @@ namespace GameServerApp.World
                 }
             }
         }
-        
+
+        /// <summary>
+        /// 노이즈 기반 동굴층 - 연속된 노이즈 필드를 사용하여 청크 경계를 넘는 동굴을 형성한다.
+        /// </summary>
+        private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk)
+        {
+            int baseX = context.ChunkX * 16;
+            int baseZ = context.ChunkZ * 16;
+
+            for (int x = 0; x < 16; x++)
+            {
+                int worldX = baseX + x;
+                for (int z = 0; z < 16; z++)
+                {
+                    int worldZ = baseZ + z;
+
+                    double horizontalNoise = SimplexNoise.Generate(worldX, worldZ, NoiseCaveHorizontalFrequency, 4, 1.0, 0.55, 640371);
+                    double ridged = SampleRidgedNoise(worldX * 0.85, worldZ * 0.85, NoiseCaveHorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
+
+                    for (int y = 8; y < 120; y++)
+                    {
+                        double verticalNoise = SimplexNoise.Generate(worldX, y, NoiseCaveVerticalFrequency, 3, 1.0, 0.62, 128947);
+                        double density = Math.Abs(horizontalNoise) * 0.55 + Math.Abs(verticalNoise) * 0.45;
+                        density = density * (0.65 + ridged * 0.35);
+                        density -= Math.Clamp((y - 24) / 140.0, 0.0, 0.45);
+
+                        if (density < NoiseCaveThreshold)
+                        {
+                            var block = chunk.GetBlock(x, y, z);
+                            if (block != BlockType.Air && block != BlockType.Water && block != BlockType.Lava)
+                            {
+                                if (density < NoiseCaveLavaThreshold && y < 18)
+                                {
+                                    chunk.SetBlock(x, y, z, BlockType.Lava);
+                                }
+                                else if (density < NoiseCaveWaterThreshold && y < GlobalWaterLevel - 6)
+                                {
+                                    chunk.SetBlock(x, y, z, BlockType.Water);
+                                }
+                                else
+                                {
+                                    chunk.SetBlock(x, y, z, BlockType.Air);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 동굴방 조각하기
         /// </summary>
@@ -609,44 +669,76 @@ namespace GameServerApp.World
             }
         }
 
+        private double SampleRiverField(int worldX, int worldZ)
+        {
+            var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
+            double sampleX = worldX + warp.dx;
+            double sampleZ = worldZ + warp.dz;
+            return SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
+        }
+
         private void GenerateRiversInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             TerrainProfile[,]? profiles = null;
             context.TryGetMetadata(TerrainProfilesKey, out profiles);
+            int baseX = context.ChunkX * 16;
+            int baseZ = context.ChunkZ * 16;
+
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
-                    var worldX = context.ChunkX * 16 + x;
-                    var worldZ = context.ChunkZ * 16 + z;
+                    int worldX = baseX + x;
+                    int worldZ = baseZ + z;
 
-                    if (profiles != null)
+                    if (profiles != null && profiles[x, z].Biome == BiomeType.Ocean)
                     {
-                        var profile = profiles[x, z];
-                        if (profile.Biome == BiomeType.Ocean)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
-                    var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
-                    double sampleX = worldX + warp.dx;
-                    double sampleZ = worldZ + warp.dz;
+                    if (IsOceanColumn(chunk, x, z))
+                    {
+                        continue;
+                    }
 
-                    double riverNoise = SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
-                    double intensity = Math.Abs(riverNoise);
+                    double intensity = Math.Abs(SampleRiverField(worldX, worldZ));
 
                     if (intensity < RiverCenterThreshold)
                     {
-                        if (!IsOceanColumn(chunk, x, z))
-                        {
-                            CarveRiverColumn(chunk, x, z, worldX, worldZ, intensity);
-                        }
+                        CarveRiverColumn(chunk, x, z, worldX, worldZ, intensity);
+                        FeatherRiverBanks(context, chunk, x, z, worldX, worldZ, intensity);
                     }
                     else if (intensity < RiverBankThreshold)
                     {
                         ShapeRiverBank(chunk, x, z);
+                    }
+                }
+            }
+        }
+
+        private void FeatherRiverBanks(TerrainGenerationContext context, ChunkData chunk, int x, int z, int worldX, int worldZ, double centerIntensity)
+        {
+            for (int dx = -RiverFeatherRadius; dx <= RiverFeatherRadius; dx++)
+            {
+                for (int dz = -RiverFeatherRadius; dz <= RiverFeatherRadius; dz++)
+                {
+                    if (dx == 0 && dz == 0) continue;
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) continue;
+
+                    int neighborWorldX = worldX + dx;
+                    int neighborWorldZ = worldZ + dz;
+                    double neighborIntensity = Math.Abs(SampleRiverField(neighborWorldX, neighborWorldZ));
+
+                    if (neighborIntensity < RiverFeatherThreshold)
+                    {
+                        CarveRiverColumn(chunk, nx, nz, neighborWorldX, neighborWorldZ, Math.Min(centerIntensity * RiverNeighborBlend, neighborIntensity));
+                    }
+                    else if (neighborIntensity < RiverBankThreshold)
+                    {
+                        ShapeRiverBank(chunk, nx, nz);
                     }
                 }
             }
@@ -696,6 +788,8 @@ namespace GameServerApp.World
                     }
                 }
             }
+
+            RelaxLakeBanks(chunk, centerX, centerZ, radiusX, radiusZ, waterLevel);
         }
 
         private void GenerateCloudsInternal(TerrainGenerationContext context)
@@ -862,6 +956,43 @@ namespace GameServerApp.World
                 if (surface + 1 < 256)
                 {
                     chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+                }
+            }
+        }
+        
+        private void RelaxLakeBanks(ChunkData chunk, int centerX, int centerZ, int radiusX, int radiusZ, int waterLevel)
+        {
+            int featherRadius = Math.Max(radiusX, radiusZ) + 2;
+            for (int dx = -featherRadius; dx <= featherRadius; dx++)
+            {
+                for (int dz = -featherRadius; dz <= featherRadius; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                        continue;
+
+                    int nx = centerX + dx;
+                    int nz = centerZ + dz;
+                    if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                        continue;
+
+                    double normalizedX = Math.Abs(dx) / (radiusX + 0.5);
+                    double normalizedZ = Math.Abs(dz) / (radiusZ + 0.5);
+                    double magnitude = normalizedX + normalizedZ;
+                    if (magnitude <= 1.0 || magnitude > 1.35)
+                        continue;
+
+                    int surface = FindSurfaceLevel(chunk, nx, nz);
+                    if (surface <= 0)
+                        continue;
+
+                    if (surface <= waterLevel + 3 && chunk.GetBlock(nx, surface, nz) != BlockType.Water)
+                    {
+                        chunk.SetBlock(nx, surface, nz, BlockType.Sand);
+                        if (surface + 1 < 256 && chunk.GetBlock(nx, surface + 1, nz) != BlockType.Air)
+                        {
+                            chunk.SetBlock(nx, surface + 1, nz, BlockType.Air);
+                        }
+                    }
                 }
             }
         }

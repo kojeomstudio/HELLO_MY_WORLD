@@ -23,6 +23,8 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - **Global water level**: a constant `GlobalWaterLevel` (62) controls sea height. Ocean biomes carve a seafloor using sand and stone, then fill to this level.
 - **Rivers**: a signed noise field locates river centres and banks. Columns near the river core are cleared, filled with flowing water, and lined with sand.
 - **Lakes**: per-chunk randomised ellipses carve depressions, line them with sand, and fill them to a locally sampled water level. Adjacent banks receive light smoothing to blend into surrounding terrain.
+- **River continuity**: the 2025-10-30 update feathers riverbanks into neighbouring columns so meanders persist across chunk seams and sand shoulders drop smoothly beneath the waterline.
+- **Pond shaping**: inland ponds now relax their banks after filling, replacing cliffy edges with gentle sand shelves to avoid hard transitions in Unity meshes.
 
 ## Highlands & Cliffs
 
@@ -38,6 +40,7 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
   - Interior decoration (pillars, water/lava pools, ore “loot” pedestals).
   - Support for multi-room layouts and simple mazes.
   - Procedural entrances and varied room connections for smoother exploration loops.
+- **Noise layer**: an extra 3D noise pass carves out porous cave pockets and underground lakes that align across chunk boundaries, while deep strata occasionally flood with lava or groundwater depending on depth.
 
 ## Vegetation & Clouds
 

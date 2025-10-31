@@ -7,5 +7,11 @@
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.2.30" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+    <PackageReference Include="Google.Protobuf" Version="3.27.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Assets\Generated\Protobuf\EnhancedMinecraftGame.cs">
+      <Link>Generated\EnhancedMinecraftGame.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>

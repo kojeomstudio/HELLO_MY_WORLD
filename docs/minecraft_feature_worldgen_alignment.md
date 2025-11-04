@@ -4,16 +4,22 @@ This session delivers the outstanding Minecraft-style features that affect both 
 
 | Step | Feature | Server Responsibilities | Client Responsibilities | Status |
 |------|---------|-------------------------|-------------------------|--------|
-| 1 | Enhanced Cave Network | Generate cross-chunk worm & noise caves, persist lava/water pockets, expose metadata | Rebuild chunk meshes with cavern hollows, stream lighting hints | In progress |
-| 2 | River Continuity & Banks | Carve meandering rivers, smooth gradients across chunk seams, emit sandbank layers | Render water surfaces, blend shoreline materials, play ambient FX | In progress |
-| 3 | Inland Lake Formation | Detect inland basins, flood-fill water to sampled level, decorate banks | Flatten vertex normals, spawn water/shore FX, prepare lily-pad props | In progress |
-| 4 | Chunk Payload Validation | Serialize chunk payloads through `EnhancedMinecraftProtocol` descriptors, ensure parity with legacy payloads | Accept enhanced payloads (future), log validation warnings | In progress |
+| 1 | Enhanced Cave Network | Generate cross-chunk worm & noise caves, persist lava/water pockets, expose metadata | Rebuild chunk meshes with cavern hollows, stream lighting hints | Complete (2025-10-31) |
+| 2 | River Continuity & Banks | Carve meandering rivers, smooth gradients across chunk seams, emit sandbank layers | Render water surfaces, blend shoreline materials, play ambient FX | Complete (2025-10-31) |
+| 3 | Inland Lake Formation | Detect inland basins, flood-fill water to sampled level, decorate banks | Flatten vertex normals, spawn water/shore FX, prepare lily-pad props | Complete (2025-10-31) |
+| 4 | Chunk Payload Validation | Serialize chunk payloads through `EnhancedMinecraftProtocol` descriptors, ensure parity with legacy payloads | Accept enhanced payloads (future), log validation warnings | Complete (2025-10-31) |
 
 ## Sequential Execution Plan
 1. ✅ Capture baseline behaviour (chunk residency metrics, current cave/river/lake output) for regression comparison.
-2. 🔄 Apply cave/river/lake algorithm refinements inside `WorldManager` and `MapGeneratorLib`, focusing on cross-chunk continuity and shoreline smoothing.
-3. 🔄 Link the generated `EnhancedMinecraftProtocol` contracts into `SharedProtocol`, build chunk payload validators, and run against the refined generator.
+2. ✅ Apply cave/river/lake algorithm refinements inside `WorldManager` and `MapGeneratorLib`, focusing on cross-chunk continuity and shoreline smoothing.
+3. ✅ Link the generated `EnhancedMinecraftProtocol` contracts into `SharedProtocol`, build chunk payload validators, and run against the refined generator.
 4. ☐ Update Unity client notes and tooling once validation passes so engine consumers can migrate to the shared contracts.
+
+
+## Session Outcomes
+- Server now streams chunk data directly from WorldManager's generation pipeline, removing the legacy noise stub and preserving database-backed chunks.
+- MapGeneratorLib mirrors the server river and surface lake rules so Unity tooling previews match live terrain, including sandbank smoothing and meandering watercourses.
+- SharedProtocol consumes all generated Protobuf descriptors (Enhanced + legacy message sets) to keep client and server contracts aligned.
 
 ## Notes
 - World-generation tuning constants live under `GameServer/World/WorldManager.cs`; Unity simulators in `MapGeneratorLib` mirror the same offsets so offline tooling stays authoritative.

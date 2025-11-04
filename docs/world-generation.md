@@ -24,6 +24,7 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - **Rivers**: a signed noise field locates river centres and banks. Columns near the river core are cleared, filled with flowing water, and lined with sand.
 - **Lakes**: per-chunk randomised ellipses carve depressions, line them with sand, and fill them to a locally sampled water level. Adjacent banks receive light smoothing to blend into surrounding terrain.
 - **River continuity**: the 2025-10-30 update feathers riverbanks into neighbouring columns so meanders persist across chunk seams and sand shoulders drop smoothly beneath the waterline.
+- **2025-10-31 alignment**: MapGeneratorLib now shares the server river/lake heuristics so Unity tooling and the dedicated server render identical sandbanks, basins, and meanders across chunk seams.
 - **Pond shaping**: inland ponds now relax their banks after filling, replacing cliffy edges with gentle sand shelves to avoid hard transitions in Unity meshes.
 
 ## Highlands & Cliffs

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -455,7 +455,25 @@ namespace GameServerApp.Database
             return result?.blockData;
         }
 
-        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
+        public async Task<bool> ChunkExistsAsync(int chunkX, int chunkZ)
+        {
+            var worldId = await GetDefaultWorldIdAsync();
+            return await ExecuteAsync(async connection =>
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT 1
+                    FROM Chunks
+                    WHERE WorldId = $worldId AND ChunkX = $chunkX AND ChunkZ = $chunkZ
+                    LIMIT 1;";
+                cmd.Parameters.AddWithValue("$worldId", worldId);
+                cmd.Parameters.AddWithValue("$chunkX", chunkX);
+                cmd.Parameters.AddWithValue("$chunkZ", chunkZ);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result != null;
+            });
+        }\r\n\r\n        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
         {
             var worldId = await GetDefaultWorldIdAsync();
             await SaveChunkAsync(worldId, chunkX, chunkZ, blockData, biomeData);
@@ -581,3 +599,4 @@ namespace GameServerApp.Database
         }
     }
 }
+

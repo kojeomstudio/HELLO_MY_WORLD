@@ -1,9 +1,10 @@
-using GameServerApp.Database;
+﻿using GameServerApp.Database;
 using GameServerApp.Systems;
 using GameServerApp.World;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
@@ -113,29 +114,27 @@ namespace GameServerApp.Handlers
                 }
 
                 // 청크 데이터 로드 또는 생성
-                var chunkResult = await LoadOrGenerateChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
+                var chunkResult = await LoadOrGenerateChunkPayload(chunkRequest.ChunkX, chunkRequest.ChunkZ);
                 if (chunkResult == null)
                 {
                     await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "Unable to load chunk data.");
                     return;
                 }
 
-                var (chunkData, isFromCache) = chunkResult.Value;
+                var (compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
                 var alreadyServed = HasPlayerLoadedChunk(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
 
                 var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                var biomeData = GenerateBiomeData(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                var biomeBytes = ConvertBiomeIdsToBytes(biomeData.BiomeIds);
 
                 var response = new ChunkDataResponseMessage
                 {
                     ChunkX = chunkRequest.ChunkX,
                     ChunkZ = chunkRequest.ChunkZ,
                     Success = true,
-                    CompressedBlockData = chunkData,
+                    CompressedBlockData = compressedBlockData,
                     Entities = entities.Select(ConvertToEntityInfo).ToList(),
-                    BiomeData = biomeData,
-                    IsFromCache = isFromCache || alreadyServed
+                    BiomeData = biomeInfo,
+                    IsFromCache = isFromStorage || alreadyServed
                 };
 
                 ChunkPayloadBuilder.ValidateChunkPayload(
@@ -143,7 +142,6 @@ namespace GameServerApp.Handlers
                     response.ChunkZ,
                     response.CompressedBlockData,
                     biomeBytes);
-
                 await SendChunkResponse(session, response);
 
                 await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ, chunkRequest.ViewDistance);
@@ -158,26 +156,28 @@ namespace GameServerApp.Handlers
         }
 
         /// <summary>
-        /// 청크 데이터를 로드하거나 새로 생성
+        /// 청크 데이터를 로드하거나 새로 생성하고 전송에 필요한 메타데이터를 준비한다.
         /// </summary>
-        private async Task<(byte[] Data, bool IsFromCache)?> LoadOrGenerateChunk(int chunkX, int chunkZ)
+        private async Task<(byte[] CompressedBlockData, byte[] BiomeBytes, BiomeInfo BiomeInfo, bool IsFromDatabase)?> LoadOrGenerateChunkPayload(int chunkX, int chunkZ)
         {
             try
             {
-                var existingChunkData = await _database.GetChunkDataAsync(chunkX, chunkZ);
-                if (existingChunkData != null)
+                bool isPersisted = await _database.ChunkExistsAsync(chunkX, chunkZ);
+
+                var chunk = await _worldManager.GetChunkAsync(chunkX, chunkZ);
+                if (chunk == null)
                 {
-                    return (CompressChunkData(existingChunkData), true);
+                    return null;
                 }
 
-                var generatedData = await GenerateNewChunk(chunkX, chunkZ);
-                if (generatedData != null)
-                {
-                    await _database.SaveChunkDataAsync(chunkX, chunkZ, generatedData);
-                    return (CompressChunkData(generatedData), false);
-                }
+                var (blockBytes, storedBiomeBytes) = chunk.ToBytes();
+                var compressed = CompressChunkData(blockBytes);
+                var biomeInfo = BuildBiomeInfo(chunkX, chunkZ, storedBiomeBytes, chunk);
+                var biomeBytes = storedBiomeBytes.Length > 0
+                    ? storedBiomeBytes
+                    : ConvertBiomeIdsToBytes(biomeInfo.BiomeIds);
 
-                return null;
+                return (compressed, biomeBytes, biomeInfo, isPersisted);
             }
             catch (Exception ex)
             {
@@ -186,140 +186,51 @@ namespace GameServerApp.Handlers
             }
         }
 
-        /// <summary>
-        /// 새로운 청크 생성 (지형 생성 알고리즘)
-        /// </summary>
-        private async Task<byte[]> GenerateNewChunk(int chunkX, int chunkZ)
+        private BiomeInfo BuildBiomeInfo(int chunkX, int chunkZ, byte[] storedBiomeBytes, ChunkData chunk)
         {
-            // 청크 블록 데이터 (16x256x16 = 65536 블록)
-            var blockData = new byte[CHUNK_SIZE_X * CHUNK_HEIGHT * CHUNK_SIZE_Z];
-            
-            // 간단한 지형 생성 알고리즘
-            var random = new Random(GetChunkSeed(chunkX, chunkZ));
-            
-            for (int x = 0; x < CHUNK_SIZE_X; x++)
+            var biomeIds = new List<int>(CHUNK_SIZE_X * CHUNK_SIZE_Z);
+            double tempSum = 0;
+            double humiditySum = 0;
+
+            if (storedBiomeBytes.Length >= CHUNK_SIZE_X * CHUNK_SIZE_Z)
+            {
+                for (int index = 0; index < CHUNK_SIZE_X * CHUNK_SIZE_Z; index++)
+                {
+                    var biome = (BiomeType)storedBiomeBytes[index];
+                    biomeIds.Add((int)biome);
+
+                    var climate = GetBiomeClimate(biome);
+                    tempSum += climate.temp;
+                    humiditySum += climate.humidity;
+                }
+            }
+            else
             {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++)
                 {
-                    // 높이 계산 (간단한 노이즈 기반)
-                    int worldX = chunkX * CHUNK_SIZE_X + x;
-                    int worldZ = chunkZ * CHUNK_SIZE_Z + z;
-                    int surfaceHeight = CalculateTerrainHeight(worldX, worldZ);
-                    
-                    for (int y = 0; y < CHUNK_HEIGHT; y++)
+                    for (int x = 0; x < CHUNK_SIZE_X; x++)
                     {
-                        int blockIndex = GetBlockIndex(x, y, z);
-                        
-                        if (y == 0)
-                        {
-                            blockData[blockIndex] = 7; // 기반암
-                        }
-                        else if (y <= surfaceHeight - 4)
-                        {
-                            blockData[blockIndex] = 1; // 돌
-                        }
-                        else if (y <= surfaceHeight - 1)
-                        {
-                            blockData[blockIndex] = 2; // 흙
-                        }
-                        else if (y == surfaceHeight)
-                        {
-                            blockData[blockIndex] = (byte)(surfaceHeight > 62 ? 6 : 2); // 잔디 또는 흙 (해수면 기준)
-                        }
-                        else if (y <= 62) // 해수면
-                        {
-                            blockData[blockIndex] = 8; // 물
-                        }
-                        else
-                        {
-                            blockData[blockIndex] = 0; // 공기
-                        }
-                    }
-                    
-                    // 나무 생성 (확률적)
-                    if (surfaceHeight > 62 && random.NextDouble() < 0.05) // 5% 확률
-                    {
-                        await GenerateTree(blockData, x, surfaceHeight + 1, z);
+                        var biome = chunk?.GetBiome(x, z)
+                                     ?? _worldManager.SampleBiome(chunkX * CHUNK_SIZE_X + x, chunkZ * CHUNK_SIZE_Z + z);
+                        biomeIds.Add((int)biome);
+
+                        var climate = GetBiomeClimate(biome);
+                        tempSum += climate.temp;
+                        humiditySum += climate.humidity;
                     }
                 }
             }
 
-            return blockData;
-        }
+            var sampleCount = biomeIds.Count;
+            float averageTemp = sampleCount > 0 ? (float)(tempSum / sampleCount) : 0.5f;
+            float averageHumidity = sampleCount > 0 ? (float)(humiditySum / sampleCount) : 0.5f;
 
-        /// <summary>
-        /// 지형 높이 계산 (간단한 노이즈 함수)
-        /// </summary>
-        private int CalculateTerrainHeight(int x, int z)
-        {
-            // 간단한 사인파 기반 높이 맵
-            double noise1 = Math.Sin(x * 0.01) * Math.Sin(z * 0.01) * 20;
-            double noise2 = Math.Sin(x * 0.05) * Math.Cos(z * 0.05) * 10;
-            double noise3 = Math.Sin(x * 0.1) * Math.Sin(z * 0.1) * 5;
-            
-            int baseHeight = 64; // 해수면
-            int height = baseHeight + (int)(noise1 + noise2 + noise3);
-            
-            return Math.Clamp(height, 1, CHUNK_HEIGHT - 50); // 최소/최대 높이 제한
-        }
-
-        /// <summary>
-        /// 나무 생성
-        /// </summary>
-        private async Task GenerateTree(byte[] blockData, int x, int y, int z)
-        {
-            if (y + 5 >= CHUNK_HEIGHT) return; // 높이 체크
-            
-            // 나무 줄기 (5블록 높이)
-            for (int treeY = y; treeY < y + 5; treeY++)
+            return new BiomeInfo
             {
-                int trunkIndex = GetBlockIndex(x, treeY, z);
-                if (trunkIndex < blockData.Length)
-                {
-                    blockData[trunkIndex] = 3; // 나무 블록
-                }
-            }
-            
-            // 나무 잎 (간단한 구형)
-            for (int leafX = x - 2; leafX <= x + 2; leafX++)
-            {
-                for (int leafZ = z - 2; leafZ <= z + 2; leafZ++)
-                {
-                    for (int leafY = y + 3; leafY <= y + 6; leafY++)
-                    {
-                        if (leafX >= 0 && leafX < CHUNK_SIZE_X && leafZ >= 0 && leafZ < CHUNK_SIZE_Z)
-                        {
-                            // 중심에서의 거리 계산
-                            double distance = Math.Sqrt((leafX - x) * (leafX - x) + (leafZ - z) * (leafZ - z) + (leafY - (y + 4.5)) * (leafY - (y + 4.5)));
-                            if (distance <= 2.5)
-                            {
-                                int leafIndex = GetBlockIndex(leafX, leafY, leafZ);
-                                if (leafIndex < blockData.Length && blockData[leafIndex] == 0) // 공기인 경우만
-                                {
-                                    blockData[leafIndex] = 5; // 잎 블록
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 청크 시드 계산
-        /// </summary>
-        private int GetChunkSeed(int chunkX, int chunkZ)
-        {
-            // 월드 시드와 청크 좌표를 조합하여 고유한 시드 생성
-            return (chunkX * 1000000 + chunkZ) ^ 12345; // 간단한 해시
-        }
-
-        /// <summary>
-        /// 3D 좌표를 1D 배열 인덱스로 변환
-        /// </summary>
-        private int GetBlockIndex(int x, int y, int z)
-        {
-            return y * (CHUNK_SIZE_X * CHUNK_SIZE_Z) + z * CHUNK_SIZE_X + x;
+                BiomeIds = biomeIds,
+                Temperature = averageTemp,
+                Humidity = averageHumidity
+            };
         }
 
         /// <summary>
@@ -344,42 +255,7 @@ namespace GameServerApp.Handlers
             return compressed.Length < data.Length * 0.9 ? compressed : data;
         }
 
-        /// <summary>
-        /// 바이옴 데이터 생성
-        /// </summary>
-        private BiomeInfo GenerateBiomeData(int chunkX, int chunkZ)
-        {
-            var biomeIds = new List<int>(16 * 16);
-            double accumulatedTemperature = 0;
-            double accumulatedHumidity = 0;
 
-            for (int z = 0; z < 16; z++)
-            {
-                for (int x = 0; x < 16; x++)
-                {
-                    int worldX = chunkX * 16 + x;
-                    int worldZ = chunkZ * 16 + z;
-
-                    var biome = _worldManager.SampleBiome(worldX, worldZ);
-                    biomeIds.Add((int)biome);
-
-                    var climate = GetBiomeClimate(biome);
-                    accumulatedTemperature += climate.temp;
-                    accumulatedHumidity += climate.humidity;
-                }
-            }
-
-            int sampleCount = biomeIds.Count;
-            float averageTemperature = sampleCount > 0 ? (float)(accumulatedTemperature / sampleCount) : 0.5f;
-            float averageHumidity = sampleCount > 0 ? (float)(accumulatedHumidity / sampleCount) : 0.5f;
-
-            return new BiomeInfo
-            {
-                BiomeIds = biomeIds,
-                Temperature = averageTemperature,
-                Humidity = averageHumidity
-            };
-        }
 
         private static byte[] ConvertBiomeIdsToBytes(IReadOnlyList<int> biomeIds)
         {

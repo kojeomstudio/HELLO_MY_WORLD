@@ -24,8 +24,15 @@ This master list enumerates the Minecraft-style gameplay features spanning both 
 | F-18 | Block Lighting & Sky Light | Compute light levels per block, sync to client | Apply lightmaps/shaders per chunk | Planned | Analyse existing chunk mesh data |
 | F-19 | Death & Respawn Notifications | Broadcast death/respawn payloads, persist spawn anchors, expose analytics | Refresh remote avatars, show death feed, manage respawn UI | In progress | Task-19A delivered respawn broadcast; Task-19D server death broadcast landed; Task-19B Unity wiring pending. |
 | F-20 | Server Analytics & Telemetry | Aggregate residency, performance, and death metrics; expose status snapshots | Display telemetry in HUD overlays and pause menu | In progress | Task-20A delivered death/respawn counters; Task-20B will surface the data beyond the HUD ticker. |
+| F-21 | Advanced River & Lake Generation | Maintain flow-guided river carving, terrace sand banks, mirror constants between server and tooling | Rebuild water meshes, blend shoreline materials, sync MapGenerator previews | Done | Task-21A river flow field + Task-21B lake smoothing shipped (2025-11-05). |
+| F-22 | Cave Network Overhaul | Expand worm tunnels with variable radius, seed vertical shafts, flood selected pockets with water/lava | Update chunk meshing to keep hollows, refresh lighting probes, align ambient triggers | In progress | Task-22A variable-radius tunnels + shafts delivered; monitor lighting/pooling follow-ups (2025-11-05). |
+| F-23 | Protocol Parity Validation | Ensure all EnhancedMinecraftProtocol protobuf types are registered and consumed server-side | Reference generated protocol types in Unity network client & tests | Planned | Task-23A audits packet handlers, SharedProtocol registries, and docs (2025-11-05 focus). |
 
 ## Sequenced Work Items
+- [x] Task-21A – Upgrade river generation with flow-guided sampling, bank terracing, and seam smoothing across MapGeneratorLib and WorldManager.
+- [x] Task-21B – Extend surface/underground lake shaping using signed-distance smoothing and decorative rim passes shared between client tooling and server.
+- [x] Task-22A – Introduce variable-radius worm tunnels, shaft connectors, and floodable pockets to the cave pipeline (MapGeneratorLib + WorldManager).
+- [ ] Task-23A – Audit EnhancedMinecraftProtocol usage, register missing packets, and update protocol guidance in docs/README.
 - [x] Task-11C ? Remote player distance culling and avatar pooling delivered.
 - [x] Task-12A ? Deliver container snapshot hashes and diff validation handshake.
 - [x] Task-12B ? Record container hash mismatch telemetry via diagnostics endpoint.

@@ -473,7 +473,9 @@ namespace GameServerApp.Database
                 var result = await cmd.ExecuteScalarAsync();
                 return result != null;
             });
-        }\r\n\r\n        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
+        }
+
+        public async Task SaveChunkDataAsync(int chunkX, int chunkZ, byte[] blockData, byte[]? biomeData = null)
         {
             var worldId = await GetDefaultWorldIdAsync();
             await SaveChunkAsync(worldId, chunkX, chunkZ, blockData, biomeData);

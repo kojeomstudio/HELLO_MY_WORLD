@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using GameServerApp.Database;
 using GameServerApp.Models;
 using GameServerApp.World.Generation;
+using System.Numerics;
 
 namespace GameServerApp.World
 {
@@ -28,9 +29,6 @@ namespace GameServerApp.World
         private const double DomainWarpPerlinAmplitude = 18.0;
         private const double ValleyDepthMultiplier = 12.0;
         private const string TerrainProfilesKey = "terrain.profiles";
-        private const double RiverFeatherThreshold = 0.018;
-        private const double RiverNeighborBlend = 0.65;
-        private const int RiverFeatherRadius = 1;
         private const double NoiseCaveHorizontalFrequency = 0.0026;
         private const double NoiseCaveVerticalFrequency = 0.018;
         private const double NoiseCaveThreshold = 0.42;
@@ -433,6 +431,8 @@ namespace GameServerApp.World
         private void GenerateMainCaveSystem(ChunkData chunk, Random rand)
         {
             int wormCount = 1 + rand.Next(3); // 1~3개의 메인 웜
+            double radiusNoiseSeed = rand.NextDouble() * 1000.0;
+            double directionalNoiseSeed = rand.NextDouble() * 500.0;
 
             for (int w = 0; w < wormCount; w++)
             {
@@ -447,7 +447,9 @@ namespace GameServerApp.World
                 for (int s = 0; s < steps; s++)
                 {
                     // 동적으로 변하는 반지름 (넓어지고 좁아지는 효과)
-                    double currentRadius = baseRadius + Math.Sin(s * 0.1) * 0.8;
+                    double radiusNoise = SimplexNoise.Generate(x + radiusNoiseSeed, z + radiusNoiseSeed, 0.12, 2, 1.0, 0.55, 55127);
+                    double currentRadius = baseRadius + Math.Sin(s * 0.1) * 0.8 + radiusNoise * 0.6;
+                    currentRadius = Math.Clamp(currentRadius, 1.6, baseRadius + 1.9);
                     
                     int cx = (int)Math.Round(x);
                     int cy = (int)Math.Round(y);
@@ -460,6 +462,10 @@ namespace GameServerApp.World
                     if (s > 20 && rand.NextDouble() < 0.05) // 5% 확률
                     {
                         CarveRoom(chunk, cx, cy, cz, 4 + rand.Next(4));
+                        if (rand.NextDouble() < 0.35)
+                        {
+                            CreateCavePool(chunk, cx, Math.Clamp(cy - rand.Next(1, 3), 2, 120), cz, rand.Next(2, 5));
+                        }
                     }
 
                     // 이동
@@ -469,8 +475,9 @@ namespace GameServerApp.World
                     y += Math.Sin(pitch) * 0.3;
 
                     // 방향 변화 (더 자연스럽게)
-                    yaw += (rand.NextDouble() - 0.5) * 0.3;
-                    pitch += (rand.NextDouble() - 0.5) * 0.15;
+                    double directionalNoise = SimplexNoise.Generate(x + directionalNoiseSeed, y + directionalNoiseSeed, 0.05, 2, 1.0, 0.5, 91357);
+                    yaw += (rand.NextDouble() - 0.5) * 0.3 + directionalNoise * 0.35;
+                    pitch += (rand.NextDouble() - 0.5) * 0.15 + directionalNoise * 0.18;
                     pitch = Math.Clamp(pitch, -0.7, 0.7);
 
                     // 범위 체크
@@ -527,6 +534,16 @@ namespace GameServerApp.World
                             int sideZ = shaftZ + (int)(Math.Sin(sideDirection) * i);
                             CarveSphere(chunk, sideX, y, sideZ, 1.2);
                         }
+                    }
+                }
+
+                if (rand.NextDouble() < 0.35)
+                {
+                    int fillStart = Math.Max(shaftBottom, 1);
+                    int fillEnd = Math.Min(shaftBottom + 2, shaftTop - 1);
+                    for (int y = fillStart; y <= fillEnd; y++)
+                    {
+                        chunk.SetBlock(shaftX, y, shaftZ, BlockType.Water);
                     }
                 }
             }
@@ -669,12 +686,37 @@ namespace GameServerApp.World
             }
         }
 
-        private double SampleRiverField(int worldX, int worldZ)
+        private double SampleRiverField(double worldX, double worldZ)
         {
             var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
             double sampleX = worldX + warp.dx;
             double sampleZ = worldZ + warp.dz;
             return SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
+        }
+
+        private Vector2 ComputeRiverFlowVector(int worldX, int worldZ)
+        {
+            const double gradientStep = 1.0;
+
+            double forwardX = SampleRiverField(worldX + gradientStep, worldZ);
+            double backwardX = SampleRiverField(worldX - gradientStep, worldZ);
+            double forwardZ = SampleRiverField(worldX, worldZ + gradientStep);
+            double backwardZ = SampleRiverField(worldX, worldZ - gradientStep);
+
+            var flow = new Vector2((float)(forwardX - backwardX), (float)(forwardZ - backwardZ));
+            if (flow.LengthSquared() < 1e-4f)
+            {
+                flow = new Vector2(
+                    (float)(SampleRiverField(worldX + 23.0, worldZ + 7.0) - 0.5),
+                    (float)(SampleRiverField(worldX - 19.0, worldZ - 11.0) - 0.5));
+            }
+
+            if (flow.LengthSquared() < 1e-6f)
+            {
+                return Vector2.UnitX;
+            }
+
+            return Vector2.Normalize(flow);
         }
 
         private void GenerateRiversInternal(TerrainGenerationContext context)
@@ -685,13 +727,19 @@ namespace GameServerApp.World
             int baseX = context.ChunkX * 16;
             int baseZ = context.ChunkZ * 16;
 
+            int[,] surfaceCache = new int[16, 16];
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
                 {
-                    int worldX = baseX + x;
-                    int worldZ = baseZ + z;
+                    surfaceCache[x, z] = FindSurfaceLevel(chunk, x, z);
+                }
+            }
 
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
                     if (profiles != null && profiles[x, z].Biome == BiomeType.Ocean)
                     {
                         continue;
@@ -702,43 +750,63 @@ namespace GameServerApp.World
                         continue;
                     }
 
+                    int worldX = baseX + x;
+                    int worldZ = baseZ + z;
+
                     double intensity = Math.Abs(SampleRiverField(worldX, worldZ));
+                    if (intensity >= RiverBankThreshold)
+                    {
+                        continue;
+                    }
+
+                    Vector2 flowDir = ComputeRiverFlowVector(worldX, worldZ);
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    int riverSurface = Math.Min(surface, GlobalWaterLevel);
 
                     if (intensity < RiverCenterThreshold)
                     {
-                        CarveRiverColumn(chunk, x, z, worldX, worldZ, intensity);
-                        FeatherRiverBanks(context, chunk, x, z, worldX, worldZ, intensity);
+                        double normalized = 1.0 - Math.Clamp(intensity / RiverCenterThreshold, 0.0, 1.0);
+                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, flowDir);
                     }
-                    else if (intensity < RiverBankThreshold)
+                    else
                     {
-                        ShapeRiverBank(chunk, x, z);
+                        double bankStrength = 1.0 - Math.Clamp((intensity - RiverCenterThreshold) / (RiverBankThreshold - RiverCenterThreshold), 0.0, 1.0);
+                        FeatherRiverBank(chunk, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
                 }
-            }
-        }
+            }}
 
-        private void FeatherRiverBanks(TerrainGenerationContext context, ChunkData chunk, int x, int z, int worldX, int worldZ, double centerIntensity)
+        private void CreateCavePool(ChunkData chunk, int centerX, int centerY, int centerZ, int radius)
         {
-            for (int dx = -RiverFeatherRadius; dx <= RiverFeatherRadius; dx++)
+            if (centerY <= 1 || centerY >= 255)
+                return;
+
+            for (int dx = -radius; dx <= radius; dx++)
             {
-                for (int dz = -RiverFeatherRadius; dz <= RiverFeatherRadius; dz++)
+                for (int dz = -radius; dz <= radius; dz++)
                 {
-                    if (dx == 0 && dz == 0) continue;
-                    int nx = x + dx;
-                    int nz = z + dz;
-                    if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16) continue;
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                        continue;
 
-                    int neighborWorldX = worldX + dx;
-                    int neighborWorldZ = worldZ + dz;
-                    double neighborIntensity = Math.Abs(SampleRiverField(neighborWorldX, neighborWorldZ));
+                    double distance = Math.Sqrt(dx * dx + dz * dz);
+                    if (distance > radius)
+                        continue;
 
-                    if (neighborIntensity < RiverFeatherThreshold)
+                    int floorY = Math.Max(1, centerY - 1);
+                    chunk.SetBlock(x, floorY, z, BlockType.Sand);
+                    chunk.SetBlock(x, centerY, z, BlockType.Water);
+
+                    if (centerY + 1 < 256)
                     {
-                        CarveRiverColumn(chunk, nx, nz, neighborWorldX, neighborWorldZ, Math.Min(centerIntensity * RiverNeighborBlend, neighborIntensity));
-                    }
-                    else if (neighborIntensity < RiverBankThreshold)
-                    {
-                        ShapeRiverBank(chunk, nx, nz);
+                        chunk.SetBlock(x, centerY + 1, z, BlockType.Air);
                     }
                 }
             }
@@ -760,36 +828,137 @@ namespace GameServerApp.World
 
             int centerX = rand.Next(4, 12);
             int centerZ = rand.Next(4, 12);
-            int radiusX = 3 + rand.Next(3);
-            int radiusZ = 3 + rand.Next(3);
-            int depth = 2 + rand.Next(2);
+            int radiusX = 3 + rand.Next(4);
+            int radiusZ = 3 + rand.Next(4);
+            int maxDepth = 3 + rand.Next(3);
             int waterLevel = Math.Clamp(GlobalWaterLevel + rand.Next(-1, 2), 45, 80);
 
             int sampleSurface = FindSurfaceLevel(chunk, centerX, centerZ);
-            if (sampleSurface < waterLevel - 3 || sampleSurface > waterLevel + 8)
+            if (sampleSurface < waterLevel - 4 || sampleSurface > waterLevel + 8)
                 return;
 
-            for (int x = Math.Max(0, centerX - radiusX - 1); x < Math.Min(16, centerX + radiusX + 2); x++)
-            {
-                for (int z = Math.Max(0, centerZ - radiusZ - 1); z < Math.Min(16, centerZ + radiusZ + 2); z++)
-                {
-                    double nx = (x - centerX) / (double)radiusX;
-                    double nz = (z - centerZ) / (double)radiusZ;
-                    double distance = nx * nx + nz * nz;
+            double rotationNoise = SimplexNoise.Generate(context.ChunkX * 0.37 + warp.dx, context.ChunkZ * 0.37 + warp.dz, 0.12, 2, 1.0, 0.6, 91217);
+            double rotation = rotationNoise * Math.PI;
+            double cos = Math.Cos(rotation);
+            double sin = Math.Sin(rotation);
+            double radiusXWithPadding = radiusX + 0.75;
+            double radiusZWithPadding = radiusZ + 0.75;
 
-                    if (distance <= 1.0)
+            for (int dx = -radiusX - 3; dx <= radiusX + 3; dx++)
+            {
+                for (int dz = -radiusZ - 3; dz <= radiusZ + 3; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                        continue;
+
+                    double rotX = dx * cos - dz * sin;
+                    double rotZ = dx * sin + dz * cos;
+                    double ellipse = Math.Sqrt(
+                        (rotX * rotX) / (radiusXWithPadding * radiusXWithPadding) +
+                        (rotZ * rotZ) / (radiusZWithPadding * radiusZWithPadding));
+                    double sdf = ellipse - 1.0;
+
+                    if (sdf <= 0.18)
                     {
-                        int localDepth = depth + (int)Math.Max(0, (1.0 - distance) * 2.0);
-                        CarveLakeColumn(chunk, x, z, waterLevel, localDepth);
+                        int surface = FindSurfaceLevel(chunk, x, z);
+                        if (surface <= 0)
+                            continue;
+
+                        double bowl = Math.Clamp(1.0 - ellipse, 0.0, 1.0);
+                        double depthNoise = SimplexNoise.Generate(
+                            context.ChunkX * 16 + x,
+                            context.ChunkZ * 16 + z,
+                            0.18,
+                            2,
+                            1.0,
+                            0.45,
+                            82319);
+                        double depthFactor = Math.Clamp(bowl + depthNoise * 0.2, 0.0, 1.0);
+                        int columnDepth = Math.Clamp(maxDepth + (int)Math.Round(depthFactor * maxDepth * 0.7), 2, maxDepth + 3);
+                        int waterFloor = Math.Max(1, waterLevel - columnDepth);
+
+                        for (int y = surface; y >= waterFloor; y--)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Air);
+                        }
+
+                        if (waterFloor - 1 >= 0)
+                        {
+                            chunk.SetBlock(x, waterFloor - 1, z, BlockType.Sand);
+                        }
+
+                        for (int y = waterFloor; y <= waterLevel && y < 256; y++)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Water);
+                        }
+
+                        if (waterLevel < GlobalWaterLevel)
+                        {
+                            for (int y = waterLevel + 1; y <= GlobalWaterLevel && y < 256; y++)
+                            {
+                                chunk.SetBlock(x, y, z, BlockType.Water);
+                            }
+                        }
+
+                        int topWater = waterLevel < GlobalWaterLevel ? Math.Min(GlobalWaterLevel, 255) : Math.Min(waterLevel, 255);
+                        if (topWater + 1 < 256)
+                        {
+                            chunk.SetBlock(x, topWater + 1, z, BlockType.Air);
+                        }
                     }
-                    else if (distance <= 1.25)
+                    else if (sdf <= 0.45)
                     {
-                        DecorateLakeBank(chunk, x, z, waterLevel);
+                        double rimStrength = Math.Clamp((0.45 - sdf) / 0.45, 0.0, 1.0);
+                        SculptLakeBank(chunk, x, z, waterLevel, rimStrength);
                     }
                 }
             }
+        }
 
-            RelaxLakeBanks(chunk, centerX, centerZ, radiusX, radiusZ, waterLevel);
+        private void SculptLakeBank(ChunkData chunk, int x, int z, int waterSurface, double rimStrength)
+        {
+            if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                return;
+
+            int surface = FindSurfaceLevel(chunk, x, z);
+            if (surface <= 0)
+                return;
+
+            int maxDrop = Math.Max(1, (int)Math.Round(3.0 - 2.0 * rimStrength));
+
+            if (surface > waterSurface + maxDrop)
+            {
+                int target = Math.Max(waterSurface + maxDrop, 1);
+                for (int y = surface; y > target; y--)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Air);
+                }
+                surface = target;
+            }
+
+            if (surface <= waterSurface)
+            {
+                for (int y = surface; y <= waterSurface && y < 256; y++)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Water);
+                }
+
+                int topWater = waterSurface < GlobalWaterLevel ? Math.Min(GlobalWaterLevel, 255) : Math.Min(waterSurface, 255);
+                if (topWater + 1 < 256)
+                {
+                    chunk.SetBlock(x, topWater + 1, z, BlockType.Air);
+                }
+            }
+            else
+            {
+                chunk.SetBlock(x, surface, z, BlockType.Sand);
+                if (surface + 1 < 256)
+                {
+                    chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+                }
+            }
         }
 
         private void GenerateCloudsInternal(TerrainGenerationContext context)
@@ -825,68 +994,147 @@ namespace GameServerApp.World
             }
         }
 
-        private void CarveRiverColumn(ChunkData chunk, int x, int z, int worldX, int worldZ, double intensity)
+        private void CarveRiverColumn(ChunkData chunk, int[,] surfaceCache, int x, int z, int riverSurface, double normalized, Vector2 flowDir)
         {
-            int surface = FindSurfaceLevel(chunk, x, z);
+            int surface = surfaceCache[x, z];
             if (surface <= 0)
                 return;
 
             if (surface <= GlobalWaterLevel - 3 && chunk.GetBlock(x, surface, z) == BlockType.Water)
                 return;
 
-            int waterTop = Math.Min(GlobalWaterLevel, surface);
-            double depthFactor = Math.Clamp((RiverCenterThreshold - intensity) / RiverCenterThreshold, 0.0, 1.0);
-            int bedDepth = Math.Clamp(2 + (int)Math.Round(depthFactor * 3), 2, 5);
-            int bedBottom = Math.Max(1, waterTop - bedDepth);
+            int channelDepth = Math.Clamp(3 + (int)Math.Round(normalized * 5.5), 3, 8);
+            int waterFloor = Math.Max(1, riverSurface - channelDepth);
 
-            for (int y = surface; y > waterTop; y--)
+            for (int y = surface; y >= waterFloor; y--)
             {
                 chunk.SetBlock(x, y, z, BlockType.Air);
             }
 
-            chunk.SetBlock(x, waterTop, z, BlockType.Water);
-
-            if (waterTop - 1 >= bedBottom)
+            if (waterFloor - 1 >= 0)
             {
-                chunk.SetBlock(x, waterTop - 1, z, BlockType.Sand);
+                chunk.SetBlock(x, waterFloor - 1, z, BlockType.Sand);
             }
 
-            if (waterTop - 2 >= bedBottom)
-            {
-                for (int y = waterTop - 2; y >= bedBottom; y--)
-                {
-                    chunk.SetBlock(x, y, z, BlockType.Stone);
-                }
-            }
-
-            for (int y = waterTop + 1; y <= GlobalWaterLevel && y < 256; y++)
+            for (int y = waterFloor; y <= riverSurface && y < 256; y++)
             {
                 chunk.SetBlock(x, y, z, BlockType.Water);
             }
 
-            for (int y = GlobalWaterLevel + 1; y <= surface + 2 && y < 256; y++)
+            if (riverSurface < GlobalWaterLevel)
             {
-                if (chunk.GetBlock(x, y, z) != BlockType.Air)
+                for (int y = riverSurface + 1; y <= GlobalWaterLevel && y < 256; y++)
                 {
-                    chunk.SetBlock(x, y, z, BlockType.Air);
+                    chunk.SetBlock(x, y, z, BlockType.Water);
                 }
+            }
+
+            int updatedSurface = riverSurface < GlobalWaterLevel ? Math.Min(GlobalWaterLevel, 255) : Math.Min(riverSurface, 255);
+            surfaceCache[x, z] = updatedSurface;
+
+            int maxRadius = Math.Clamp(2 + (int)Math.Round(normalized * 2.0), 2, 4);
+            for (int dx = -maxRadius; dx <= maxRadius; dx++)
+            {
+                for (int dz = -maxRadius; dz <= maxRadius; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                        continue;
+
+                    double distance = Math.Sqrt(dx * dx + dz * dz);
+                    if (distance > maxRadius + 0.25)
+                        continue;
+
+                    double falloff = 1.0 - Math.Clamp(distance / (maxRadius + 0.001), 0.0, 1.0);
+                    bool allowFlood = distance <= 1.5;
+                    ShapeRiverBank(chunk, surfaceCache, x + dx, z + dz, falloff, riverSurface, allowFlood);
+                }
+            }
+
+            Vector2 normalizedFlow = flowDir.LengthSquared() < 1e-6f ? Vector2.UnitX : Vector2.Normalize(flowDir);
+            int forwardX = x + (int)Math.Round(normalizedFlow.X);
+            int forwardZ = z + (int)Math.Round(normalizedFlow.Y);
+            ShapeRiverBank(chunk, surfaceCache, forwardX, forwardZ, 0.35, riverSurface, false);
+
+            int backX = x - (int)Math.Round(normalizedFlow.X);
+            int backZ = z - (int)Math.Round(normalizedFlow.Y);
+            ShapeRiverBank(chunk, surfaceCache, backX, backZ, 0.35, riverSurface, false);
+        }
+
+        private void FeatherRiverBank(ChunkData chunk, int[,] surfaceCache, int x, int z, double strength, int riverSurface, Vector2 flowDir)
+        {
+            if (strength <= 0.0)
+                return;
+
+            double clamped = Math.Clamp(strength, 0.0, 1.0);
+            ShapeRiverBank(chunk, surfaceCache, x, z, clamped * 0.65, riverSurface, false);
+
+            Vector2 perpendicular = new(-flowDir.Y, flowDir.X);
+            if (perpendicular.LengthSquared() < 1e-6f)
+            {
+                perpendicular = Vector2.UnitX;
+            }
+            perpendicular = Vector2.Normalize(perpendicular);
+
+            int reach = Math.Max(1, (int)Math.Round(1.0 + clamped * 2.0));
+            for (int step = 1; step <= reach; step++)
+            {
+                double falloff = Math.Clamp(clamped - step * 0.25, 0.0, 1.0);
+                if (falloff <= 0.0)
+                {
+                    break;
+                }
+
+                int offsetX = x + (int)Math.Round(perpendicular.X * step);
+                int offsetZ = z + (int)Math.Round(perpendicular.Y * step);
+                ShapeRiverBank(chunk, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
+
+                offsetX = x - (int)Math.Round(perpendicular.X * step);
+                offsetZ = z - (int)Math.Round(perpendicular.Y * step);
+                ShapeRiverBank(chunk, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
             }
         }
 
-        private void ShapeRiverBank(ChunkData chunk, int x, int z)
+        private void ShapeRiverBank(ChunkData chunk, int[,] surfaceCache, int x, int z, double falloff, int riverSurface, bool allowFlood)
         {
-            int surface = FindSurfaceLevel(chunk, x, z);
+            if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                return;
+
+            int surface = surfaceCache[x, z];
             if (surface <= 0)
-                return;
-
-            if (chunk.GetBlock(x, surface, z) == BlockType.Water)
-                return;
-
-            chunk.SetBlock(x, surface, z, BlockType.Sand);
-
-            if (surface - 1 > 0 && chunk.GetBlock(x, surface - 1, z) == BlockType.Dirt)
             {
-                chunk.SetBlock(x, surface - 1, z, BlockType.Sand);
+                surface = FindSurfaceLevel(chunk, x, z);
+                if (surface <= 0)
+                    return;
+                surfaceCache[x, z] = surface;
+            }
+
+            int maxDrop = Math.Max(1, (int)Math.Round(3.0 - 2.0 * falloff));
+
+            if (surface > riverSurface + maxDrop)
+            {
+                int target = Math.Max(riverSurface + maxDrop, 1);
+                for (int y = surface; y > target; y--)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Air);
+                }
+                surface = target;
+                surfaceCache[x, z] = target;
+            }
+
+            if (allowFlood && surface <= riverSurface)
+            {
+                for (int y = Math.Max(surface, 1); y <= riverSurface && y < 256; y++)
+                {
+                    chunk.SetBlock(x, y, z, BlockType.Water);
+                }
+
+                int updatedSurface = riverSurface < GlobalWaterLevel ? Math.Min(GlobalWaterLevel, 255) : Math.Min(riverSurface, 255);
+                surfaceCache[x, z] = updatedSurface;
+                surface = updatedSurface;
+            }
+            else
+            {
+                chunk.SetBlock(x, surface, z, BlockType.Sand);
             }
 
             if (surface + 1 < 256)
@@ -906,96 +1154,6 @@ namespace GameServerApp.World
             return waterAtLevel && waterBelow;
         }
 
-        private void CarveLakeColumn(ChunkData chunk, int x, int z, int waterLevel, int depth)
-        {
-            int surface = FindSurfaceLevel(chunk, x, z);
-            if (surface <= 0)
-                return;
-
-            int bottom = Math.Max(1, waterLevel - depth);
-
-            for (int y = surface; y >= bottom; y--)
-            {
-                chunk.SetBlock(x, y, z, BlockType.Air);
-            }
-
-            chunk.SetBlock(x, bottom, z, BlockType.Stone);
-
-            int sandLayer = Math.Min(waterLevel - 1, bottom + 1);
-            if (sandLayer > bottom)
-            {
-                chunk.SetBlock(x, sandLayer, z, BlockType.Sand);
-            }
-
-            for (int y = sandLayer + 1; y <= waterLevel && y < 256; y++)
-            {
-                chunk.SetBlock(x, y, z, BlockType.Water);
-            }
-
-            for (int y = waterLevel + 1; y <= Math.Min(waterLevel + 3, 255); y++)
-            {
-                if (chunk.GetBlock(x, y, z) != BlockType.Air)
-                {
-                    chunk.SetBlock(x, y, z, BlockType.Air);
-                }
-            }
-        }
-
-        private void DecorateLakeBank(ChunkData chunk, int x, int z, int waterLevel)
-        {
-            int surface = FindSurfaceLevel(chunk, x, z);
-            if (surface <= 0)
-                return;
-
-            if (chunk.GetBlock(x, surface, z) == BlockType.Water)
-                return;
-
-            if (surface <= waterLevel + 2)
-            {
-                chunk.SetBlock(x, surface, z, BlockType.Sand);
-                if (surface + 1 < 256)
-                {
-                    chunk.SetBlock(x, surface + 1, z, BlockType.Air);
-                }
-            }
-        }
-        
-        private void RelaxLakeBanks(ChunkData chunk, int centerX, int centerZ, int radiusX, int radiusZ, int waterLevel)
-        {
-            int featherRadius = Math.Max(radiusX, radiusZ) + 2;
-            for (int dx = -featherRadius; dx <= featherRadius; dx++)
-            {
-                for (int dz = -featherRadius; dz <= featherRadius; dz++)
-                {
-                    if (dx == 0 && dz == 0)
-                        continue;
-
-                    int nx = centerX + dx;
-                    int nz = centerZ + dz;
-                    if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
-                        continue;
-
-                    double normalizedX = Math.Abs(dx) / (radiusX + 0.5);
-                    double normalizedZ = Math.Abs(dz) / (radiusZ + 0.5);
-                    double magnitude = normalizedX + normalizedZ;
-                    if (magnitude <= 1.0 || magnitude > 1.35)
-                        continue;
-
-                    int surface = FindSurfaceLevel(chunk, nx, nz);
-                    if (surface <= 0)
-                        continue;
-
-                    if (surface <= waterLevel + 3 && chunk.GetBlock(nx, surface, nz) != BlockType.Water)
-                    {
-                        chunk.SetBlock(nx, surface, nz, BlockType.Sand);
-                        if (surface + 1 < 256 && chunk.GetBlock(nx, surface + 1, nz) != BlockType.Air)
-                        {
-                            chunk.SetBlock(nx, surface + 1, nz, BlockType.Air);
-                        }
-                    }
-                }
-            }
-        }
         
         /// <summary>
         /// 던전 타입 열거형

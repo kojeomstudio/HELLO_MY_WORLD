@@ -104,6 +104,7 @@ namespace MapGenLib
     public class WorldGenAlgorithms
     {
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
+        private const int GlobalRiverWaterLevel = 62;
 
         public struct TerrainValue
         {
@@ -533,6 +534,47 @@ namespace MapGenLib
             }
         }
         
+        private static int[,] BuildSurfaceHeightCache(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
+        {
+            int[,] cache = new int[subWorldSize.SizeX, subWorldSize.SizeZ];
+
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    cache[x, z] = FindSurfaceLevel(subWorldBlockData, subWorldSize, x, z);
+                }
+            }
+
+            return cache;
+        }
+
+        private static CustomVector2 ComputeRiverFlowDirection(float sampleX, float sampleZ)
+        {
+            const float gradientStep = 0.0125f;
+
+            float forwardX = Noise.GetNoise(sampleX + gradientStep, 0, sampleZ);
+            float backwardX = Noise.GetNoise(sampleX - gradientStep, 0, sampleZ);
+            float forwardZ = Noise.GetNoise(sampleX, 0, sampleZ + gradientStep);
+            float backwardZ = Noise.GetNoise(sampleX, 0, sampleZ - gradientStep);
+
+            CustomVector2 flow = new CustomVector2(forwardX - backwardX, forwardZ - backwardZ);
+            if (flow.sqrMagnitude < 0.0001f)
+            {
+                flow = new CustomVector2(
+                    Noise.GetNoise(sampleX + 37.31f, 0, sampleZ + 13.73f) - 0.5f,
+                    Noise.GetNoise(sampleX - 42.11f, 0, sampleZ - 24.19f) - 0.5f);
+            }
+
+            if (flow.sqrMagnitude < CustomVector2.kEpsilon)
+            {
+                return CustomVector2.right;
+            }
+
+            flow.Normalize();
+            return flow;
+        }
+
         private static void GenerateRiverSystems(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
         {
             if (subWorldSize.SizeX < 4 || subWorldSize.SizeZ < 4)
@@ -540,99 +582,242 @@ namespace MapGenLib
                 return;
             }
 
-            const float mainThreshold = 0.028f;
-            const float bankThreshold = 0.06f;
-            const float noiseScale = 42f;
-            int seedOffset = Utilitys.RandomInteger(0, 2048);
+            int[,] surfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
+
+            const float channelThreshold = 0.033f;
+            const float bankThreshold = 0.07f;
+            const float sampleScale = 54f;
+            const float warpScale = 92f;
+            const float warpStrength = 5.25f;
 
             for (int x = 1; x < subWorldSize.SizeX - 1; x++)
             {
                 for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
                 {
-                    float baseNoise = Noise.GetNoise((x + seedOffset) / noiseScale, 0, (z + seedOffset) / noiseScale);
-                    float detailNoise = Noise.GetNoise((x - seedOffset) / (noiseScale * 0.35f), 0, (z + seedOffset) / (noiseScale * 0.35f));
-                    float distance = CustomMathf.Abs(baseNoise - 0.5f);
-                    float weighted = distance * (0.55f + detailNoise * 0.35f);
+                    float warpX = Noise.GetNoise((x + 321.37f) / warpScale, 0, (z - 811.19f) / warpScale);
+                    float warpZ = Noise.GetNoise((x - 217.91f) / warpScale, 0, (z + 607.53f) / warpScale);
 
-                    if (weighted < mainThreshold)
+                    float sampleX = (x + warpX * warpStrength) / sampleScale;
+                    float sampleZ = (z + warpZ * warpStrength) / sampleScale;
+
+                    float baseNoise = Noise.GetNoise(sampleX, 0, sampleZ);
+                    float detailNoise = Noise.GetNoise(sampleX * 0.35f, 0, sampleZ * 0.35f);
+                    float ridgeNoise = Noise.GetNoise(sampleX * 1.6f, 0, sampleZ * 1.6f);
+
+                    float riverMask = CustomMathf.Abs(baseNoise - 0.5f);
+                    riverMask = riverMask * (0.58f + 0.25f * ridgeNoise) - 0.045f * CustomMathf.Abs(detailNoise);
+                    riverMask = CustomMathf.Max(riverMask, 0.0f);
+
+                    if (riverMask >= bankThreshold)
                     {
-                        float normalized = weighted / CustomMathf.Max(mainThreshold, 0.0001f);
-                        CarveRiverColumn(subWorldBlockData, subWorldSize, x, z, normalized);
+                        continue;
                     }
-                    else if (weighted < bankThreshold)
+
+                    CustomVector2 flowDir = ComputeRiverFlowDirection(sampleX, sampleZ);
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 1)
                     {
-                        ShapeRiverBank(subWorldBlockData, subWorldSize, x, z);
+                        continue;
+                    }
+
+                    int riverSurface = CustomMathf.Min(surface, CustomMathf.Min(subWorldSize.SizeY - 2, GlobalRiverWaterLevel));
+
+                    if (riverMask < channelThreshold)
+                    {
+                        float normalized = CustomMathf.Clamp01(1.0f - riverMask / channelThreshold);
+                        CarveRiverColumn(subWorldBlockData, subWorldSize, surfaceCache, x, z, normalized, riverSurface, flowDir);
+                    }
+                    else
+                    {
+                        float bankStrength = CustomMathf.Clamp01(1.0f - (riverMask - channelThreshold) / (bankThreshold - channelThreshold));
+                        FeatherRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
                 }
             }
         }
 
-        private static void CarveRiverColumn(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int x, int z, float normalized)
+        private static void CarveRiverColumn(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z, float normalized, int riverSurface, CustomVector2 flowDir)
         {
-            int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, x, z);
+            int surface = surfaceCache[x, z];
             if (surface <= 1)
             {
                 return;
             }
 
-            int channelDepth = CustomMathf.Clamp(2 + (int)((1.0f - normalized) * 4.0f), 2, 6);
-            int waterStart = CustomMathf.Max(1, surface - channelDepth + 1);
+            int channelDepth = CustomMathf.Clamp(3 + CustomMathf.RoundToInt(CustomMathf.Lerp(0f, 5.5f, normalized)), 3, 8);
+            int waterFloor = CustomMathf.Max(1, riverSurface - channelDepth);
 
-            for (int y = surface; y >= waterStart; y--)
+            for (int y = surface; y >= waterFloor; y--)
             {
                 subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
             }
 
-            if (waterStart - 1 >= 0)
+            if (waterFloor - 1 >= 0)
             {
-                subWorldBlockData[x, waterStart - 1, z].CurrentType = (byte)BlockTileType.SAND;
+                subWorldBlockData[x, waterFloor - 1, z].CurrentType = (byte)BlockTileType.SAND;
             }
 
-            int waterTop = CustomMathf.Min(surface, subWorldSize.SizeY - 1);
-            for (int y = waterStart; y <= waterTop; y++)
+            for (int y = waterFloor; y <= riverSurface && y < subWorldSize.SizeY; y++)
             {
                 subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
             }
 
-            if (surface + 1 < subWorldSize.SizeY)
+            if (riverSurface < GlobalRiverWaterLevel && GlobalRiverWaterLevel < subWorldSize.SizeY)
             {
-                subWorldBlockData[x, surface + 1, z].CurrentType = (byte)BlockTileType.EMPTY;
+                for (int y = riverSurface + 1; y <= GlobalRiverWaterLevel && y < subWorldSize.SizeY; y++)
+                {
+                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                }
+
+                surfaceCache[x, z] = CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 1);
+            }
+            else
+            {
+                surfaceCache[x, z] = CustomMathf.Min(riverSurface, subWorldSize.SizeY - 1);
             }
 
-            for (int dx = -1; dx <= 1; dx++)
+            int waterTop = riverSurface < GlobalRiverWaterLevel && GlobalRiverWaterLevel < subWorldSize.SizeY
+                ? CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 1)
+                : CustomMathf.Min(riverSurface, subWorldSize.SizeY - 1);
+
+            if (waterTop + 1 < subWorldSize.SizeY)
             {
-                for (int dz = -1; dz <= 1; dz++)
+                subWorldBlockData[x, waterTop + 1, z].CurrentType = (byte)BlockTileType.EMPTY;
+            }
+
+            int maxRadius = CustomMathf.Clamp(2 + CustomMathf.RoundToInt(normalized * 2f), 2, 4);
+
+            for (int dx = -maxRadius; dx <= maxRadius; dx++)
+            {
+                for (int dz = -maxRadius; dz <= maxRadius; dz++)
                 {
                     if (dx == 0 && dz == 0)
                     {
                         continue;
                     }
 
-                    ShapeRiverBank(subWorldBlockData, subWorldSize, x + dx, z + dz);
+                    float distance = CustomMathf.Sqrt(dx * dx + dz * dz);
+                    if (distance > maxRadius + 0.25f)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1.0f - CustomMathf.Clamp01(distance / (maxRadius + 0.001f));
+                    bool allowFlood = distance <= 1.5f;
+                    ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x + dx, z + dz, falloff, riverSurface, allowFlood);
                 }
+            }
+
+            int forwardX = x + CustomMathf.RoundToInt(flowDir.x);
+            int forwardZ = z + CustomMathf.RoundToInt(flowDir.y);
+            ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, forwardX, forwardZ, 0.35f, riverSurface, false);
+
+            int backX = x - CustomMathf.RoundToInt(flowDir.x);
+            int backZ = z - CustomMathf.RoundToInt(flowDir.y);
+            ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, backX, backZ, 0.35f, riverSurface, false);
+        }
+
+        private static void FeatherRiverBank(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z, float strength, int riverSurface, CustomVector2 flowDir)
+        {
+            if (strength <= 0f)
+            {
+                return;
+            }
+
+            strength = CustomMathf.Clamp01(strength);
+            ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, strength * 0.65f, riverSurface, false);
+
+            CustomVector2 perpendicular = new CustomVector2(-flowDir.y, flowDir.x);
+            if (perpendicular.sqrMagnitude < CustomVector2.kEpsilon)
+            {
+                perpendicular = CustomVector2.right;
+            }
+            perpendicular.Normalize();
+
+            int reach = CustomMathf.Max(1, CustomMathf.RoundToInt(1f + strength * 2f));
+            for (int step = 1; step <= reach; step++)
+            {
+                float falloff = CustomMathf.Clamp01(strength - step * 0.25f);
+                if (falloff <= 0f)
+                {
+                    break;
+                }
+
+                int offsetX = x + CustomMathf.RoundToInt(perpendicular.x * step);
+                int offsetZ = z + CustomMathf.RoundToInt(perpendicular.y * step);
+                ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
+
+                offsetX = x - CustomMathf.RoundToInt(perpendicular.x * step);
+                offsetZ = z - CustomMathf.RoundToInt(perpendicular.y * step);
+                ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
             }
         }
 
-        private static void ShapeRiverBank(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int x, int z)
+        private static void ShapeRiverBank(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z, float falloff, int riverSurface, bool allowFlood)
         {
             if (!WorldGenerateUtils.CheckSubWorldBoundary(x, 0, z, subWorldSize))
             {
                 return;
             }
 
-            int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, x, z);
+            int surface = surfaceCache[x, z];
             if (surface <= 0)
             {
-                return;
+                surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, x, z);
+                if (surface <= 0)
+                {
+                    return;
+                }
+                surfaceCache[x, z] = surface;
             }
 
-            var surfaceType = (BlockTileType)subWorldBlockData[x, surface, z].CurrentType;
-            if (surfaceType == BlockTileType.WATER)
+            int desiredSurface = surface;
+            int maxDrop = CustomMathf.Max(1, CustomMathf.RoundToInt(CustomMathf.Lerp(3f, 1f, falloff)));
+
+            if (surface > riverSurface + maxDrop)
             {
-                return;
+                desiredSurface = CustomMathf.Max(riverSurface + maxDrop, 1);
             }
 
-            subWorldBlockData[x, surface, z].CurrentType = (byte)BlockTileType.SAND;
+            if (desiredSurface < surface)
+            {
+                for (int y = surface; y > desiredSurface; y--)
+                {
+                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
+                }
+                surface = desiredSurface;
+                surfaceCache[x, z] = desiredSurface;
+            }
+
+            if (allowFlood && surface <= riverSurface)
+            {
+                int fillStart = CustomMathf.Max(surface, 1);
+                for (int y = fillStart; y <= riverSurface && y < subWorldSize.SizeY; y++)
+                {
+                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                }
+
+                if (riverSurface < GlobalRiverWaterLevel && GlobalRiverWaterLevel < subWorldSize.SizeY)
+                {
+                    for (int y = riverSurface + 1; y <= GlobalRiverWaterLevel && y < subWorldSize.SizeY; y++)
+                    {
+                        subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                    }
+
+                    surface = CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 1);
+                }
+                else
+                {
+                    surface = CustomMathf.Min(riverSurface, subWorldSize.SizeY - 1);
+                }
+
+                surfaceCache[x, z] = surface;
+            }
+            else
+            {
+                subWorldBlockData[x, surface, z].CurrentType = (byte)BlockTileType.SAND;
+            }
 
             if (surface + 1 < subWorldSize.SizeY)
             {
@@ -645,28 +830,44 @@ namespace MapGenLib
             int lakeAttempts = Utilitys.RandomInteger(1, 3);
             for (int attempt = 0; attempt < lakeAttempts; attempt++)
             {
-                int centerX = Utilitys.RandomInteger(3, subWorldSize.SizeX - 3);
-                int centerZ = Utilitys.RandomInteger(3, subWorldSize.SizeZ - 3);
+                int centerX = Utilitys.RandomInteger(4, subWorldSize.SizeX - 4);
+                int centerZ = Utilitys.RandomInteger(4, subWorldSize.SizeZ - 4);
 
                 int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, centerX, centerZ);
-                if (surface <= 2 || surface >= subWorldSize.SizeY - 3)
+                if (surface <= 2 || surface >= subWorldSize.SizeY - 4)
                 {
                     continue;
                 }
 
-                int radiusX = Utilitys.RandomInteger(3, 6);
+                int radiusX = Utilitys.RandomInteger(4, 7);
                 int radiusZ = Utilitys.RandomInteger(3, 6);
-                int depth = Utilitys.RandomInteger(2, 4);
+                int maxDepth = Utilitys.RandomInteger(3, 5);
 
-                CarveLakeBasin(subWorldBlockData, subWorldSize, centerX, centerZ, surface, radiusX, radiusZ, depth);
+                int waterSurface = CustomMathf.Clamp(GlobalRiverWaterLevel + Utilitys.RandomInteger(-1, 2), 45, CustomMathf.Min(subWorldSize.SizeY - 3, GlobalRiverWaterLevel + 2));
+                if (surface < waterSurface - 4 || surface > waterSurface + 8)
+                {
+                    continue;
+                }
+
+                float rotation = Noise.GetNoise(centerX * 0.12f, 0, centerZ * 0.12f) * CustomMathf.PI;
+                CarveLakeBasin(subWorldBlockData, subWorldSize, centerX, centerZ, waterSurface, radiusX, radiusZ, maxDepth, rotation);
+                DecorateLakeBanks(subWorldBlockData, subWorldSize, centerX, centerZ, waterSurface, radiusX, radiusZ, rotation);
             }
         }
 
-        private static void CarveLakeBasin(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerZ, int surfaceY, int radiusX, int radiusZ, int depth)
+        private static void CarveLakeBasin(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerZ, int waterSurface, int radiusX, int radiusZ, int maxDepth, float rotation)
         {
-            for (int offsetX = -radiusX; offsetX <= radiusX; offsetX++)
+            float cos = CustomMathf.Cos(rotation);
+            float sin = CustomMathf.Sin(rotation);
+            float radiusXWithPadding = radiusX + 0.75f;
+            float radiusZWithPadding = radiusZ + 0.75f;
+
+            int extentX = radiusX + 3;
+            int extentZ = radiusZ + 3;
+
+            for (int offsetX = -extentX; offsetX <= extentX; offsetX++)
             {
-                for (int offsetZ = -radiusZ; offsetZ <= radiusZ; offsetZ++)
+                for (int offsetZ = -extentZ; offsetZ <= extentZ; offsetZ++)
                 {
                     int worldX = centerX + offsetX;
                     int worldZ = centerZ + offsetZ;
@@ -675,43 +876,67 @@ namespace MapGenLib
                         continue;
                     }
 
-                    float normalized = (CustomMathf.Abs(offsetX) / (radiusX + 0.5f)) + (CustomMathf.Abs(offsetZ) / (radiusZ + 0.5f));
-                    if (normalized > 1.2f)
+                    float rotatedX = offsetX * cos - offsetZ * sin;
+                    float rotatedZ = offsetX * sin + offsetZ * cos;
+
+                    float ellipse = CustomMathf.Sqrt(
+                        (rotatedX * rotatedX) / (radiusXWithPadding * radiusXWithPadding) +
+                        (rotatedZ * rotatedZ) / (radiusZWithPadding * radiusZWithPadding));
+                    float sdf = ellipse - 1.0f;
+
+                    if (sdf <= 0.18f)
                     {
-                        continue;
+                        int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, worldX, worldZ);
+                        if (surface <= 1)
+                        {
+                            continue;
+                        }
+
+                        float bowl = CustomMathf.Clamp01(1.0f - ellipse);
+                        float noise = Noise.GetNoise((worldX + centerX) * 0.18f, 0, (worldZ + centerZ) * 0.18f);
+                        float depthFactor = CustomMathf.Clamp01(bowl + noise * 0.2f);
+                        int columnDepth = CustomMathf.Clamp(maxDepth + CustomMathf.RoundToInt(depthFactor * maxDepth * 0.7f), 2, maxDepth + 3);
+                        int waterFloor = CustomMathf.Max(1, waterSurface - columnDepth);
+
+                        for (int y = surface; y >= waterFloor; y--)
+                        {
+                            subWorldBlockData[worldX, y, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
+                        }
+
+                        subWorldBlockData[worldX, waterFloor, worldZ].CurrentType = (byte)BlockTileType.SAND;
+
+                        for (int y = waterFloor + 1; y <= waterSurface && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[worldX, y, worldZ].CurrentType = (byte)BlockTileType.WATER;
+                        }
+
+                        if (waterSurface < GlobalRiverWaterLevel && GlobalRiverWaterLevel < subWorldSize.SizeY)
+                        {
+                            for (int y = waterSurface + 1; y <= GlobalRiverWaterLevel && y < subWorldSize.SizeY; y++)
+                            {
+                                subWorldBlockData[worldX, y, worldZ].CurrentType = (byte)BlockTileType.WATER;
+                            }
+                        }
                     }
-
-                    int localSurface = FindSurfaceLevel(subWorldBlockData, subWorldSize, worldX, worldZ);
-                    int waterFloor = CustomMathf.Max(1, surfaceY - depth);
-
-                    for (int y = localSurface; y >= waterFloor; y--)
+                    else if (sdf <= 0.45f)
                     {
-                        subWorldBlockData[worldX, y, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
-                    }
-
-                    subWorldBlockData[worldX, waterFloor, worldZ].CurrentType = (byte)BlockTileType.SAND;
-
-                    for (int y = waterFloor + 1; y <= surfaceY && y < subWorldSize.SizeY; y++)
-                    {
-                        subWorldBlockData[worldX, y, worldZ].CurrentType = (byte)BlockTileType.WATER;
-                    }
-
-                    if (surfaceY + 1 < subWorldSize.SizeY)
-                    {
-                        subWorldBlockData[worldX, surfaceY + 1, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
+                        float rimStrength = CustomMathf.Clamp01(0.45f - sdf) / 0.45f;
+                        ShapeLakeBank(subWorldBlockData, subWorldSize, worldX, worldZ, waterSurface, rimStrength);
                     }
                 }
             }
-
-            DecorateLakeBanks(subWorldBlockData, subWorldSize, centerX, centerZ, radiusX, radiusZ, surfaceY);
         }
 
-        private static void DecorateLakeBanks(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerZ, int radiusX, int radiusZ, int surfaceY)
+        private static void DecorateLakeBanks(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerZ, int waterSurface, int radiusX, int radiusZ, float rotation)
         {
-            int featherRadius = CustomMathf.Max(radiusX, radiusZ) + 2;
-            for (int dx = -featherRadius; dx <= featherRadius; dx++)
+            float cos = CustomMathf.Cos(rotation);
+            float sin = CustomMathf.Sin(rotation);
+            float radiusXFeather = radiusX + 4.0f;
+            float radiusZFeather = radiusZ + 4.0f;
+
+            for (int dx = -radiusX - 5; dx <= radiusX + 5; dx++)
             {
-                for (int dz = -featherRadius; dz <= featherRadius; dz++)
+                for (int dz = -radiusZ - 5; dz <= radiusZ + 5; dz++)
                 {
                     if (dx == 0 && dz == 0)
                     {
@@ -725,27 +950,77 @@ namespace MapGenLib
                         continue;
                     }
 
-                    float weight = CustomMathf.Abs(dx) / (radiusX + 0.75f) + CustomMathf.Abs(dz) / (radiusZ + 0.75f);
-                    if (weight < 1.05f || weight > 1.45f)
+                    float rotatedX = dx * cos - dz * sin;
+                    float rotatedZ = dx * sin + dz * cos;
+
+                    float ellipse = CustomMathf.Sqrt(
+                        (rotatedX * rotatedX) / (radiusXFeather * radiusXFeather) +
+                        (rotatedZ * rotatedZ) / (radiusZFeather * radiusZFeather));
+
+                    if (ellipse <= 1.0f || ellipse > 1.6f)
                     {
                         continue;
                     }
 
-                    int localSurface = FindSurfaceLevel(subWorldBlockData, subWorldSize, worldX, worldZ);
-                    if (localSurface <= 0 || localSurface > surfaceY + 2)
-                    {
-                        continue;
-                    }
-
-                    if ((BlockTileType)subWorldBlockData[worldX, localSurface, worldZ].CurrentType != BlockTileType.WATER)
-                    {
-                        subWorldBlockData[worldX, localSurface, worldZ].CurrentType = (byte)BlockTileType.SAND;
-                        if (localSurface + 1 < subWorldSize.SizeY)
-                        {
-                            subWorldBlockData[worldX, localSurface + 1, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
-                        }
-                    }
+                    float rimStrength = CustomMathf.Clamp01(1.6f - ellipse);
+                    ShapeLakeBank(subWorldBlockData, subWorldSize, worldX, worldZ, waterSurface, rimStrength * 0.5f);
                 }
+            }
+        }
+
+        private static void ShapeLakeBank(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int x, int z, int waterSurface, float rimStrength)
+        {
+            if (!WorldGenerateUtils.CheckSubWorldBoundary(x, 0, z, subWorldSize))
+            {
+                return;
+            }
+
+            int surface = FindSurfaceLevel(subWorldBlockData, subWorldSize, x, z);
+            if (surface <= 0)
+            {
+                return;
+            }
+
+            int maxDrop = CustomMathf.Max(1, CustomMathf.RoundToInt(CustomMathf.Lerp(3f, 1f, rimStrength)));
+
+            if (surface > waterSurface + maxDrop)
+            {
+                int target = CustomMathf.Max(waterSurface + maxDrop, 1);
+                for (int y = surface; y > target; y--)
+                {
+                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
+                }
+                surface = target;
+            }
+
+            if (surface <= waterSurface)
+            {
+                for (int y = surface; y <= waterSurface && y < subWorldSize.SizeY; y++)
+                {
+                    subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                }
+
+                if (waterSurface < GlobalRiverWaterLevel && GlobalRiverWaterLevel < subWorldSize.SizeY)
+                {
+                    for (int y = waterSurface + 1; y <= GlobalRiverWaterLevel && y < subWorldSize.SizeY; y++)
+                    {
+                        subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                    }
+                    surface = CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 1);
+                }
+                else
+                {
+                    surface = CustomMathf.Min(waterSurface, subWorldSize.SizeY - 1);
+                }
+            }
+            else
+            {
+                subWorldBlockData[x, surface, z].CurrentType = (byte)BlockTileType.SAND;
+            }
+
+            if (surface + 1 < subWorldSize.SizeY)
+            {
+                subWorldBlockData[x, surface + 1, z].CurrentType = (byte)BlockTileType.EMPTY;
             }
         }
         /// <summary>
@@ -848,6 +1123,13 @@ namespace MapGenLib
                 
                 // 대형 동굴 방 생성
                 GenerateLargeCaveRoom(subWorldBlockData, subWorldSize, centerX, centerY, centerZ);
+
+                if (Utilitys.RandomFloat(0.0f, 1.0f) < 0.3f)
+                {
+                    int poolRadius = Utilitys.RandomInteger(3, 5);
+                    int poolY = CustomMathf.Clamp(centerY - Utilitys.RandomInteger(1, 3), 2, subWorldSize.SizeY - 3);
+                    CreateCavePool(subWorldBlockData, subWorldSize, centerX, poolY, centerZ, poolRadius);
+                }
                 
                 // 중심에서 방사상으로 통로 생성
                 int tunnelCount = Utilitys.RandomInteger(3, 6);
@@ -855,6 +1137,15 @@ namespace MapGenLib
                 {
                     GenerateCaveTunnel(subWorldBlockData, subWorldSize, centerX, centerY, centerZ, 
                         Utilitys.RandomFloat(0, 360), Utilitys.RandomFloat(-30, 30));
+                }
+
+                if (Utilitys.RandomFloat(0.0f, 1.0f) < 0.45f)
+                {
+                    int shaftRadius = Utilitys.RandomInteger(2, 3);
+                    int shaftLength = Utilitys.RandomInteger(6, 14);
+                    int shaftDirection = Utilitys.RandomBool() ? 1 : -1;
+                    bool fillWithWater = Utilitys.RandomFloat(0.0f, 1.0f) < 0.35f;
+                    CreateVerticalShaft(subWorldBlockData, subWorldSize, centerX, centerY, centerZ, shaftRadius, shaftLength, shaftDirection, fillWithWater);
                 }
             }
         }
@@ -903,13 +1194,18 @@ namespace MapGenLib
             float currentX = startX;
             float currentY = startY;
             float currentZ = startZ;
-            
-            int tunnelLength = Utilitys.RandomInteger(20, 50);
-            float tunnelRadius = Utilitys.RandomFloat(2.5f, 4.5f);
+
+            int tunnelLength = Utilitys.RandomInteger(24, 58);
+            float radiusBase = Utilitys.RandomFloat(2.3f, 4.1f);
+            float radiusVariance = Utilitys.RandomFloat(0.6f, 1.3f);
+            float noiseSeed = Utilitys.RandomFloat(-5000f, 5000f);
             
             for (int step = 0; step < tunnelLength; step++)
             {
                 // 통로 파기
+                float radiusNoise = Noise.GetNoise((currentX + noiseSeed) * 0.09f, (currentY + noiseSeed) * 0.09f, (currentZ + noiseSeed) * 0.09f);
+                float tunnelRadius = CustomMathf.Clamp(radiusBase + radiusNoise * radiusVariance, 1.6f, radiusBase + radiusVariance + 1.4f);
+
                 CarveTunnelSegment(subWorldBlockData, subWorldSize, (int)currentX, (int)currentY, (int)currentZ, tunnelRadius);
                 
                 // 다음 위치 계산
@@ -918,8 +1214,9 @@ namespace MapGenLib
                 currentZ += CustomMathf.Sin(direction * CustomMathf.Deg2Rad) * CustomMathf.Cos(pitch * CustomMathf.Deg2Rad);
                 
                 // 방향 약간 변경 (자연스러운 구불구불함)
-                direction += Utilitys.RandomFloat(-5, 5);
-                pitch += Utilitys.RandomFloat(-3, 3);
+                float directionalNoise = Noise.GetNoise((currentX - noiseSeed) * 0.05f, (currentY + noiseSeed) * 0.05f, (currentZ - noiseSeed) * 0.05f);
+                direction += Utilitys.RandomFloat(-5, 5) + directionalNoise * 4.5f;
+                pitch += Utilitys.RandomFloat(-3, 3) + directionalNoise * 2.0f;
                 pitch = CustomMathf.Clamp(pitch, -45, 45); // 수직 각도 제한
                 
                 // 범위를 벗어나면 중단
@@ -954,7 +1251,9 @@ namespace MapGenLib
                             worldY >= 0 && worldY < subWorldSize.SizeY &&
                             worldZ >= 0 && worldZ < subWorldSize.SizeZ)
                         {
-                            float distance = CustomMathf.Sqrt(x * x + y * y + z * z);
+                            float verticalScale = 0.8f + Noise.GetNoise((worldX + centerY) * 0.12f, (worldZ - centerX) * 0.12f, (worldY + centerZ) * 0.12f) * 0.3f;
+                            float scaledY = y / CustomMathf.Max(0.55f, verticalScale);
+                            float distance = CustomMathf.Sqrt(x * x + scaledY * scaledY + z * z);
                             if (distance <= radius)
                             {
                                 subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
@@ -1012,45 +1311,144 @@ namespace MapGenLib
         private static void GenerateUndergroundLakes(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
         {
             int lakeCount = Utilitys.RandomInteger(1, 3);
-            
+
             for (int i = 0; i < lakeCount; i++)
             {
-                int lakeX = Utilitys.RandomInteger(8, subWorldSize.SizeX - 8);
-                int lakeY = Utilitys.RandomInteger(5, subWorldSize.SizeY / 2); // 낮은 고도에 생성
-                int lakeZ = Utilitys.RandomInteger(8, subWorldSize.SizeZ - 8);
-                
-                int lakeWidth = Utilitys.RandomInteger(6, 12);
-                int lakeDepth = Utilitys.RandomInteger(3, 6);
-                
-                // 호수 영역 파기 및 물 채우기
-                for (int x = -lakeWidth / 2; x <= lakeWidth / 2; x++)
+                int centerX = Utilitys.RandomInteger(6, subWorldSize.SizeX - 6);
+                int centerZ = Utilitys.RandomInteger(6, subWorldSize.SizeZ - 6);
+                int centerY = Utilitys.RandomInteger(4, subWorldSize.SizeY / 2);
+
+                int radiusX = Utilitys.RandomInteger(5, 9);
+                int radiusZ = Utilitys.RandomInteger(5, 9);
+                int verticalRadius = Utilitys.RandomInteger(2, 4);
+
+                float rotation = Noise.GetNoise(centerX * 0.2f, centerY * 0.11f, centerZ * 0.2f) * CustomMathf.PI;
+                float cos = CustomMathf.Cos(rotation);
+                float sin = CustomMathf.Sin(rotation);
+
+                float radiusXWithPadding = radiusX + 0.65f;
+                float radiusZWithPadding = radiusZ + 0.65f;
+                float verticalPadding = verticalRadius + 0.75f;
+
+                int waterSurface = CustomMathf.Clamp(centerY + Utilitys.RandomInteger(-1, 2), 3, subWorldSize.SizeY - 4);
+                int waterFloor = CustomMathf.Max(1, waterSurface - Utilitys.RandomInteger(verticalRadius + 2, verticalRadius + 5));
+
+                for (int offsetX = -radiusX - 3; offsetX <= radiusX + 3; offsetX++)
                 {
-                    for (int z = -lakeWidth / 2; z <= lakeWidth / 2; z++)
+                    for (int offsetZ = -radiusZ - 3; offsetZ <= radiusZ + 3; offsetZ++)
                     {
-                        for (int y = 0; y < lakeDepth; y++)
+                        int worldX = centerX + offsetX;
+                        int worldZ = centerZ + offsetZ;
+                        if (!WorldGenerateUtils.CheckSubWorldBoundary(worldX, 0, worldZ, subWorldSize))
                         {
-                            int worldX = lakeX + x;
-                            int worldY = lakeY + y;
-                            int worldZ = lakeZ + z;
-                            
-                            if (worldX >= 0 && worldX < subWorldSize.SizeX &&
-                                worldY >= 0 && worldY < subWorldSize.SizeY &&
-                                worldZ >= 0 && worldZ < subWorldSize.SizeZ)
+                            continue;
+                        }
+
+                        float rotatedX = offsetX * cos - offsetZ * sin;
+                        float rotatedZ = offsetX * sin + offsetZ * cos;
+                        float horizontal = CustomMathf.Sqrt(
+                            (rotatedX * rotatedX) / (radiusXWithPadding * radiusXWithPadding) +
+                            (rotatedZ * rotatedZ) / (radiusZWithPadding * radiusZWithPadding));
+
+                        if (horizontal > 1.45f)
+                        {
+                            continue;
+                        }
+
+                        for (int offsetY = -verticalRadius - 2; offsetY <= verticalRadius + 2; offsetY++)
+                        {
+                            int worldY = centerY + offsetY;
+                            if (worldY <= 1 || worldY >= subWorldSize.SizeY - 2)
                             {
-                                float distance = CustomMathf.Sqrt(x * x + z * z);
-                                if (distance <= lakeWidth / 2)
+                                continue;
+                            }
+
+                            float verticalNormalized = CustomMathf.Abs(offsetY) / verticalPadding;
+                            float sdf = CustomMathf.Sqrt(horizontal * horizontal + verticalNormalized * verticalNormalized) - 1.0f;
+
+                            if (sdf <= 0.1f)
+                            {
+                                if (worldY < waterFloor - 1)
                                 {
-                                    // 호수 바닥 생성
+                                    subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                                }
+                                else if (worldY == waterFloor - 1)
+                                {
+                                    subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.SAND;
+                                }
+                                else if (worldY <= waterSurface)
+                                {
+                                    subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.WATER;
+                                }
+                                else
+                                {
                                     subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
-                                    
-                                    // 물 채우기
-                                    if (y < lakeDepth - 1)
-                                    {
-                                        subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.WATER;
-                                    }
+                                }
+                            }
+                            else if (sdf <= 0.35f)
+                            {
+                                if (worldY <= waterSurface)
+                                {
+                                    subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                                }
+                                else
+                                {
+                                    subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.SAND;
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+        
+        private static void CreateVerticalShaft(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int startX, int startY, int startZ, int radius, int length, int direction, bool fillWithWater)
+        {
+            int steps = CustomMathf.Max(1, length);
+            for (int step = 0; step < steps; step++)
+            {
+                int currentY = startY + step * direction;
+                if (currentY <= 1 || currentY >= subWorldSize.SizeY - 2)
+                {
+                    break;
+                }
+
+                CarveTunnelSegment(subWorldBlockData, subWorldSize, startX, currentY, startZ, radius);
+
+                if (fillWithWater && direction < 0 && step >= steps - 2)
+                {
+                    subWorldBlockData[startX, currentY, startZ].CurrentType = (byte)BlockTileType.WATER;
+                }
+            }
+        }
+
+        private static void CreateCavePool(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int centerX, int centerY, int centerZ, int radius)
+        {
+            for (int offsetX = -radius; offsetX <= radius; offsetX++)
+            {
+                for (int offsetZ = -radius; offsetZ <= radius; offsetZ++)
+                {
+                    int worldX = centerX + offsetX;
+                    int worldZ = centerZ + offsetZ;
+                    if (!WorldGenerateUtils.CheckSubWorldBoundary(worldX, centerY, worldZ, subWorldSize))
+                    {
+                        continue;
+                    }
+
+                    float distance = CustomMathf.Sqrt(offsetX * offsetX + offsetZ * offsetZ);
+                    if (distance > radius)
+                    {
+                        continue;
+                    }
+
+                    int floorY = CustomMathf.Max(1, centerY - 1);
+                    subWorldBlockData[worldX, floorY, worldZ].CurrentType = (byte)BlockTileType.SAND;
+
+                    subWorldBlockData[worldX, centerY, worldZ].CurrentType = (byte)BlockTileType.WATER;
+
+                    if (centerY + 1 < subWorldSize.SizeY)
+                    {
+                        subWorldBlockData[worldX, centerY + 1, worldZ].CurrentType = (byte)BlockTileType.EMPTY;
                     }
                 }
             }

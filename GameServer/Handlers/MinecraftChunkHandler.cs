@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using Google.Protobuf;
 
 namespace GameServerApp.Handlers
 {
@@ -74,6 +75,120 @@ namespace GameServerApp.Handlers
             }
         }
 
+        private bool TryParseEnhancedChunkLoadRequest(byte[] messageData, out EnhancedMinecraftProtocol.ChunkLoadRequest? request)
+        {
+            try
+            {
+                request = EnhancedMinecraftProtocol.ChunkLoadRequest.Parser.ParseFrom(messageData);
+                if (request.ChunkPositions.Count == 0)
+                {
+                    request = null;
+                    return false;
+                }
+                return true;
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                request = null;
+                return false;
+            }
+        }
+
+        private async Task HandleEnhancedChunkRequestAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadRequest request)
+        {
+            var playerId = session.UserName ?? string.Empty;
+            var playerState = string.IsNullOrWhiteSpace(playerId) ? null : _sessions.GetPlayerState(playerId);
+            if (playerState == null)
+            {
+                if (request.ChunkPositions.Count > 0)
+                {
+                    var first = request.ChunkPositions[0];
+                    await SendErrorResponse(session, first.X, first.Z, "플레이어 상태를 찾을 수 없습니다.");
+                }
+                return;
+            }
+
+            var totalRequested = Math.Max(1, request.ChunkPositions.Count);
+            var requestedViewDistance = request.ViewDistance > 0 ? request.ViewDistance : _worldSettings.ChunkLoadRadius;
+            foreach (var position in request.ChunkPositions)
+            {
+                await HandleSingleChunkAsync(session, playerId, playerState, position.X, position.Z, requestedViewDistance, totalRequested);
+            }
+        }
+
+        private async Task HandleLegacyChunkRequestAsync(Session session, ChunkDataRequestMessage chunkRequest)
+        {
+            var playerId = session.UserName ?? string.Empty;
+            var playerState = string.IsNullOrWhiteSpace(playerId) ? null : _sessions.GetPlayerState(playerId);
+            if (playerState == null)
+            {
+                await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "플레이어 상태를 찾을 수 없습니다.");
+                return;
+            }
+
+            var viewDistance = chunkRequest.ViewDistance > 0 ? chunkRequest.ViewDistance : _worldSettings.ChunkLoadRadius;
+            await HandleSingleChunkAsync(session, playerId, playerState, chunkRequest.ChunkX, chunkRequest.ChunkZ, viewDistance, totalRequested: 1);
+        }
+
+        private async Task<bool> HandleSingleChunkAsync(Session session, string playerId, PlayerState playerState, int chunkX, int chunkZ, int viewDistance, int totalRequested)
+        {
+            if (string.IsNullOrWhiteSpace(playerId))
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "Unauthenticated session");
+                return false;
+            }
+
+            var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
+            var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
+            var distance = Math.Max(Math.Abs(chunkX - playerChunkX), Math.Abs(chunkZ - playerChunkZ));
+
+            if (distance > viewDistance)
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "요청된 청크가 시야 거리를 벗어났습니다.");
+                return false;
+            }
+
+            var chunkResult = await LoadOrGenerateChunkPayload(chunkX, chunkZ);
+            if (chunkResult == null)
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "Unable to load chunk data.");
+                return false;
+            }
+
+            var (compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
+            var alreadyServed = HasPlayerLoadedChunk(playerId, chunkX, chunkZ);
+
+            var entities = await _worldManager.GetEntitiesInChunk(chunkX, chunkZ);
+
+            var response = new ChunkDataResponseMessage
+            {
+                ChunkX = chunkX,
+                ChunkZ = chunkZ,
+                Success = true,
+                CompressedBlockData = compressedBlockData,
+                Entities = entities.Select(ConvertToEntityInfo).ToList(),
+                BiomeData = biomeInfo,
+                IsFromCache = isFromStorage || alreadyServed
+            };
+
+            var generationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var enhancedResponse = ChunkPayloadBuilder.BuildLoadResponse(
+                chunkX,
+                chunkZ,
+                compressedBlockData,
+                biomeBytes,
+                generationTimestamp,
+                totalRequested);
+            response.EnhancedPayload = enhancedResponse.ToByteArray();
+
+            ChunkPayloadBuilder.ValidateChunkPayload(chunkX, chunkZ, compressedBlockData, biomeBytes);
+            await SendChunkResponse(session, response);
+
+            await UpdatePlayerLoadedChunks(playerId, chunkX, chunkZ, viewDistance);
+
+            Console.WriteLine($"청크 [{chunkX}, {chunkZ}] 데이터를 플레이어 {playerId}에게 전송 완료");
+            return true;
+        }
         async Task IMinecraftMessageHandler.HandleAsync(Session session, byte[] messageData)
         {
             using var stream = new MemoryStream(messageData);
@@ -93,61 +208,15 @@ namespace GameServerApp.Handlers
         {
             try
             {
-                var chunkRequest = ProtoBuf.Serializer.Deserialize<ChunkDataRequestMessage>(new MemoryStream(messageData));
-                
-                var playerState = _sessions.GetPlayerState(session.UserName!);
-                if (playerState == null)
+                if (TryParseEnhancedChunkLoadRequest(messageData, out var enhancedRequest))
                 {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "플레이어 상태를 찾을 수 없습니다.");
+                    await HandleEnhancedChunkRequestAsync(session, enhancedRequest!);
                     return;
                 }
 
-                // 플레이어의 현재 위치와 요청된 청크의 거리 확인
-                var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
-                var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
-                var distance = Math.Max(Math.Abs(chunkRequest.ChunkX - playerChunkX), Math.Abs(chunkRequest.ChunkZ - playerChunkZ));
-
-                if (distance > chunkRequest.ViewDistance)
-                {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "요청된 청크가 시야 거리를 벗어났습니다.");
-                    return;
-                }
-
-                // 청크 데이터 로드 또는 생성
-                var chunkResult = await LoadOrGenerateChunkPayload(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                if (chunkResult == null)
-                {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "Unable to load chunk data.");
-                    return;
-                }
-
-                var (compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
-                var alreadyServed = HasPlayerLoadedChunk(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
-
-                var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-
-                var response = new ChunkDataResponseMessage
-                {
-                    ChunkX = chunkRequest.ChunkX,
-                    ChunkZ = chunkRequest.ChunkZ,
-                    Success = true,
-                    CompressedBlockData = compressedBlockData,
-                    Entities = entities.Select(ConvertToEntityInfo).ToList(),
-                    BiomeData = biomeInfo,
-                    IsFromCache = isFromStorage || alreadyServed
-                };
-
-                ChunkPayloadBuilder.ValidateChunkPayload(
-                    response.ChunkX,
-                    response.ChunkZ,
-                    response.CompressedBlockData,
-                    biomeBytes);
-                await SendChunkResponse(session, response);
-
-                await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ, chunkRequest.ViewDistance);
-
-                Console.WriteLine($"청크 [{chunkRequest.ChunkX}, {chunkRequest.ChunkZ}] 데이터를 플레이어 {session.UserName}에게 전송 완료");
-
+                using var stream = new MemoryStream(messageData);
+                var chunkRequest = ProtoBuf.Serializer.Deserialize<ChunkDataRequestMessage>(stream);
+                await HandleLegacyChunkRequestAsync(session, chunkRequest);
             }
             catch (Exception ex)
             {

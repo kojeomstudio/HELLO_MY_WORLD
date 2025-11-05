@@ -90,6 +90,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - See `docs/networking-protocol.md` for details, message type IDs, and client integration notes.
 - Container messages now carry `container_type` and `snapshot_hash` fields so clients can validate diffs and request full resyncs on hash mismatches.
 - Clients now emit `ChunkUnloadNotificationMessage` when dropping chunks and await `ChunkUnloadAcknowledgeMessage` so the server can free residency immediately.
+- `ChunkDataResponseMessage` now includes an `EnhancedPayload` field containing the serialized `EnhancedMinecraftProtocol.ChunkLoadResponse`, and the server accepts batched `ChunkLoadRequest` messages alongside the legacy single-chunk request for backwards compatibility.
 - After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
 
 ## Time & Weather Systems

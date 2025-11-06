@@ -23,11 +23,12 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Documents/` – design documents and guides (`Project_PDD.md`).
 - `Packages/` – Unity package manifest listing engine dependencies.
 - `proto/` – Protobuf IDL files compiled into C# under `Assets/Generated/Protobuf`.
-- `docs/` – networking overview and protocol notes.
+- `docs/` – networking overview, protocol notes, and the Minecraft feature workplan (`docs/minecraft_feature_plan.md`).
 - `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-11-03: Hydrology tuning adds riverbank erosion, lake outflows, and cross-platform cave detail; see docs/minecraft_feature_plan.md for the updated backlog and linkage notes.
 - 2025-10-31: World chunks now stream from the shared WorldManager pipeline with enhanced river/lake generation; see docs/minecraft_feature_worldgen_alignment.md for the rollout.
 - 2025-10-27: Unity remote avatars now snap to respawn coordinates as soon as PlayerRespawn broadcasts arrive, keeping death feed messaging and entity state in sync (Task-19B / see docs/minecraft_feature_execution.md).
 - 2025-10-26: Combat event broadcasts now drive the Unity CombatFeedbackUI damage feed (Task-15A/B). Track next steps in docs/minecraft_feature_execution.md (Task-15C).

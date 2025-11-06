@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
+using SharedProtocol.EnhancedMinecraft;
+
 namespace SharedProtocol
 {
     /// <summary>
@@ -25,6 +27,10 @@ namespace SharedProtocol
             where T : class
         {
             _handlers[messageType] = handler;
+            if (!ProtocolRegistry.IsRegistered(messageType))
+            {
+                Console.WriteLine($"[MinecraftDispatcher] EnhancedMinecraft protocol registry has no entry for '{messageType}'.");
+            }
         }
 
         /// <summary>

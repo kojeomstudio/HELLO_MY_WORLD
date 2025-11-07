@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp;
 
@@ -143,6 +144,8 @@ public static class ServerLauncher
 
         try
         {
+            ProtocolValidator.ValidateEnhancedContracts();
+
             var config = ServerConfig.LoadFromFile();
             var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 

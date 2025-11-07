@@ -1,26 +1,26 @@
-# Minecraft World-Generation & Protocol Alignment Checklist (2025-10-30)
+# Minecraft World-Generation & Protocol Alignment Checklist (2025-11-06)
 
-This session delivers the outstanding Minecraft-style features that affect both the Unity client and the .NET server. The table lists the required capabilities, their client/server responsibilities, and the execution order we are following.
+This session extends the cross-team checklist so both the Unity tooling (`MapGeneratorLib`) and the .NET server (`WorldManager`) implement the same Minecraft-style terrain primitives while sharing a verifiable protobuf contract. Client and server responsibilities remain paired so future work can execute sequentially without rediscovery.
 
-| Step | Feature | Server Responsibilities | Client Responsibilities | Status |
-|------|---------|-------------------------|-------------------------|--------|
-| 1 | Enhanced Cave Network | Generate cross-chunk worm & noise caves, persist lava/water pockets, expose metadata | Rebuild chunk meshes with cavern hollows, stream lighting hints | Complete (2025-10-31) |
-| 2 | River Continuity & Banks | Carve meandering rivers, smooth gradients across chunk seams, emit sandbank layers | Render water surfaces, blend shoreline materials, play ambient FX | Complete (2025-10-31) |
-| 3 | Inland Lake Formation | Detect inland basins, flood-fill water to sampled level, decorate banks | Flatten vertex normals, spawn water/shore FX, prepare lily-pad props | Complete (2025-10-31) |
-| 4 | Chunk Payload Validation | Serialize chunk payloads through `EnhancedMinecraftProtocol` descriptors, ensure parity with legacy payloads | Accept enhanced payloads (future), log validation warnings | Complete (2025-10-31) |
+| Step | Feature | Server Responsibilities | Client/Tooling Responsibilities | Status |
+|------|---------|-------------------------|----------------------------------|--------|
+| 1 | Hydrology-Driven River Systems | Introduce slope/valley hydrology masks, blend noise flow with terrain gradients, erode banks with adjusted intensity | Mirror hydrology masks in `WorldGenAlgorithms`, bias river carving & previews | Complete (2025-11-06) |
+| 2 | Inland Lake Formation & Outflow | Gate lakes by hydrology, bias depth/size, auto-link to nearest river channels | Apply same gating to tooling so Unity scenes preview river-fed lakes | Complete (2025-11-06) |
+| 3 | Multi-Frequency Noise Caves | Domain-warp cave noise, add ridged detail + aquifer bias, keep lava/water aquifers consistent across chunks | Upgrade `MapGeneratorLib` noise caves so offline previews match server output | Complete (2025-11-06) |
+| 4 | Protobuf Contract Validation | Validate `EnhancedMinecraftGame` descriptors & registry entries at launch, guard chunk payload fields | SharedProtocol links generated assets; Unity regenerations reuse the same source files | Complete (2025-11-06) |
 
 ## Sequential Execution Plan
-1. ✅ Capture baseline behaviour (chunk residency metrics, current cave/river/lake output) for regression comparison.
-2. ✅ Apply cave/river/lake algorithm refinements inside `WorldManager` and `MapGeneratorLib`, focusing on cross-chunk continuity and shoreline smoothing.
-3. ✅ Link the generated `EnhancedMinecraftProtocol` contracts into `SharedProtocol`, build chunk payload validators, and run against the refined generator.
-4. ☐ Update Unity client notes and tooling once validation passes so engine consumers can migrate to the shared contracts.
-
+1. ✅ Build reusable surface-height caches and hydrology masks so both the server and tooling can weight rivers/lakes by slope, elevation, and humidity.
+2. ✅ Apply the masks to river generation (channel thresholds, bank erosion, flow vectors) and lake formation (spawn weights, channel linking) across `WorldManager` and `WorldGenAlgorithms`.
+3. ✅ Refresh the noise-cave pass with domain-warped samples, layered ridged detail, and aquifer-aware thresholds to keep water/lava pockets deterministic across chunk seams.
+4. ✅ Add `ProtocolValidator.ValidateEnhancedContracts()` to the server bootstrap so regenerated protobuf assets are verified before accepting player traffic.
 
 ## Session Outcomes
-- Server now streams chunk data directly from WorldManager's generation pipeline, removing the legacy noise stub and preserving database-backed chunks.
-- MapGeneratorLib mirrors the server river and surface lake rules so Unity tooling previews match live terrain, including sandbank smoothing and meandering watercourses.
-- SharedProtocol consumes all generated Protobuf descriptors (Enhanced + legacy message sets) to keep client and server contracts aligned.
+- River carving now uses blended noise + slope vectors, reducing jagged seams and aligning Unity previews with server terrain. Hydrology masks also drive shoreline feathering and erosion strength.
+- Lakes only form in low-lying, wet basins; their depth, radius, and lake-to-river channels are derived from the same hydrology field on both implementations.
+- Noise caves gained higher-frequency ridges, vertical strata fades, and aquifer bias so magma/water pockets appear predictably without duplicated tuning per codebase.
+- A lightweight protobuf validator ensures the generated `EnhancedMinecraftProtocol` descriptors (notably `ChunkData`) contain the required fields and that `ProtocolRegistry` registrations stay in sync.
 
 ## Notes
-- World-generation tuning constants live under `GameServer/World/WorldManager.cs`; Unity simulators in `MapGeneratorLib` mirror the same offsets so offline tooling stays authoritative.
-- Chunk payload validation never alters the on-wire format for this session—it ensures parity so that the client migration can proceed as a follow-up.
+- `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs` is invoked during server startup; rerun `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` whenever proto files change so the validator can enforce the required fields.
+- Unity tooling should refresh `MapGeneratorLib` assemblies after pulling these changes to keep chunk previews identical to the authoritative server output.

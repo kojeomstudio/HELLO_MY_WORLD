@@ -82,15 +82,40 @@ public abstract class BehaviorTree
     protected IEnumerator BehaviorProcess()
     {
         KojeomLogger.DebugLog("BehaviorProcess Start!!");
+
+        // AI LOD Manager에 등록
+        if (AILODManager.Instance != null)
+        {
+            AILODManager.Instance.RegisterActor(ActorControllerInstance, this);
+        }
+
         while(bRunningBT == true)
         {
             bool bContactTerrainOrWater = ActorControllerInstance.IsContactTerrain() == true || ActorControllerInstance.IsContactWater() == true;
             if (ActorControllerInstance != null && bContactTerrainOrWater == true)
             {
-                if(RootNode != null) RootNode.Invoke(Time.deltaTime);
+                // AI LOD 체크 - LOD Manager가 있으면 업데이트 여부 확인
+                bool shouldUpdate = true;
+                if (AILODManager.Instance != null)
+                {
+                    shouldUpdate = AILODManager.Instance.ShouldUpdate(ActorControllerInstance);
+                }
+
+                // LOD에 따라 업데이트
+                if (shouldUpdate && RootNode != null)
+                {
+                    RootNode.Invoke(Time.deltaTime);
+                }
             }
             yield return null;
         }
+
+        // AI LOD Manager에서 등록 해제
+        if (AILODManager.Instance != null)
+        {
+            AILODManager.Instance.UnregisterActor(ActorControllerInstance);
+        }
+
         KojeomLogger.DebugLog("Behavior process exit");
     }
     public void StartBT()
@@ -102,7 +127,16 @@ public abstract class BehaviorTree
     public void StopBT()
     {
         bRunningBT = false;
-        ActorControllerInstance.StopCoroutine(BehaviorProcessInstance);
+        if (BehaviorProcessInstance != null)
+        {
+            ActorControllerInstance.StopCoroutine(BehaviorProcessInstance);
+        }
+
+        // AI LOD Manager에서 등록 해제
+        if (AILODManager.Instance != null)
+        {
+            AILODManager.Instance.UnregisterActor(ActorControllerInstance);
+        }
     }
 
     public BlackBoard GetBlackBoard()

@@ -5,6 +5,19 @@
 - `ARCHITECTURE_IMPROVEMENT_PLAN.md` - 전체 계획
 - `PROJECT_REVIEW_REPORT.md` - 현재 상태 분석
 - `CRITICAL_IMPROVEMENTS.md` - Critical 이슈 해결
+- `UNITY_COMPATIBILITY.md` - Unity 6 호환성 가이드 ⭐ NEW
+
+---
+
+## 🎯 Unity 6 호환성
+
+**프로젝트 환경**:
+- **Unity 버전**: 6000.0.23f1 (Unity 6)
+- **API Compatibility Level**: .NET Standard 2.1
+- **GameCommon 타겟**: .NET Standard 2.1
+- **C# 버전**: 9.0
+
+**중요**: GameCommon 라이브러리는 Unity 6와 완벽하게 호환됩니다. .NET Standard 2.1은 Unity 공식 권장사항입니다. 자세한 내용은 `UNITY_COMPATIBILITY.md`를 참조하세요.
 
 ---
 

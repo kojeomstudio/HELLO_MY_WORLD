@@ -235,22 +235,73 @@ public class BTNodeAttack : Node
         bb.LastAttackTime = Time.time;
 
         // 공격 애니메이션 재생
-        Controller.PlayAnimation("Attack"); // TODO: 실제 애니메이션 이름으로 변경
+        PlayAttackAnimation();
 
         KojeomLogger.DebugLog($"[AI] {Controller.name} attacks {bb.CurrentTarget.name}");
 
         return true;
     }
 
+    private void PlayAttackAnimation()
+    {
+        // ActorAnimationController 사용
+        ActorAnimationController animController = Controller.GetComponent<ActorAnimationController>();
+        if (animController != null)
+        {
+            animController.PlayAnimation(ActorAnimationType.MeleeAttack);
+        }
+        else
+        {
+            // Fallback: 기존 방식
+            Controller.PlayAnimation("Attack");
+        }
+    }
+
     private void PerformAttack(GameObject target)
     {
-        // TODO: 실제 데미지 처리 시스템과 연동
-        // 현재는 로그만 출력
+        // 타겟의 Actor 컴포넌트 가져오기
+        ActorController targetController = target.GetComponent<ActorController>();
+        if (targetController != null)
+        {
+            Actor targetActor = targetController.GetActorInstance();
+            Actor attackerActor = Controller.GetActorInstance();
 
-        // 서버로 공격 메시지 전송 (향후 구현)
-        // NetworkManager.SendAttackMessage(target);
+            if (targetActor != null && attackerActor != null)
+            {
+                // 데미지 계산 (공격자의 AttackPoint 사용)
+                int damage = CalculateDamage(attackerActor, targetActor);
 
-        KojeomLogger.DebugLog($"[Combat] Dealing damage to {target.name}");
+                // 타겟에게 데미지 적용
+                targetActor.TakeDamage(damage, attackerActor);
+
+                KojeomLogger.DebugLog($"[Combat] {attackerActor.name} dealt {damage} damage to {targetActor.name}");
+
+                // TODO: 서버로 공격 메시지 전송 (향후 구현)
+                // NetworkManager.SendAttackMessage(attackerActor.GetNetID(), targetActor.GetNetID(), damage);
+            }
+            else
+            {
+                KojeomLogger.DebugLog($"[Combat] Failed to get Actor components for combat");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 데미지 계산 (공격력, 방어력 등 고려)
+    /// </summary>
+    private int CalculateDamage(Actor attacker, Actor target)
+    {
+        // 기본 데미지 = 공격자의 공격력
+        int baseDamage = attacker.AttackPoint;
+
+        // 랜덤 변동 (±20%)
+        float randomFactor = Random.Range(0.8f, 1.2f);
+        int finalDamage = Mathf.RoundToInt(baseDamage * randomFactor);
+
+        // 최소 데미지 보장
+        finalDamage = Mathf.Max(1, finalDamage);
+
+        return finalDamage;
     }
 }
 

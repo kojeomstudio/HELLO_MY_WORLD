@@ -1,0 +1,88 @@
+{
+  "WorldName": "HELLO_MY_WORLD",
+  "Seed": 0,
+  "GameMode": "survival",
+  "WorldHeight": 256,
+  "ChunkSize": 16,
+  "RenderDistance": 10,
+  "SimulationDistance": 8,
+  "TerrainGeneration": {
+    "SeaLevel": 62,
+    "BedrockLevel": 5,
+    "NoiseScale": 100.0,
+    "NoiseAmplitude": 50.0,
+    "Octaves": 4,
+    "Persistence": 0.5,
+    "Lacunarity": 2.0,
+    "BiomeScale": 0.005,
+    "TemperatureScale": 0.003,
+    "HumidityScale": 0.004,
+    "MountainThreshold": 0.6,
+    "MountainMaxHeight": 200,
+    "PlainBaseHeight": 64
+  },
+  "Water": {
+    "GlobalWaterLevel": 62,
+    "RiverCenterThreshold": 0.0125,
+    "RiverBankThreshold": 0.028,
+    "RiverNoiseScale": 0.015,
+    "RiverDepth": 5,
+    "EnableOceans": true,
+    "EnableRivers": true
+  },
+  "Caves": {
+    "EnableCaves": true,
+    "CaveDensity": 0.3,
+    "CaveNoiseScale": 0.05,
+    "CaveThreshold": 0.6,
+    "MinCaveHeight": 5,
+    "MaxCaveHeight": 128
+  },
+  "Ores": {
+    "EnableOreGeneration": true,
+    "Coal": {
+      "MinHeight": 5,
+      "MaxHeight": 128,
+      "VeinSize": 17,
+      "VeinsPerChunk": 20
+    },
+    "Iron": {
+      "MinHeight": 5,
+      "MaxHeight": 64,
+      "VeinSize": 9,
+      "VeinsPerChunk": 20
+    },
+    "Gold": {
+      "MinHeight": 5,
+      "MaxHeight": 32,
+      "VeinSize": 9,
+      "VeinsPerChunk": 2
+    },
+    "Diamond": {
+      "MinHeight": 5,
+      "MaxHeight": 16,
+      "VeinSize": 8,
+      "VeinsPerChunk": 1
+    },
+    "Redstone": {
+      "MinHeight": 5,
+      "MaxHeight": 16,
+      "VeinSize": 8,
+      "VeinsPerChunk": 8
+    },
+    "Lapis": {
+      "MinHeight": 5,
+      "MaxHeight": 32,
+      "VeinSize": 7,
+      "VeinsPerChunk": 1
+    }
+  },
+  "Structures": {
+    "EnableTrees": true,
+    "TreeDensity": 0.05,
+    "EnableVillages": false,
+    "EnableMineshafts": false,
+    "EnableDungeons": true,
+    "DungeonChance": 0.01
+  }
+}

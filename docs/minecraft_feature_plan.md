@@ -17,7 +17,7 @@ This document enumerates the client and server level capabilities that are requi
 | P1 | Entity Synchronization | Spawn/Despawn/Movement broadcast | Implemented | `GameServer/Systems/EntitySyncService.cs` | Confirm proto usage for entity payload |
 | P1 | Inventory & Crafting | Snapshot persistence, crafting rules | Implemented | `GameServer/Handlers/InventoryHandler.cs`, `GameServer/Handlers/CraftingHandler.cs` | Add protobuf-backed inventory updates |
 | P1 | Environment Simulation | Time, weather, biome-aware updates | Implemented | `GameServer/Systems/WorldTimeSystem.cs`, `GameServer/Systems/WeatherSystem.cs` | Integrate client notifications |
-| P1 | Procedural Structures | Trees, lakes, caves, rivers, dungeons | Implemented (needs tuning) | `MapGeneratorLib/...`, `WorldManager` stages | Improve noise/erosion heuristics |
+| P1 | Procedural Structures | Trees, lakes, caves, rivers, dungeons | Implemented w/ hydrology-weighted rivers & basin-aware lakes (2025-11-07) | `MapGeneratorLib/...`, `WorldManager` stages | Monitor catchment tuning + sediment smoothing |
 | P2 | Metrics & Maintenance | Health checks, chunk eviction, backups | Implemented | `GameServer/Systems/ServerMetricsService.cs`, `GameServer/GameServer.cs` | Automate reporting |
 | P2 | Chat & Social | Room management, chat dispatch | Implemented | `GameServer/Handlers/ChatHandler.cs`, `GameServer/Room` | Extend moderation hooks |
 
@@ -25,7 +25,7 @@ This document enumerates the client and server level capabilities that are requi
 | Priority | Feature | Description | Status | Owner System / File(s) | Next Action |
 |---|---|---|---|---|---|
 | P0 | Networking Core | Connect/disconnect, heartbeat, reconnection | Implemented | `Assets/MyAssets/Scripts/Network/GameNetworkManager.cs` | Ensure protobuf channel integration |
-| P0 | Chunk Streaming & Rendering | Request chunks, mesh generation, culling | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/InstancingHelper.cs` | Consume enhanced chunk payload |
+| P0 | Chunk Streaming & Rendering | Request chunks, mesh generation, culling | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/InstancingHelper.cs` | Enhanced protobuf metadata parsed on client; monitor mesh rebuild timings |
 | P0 | Block Interaction | Place/destroy blocks, durability feedback | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/Player/...` | Align with server action protocol |
 | P0 | Player Control | Movement, camera, input mapping | Implemented | `Assets/MyAssets/Scripts/Input/...`, `Assets/MyAssets/Scripts/Player/...` | Verify physics sync with server |
 | P1 | Inventory UI | Hotbar, crafting grid, tooltips | Implemented | `Assets/MyAssets/Scripts/UI/...`, `Assets/MyAssets/Scripts/GameMode/...` | Add protobuf-driven updates |
@@ -35,16 +35,17 @@ This document enumerates the client and server level capabilities that are requi
 | P2 | Diagnostics & Telemetry | Performance HUD, logging hooks | Partial | `Assets/MyAssets/Scripts/Utility/...`, `docs/` | Define protobuf diagnostics channel |
 
 ## 4. Sequential Implementation Roadmap
-1. **Terrain Algorithm Enhancements** – Update cave, river, and lake generation heuristics on both the dedicated server (`WorldManager` stages) and shared generator (`MapGeneratorLib`) to produce richer formations and fewer artifacts. *(Completed 2025-11-03: added riverbank erosion, lake outflows, and dripstone pillars.)*  
+1. **Terrain Algorithm Enhancements** – Update cave, river, and lake generation heuristics on both the dedicated server (`WorldManager` stages) and shared generator (`MapGeneratorLib`) to produce richer formations and fewer artifacts. *(Completed 2025-11-07: catchment-weighted rivers, basin-stability lakes, and refreshed noise caves.)*  
    - Deliverables: tuned noise parameters, erosion passes, improved flood-fill stability.
-2. **Protobuf Contract Audit** – Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(In progress: `ProtocolRegistry` now guards chunk message mappings.)*
-3. **Client Integration Updates** – Adjust Unity client systems to consume the enhanced protobuf payloads for chunk data, block updates, and entity events.
+2. **Protobuf Contract Audit** – Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(Enhanced chunk metadata decoder landed 2025-11-07; legacy message sweep still in progress.)*
+3. **Client Integration Updates** – Adjust Unity client systems to consume the enhanced protobuf payloads for chunk data, block updates, and entity events. *(Unity now parses enhanced chunk payload metadata for residency + diagnostics.)*
 4. **Documentation & Tooling** – Update README and protocol docs to describe the data flow, regeneration commands, and testing recipes.
 5. **Validation Pipeline** – Run `dotnet build`, `dotnet test`, and targeted smoke checks; document any Unity-specific validation requirements.
 
 ## 5. Validation Checklist
 - [ ] Terrain generation stages produce deterministic caves, rivers, and lakes across seeds.
 - [ ] All protobuf messages referenced via `using` directives resolve to existing types in SharedProtocol or generated assets.
+- [x] Enhanced chunk payload metadata is parsed on the client and cross-checked against legacy chunk responses.
 - [ ] Client and server feature matrices remain synchronized after each change (update this document as features evolve).
 - [ ] README includes latest build/test instructions when modifications impact developer workflow.
 

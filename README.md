@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-11-07: Flow-accumulation rivers/lakes plus enhanced chunk metadata decoding landed. Catchment-weighted carving now runs in both `WorldManager` and `MapGeneratorLib`, and the Unity client logs/records EnhancedMinecraft protobuf payloads (see docs/minecraft_feature_worldgen_alignment.md & docs/minecraft_feature_plan.md).
 - 2025-11-06: Hydrology-driven rivers/lakes, updated multi-frequency noise caves, and the runtime protobuf validator landed; see docs/minecraft_feature_worldgen_alignment.md for details.
 - 2025-11-03: Hydrology tuning adds riverbank erosion, lake outflows, and cross-platform cave detail; see docs/minecraft_feature_plan.md for the updated backlog and linkage notes.
 - 2025-10-31: World chunks now stream from the shared WorldManager pipeline with enhanced river/lake generation; see docs/minecraft_feature_worldgen_alignment.md for the rollout.

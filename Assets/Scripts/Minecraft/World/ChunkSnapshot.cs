@@ -1,10 +1,35 @@
 using System;
+using System;
 using System.Collections.Generic;
+using EnhancedMinecraftProtocol;
 using SharedProtocol;
 using UnityEngine;
 
 namespace Minecraft.World
 {
+    public readonly struct EnhancedChunkMetadata
+    {
+        public static readonly EnhancedChunkMetadata Empty = new EnhancedChunkMetadata(0, 0, 0, 0, 0, null);
+
+        public EnhancedChunkMetadata(long generationTimestamp, int totalRequested, int totalSent, int blockBytes, int biomeBytes, ChunkData? chunkData)
+        {
+            GenerationTimestamp = generationTimestamp;
+            TotalRequested = totalRequested;
+            TotalSent = totalSent;
+            BlockBytes = blockBytes;
+            BiomeBytes = biomeBytes;
+            ChunkData = chunkData;
+        }
+
+        public long GenerationTimestamp { get; }
+        public int TotalRequested { get; }
+        public int TotalSent { get; }
+        public int BlockBytes { get; }
+        public int BiomeBytes { get; }
+        public ChunkData? ChunkData { get; }
+        public bool HasEnhancedData => ChunkData != null;
+    }
+
     /// <summary>
     /// Client-side representation of a chunk with decoded block data.
     /// Stores raw block ids (16x256x16) along with biome and entity metadata.
@@ -17,7 +42,7 @@ namespace Minecraft.World
 
         private readonly byte[] _blocks;
 
-        public ChunkSnapshot(int chunkX, int chunkZ, byte[] blocks, BiomeInfo biome, IReadOnlyList<EntityInfo> entities, bool isFromCache)
+        public ChunkSnapshot(int chunkX, int chunkZ, byte[] blocks, BiomeInfo biome, IReadOnlyList<EntityInfo> entities, bool isFromCache, EnhancedChunkMetadata metadata)
         {
             ChunkX = chunkX;
             ChunkZ = chunkZ;
@@ -30,6 +55,7 @@ namespace Minecraft.World
             Biome = biome;
             Entities = entities ?? Array.Empty<EntityInfo>();
             IsFromCache = isFromCache;
+            EnhancedMetadata = metadata;
         }
 
         public int ChunkX { get; }
@@ -37,6 +63,7 @@ namespace Minecraft.World
         public BiomeInfo Biome { get; }
         public IReadOnlyList<EntityInfo> Entities { get; }
         public bool IsFromCache { get; }
+        public EnhancedChunkMetadata EnhancedMetadata { get; }
 
         public byte[] Blocks => _blocks;
 

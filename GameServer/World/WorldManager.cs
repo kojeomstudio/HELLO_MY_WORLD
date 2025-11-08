@@ -571,6 +571,7 @@ namespace GameServerApp.World
         {
             int baseX = context.ChunkX * 16;
             int baseZ = context.ChunkZ * 16;
+            var surfaceCache = BuildSurfaceCache(chunk);
 
             for (int x = 0; x < 16; x++)
             {
@@ -586,6 +587,8 @@ namespace GameServerApp.World
                     double horizontalNoise = SimplexNoise.Generate(warpedX, warpedZ, NoiseCaveHorizontalFrequency, 4, 1.0, 0.55, 640371);
                     double secondaryNoise = SimplexNoise.Generate(warpedX * 1.35, warpedZ * 1.35, NoiseCaveHorizontalFrequency * 1.6, 2, 1.0, 0.5, 93217);
                     double ridged = SampleRidgedNoise(warpedX * 0.85, warpedZ * 0.85, NoiseCaveHorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
+                    double striation = SimplexNoise.Generate(warpedX * 0.9, warpedZ * 0.9, NoiseCaveHorizontalFrequency * 1.1, 2, 1.0, 0.55, 128713) - 0.5;
+                    double flowNoise = SimplexNoise.Generate(warpedX * 0.25 + 37.1, warpedZ * 0.25 - 11.4, NoiseCaveHorizontalFrequency * 0.4, 2, 1.0, 0.6, 87121) - 0.5;
 
                     for (int y = 8; y < 120; y++)
                     {
@@ -594,15 +597,25 @@ namespace GameServerApp.World
                                          Math.Abs(verticalNoise) * 0.35 +
                                          Math.Abs(secondaryNoise) * 0.2;
                         density = density * (0.65 + ridged * 0.35);
+                        density -= Math.Clamp(striation, -0.35, 0.35) * 0.18;
+                        density += flowNoise * 0.15;
 
                         double strata = Math.Sin((warpedX + warpedZ + y * 1.5) * 0.012);
                         density -= Math.Clamp(strata * 0.08, -0.08, 0.08);
 
                         density -= Math.Clamp((y - 24) / 140.0, 0.0, 0.45);
 
+                        int cachedSurface = surfaceCache[x, z];
+                        if (cachedSurface > 0)
+                        {
+                            double ceilingDepth = Math.Clamp((cachedSurface - y) / 48.0, 0.0, 1.0);
+                            density += ceilingDepth * 0.08;
+                        }
+
                         double aquifer = SimplexNoise.Generate(worldX, y, 0.0042, 2, 1.0, 0.58, 147113);
                         double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
-                        double dynamicThreshold = NoiseCaveThreshold - liquidity * 0.08 + aquifer * 0.02;
+                        double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
+                        double dynamicThreshold = NoiseCaveThreshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
 
                         if (density < dynamicThreshold)
                         {
@@ -837,6 +850,58 @@ namespace GameServerApp.World
             return Vector2.Normalize(flow);
         }
 
+        private static void ResolvePerpendicularOffset(Vector2 direction, int step, out int offsetX, out int offsetZ)
+        {
+            float absX = Math.Abs(direction.X);
+            float absZ = Math.Abs(direction.Y);
+
+            offsetX = absX >= 0.35f ? (direction.X >= 0f ? step : -step) : 0;
+            offsetZ = absZ >= 0.35f ? (direction.Y >= 0f ? step : -step) : 0;
+
+            if (offsetX == 0 && offsetZ == 0)
+            {
+                if (absX >= absZ)
+                {
+                    offsetX = direction.X >= 0f ? step : -step;
+                }
+                else
+                {
+                    offsetZ = direction.Y >= 0f ? step : -step;
+                }
+            }
+        }
+
+        private void ExpandRiverChannel(ChunkData chunk, int[,] surfaceCache, int x, int z, int riverSurface, Vector2 flowDir, double channelPressure)
+        {
+            if (channelPressure < 0.45)
+            {
+                return;
+            }
+
+            var perpendicular = new Vector2(-flowDir.Y, flowDir.X);
+            if (perpendicular.LengthSquared() < 1e-6f)
+            {
+                perpendicular = Vector2.UnitX;
+            }
+            perpendicular = Vector2.Normalize(perpendicular);
+
+            int reach = channelPressure > 0.9 ? 2 : 1;
+            for (int step = 1; step <= reach; step++)
+            {
+                double floodStrength = Math.Clamp(channelPressure - 0.35 - 0.15 * (step - 1), 0.0, 1.0);
+                if (floodStrength <= 0.0)
+                {
+                    continue;
+                }
+
+                ResolvePerpendicularOffset(perpendicular, step, out int offsetX, out int offsetZ);
+                ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, floodStrength, riverSurface, true);
+
+                ResolvePerpendicularOffset(new Vector2(-perpendicular.X, -perpendicular.Y), step, out offsetX, out offsetZ);
+                ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, floodStrength, riverSurface, true);
+            }
+        }
+
         private RiverFieldCache GetRiverFieldCache(TerrainGenerationContext context)
         {
             var cache = context.GetOrAddMetadata(RiverFieldCacheKey, () => new RiverFieldCache());
@@ -996,11 +1061,111 @@ namespace GameServerApp.World
             return mask;
         }
 
+        private static double[,] BuildFlowAccumulation(int[,] surfaceCache)
+        {
+            int width = surfaceCache.GetLength(0);
+            int depth = surfaceCache.GetLength(1);
+            var raw = new double[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    double contribution = 0.0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[nx, nz];
+                            if (neighborSurface <= 0)
+                            {
+                                continue;
+                            }
+
+                            int delta = neighborSurface - surface;
+                            if (delta <= 1)
+                            {
+                                continue;
+                            }
+
+                            double weight = 1.0 + Math.Min(6, delta) * 0.15;
+                            if (dx != 0 && dz != 0)
+                            {
+                                weight *= 0.65;
+                            }
+
+                            contribution += weight;
+                        }
+                    }
+
+                    raw[x, z] = contribution;
+                }
+            }
+
+            var smoothed = new double[width, depth];
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double total = raw[x, z];
+                    int samples = 1;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            total += raw[nx, nz] * 0.5;
+                            samples++;
+                        }
+                    }
+
+                    smoothed[x, z] = samples > 0 ? total / samples : raw[x, z];
+                }
+            }
+
+            return smoothed;
+        }
+
         private static double AdjustRiverIntensity(double baseIntensity, double hydrologyBias)
         {
             double clamped = Math.Clamp(hydrologyBias, 0.0, 1.0);
             double scaled = baseIntensity * (1.0 - clamped * 0.55) - clamped * 0.004;
             return Math.Max(0.0, scaled);
+        }
+
+        private static double ComputeChannelPressure(double catchmentStrength, double hydrology)
+        {
+            double baseValue = 0.35 + catchmentStrength * 0.5 + hydrology * 0.3;
+            return Math.Clamp(baseValue, 0.0, 1.0);
         }
 
         private void GenerateRiversInternal(TerrainGenerationContext context)
@@ -1012,6 +1177,7 @@ namespace GameServerApp.World
 
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
+            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
 
             for (int x = 0; x < 16; x++)
             {
@@ -1028,7 +1194,11 @@ namespace GameServerApp.World
                     }
 
                     double hydrology = hydrologyMask[x, z];
-                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology);
+                    double catchment = flowAccumulation[x, z];
+                    double catchmentStrength = Math.Clamp(catchment / 6.0, 0.0, 1.0);
+                    double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
+                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015;
+                    intensity = Math.Max(0.0, intensity);
                     if (intensity >= RiverBankThreshold)
                     {
                         continue;
@@ -1053,11 +1223,12 @@ namespace GameServerApp.World
                     if (intensity < RiverCenterThreshold)
                     {
                         double normalized = 1.0 - Math.Clamp(intensity / RiverCenterThreshold, 0.0, 1.0);
-                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, flowDir);
+                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, channelPressure, flowDir);
                     }
                     else
                     {
                         double bankStrength = 1.0 - Math.Clamp((intensity - RiverCenterThreshold) / (RiverBankThreshold - RiverCenterThreshold), 0.0, 1.0);
+                        bankStrength *= 0.85 + channelPressure * 0.35;
                         FeatherRiverBank(chunk, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
                 }
@@ -1096,12 +1267,61 @@ namespace GameServerApp.World
             }
         }
 
+        private static double ComputeLocalRelief(int[,] surfaceCache, int centerX, int centerZ, int radius)
+        {
+            double min = double.MaxValue;
+            double max = double.MinValue;
+            double sum = 0.0;
+            double sumSq = 0.0;
+            int samples = 0;
+
+            int width = surfaceCache.GetLength(0);
+            int depth = surfaceCache.GetLength(1);
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= width || z < 0 || z >= depth)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    samples++;
+                    double height = surface;
+                    sum += height;
+                    sumSq += height * height;
+                    min = Math.Min(min, height);
+                    max = Math.Max(max, height);
+                }
+            }
+
+            if (samples == 0)
+            {
+                return 0.0;
+            }
+
+            double mean = sum / samples;
+            double variance = Math.Max(0.0, (sumSq / samples) - mean * mean);
+            double stdDev = Math.Sqrt(variance);
+            return (max - min) + stdDev;
+        }
+
         private void GenerateLakesInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var riverField = GetRiverFieldCache(context);
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
+            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
             double lakeSimplex = SimplexNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);
             double lakePerlin = PerlinNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.028, 2, 1.0, 0.6, 77811);
@@ -1115,8 +1335,10 @@ namespace GameServerApp.World
             int centerX = rand.Next(4, 12);
             int centerZ = rand.Next(4, 12);
             double hydrology = hydrologyMask[centerX, centerZ];
-            double spawnWeight = Math.Clamp(chunkWeight * 0.6 + hydrology * 0.8, 0.0, 1.0);
-            if (spawnWeight < 0.25 || rand.NextDouble() > spawnWeight)
+            double relief = ComputeLocalRelief(surfaceCache, centerX, centerZ, 6);
+            double basinStability = 1.0 - Math.Clamp(relief / 10.0, 0.0, 1.0);
+            double spawnWeight = Math.Clamp((chunkWeight * 0.6 + hydrology * 0.8) * (0.65 + basinStability * 0.5), 0.0, 1.2);
+            if (spawnWeight < 0.25 || rand.NextDouble() > spawnWeight || basinStability < 0.3)
                 return;
 
             int radiusX = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0);
@@ -1124,7 +1346,7 @@ namespace GameServerApp.World
             radiusX = Math.Clamp(radiusX, 3, 9);
             radiusZ = Math.Clamp(radiusZ, 3, 9);
             int maxDepth = 3 + rand.Next(3) + (int)Math.Round(hydrology * 2.0);
-            maxDepth = Math.Clamp(maxDepth, 3, 7);
+            maxDepth = Math.Clamp((int)Math.Round(Math.Clamp(maxDepth * (0.7 + basinStability * 0.6), 3, 9)), 3, 9);
             int waterLevel = Math.Clamp(
                 GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0),
                 45,
@@ -1141,6 +1363,9 @@ namespace GameServerApp.World
             double radiusXWithPadding = radiusX + 0.75;
             double radiusZWithPadding = radiusZ + 0.75;
             bool lakeCreated = false;
+
+            relief = ComputeLocalRelief(surfaceCache, centerX, centerZ, Math.Max(radiusX, radiusZ) + 4);
+            basinStability = 1.0 - Math.Clamp(relief / 12.0, 0.0, 1.0);
 
             for (int dx = -radiusX - 3; dx <= radiusX + 3; dx++)
             {
@@ -1218,7 +1443,7 @@ namespace GameServerApp.World
 
             if (lakeCreated)
             {
-            TryLinkLakeToRiver(context, chunk, riverField, hydrologyMask, centerX, centerZ, waterLevel, radiusX, radiusZ);
+                TryLinkLakeToRiver(context, chunk, riverField, hydrologyMask, flowAccumulation, surfaceCache, centerX, centerZ, waterLevel, radiusX, radiusZ);
             }
         }
 
@@ -1267,10 +1492,10 @@ namespace GameServerApp.World
 
         }
 
-        private void TryLinkLakeToRiver(TerrainGenerationContext context, ChunkData chunk, RiverFieldCache riverField, double[,] hydrologyMask, int centerX, int centerZ, int waterLevel, int radiusX, int radiusZ)
+        private void TryLinkLakeToRiver(TerrainGenerationContext context, ChunkData chunk, RiverFieldCache riverField, double[,] hydrologyMask, double[,] flowAccumulation, int[,] surfaceCache, int centerX, int centerZ, int waterLevel, int radiusX, int radiusZ)
         {
             int searchRadius = Math.Max(radiusX, radiusZ) + 6;
-            double bestIntensity = double.MaxValue;
+            double bestScore = 0.09;
             int bestX = -1;
             int bestZ = -1;
 
@@ -1286,9 +1511,20 @@ namespace GameServerApp.World
                     }
 
                     double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrologyMask[x, z]);
-                    if (intensity < bestIntensity && intensity < RiverBankThreshold)
+                    if (intensity >= RiverBankThreshold)
                     {
-                        bestIntensity = intensity;
+                        continue;
+                    }
+
+                    double catchment = flowAccumulation[x, z];
+                    double catchmentBias = Math.Clamp(catchment / 8.0, 0.0, 1.0);
+                    double score = intensity - hydrologyMask[x, z] * 0.02 - catchmentBias * 0.015;
+                    double relief = ComputeLocalRelief(surfaceCache, x, z, 2);
+                    score += Math.Clamp(relief / 10.0, 0.0, 1.0) * 0.01;
+
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
                         bestX = x;
                         bestZ = z;
                     }
@@ -1437,7 +1673,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void CarveRiverColumn(ChunkData chunk, int[,] surfaceCache, int x, int z, int riverSurface, double normalized, Vector2 flowDir)
+        private void CarveRiverColumn(ChunkData chunk, int[,] surfaceCache, int x, int z, int riverSurface, double normalized, double channelPressure, Vector2 flowDir)
         {
             int surface = surfaceCache[x, z];
             if (surface <= 0)
@@ -1446,7 +1682,8 @@ namespace GameServerApp.World
             if (surface <= GlobalWaterLevel - 3 && chunk.GetBlock(x, surface, z) == BlockType.Water)
                 return;
 
-            int channelDepth = Math.Clamp(3 + (int)Math.Round(normalized * 5.5), 3, 8);
+            double pressureScale = 0.85 + channelPressure * 0.65;
+            int channelDepth = Math.Clamp(3 + (int)Math.Round(normalized * 6.5 * pressureScale), 3, 10);
             int waterFloor = Math.Max(1, riverSurface - channelDepth);
 
             for (int y = surface; y >= waterFloor; y--)
@@ -1475,7 +1712,9 @@ namespace GameServerApp.World
             int updatedSurface = riverSurface < GlobalWaterLevel ? Math.Min(GlobalWaterLevel, 255) : Math.Min(riverSurface, 255);
             surfaceCache[x, z] = updatedSurface;
 
-            int maxRadius = Math.Clamp(2 + (int)Math.Round(normalized * 2.0), 2, 4);
+            ExpandRiverChannel(chunk, surfaceCache, x, z, riverSurface, flowDir, channelPressure);
+
+            int maxRadius = Math.Clamp(2 + (int)Math.Round(normalized * (2.0 + channelPressure * 1.5)), 2, 5);
             for (int dx = -maxRadius; dx <= maxRadius; dx++)
             {
                 for (int dz = -maxRadius; dz <= maxRadius; dz++)
@@ -1527,13 +1766,11 @@ namespace GameServerApp.World
                     break;
                 }
 
-                int offsetX = x + (int)Math.Round(perpendicular.X * step);
-                int offsetZ = z + (int)Math.Round(perpendicular.Y * step);
-                ShapeRiverBank(chunk, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
+                ResolvePerpendicularOffset(perpendicular, step, out int offsetX, out int offsetZ);
+                ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, falloff, riverSurface, false);
 
-                offsetX = x - (int)Math.Round(perpendicular.X * step);
-                offsetZ = z - (int)Math.Round(perpendicular.Y * step);
-                ShapeRiverBank(chunk, surfaceCache, offsetX, offsetZ, falloff, riverSurface, false);
+                ResolvePerpendicularOffset(new Vector2(-perpendicular.X, -perpendicular.Y), step, out offsetX, out offsetZ);
+                ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, falloff, riverSurface, false);
             }
         }
 

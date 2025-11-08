@@ -908,7 +908,8 @@ namespace Minecraft.Core
 
             var blocks = ChunkCompression.DecodeBlocks(response.CompressedBlockData);
             var entities = response.Entities ?? new List<EntityInfo>();
-            var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache);
+            var metadata = EnhancedChunkPayloadBridge.Decode(response, warning => Debug.LogWarning($"[Chunks] {warning}"));
+            var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache, metadata);
 
             _loadedChunks[chunkKey] = snapshot;
 

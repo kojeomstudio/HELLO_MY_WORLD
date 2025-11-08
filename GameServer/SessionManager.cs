@@ -205,12 +205,27 @@ public class SessionManager
     public async Task BroadcastToAllAsync<T>(MessageType messageType, T message) where T : class
     {
         var tasks = new List<Task>();
-        
+
         foreach (var session in _sessions.Values)
         {
             tasks.Add(session.SendAsync(messageType, message));
         }
-        
+
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// JSON 직렬화를 사용하여 모든 세션에 메시지를 브로드캐스트합니다 (AI 메시지용).
+    /// </summary>
+    public async Task BroadcastToAllAsJsonAsync<T>(MessageType messageType, T message) where T : class
+    {
+        var tasks = new List<Task>();
+
+        foreach (var session in _sessions.Values)
+        {
+            tasks.Add(session.SendAsJsonAsync(messageType, message));
+        }
+
         await Task.WhenAll(tasks);
     }
 

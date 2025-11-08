@@ -37,7 +37,7 @@ namespace GameServerApp.Handlers
                     SpawnedActorId = actor.ActorId
                 };
 
-                await session.SendAsync(MessageType.AISpawnResponse, response);
+                await session.SendAsJsonAsync(MessageType.AISpawnResponse, response);
 
                 Console.WriteLine($"[AISpawnHandler] Spawned AI {actor.ActorId} ({message.AIType})");
             }
@@ -52,7 +52,7 @@ namespace GameServerApp.Handlers
                     SpawnedActorId = 0
                 };
 
-                await session.SendAsync(MessageType.AISpawnResponse, response);
+                await session.SendAsJsonAsync(MessageType.AISpawnResponse, response);
             }
         }
     }
@@ -101,7 +101,7 @@ namespace GameServerApp.Handlers
                     response.Actors.Add(debugInfo);
                 }
 
-                await session.SendAsync(MessageType.AIDebugInfoResponse, response);
+                await session.SendAsJsonAsync(MessageType.AIDebugInfoResponse, response);
 
                 Console.WriteLine($"[AIDebugInfoHandler] Sent debug info for {response.Actors.Count} actors");
             }

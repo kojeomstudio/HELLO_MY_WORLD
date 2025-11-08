@@ -149,35 +149,6 @@ public class Session
     }
 
     /// <summary>
-    /// JSON으로 메시지를 직렬화하여 전송합니다 (AI 메시지용).
-    /// ProtoBuf 대신 JSON을 사용하여 Unity JsonUtility와 호환됩니다.
-    /// </summary>
-    public async Task SendAsJsonAsync<T>(MessageType type, T message)
-    {
-        try
-        {
-            var json = System.Text.Json.JsonSerializer.Serialize(message);
-            var body = System.Text.Encoding.UTF8.GetBytes(json);
-
-            if (body.Length > 1024 * 1024)
-                throw new InvalidDataException($"Message too large: {body.Length} bytes");
-
-            var length = BitConverter.GetBytes(body.Length + sizeof(int));
-            var typeBytes = BitConverter.GetBytes((int)type);
-
-            await _stream.WriteAsync(length, 0, length.Length);
-            await _stream.WriteAsync(typeBytes, 0, typeBytes.Length);
-            await _stream.WriteAsync(body, 0, body.Length);
-            await _stream.FlushAsync();
-
-            LastActivityAt = DateTime.UtcNow;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to send JSON message of type {type}: {ex.Message}", ex);
-        }
-    }
-    /// <summary>
     /// ?�시 바이???�이로드�?지?�한 ?�수??메시지 ?�?�과 ?�께 ?�송?�니??
     /// 마인?�래?�트 ?�장 메시지(MinecraftMessageType) ??enum ???�??코드�?지?�합?�다.
     /// </summary>

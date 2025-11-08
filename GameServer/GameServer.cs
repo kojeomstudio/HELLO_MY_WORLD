@@ -5,9 +5,12 @@ using GameServerApp.Database;
 using GameServerApp.Handlers;
 using GameServerApp.Systems;
 using GameServerApp.World;
+using GameServerApp.AI;
 using SharedProtocol;
+using GameProtocol;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Diagnostics;
 
 namespace GameServerApp
 {
@@ -22,12 +25,17 @@ namespace GameServerApp
         private readonly ServerMetricsService _metrics;
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
+        private readonly ServerAIManager _aiManager;
         private readonly Timer _maintenanceTimer;
+        private readonly Timer _aiUpdateTimer;
+        private readonly Timer _aiSyncTimer;
         private readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _rateCounters = new();
         private readonly ServerConfig _config;
         private readonly WorldTimeSystem _worldTimeSystem;
         private readonly WeatherSystem _weatherSystem;
         private bool _isRunning;
+        private readonly Stopwatch _gameTimer = new Stopwatch();
+        private DateTime _lastAIUpdateTime = DateTime.UtcNow;
 
         public GameServer(int port = 9000, string databaseFile = "minecraft_game.db", ServerConfig? config = null)
         {
@@ -47,11 +55,23 @@ namespace GameServerApp
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
             _weatherSystem = new WeatherSystem(_sessions, _config.World);
+            _aiManager = new ServerAIManager();
 
             RegisterMessageHandlers();
 
             _maintenanceTimer = new Timer(PerformMaintenance, null,
                 TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+
+            // AI 업데이트 타이머 (60Hz - 16.67ms 간격)
+            _aiUpdateTimer = new Timer(PerformAIUpdate, null,
+                TimeSpan.FromMilliseconds(16), TimeSpan.FromMilliseconds(16));
+
+            // AI 동기화 타이머 (10Hz - 100ms 간격)
+            _aiSyncTimer = new Timer(BroadcastAIState, null,
+                TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+
+            _gameTimer.Start();
+            _lastAIUpdateTime = DateTime.UtcNow;
         }
 
         private void RegisterMessageHandlers()
@@ -122,6 +142,10 @@ namespace GameServerApp
             _dispatcher.Register(new PingHandler(_database, _sessions));
             _dispatcher.Register(new ServerStatusHandler(_sessions, _metrics));
 
+            // AI System (Server-Authoritative)
+            _dispatcher.Register(new AISpawnHandler(_aiManager, _sessions));
+            _dispatcher.Register(new AIDebugInfoHandler(_aiManager, _sessions));
+
             // === 마인?�래?�트 ?�용 ?�들???�록 ===
             RegisterMinecraftHandlers(containerSystem);
 
@@ -187,7 +211,10 @@ namespace GameServerApp
             _weatherSystem?.Dispose();
             _worldTimeSystem?.Dispose();
             _maintenanceTimer?.Dispose();
+            _aiUpdateTimer?.Dispose();
+            _aiSyncTimer?.Dispose();
             _sessions?.Dispose();
+            _gameTimer?.Stop();
             _metrics.MarkServerStopped();
             Console.WriteLine("Server stopped.");
         }
@@ -324,17 +351,59 @@ namespace GameServerApp
             try
             {
                 Console.WriteLine("Performing server maintenance...");
-                
+
                 await _worldManager.SaveModifiedChunksAsync();
-                
+
                 _worldManager.UnloadOldChunks(TimeSpan.FromMinutes(30));
-                
+
                 var onlinePlayers = _sessions.OnlinePlayerCount;
                 Console.WriteLine($"Maintenance complete. Online players: {onlinePlayers}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during maintenance: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// AI 업데이트 (60Hz)
+        /// </summary>
+        private void PerformAIUpdate(object? state)
+        {
+            try
+            {
+                var now = DateTime.UtcNow;
+                float deltaTime = (float)(now - _lastAIUpdateTime).TotalSeconds;
+                _lastAIUpdateTime = now;
+
+                // ServerAIManager 업데이트
+                _aiManager.Update(deltaTime);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during AI update: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// AI 상태 동기화 브로드캐스트 (10Hz)
+        /// </summary>
+        private async void BroadcastAIState(object? state)
+        {
+            try
+            {
+                // AI 상태 브로드캐스트 메시지 생성
+                var broadcast = _aiManager.GetStateSyncBroadcast();
+
+                // 모든 활성 세션에 브로드캐스트
+                if (broadcast.Actors.Count > 0)
+                {
+                    await _sessions.BroadcastToAllAsync(MessageType.AIStateSyncBroadcast, broadcast);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting AI state: {ex.Message}");
             }
         }
     }

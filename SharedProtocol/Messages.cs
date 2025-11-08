@@ -66,6 +66,15 @@ public enum MessageType
     RoomLeaveResponse = 95,
     RoomQueueUpdate = 96,
     RoomPromotionNotice = 97,
+
+    // AI 시스템 관련 (Server-Authoritative)
+    AIStateSyncBroadcast = 100,
+    AIAttackEventBroadcast = 101,
+    AIDeathEventBroadcast = 102,
+    AISpawnRequest = 103,
+    AISpawnResponse = 104,
+    AIDebugInfoRequest = 105,
+    AIDebugInfoResponse = 106,
 }
 
 // 기본 데이터 구조

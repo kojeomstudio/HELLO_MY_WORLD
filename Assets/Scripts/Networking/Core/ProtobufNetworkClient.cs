@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Google.Protobuf;
 using Game.Auth;
+using GameProtocol;
 #if HMW_PROTO
 using Game.Move;
 #endif
@@ -37,6 +38,13 @@ namespace Networking.Core
         public event Action<Game.World.WorldBlockChangeBroadcast> BlockChangeBroadcastReceived;
         public event Action<Game.Diag.PingResponse> PingResponseReceived;
         #endif
+
+        // AI System events (Server-Authoritative)
+        public event Action<AIStateSyncBroadcast> AIStateSyncReceived;
+        public event Action<AIAttackEventBroadcast> AIAttackEventReceived;
+        public event Action<AIDeathEventBroadcast> AIDeathEventReceived;
+        public event Action<AISpawnResponse> AISpawnResponseReceived;
+        public event Action<AIDebugInfoResponse> AIDebugInfoResponseReceived;
 
         public bool IsConnected => _transport?.IsConnected ?? false;
         public string ServerAddress => serverAddress;
@@ -208,6 +216,34 @@ namespace Networking.Core
         }
 
         /// <summary>
+        /// Sends an AI spawn request (GM command).
+        /// </summary>
+        public void SendAISpawnRequest(string aiType, UnityEngine.Vector3 spawnPosition, string worldId = "main_world")
+        {
+            var request = new AISpawnRequest
+            {
+                AIType = aiType,
+                SpawnPosition = new GameProtocol.Vector3(spawnPosition.x, spawnPosition.y, spawnPosition.z),
+                WorldId = worldId
+            };
+            SendJsonMessageWithHeader(request, ClientMessageType.AISpawnRequest);
+            Debug.Log($"Sent AI spawn request: Type={aiType}, Position={spawnPosition}");
+        }
+
+        /// <summary>
+        /// Sends an AI debug info request.
+        /// </summary>
+        public void SendAIDebugInfoRequest(int actorId = 0)
+        {
+            var request = new AIDebugInfoRequest
+            {
+                ActorId = actorId // 0 = all AI actors
+            };
+            SendJsonMessageWithHeader(request, ClientMessageType.AIDebugInfoRequest);
+            Debug.Log($"Sent AI debug info request: ActorId={actorId}");
+        }
+
+        /// <summary>
         /// Serialize protobuf and send with header (length set by transport, type prepended here).
         /// </summary>
         private void SendMessageWithHeader(IMessage message, ClientMessageType type)
@@ -235,6 +271,36 @@ namespace Networking.Core
             catch (Exception ex)
             {
                 Debug.LogError($"Failed to send {message.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Serialize JSON and send with header (for GameProtocol classes).
+        /// </summary>
+        private void SendJsonMessageWithHeader(object message, ClientMessageType type)
+        {
+            if (!IsConnected)
+            {
+                Debug.LogWarning($"Cannot send {message.GetType().Name}: not connected to server");
+                return;
+            }
+
+            try
+            {
+                string json = JsonUtility.ToJson(message);
+                var payload = System.Text.Encoding.UTF8.GetBytes(json);
+
+                // Build [type:int][payload]
+                var typeBytes = BitConverter.GetBytes((int)type);
+                var framed = new byte[typeBytes.Length + payload.Length];
+                Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+                Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+                _transport.Send(new ArraySegment<byte>(framed));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to send JSON message {message.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -295,6 +361,39 @@ namespace Networking.Core
                         }
                         break;
                     #endif
+
+                    // AI System messages (JSON serialization)
+                    case ClientMessageType.AIStateSyncBroadcast:
+                        if (TryParseJsonMessage<AIStateSyncBroadcast>(payload, out var aiStateSync))
+                        {
+                            AIStateSyncReceived?.Invoke(aiStateSync);
+                        }
+                        break;
+                    case ClientMessageType.AIAttackEventBroadcast:
+                        if (TryParseJsonMessage<AIAttackEventBroadcast>(payload, out var aiAttack))
+                        {
+                            AIAttackEventReceived?.Invoke(aiAttack);
+                        }
+                        break;
+                    case ClientMessageType.AIDeathEventBroadcast:
+                        if (TryParseJsonMessage<AIDeathEventBroadcast>(payload, out var aiDeath))
+                        {
+                            AIDeathEventReceived?.Invoke(aiDeath);
+                        }
+                        break;
+                    case ClientMessageType.AISpawnResponse:
+                        if (TryParseJsonMessage<AISpawnResponse>(payload, out var aiSpawnResp))
+                        {
+                            AISpawnResponseReceived?.Invoke(aiSpawnResp);
+                        }
+                        break;
+                    case ClientMessageType.AIDebugInfoResponse:
+                        if (TryParseJsonMessage<AIDebugInfoResponse>(payload, out var aiDebugResp))
+                        {
+                            AIDebugInfoResponseReceived?.Invoke(aiDebugResp);
+                        }
+                        break;
+
                     default:
                         Debug.LogWarning($"Unknown or unhandled message type: {type}");
                         break;
@@ -307,7 +406,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Attempts to parse a message.
+        /// Attempts to parse a protobuf message.
         /// </summary>
         private bool TryParseMessage<T>(byte[] data, out T message) where T : IMessage, new()
         {
@@ -319,6 +418,26 @@ namespace Networking.Core
             }
             catch
             {
+                message = default(T);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to parse a JSON message (for GameProtocol classes).
+        /// Uses Unity JsonUtility for simple serialization.
+        /// </summary>
+        private bool TryParseJsonMessage<T>(byte[] data, out T message)
+        {
+            try
+            {
+                string json = System.Text.Encoding.UTF8.GetString(data);
+                message = JsonUtility.FromJson<T>(json);
+                return message != null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to parse JSON message of type {typeof(T).Name}: {ex.Message}");
                 message = default(T);
                 return false;
             }
@@ -400,4 +519,13 @@ public enum ClientMessageType
 
     // 플레이어 정보 업데이트
     PlayerInfoUpdate = 50,
+
+    // AI 시스템 (Server-Authoritative)
+    AIStateSyncBroadcast = 100,
+    AIAttackEventBroadcast = 101,
+    AIDeathEventBroadcast = 102,
+    AISpawnRequest = 103,
+    AISpawnResponse = 104,
+    AIDebugInfoRequest = 105,
+    AIDebugInfoResponse = 106,
 }

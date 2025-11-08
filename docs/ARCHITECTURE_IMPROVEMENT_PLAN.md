@@ -4,6 +4,11 @@
 **버전**: 1.0
 **상태**: Planning → Implementation
 
+**프로젝트 환경**:
+- Unity 6000.0.23f1 (Unity 6)
+- .NET Standard 2.1 (Unity 호환)
+- C# 9.0
+
 ---
 
 ## 목차

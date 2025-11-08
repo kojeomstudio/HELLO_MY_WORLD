@@ -395,10 +395,10 @@ namespace GameServerApp
                 // AI 상태 브로드캐스트 메시지 생성
                 var broadcast = _aiManager.GetStateSyncBroadcast();
 
-                // 모든 활성 세션에 브로드캐스트
+                // 모든 활성 세션에 JSON 브로드캐스트 (Unity JsonUtility 호환)
                 if (broadcast.Actors.Count > 0)
                 {
-                    await _sessions.BroadcastToAllAsync(MessageType.AIStateSyncBroadcast, broadcast);
+                    await _sessions.BroadcastToAllAsJsonAsync(MessageType.AIStateSyncBroadcast, broadcast);
                 }
             }
             catch (Exception ex)

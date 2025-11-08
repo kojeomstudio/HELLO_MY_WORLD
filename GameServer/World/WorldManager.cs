@@ -12,6 +12,7 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<string, LoadedChunk> _loadedChunks = new();
         private readonly Random _random;
         private int _worldId;
+        private readonly WorldSeedConfig _worldSeed;
         private readonly TerrainGenerationPipeline _terrainPipeline;
 
         private const int GlobalWaterLevel = 62;
@@ -61,11 +62,20 @@ namespace GameServerApp.World
             public bool IsInitialized { get; set; }
         }
 
-        public WorldManager(DatabaseHelper database, int worldId = 1)
+        public WorldManager(DatabaseHelper database, int worldId = 1, WorldSeedConfig? worldSeed = null)
         {
             _database = database;
             _worldId = worldId;
-            _random = new Random();
+
+            // 월드 시드 초기화: 제공된 시드 또는 데이터베이스에서 로드, 또는 새로 생성
+            _worldSeed = worldSeed ?? LoadWorldSeedFromDatabase() ?? WorldSeedConfig.Random();
+            SaveWorldSeedToDatabase();
+
+            // 시드를 사용하여 Random 초기화 (결정적 생성을 위함)
+            _random = new Random(_worldSeed.Seed);
+
+            Console.WriteLine($"[WorldManager] {_worldSeed}");
+
             _terrainPipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this))
                 .AddStage(new OreGenerationStage(this))
@@ -2806,6 +2816,102 @@ namespace GameServerApp.World
 
             return permutation;
         }
+
+        // ==================== World Seed Management ====================
+
+        /// <summary>
+        /// 데이터베이스에서 월드 시드 로드
+        /// </summary>
+        private WorldSeedConfig? LoadWorldSeedFromDatabase()
+        {
+            try
+            {
+                string query = "SELECT seed_data FROM world_seeds WHERE world_id = @worldId LIMIT 1";
+                var parameters = new Dictionary<string, object>
+                {
+                    { "@worldId", _worldId }
+                };
+
+                var result = _database.ExecuteQuery(query, parameters);
+                if (result != null && result.Count > 0)
+                {
+                    var row = result[0];
+                    if (row.TryGetValue("seed_data", out var seedDataObj) && seedDataObj is string seedData)
+                    {
+                        var config = WorldSeedConfig.FromJson(seedData);
+                        if (config != null)
+                        {
+                            Console.WriteLine($"[WorldManager] Loaded existing world seed from database");
+                            return config;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldManager] Error loading world seed: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 데이터베이스에 월드 시드 저장
+        /// </summary>
+        private void SaveWorldSeedToDatabase()
+        {
+            try
+            {
+                // 테이블이 없으면 생성
+                string createTableQuery = @"
+                    CREATE TABLE IF NOT EXISTS world_seeds (
+                        world_id INTEGER PRIMARY KEY,
+                        seed_data TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )";
+                _database.ExecuteNonQuery(createTableQuery);
+
+                // 시드 데이터 저장 (UPSERT)
+                string upsertQuery = @"
+                    INSERT INTO world_seeds (world_id, seed_data, created_at, updated_at)
+                    VALUES (@worldId, @seedData, @createdAt, @updatedAt)
+                    ON CONFLICT(world_id) DO UPDATE SET
+                        seed_data = @seedData,
+                        updated_at = @updatedAt";
+
+                var parameters = new Dictionary<string, object>
+                {
+                    { "@worldId", _worldId },
+                    { "@seedData", _worldSeed.ToJson() },
+                    { "@createdAt", DateTime.UtcNow.ToString("O") },
+                    { "@updatedAt", DateTime.UtcNow.ToString("O") }
+                };
+
+                _database.ExecuteNonQuery(upsertQuery, parameters);
+                Console.WriteLine($"[WorldManager] World seed saved to database");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldManager] Error saving world seed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 청크별 시드 생성 (결정적)
+        /// </summary>
+        public Random GetChunkRandom(int chunkX, int chunkZ)
+        {
+            int chunkSeed = _worldSeed.GetChunkSeed(chunkX, chunkZ);
+            return new Random(chunkSeed);
+        }
+
+        /// <summary>
+        /// 월드 시드 정보 조회
+        /// </summary>
+        public WorldSeedConfig GetWorldSeed() => _worldSeed;
+
+        // ==================== Utility Methods ====================
 
         private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
         private static double Lerp(double a, double b, double t) => a + t * (b - a);

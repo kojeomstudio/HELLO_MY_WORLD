@@ -33,6 +33,11 @@ namespace GameServerApp
         private readonly ServerConfig _config;
         private readonly WorldTimeSystem _worldTimeSystem;
         private readonly WeatherSystem _weatherSystem;
+        private readonly PhysicsSystem _physicsSystem;
+        private readonly PermissionSystem _permissionSystem;
+        private readonly CombatSystem _combatSystem;
+        private readonly CommandSystem _commandSystem;
+        private readonly Middleware.AntiCheatMiddleware _antiCheat;
         private bool _isRunning;
         private readonly Stopwatch _gameTimer = new Stopwatch();
         private DateTime _lastAIUpdateTime = DateTime.UtcNow;
@@ -56,6 +61,13 @@ namespace GameServerApp
             _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
             _weatherSystem = new WeatherSystem(_sessions, _config.World);
             _aiManager = new ServerAIManager();
+
+            // 새로운 시스템들 초기화
+            _physicsSystem = new PhysicsSystem();
+            _permissionSystem = new PermissionSystem();
+            _combatSystem = new CombatSystem();
+            _commandSystem = new CommandSystem(_permissionSystem);
+            _antiCheat = new Middleware.AntiCheatMiddleware();
 
             RegisterMessageHandlers();
 
@@ -145,6 +157,12 @@ namespace GameServerApp
             // AI System (Server-Authoritative)
             _dispatcher.Register(new AISpawnHandler(_aiManager, _sessions));
             _dispatcher.Register(new AIDebugInfoHandler(_aiManager, _sessions));
+
+            // Combat System (PvP/PvE)
+            _dispatcher.Register(new PlayerAttackHandler(_combatSystem, healthSystem, _sessions));
+
+            // Command System (GM Commands)
+            _dispatcher.Register(new CommandHandler(_commandSystem, _sessions));
 
             // === 마인?�래?�트 ?�용 ?�들???�록 ===
             RegisterMinecraftHandlers(containerSystem);

@@ -528,4 +528,14 @@ public enum ClientMessageType
     AISpawnResponse = 104,
     AIDebugInfoRequest = 105,
     AIDebugInfoResponse = 106,
+
+    // 전투 시스템 (PvP/PvE)
+    PlayerAttackRequest = 110,
+    PlayerAttackResponse = 111,
+    PlayerAttackBroadcast = 112,
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
 }

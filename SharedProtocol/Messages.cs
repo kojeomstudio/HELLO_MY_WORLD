@@ -75,6 +75,16 @@ public enum MessageType
     AISpawnResponse = 104,
     AIDebugInfoRequest = 105,
     AIDebugInfoResponse = 106,
+
+    // 전투 시스템 (PvP/PvE)
+    PlayerAttackRequest = 110,
+    PlayerAttackResponse = 111,
+    PlayerAttackBroadcast = 112,
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
 }
 
 // 기본 데이터 구조
@@ -635,4 +645,59 @@ public class CombatEventMessage
     [ProtoMember(9)] public string WeaponName { get; set; } = string.Empty;
     [ProtoMember(10)] public int WeaponItemId { get; set; }
     [ProtoMember(11)] public long Timestamp { get; set; }
+}
+
+// 전투 시스템 관련 메시지
+[ProtoContract]
+public class PlayerAttackRequest
+{
+    [ProtoMember(1)] public string TargetPlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(3)] public bool IsSprinting { get; set; }
+}
+
+[ProtoContract]
+public class PlayerAttackResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public float Damage { get; set; }
+    [ProtoMember(4)] public bool IsCritical { get; set; }
+    [ProtoMember(5)] public bool IsBlocked { get; set; }
+    [ProtoMember(6)] public float Knockback { get; set; }
+    [ProtoMember(7)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class PlayerAttackBroadcast
+{
+    [ProtoMember(1)] public string AttackerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string TargetName { get; set; } = string.Empty;
+    [ProtoMember(3)] public float Damage { get; set; }
+    [ProtoMember(4)] public bool IsCritical { get; set; }
+    [ProtoMember(5)] public Vector3? KnockbackVector { get; set; }
+    [ProtoMember(6)] public long Timestamp { get; set; }
+}
+
+// 명령어 시스템 관련 메시지
+[ProtoContract]
+public class CommandRequest
+{
+    [ProtoMember(1)] public string CommandText { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class CommandResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class CommandBroadcast
+{
+    [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public long Timestamp { get; set; }
 }

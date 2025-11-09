@@ -27,26 +27,47 @@ public static class ProtocolValidator
         }
 
         ValidateChunkDescriptor();
+        ValidateChunkRequestAndResponseDescriptors();
     }
 
     private static void ValidateChunkDescriptor()
     {
-        MessageDescriptor? chunkDescriptor = EnhancedMinecraftGameReflection.Descriptor
-            .MessageTypes
-            .FirstOrDefault(descriptor => descriptor.Name == nameof(ChunkData));
+        var descriptor = RequireDescriptor(nameof(ChunkData));
+        EnsureFields(descriptor, "chunk_x", "chunk_z", "block_data", "biome_data", "light_data", "generation_timestamp");
+    }
 
-        if (chunkDescriptor == null)
+    private static void ValidateChunkRequestAndResponseDescriptors()
+    {
+        var request = RequireDescriptor(nameof(ChunkLoadRequest));
+        EnsureFields(request, "chunk_positions", "view_distance");
+
+        var response = RequireDescriptor(nameof(ChunkLoadResponse));
+        EnsureFields(response, "chunks", "total_requested", "total_sent");
+    }
+
+    private static MessageDescriptor RequireDescriptor(string messageName)
+    {
+        var descriptor = EnhancedMinecraftGameReflection.Descriptor
+            .MessageTypes
+            .FirstOrDefault(d => d.Name == messageName);
+
+        if (descriptor == null)
         {
             throw new InvalidOperationException(
-                "EnhancedMinecraftProtocol.ChunkData descriptor is missing. Regenerate proto assets.");
+                $"EnhancedMinecraftProtocol.{messageName} descriptor is missing. Regenerate proto assets.");
         }
 
-        foreach (string fieldName in new[] { "block_data", "biome_data" })
+        return descriptor;
+    }
+
+    private static void EnsureFields(MessageDescriptor descriptor, params string[] fieldNames)
+    {
+        foreach (string fieldName in fieldNames)
         {
-            if (chunkDescriptor.FindFieldByName(fieldName) == null)
+            if (descriptor.FindFieldByName(fieldName) == null)
             {
                 throw new InvalidOperationException(
-                    $"ChunkData descriptor missing required field '{fieldName}'. Regenerate proto assets.");
+                    $"EnhancedMinecraftProtocol.{descriptor.Name} descriptor missing required field '{fieldName}'. Regenerate proto assets.");
             }
         }
     }

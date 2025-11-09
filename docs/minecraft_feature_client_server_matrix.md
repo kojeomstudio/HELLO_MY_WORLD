@@ -26,13 +26,17 @@ This matrix consolidates the end-to-end Minecraft-style features we are tracking
 | F-20 | Server Analytics & Telemetry | Aggregate residency, performance, death metrics | Display telemetry in HUD overlays | In Progress | Task-20A complete (death & respawn counters in ServerStatusResponse); next wire analytics into pause menu. |
 | F-21 | Chat Moderation & Social Tools | Maintain mute/block lists, profanity filtering, report ingestion | Provide mute/block UI, filter chat feed, surface moderation feedback | Planned | Task-21A: wire profanity filter pipeline and sync mute lists. |
 | F-22 | Player Options & Keybind Sync | Persist per-player settings, expose config endpoints | Present settings UI, push updates to server on change | Planned | Task-22A: define settings contract and persistence layout. |
+| F-23 | Hydrology-Tuned Terrain | Hydrology-weighted cave pools, river sediment shelves, terraced lakes shared between WorldManager & MapGeneratorLib | Unity tooling mirrors cave pools, sediment pass, and terraced lakes so previews match server output | Done | Monitor erosion metrics + expose toggles in MapGenerator UI. |
+| F-24 | Enhanced Proto Contract Validation | Validate ChunkLoadRequest/Response descriptors and enforce required fields during server startup | Regenerate `Assets/Generated/Protobuf` from the same `.proto` source before opening Unity, hook warnings into tooling | Done | Automate proto regeneration in CI & Unity preflight scripts. |
 
 ## Sequential Work Notes
-- Completed this session: ServerStatusResponse now carries death/respawn counters and the Unity HUD ticker surfaces the new analytics slice (Task-20A). Previous session wired the HUD death feed to `PlayerDeath`/`PlayerRespawnBroadcast` (Task-19B).
+- Current session: Hydrology-driven cave pools, river sediment terraces, and terraced lakes now run on both the authoritative server and MapGeneratorLib so world previews match runtime chunks. ProtocolValidator also verifies the generated ChunkLoadRequest/ChunkLoadResponse descriptors after protobuf regeneration.
+- Previously: ServerStatusResponse grew death/respawn counters surfaced in the Unity HUD (Task-20A), and the HUD death feed responds to PlayerDeath/PlayerRespawnBroadcast (Task-19B).
 - Measurements: Task-19E shifts to pause-menu analytics once telemetry endpoints expand (Task-20B dependency).
 - Keep function implementations under 200 lines; split existing monoliths when touching related code.
 
 ## Next Implementation Queue
 - [ ] Task-12C ? Hook container diff events into chest/furnace UI prefabs.
 - [ ] Task-10E ? Author ambient presets and bind weather intensity to scene lights/sounds.
+- [ ] Task-24A ? Automate proto regeneration/validation in CI and surface warnings in Unity startup scripts.
 - [x] Task-20A ? Extend server status endpoint with death/respawn counters for analytics feed.

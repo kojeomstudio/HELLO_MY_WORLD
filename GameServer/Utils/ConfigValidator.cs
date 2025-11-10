@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GameServer.Utils;
+using GameServerApp;
 
 namespace GameServer
 {
@@ -48,7 +49,7 @@ namespace GameServer
             return true;
         }
 
-        private static void ValidateNetwork(ServerConfig.NetworkSettings network, List<string> errors)
+        private static void ValidateNetwork(NetworkSettings network, List<string> errors)
         {
             if (network.Port < 1024 || network.Port > 65535)
             {
@@ -66,7 +67,7 @@ namespace GameServer
             }
         }
 
-        private static void ValidateDatabase(ServerConfig.DatabaseSettings database, List<string> errors)
+        private static void ValidateDatabase(DatabaseSettings database, List<string> errors)
         {
             if (string.IsNullOrWhiteSpace(database.DatabaseFile))
             {
@@ -84,7 +85,7 @@ namespace GameServer
             }
         }
 
-        private static void ValidateWorld(ServerConfig.WorldSettings world, List<string> errors)
+        private static void ValidateWorld(WorldSettings world, List<string> errors)
         {
             if (world.ChunkLoadRadius < 1 || world.ChunkLoadRadius > 32)
             {
@@ -122,7 +123,7 @@ namespace GameServer
             }
         }
 
-        private static void ValidateGameplay(ServerConfig.GameplaySettings gameplay, List<string> errors)
+        private static void ValidateGameplay(GameplaySettings gameplay, List<string> errors)
         {
             if (gameplay.MaxPlayersPerWorld < 1 || gameplay.MaxPlayersPerWorld > 1000)
             {
@@ -135,7 +136,7 @@ namespace GameServer
             }
         }
 
-        private static void ValidateSecurity(ServerConfig.SecuritySettings security, List<string> errors)
+        private static void ValidateSecurity(SecuritySettings security, List<string> errors)
         {
             if (security.RequireAuthentication && security.MinPasswordLength < 4)
             {
@@ -153,7 +154,7 @@ namespace GameServer
             }
         }
 
-        private static void ValidatePerformance(ServerConfig.PerformanceSettings performance, List<string> errors)
+        private static void ValidatePerformance(PerformanceSettings performance, List<string> errors)
         {
             if (performance.MaintenanceIntervalMinutes < 1 || performance.MaintenanceIntervalMinutes > 1440)
             {

@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-11-10: Karst sinkholes, tributary stitching, clay-banked lakes, and stricter EnhancedMinecraft protobuf validation now run in both `WorldManager` and `MapGeneratorLib`. The shared `ChunkPayloadBuilder` now enforces `ProtocolValidator.ValidateEnhancedContracts()` so stale generated code is caught instantly (see `docs/minecraft_feature_plan.md` & `docs/world-generation.md`).
 - 2025-11-09: Hydrology-driven cave pools, river sediment terraces, and terraced lakes now run in both WorldManager and MapGeneratorLib, and the server validates ChunkLoadRequest/Response descriptors at startup (see docs/minecraft_feature_worldgen_alignment.md & docs/minecraft_feature_plan.md).
 - 2025-11-07: Flow-accumulation rivers/lakes plus enhanced chunk metadata decoding landed. Catchment-weighted carving now runs in both `WorldManager` and `MapGeneratorLib`, and the Unity client logs/records EnhancedMinecraft protobuf payloads (see docs/minecraft_feature_worldgen_alignment.md & docs/minecraft_feature_plan.md).
 - 2025-11-06: Hydrology-driven rivers/lakes, updated multi-frequency noise caves, and the runtime protobuf validator landed; see docs/minecraft_feature_worldgen_alignment.md for details.
@@ -96,6 +97,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - Clients now emit `ChunkUnloadNotificationMessage` when dropping chunks and await `ChunkUnloadAcknowledgeMessage` so the server can free residency immediately.
 - `ChunkDataResponseMessage` now includes an `EnhancedPayload` field containing the serialized `EnhancedMinecraftProtocol.ChunkLoadResponse`, and the server accepts batched `ChunkLoadRequest` messages alongside the legacy single-chunk request for backwards compatibility.
 - After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
+- `SharedProtocol.EnhancedMinecraft.ChunkPayloadBuilder` now executes `ProtocolValidator.ValidateEnhancedContracts()` on first use; run `dotnet build SharedProtocol/SharedProtocol.csproj` after regenerating protobufs so descriptor mismatches fail fast.
 
 ## Time & Weather Systems
 - The server now boots `WorldTimeSystem` to push `TimeUpdateMessage` snapshots on login and every tick so late joiners stay in sync.
@@ -116,4 +118,5 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - Server procedurally generates terrain, ores, caves, dungeons, and vegetation.
 - See `docs/world-generation.md` for the pipeline and extension notes.
 - Configure the day/night cycle via `WorldSettings` in `server-config.json` (`InitialWorldTime`, `InitialDayTime`, `EnableDayNightCycle`, `DayNightCycleSecondsPerDay`).
+- 2025-11-10 hydrology refresh: karst sinkholes + aquifer vents, sub-chunk tributary stitching, and clay/sand shoreline terraces now keep `MapGeneratorLib` and `GameServer.WorldManager` outputs visually identical, which simplifies authoring chunk previews inside the Unity tools.
 

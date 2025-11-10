@@ -11,6 +11,11 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// </summary>
 public static class ChunkPayloadBuilder
 {
+    static ChunkPayloadBuilder()
+    {
+        ProtocolValidator.ValidateEnhancedContracts();
+    }
+
     public static ChunkData BuildChunkData(
         int chunkX,
         int chunkZ,

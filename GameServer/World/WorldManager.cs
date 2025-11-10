@@ -188,6 +188,23 @@ namespace GameServerApp.World
             }
         }
 
+        // ==================== World Seed Management ====================
+
+        private WorldSeedConfig? LoadWorldSeedFromDatabase() => null;
+
+        private void SaveWorldSeedToDatabase()
+        {
+            // TODO: wire up DatabaseHelper persistence when raw query helpers are available.
+        }
+
+        public Random GetChunkRandom(int chunkX, int chunkZ)
+        {
+            int chunkSeed = _worldSeed.GetChunkSeed(chunkX, chunkZ);
+            return new Random(chunkSeed);
+        }
+
+        public WorldSeedConfig GetWorldSeed() => _worldSeed;
+
         private async Task<ChunkData?> LoadChunkFromDatabase(int chunkX, int chunkZ)
         {
             var result = await _database.LoadChunkAsync(_worldId, chunkX, chunkZ);
@@ -435,6 +452,10 @@ namespace GameServerApp.World
         {
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
+            var surfaceCache = BuildSurfaceCache(chunk);
+            var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
+            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+            var riverField = GetRiverFieldCache(context);
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
             GenerateMainCaveSystem(chunk, rand);
@@ -446,8 +467,9 @@ namespace GameServerApp.World
             GenerateVerticalShafts(chunk, rand);
 
             // 노이즈 기반 동굴층 추가 (연속성 보장)
-            GenerateNoiseCavePass(context, chunk);
-            ApplyCaveHydrologyFeatures(context, chunk);
+            GenerateNoiseCavePass(context, chunk, surfaceCache);
+            ApplyCaveHydrologyFeatures(context, chunk, surfaceCache, hydrologyMask);
+            IntegrateKarstInlets(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
             AddCaveDripstoneFeatures(context, chunk);
         }
         
@@ -579,11 +601,10 @@ namespace GameServerApp.World
         /// <summary>
         /// 노이즈 기반 동굴층 - 연속된 노이즈 필드를 사용하여 청크 경계를 넘는 동굴을 형성한다.
         /// </summary>
-        private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk)
+        private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache)
         {
             int baseX = context.ChunkX * 16;
             int baseZ = context.ChunkZ * 16;
-            var surfaceCache = BuildSurfaceCache(chunk);
 
             for (int x = 0; x < 16; x++)
             {
@@ -655,11 +676,13 @@ namespace GameServerApp.World
             }
         }
 
-        private void ApplyCaveHydrologyFeatures(TerrainGenerationContext context, ChunkData chunk)
+        private void ApplyCaveHydrologyFeatures(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask)
         {
-            var surfaceCache = BuildSurfaceCache(chunk);
-            var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
-            var rand = new Random((context.ChunkX * 15731) ^ (context.ChunkZ * 31337) ^ 0xCAV3);
+            var rand = new Random((context.ChunkX * 15731) ^ (context.ChunkZ * 31337) ^ 0xCAF3);
 
             for (int x = 0; x < 16; x++)
             {
@@ -847,6 +870,153 @@ namespace GameServerApp.World
                         }
                     }
                 }
+            }
+        }
+
+        private void IntegrateKarstInlets(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation,
+            RiverFieldCache riverField)
+        {
+            var rand = new Random((context.ChunkX * 48611) ^ (context.ChunkZ * 27361) ^ 0x51AE);
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double hydrology = hydrologyMask[x, z];
+                    if (hydrology < 0.62)
+                    {
+                        continue;
+                    }
+
+                    double catchment = Math.Clamp(flowAccumulation[x, z] / 8.0, 0.0, 1.0);
+                    double riverIntensity = riverField.Intensity[x, z];
+                    double riverAffinity = 1.0 - Math.Clamp(riverIntensity / (RiverBankThreshold * 1.15), 0.0, 1.0);
+                    double weight = hydrology * 0.5 + catchment * 0.35 + riverAffinity * 0.25;
+                    if (weight < 0.65 || rand.NextDouble() > weight * 0.4)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface < 18)
+                    {
+                        continue;
+                    }
+
+                    int shaftTop = Math.Max(8, surface - rand.Next(2, 5));
+                    int shaftDepth = Math.Clamp((int)Math.Round(4 + weight * 6 + rand.NextDouble() * 2), 3, 12);
+                    int shaftBottom = Math.Max(6, shaftTop - shaftDepth);
+                    int radius = weight > 1.05 ? 2 : 1;
+
+                    CarveKarstColumn(chunk, x, z, shaftTop, shaftBottom, radius);
+
+                    if (shaftBottom + 2 < GlobalWaterLevel - 4 && rand.NextDouble() < hydrology)
+                    {
+                        FillKarstPool(chunk, x, z, shaftBottom, Math.Clamp((int)Math.Round(1 + weight * 3), 2, 5));
+                    }
+
+                    var slopeDir = ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                    Vector2 direction = slopeDir;
+                    if (riverField.Flow[x, z].LengthSquared() > 1e-4f)
+                    {
+                        direction = Vector2.Normalize(riverField.Flow[x, z]);
+                    }
+                    else if (direction.LengthSquared() > 1e-4f)
+                    {
+                        direction = Vector2.Normalize(direction);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    CreateKarstTunnel(chunk, x, z, Math.Max(shaftBottom + 1, 6), direction, weight, rand);
+                }
+            }
+        }
+
+        private void CarveKarstColumn(ChunkData chunk, int centerX, int centerZ, int topY, int bottomY, int radius)
+        {
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    if ((dx * dx) + (dz * dz) > radius * radius + (radius == 1 ? 0 : 1))
+                    {
+                        continue;
+                    }
+
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    for (int y = topY; y >= bottomY && y > 0; y--)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Air);
+                    }
+                }
+            }
+        }
+
+        private void FillKarstPool(ChunkData chunk, int centerX, int centerZ, int baseY, int depth)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    chunk.SetBlock(x, baseY, z, BlockType.Sand);
+                    for (int y = baseY + 1; y <= baseY + depth && y < GlobalWaterLevel - 2; y++)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Water);
+                    }
+                }
+            }
+        }
+
+        private void CreateKarstTunnel(ChunkData chunk, int startX, int startZ, int baseY, Vector2 direction, double weight, Random rand)
+        {
+            if (direction.LengthSquared() < 1e-4f || baseY <= 2)
+            {
+                return;
+            }
+
+            var dir = Vector2.Normalize(direction);
+            double radius = Math.Clamp(1.3 + weight * 0.6, 1.3, 2.4);
+            int steps = Math.Clamp((int)Math.Round(3 + weight * 4), 3, 8);
+            double x = startX;
+            double z = startZ;
+
+            for (int i = 0; i < steps; i++)
+            {
+                int cx = (int)Math.Round(x);
+                int cz = (int)Math.Round(z);
+                if (cx < 1 || cx > 14 || cz < 1 || cz > 14)
+                {
+                    break;
+                }
+
+                CarveSphere(chunk, cx, baseY, cz, radius);
+                if (rand.NextDouble() < 0.25 && baseY - 1 > 0)
+                {
+                    chunk.SetBlock(cx, baseY - 1, cz, BlockType.Clay);
+                }
+
+                x += dir.X + (rand.NextDouble() - 0.5) * 0.35;
+                z += dir.Y + (rand.NextDouble() - 0.5) * 0.35;
             }
         }
 
@@ -1258,15 +1428,26 @@ namespace GameServerApp.World
         }
 
         private void GenerateRiversInternal(TerrainGenerationContext context)
+
         {
+
             var chunk = context.Chunk;
+
             var riverField = GetRiverFieldCache(context);
+
             TerrainProfile[,]? profiles = null;
+
             context.TryGetMetadata(TerrainProfilesKey, out profiles);
 
+
+
             var surfaceCache = BuildSurfaceCache(chunk);
+
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
+
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+
+            var riverIntensity = new double[16, 16];
 
             for (int x = 0; x < 16; x++)
             {
@@ -1284,10 +1465,11 @@ namespace GameServerApp.World
 
                     double hydrology = hydrologyMask[x, z];
                     double catchment = flowAccumulation[x, z];
-                    double catchmentStrength = Math.Clamp(catchment / 6.0, 0.0, 1.0);
-                    double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
-                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015;
-                    intensity = Math.Max(0.0, intensity);
+                    double catchmentStrength = Math.Clamp(catchment / 6.0, 0.0, 1.0);
+                    double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
+                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015;
+                    intensity = Math.Max(0.0, intensity);
+                    riverIntensity[x, z] = intensity;
                     if (intensity >= RiverBankThreshold)
                     {
                         continue;
@@ -1323,6 +1505,7 @@ namespace GameServerApp.World
                 }
             }
 
+            StitchTributaryChannels(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField, riverIntensity);
             ApplyRiverbankErosion(chunk, surfaceCache, riverField, hydrologyMask);
             ApplyRiverSedimentPass(context, chunk, surfaceCache, riverField, hydrologyMask);
         }
@@ -1534,6 +1717,7 @@ namespace GameServerApp.World
             if (lakeCreated)
             {
                 ApplyLakeTerraces(chunk, surfaceCache, centerX, centerZ, waterLevel, radiusX, radiusZ, rotation);
+                DepositLakeSedimentRings(chunk, centerX, centerZ, waterLevel, radiusX, radiusZ);
                 TryLinkLakeToRiver(context, chunk, riverField, hydrologyMask, flowAccumulation, surfaceCache, centerX, centerZ, waterLevel, radiusX, radiusZ);
             }
         }
@@ -1939,6 +2123,154 @@ namespace GameServerApp.World
 
                 ResolvePerpendicularOffset(new Vector2(-perpendicular.X, -perpendicular.Y), step, out offsetX, out offsetZ);
                 ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, falloff, riverSurface, false);
+            }
+        }
+
+        private void StitchTributaryChannels(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation,
+            RiverFieldCache riverField,
+            double[,] riverIntensity)
+        {
+            var rand = new Random((context.ChunkX * 29791) ^ (context.ChunkZ * 911) ^ 0x7F1B);
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double hydrology = hydrologyMask[x, z];
+                    if (hydrology < 0.7)
+                    {
+                        continue;
+                    }
+
+                    double catchment = Math.Clamp(flowAccumulation[x, z] / 7.5, 0.0, 1.0);
+                    double intensity = riverField.Intensity[x, z];
+                    if (intensity >= RiverBankThreshold * 1.1 || intensity <= RiverCenterThreshold * 0.35)
+                    {
+                        continue;
+                    }
+
+                    double riverGap = 1.0 - Math.Clamp(intensity / RiverCenterThreshold, 0.0, 1.0);
+                    double weight = hydrology * 0.4 + catchment * 0.4 + riverGap * 0.35;
+                    if (weight < 0.55 || rand.NextDouble() > weight * 0.45)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 1)
+                    {
+                        continue;
+                    }
+
+                    var flowDir = riverField.Flow[x, z];
+                    var slopeDir = ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                    Vector2 direction = flowDir.LengthSquared() > 1e-4f ? flowDir : slopeDir;
+                    if (direction.LengthSquared() < 1e-4f)
+                    {
+                        continue;
+                    }
+
+                    TraceTributaryChannel(chunk, surfaceCache, riverIntensity, x, z, direction, weight, rand);
+                }
+            }
+        }
+
+        private void DepositLakeSedimentRings(ChunkData chunk, int centerX, int centerZ, int waterSurface, int radiusX, int radiusZ)
+        {
+            double innerRadiusX = Math.Max(1.0, radiusX + 0.5);
+            double innerRadiusZ = Math.Max(1.0, radiusZ + 0.5);
+            double outerRadiusX = innerRadiusX + 2.0;
+            double outerRadiusZ = innerRadiusZ + 2.0;
+            int extentX = (int)Math.Ceiling(outerRadiusX + 2.0);
+            int extentZ = (int)Math.Ceiling(outerRadiusZ + 2.0);
+
+            for (int dx = -extentX; dx <= extentX; dx++)
+            {
+                for (int dz = -extentZ; dz <= extentZ; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    double ellipse = Math.Sqrt(
+                        (dx * dx) / Math.Max(1.0, innerRadiusX * innerRadiusX) +
+                        (dz * dz) / Math.Max(1.0, innerRadiusZ * innerRadiusZ));
+                    if (ellipse > 1.35)
+                    {
+                        continue;
+                    }
+
+                    int surface = FindSurfaceLevel(chunk, x, z);
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    int targetY = Math.Max(1, Math.Min(surface, waterSurface) - 1);
+                    if (ellipse <= 1.0)
+                    {
+                        chunk.SetBlock(x, targetY, z, BlockType.Clay);
+                    }
+                    else if (ellipse <= 1.25)
+                    {
+                        chunk.SetBlock(x, targetY, z, BlockType.Sand);
+                    }
+                }
+            }
+        }
+
+        private void TraceTributaryChannel(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] riverIntensity,
+            int startX,
+            int startZ,
+            Vector2 direction,
+            double strength,
+            Random rand)
+        {
+            if (direction.LengthSquared() < 1e-4f)
+            {
+                return;
+            }
+
+            var dir = Vector2.Normalize(direction);
+            double stepX = dir.X;
+            double stepZ = dir.Y;
+            int steps = Math.Clamp((int)Math.Round(3 + strength * 5), 3, 8);
+            double x = startX;
+            double z = startZ;
+            double channelPressure = Math.Clamp(0.35 + strength * 0.4, 0.35, 0.85);
+
+            for (int i = 0; i < steps; i++)
+            {
+                int cx = (int)Math.Round(x);
+                int cz = (int)Math.Round(z);
+                if (cx < 0 || cx >= 16 || cz < 0 || cz >= 16)
+                {
+                    break;
+                }
+
+                int surface = surfaceCache[cx, cz];
+                if (surface <= 0)
+                {
+                    break;
+                }
+
+                int riverSurface = Math.Min(surface, GlobalWaterLevel);
+                double normalized = Math.Clamp(0.55 + strength * 0.35 - i * 0.08, 0.2, 0.95);
+                CarveRiverColumn(chunk, surfaceCache, cx, cz, riverSurface, normalized, channelPressure, dir);
+                riverIntensity[cx, cz] = Math.Min(riverIntensity[cx, cz], RiverCenterThreshold * 0.5);
+
+                x += stepX + (rand.NextDouble() - 0.5) * 0.3;
+                z += stepZ + (rand.NextDouble() - 0.5) * 0.3;
             }
         }
 
@@ -2881,7 +3213,8 @@ namespace GameServerApp.World
         DeadBush = 16,
         Ice = 17,
         Snow = 18,
-        Cloud = 19
+        Cloud = 19,
+        Clay = 20
     }
 
     public enum BiomeType : byte
@@ -3029,99 +3362,6 @@ namespace GameServerApp.World
             return permutation;
         }
 
-        // ==================== World Seed Management ====================
-
-        /// <summary>
-        /// 데이터베이스에서 월드 시드 로드
-        /// </summary>
-        private WorldSeedConfig? LoadWorldSeedFromDatabase()
-        {
-            try
-            {
-                string query = "SELECT seed_data FROM world_seeds WHERE world_id = @worldId LIMIT 1";
-                var parameters = new Dictionary<string, object>
-                {
-                    { "@worldId", _worldId }
-                };
-
-                var result = _database.ExecuteQuery(query, parameters);
-                if (result != null && result.Count > 0)
-                {
-                    var row = result[0];
-                    if (row.TryGetValue("seed_data", out var seedDataObj) && seedDataObj is string seedData)
-                    {
-                        var config = WorldSeedConfig.FromJson(seedData);
-                        if (config != null)
-                        {
-                            Console.WriteLine($"[WorldManager] Loaded existing world seed from database");
-                            return config;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WorldManager] Error loading world seed: {ex.Message}");
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// 데이터베이스에 월드 시드 저장
-        /// </summary>
-        private void SaveWorldSeedToDatabase()
-        {
-            try
-            {
-                // 테이블이 없으면 생성
-                string createTableQuery = @"
-                    CREATE TABLE IF NOT EXISTS world_seeds (
-                        world_id INTEGER PRIMARY KEY,
-                        seed_data TEXT NOT NULL,
-                        created_at TEXT NOT NULL,
-                        updated_at TEXT NOT NULL
-                    )";
-                _database.ExecuteNonQuery(createTableQuery);
-
-                // 시드 데이터 저장 (UPSERT)
-                string upsertQuery = @"
-                    INSERT INTO world_seeds (world_id, seed_data, created_at, updated_at)
-                    VALUES (@worldId, @seedData, @createdAt, @updatedAt)
-                    ON CONFLICT(world_id) DO UPDATE SET
-                        seed_data = @seedData,
-                        updated_at = @updatedAt";
-
-                var parameters = new Dictionary<string, object>
-                {
-                    { "@worldId", _worldId },
-                    { "@seedData", _worldSeed.ToJson() },
-                    { "@createdAt", DateTime.UtcNow.ToString("O") },
-                    { "@updatedAt", DateTime.UtcNow.ToString("O") }
-                };
-
-                _database.ExecuteNonQuery(upsertQuery, parameters);
-                Console.WriteLine($"[WorldManager] World seed saved to database");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WorldManager] Error saving world seed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 청크별 시드 생성 (결정적)
-        /// </summary>
-        public Random GetChunkRandom(int chunkX, int chunkZ)
-        {
-            int chunkSeed = _worldSeed.GetChunkSeed(chunkX, chunkZ);
-            return new Random(chunkSeed);
-        }
-
-        /// <summary>
-        /// 월드 시드 정보 조회
-        /// </summary>
-        public WorldSeedConfig GetWorldSeed() => _worldSeed;
 
         // ==================== Utility Methods ====================
 

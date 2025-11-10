@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using GameProtocol;
+using ProtoVector3 = GameProtocol.Vector3;
+using ServerVector3 = GameServerApp.Vector3;
 
 namespace GameServerApp.AI
 {
@@ -27,16 +29,17 @@ namespace GameServerApp.AI
         /// <summary>
         /// AI 액터 스폰
         /// </summary>
-        public ServerAIActor SpawnAI(string aiType, Vector3 spawnPosition, string worldId)
+        public ServerAIActor SpawnAI(string aiType, ProtoVector3 spawnPosition, string worldId)
         {
             int actorId = _nextActorId++;
+            var serverPosition = new ServerVector3(spawnPosition.X, spawnPosition.Y, spawnPosition.Z);
 
             ServerAIActor actor = new ServerAIActor
             {
                 ActorId = actorId,
                 ActorName = $"{aiType}_{actorId}",
                 AIType = aiType,
-                Position = spawnPosition,
+                Position = serverPosition,
                 WorldId = worldId,
                 State = AIState.AiIdle,
                 Health = GetMaxHealthForType(aiType),
@@ -48,7 +51,7 @@ namespace GameServerApp.AI
 
             _aiActors[actorId] = actor;
 
-            Console.WriteLine($"[ServerAIManager] Spawned {aiType} (ID: {actorId}) at {spawnPosition.X},{spawnPosition.Y},{spawnPosition.Z}");
+            Console.WriteLine($"[ServerAIManager] Spawned {aiType} (ID: {actorId}) at {serverPosition.X},{serverPosition.Y},{serverPosition.Z}");
 
             return actor;
         }
@@ -109,12 +112,10 @@ namespace GameServerApp.AI
                         actor.WanderTimer = 0f;
                         // 랜덤 위치로 이동
                         Random rand = new Random();
-                        actor.TargetPosition = new Vector3
-                        {
-                            X = actor.Position.X + (float)(rand.NextDouble() * 10 - 5),
-                            Y = actor.Position.Y,
-                            Z = actor.Position.Z + (float)(rand.NextDouble() * 10 - 5)
-                        };
+                        actor.TargetPosition = new ServerVector3(
+                            actor.Position.X + rand.NextDouble() * 10 - 5,
+                            actor.Position.Y,
+                            actor.Position.Z + rand.NextDouble() * 10 - 5);
                         actor.State = AIState.AiWander;
                     }
                     break;
@@ -150,17 +151,17 @@ namespace GameServerApp.AI
             // 위치 업데이트 (간단한 이동)
             if (actor.TargetPosition != null)
             {
-                float moveSpeed = 5.0f * deltaTime; // 5 units/sec
+                double moveSpeed = 5.0 * deltaTime; // 5 units/sec
                 actor.Position.X += (actor.TargetPosition.X - actor.Position.X) * moveSpeed;
                 actor.Position.Z += (actor.TargetPosition.Z - actor.Position.Z) * moveSpeed;
 
                 // 목표 도달 체크
-                float distance = MathF.Sqrt(
-                    MathF.Pow(actor.TargetPosition.X - actor.Position.X, 2) +
-                    MathF.Pow(actor.TargetPosition.Z - actor.Position.Z, 2)
+                double distance = Math.Sqrt(
+                    Math.Pow(actor.TargetPosition.X - actor.Position.X, 2) +
+                    Math.Pow(actor.TargetPosition.Z - actor.Position.Z, 2)
                 );
 
-                if (distance < 0.5f)
+                if (distance < 0.5)
                 {
                     actor.TargetPosition = null;
                     actor.State = AIState.AiIdle;
@@ -184,7 +185,7 @@ namespace GameServerApp.AI
                 {
                     ActorId = actor.ActorId,
                     ActorName = actor.ActorName,
-                    Position = actor.Position,
+                    Position = new ProtoVector3((float)actor.Position.X, (float)actor.Position.Y, (float)actor.Position.Z),
                     State = actor.State,
                     TargetId = actor.TargetId,
                     Health = actor.Health,
@@ -219,13 +220,14 @@ namespace GameServerApp.AI
             if (target.Health <= 0)
             {
                 target.State = AIState.AiDead;
-                return new AIDeathEventBroadcast
+                return new AIAttackEventBroadcast
                 {
-                    ActorId = targetId,
-                    KillerId = attackerId,
-                    DeathPosition = target.Position,
+                    AttackerId = attackerId,
+                    TargetId = targetId,
+                    Damage = damage,
+                    AttackPosition = new ProtoVector3((float)target.Position.X, (float)target.Position.Y, (float)target.Position.Z),
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                } as AIAttackEventBroadcast; // 캐스팅 (임시)
+                };
             }
 
             return new AIAttackEventBroadcast
@@ -233,7 +235,7 @@ namespace GameServerApp.AI
                 AttackerId = attackerId,
                 TargetId = targetId,
                 Damage = damage,
-                AttackPosition = target.Position,
+                AttackPosition = new ProtoVector3((float)target.Position.X, (float)target.Position.Y, (float)target.Position.Z),
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
         }
@@ -324,8 +326,8 @@ namespace GameServerApp.AI
         public string ActorName { get; set; } = "";
         public string AIType { get; set; } = "";
         public string WorldId { get; set; } = "";
-        public Vector3 Position { get; set; } = new Vector3();
-        public Vector3? TargetPosition { get; set; }
+        public ServerVector3 Position { get; set; } = new ServerVector3();
+        public ServerVector3? TargetPosition { get; set; }
         public AIState State { get; set; } = AIState.AiIdle;
         public int TargetId { get; set; } = 0;
         public int Health { get; set; }

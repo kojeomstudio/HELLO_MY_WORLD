@@ -94,7 +94,7 @@ namespace GameServerApp.Handlers
                         CurrentBehaviorTreeNode = "N/A", // Simplified server AI doesn't track BT nodes
                         AggroLevel = 0f, // TODO: Calculate from aggro list
                         PerceivedEntitiesCount = 0, // Server doesn't have perception system
-                        LODLevel = "FullSpeed", // Server always updates at full speed
+                        LodLevel = "FullSpeed", // Server always updates at full speed
                         UpdateRate = 60f // Server tick rate
                     };
 

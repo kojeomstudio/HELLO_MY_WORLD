@@ -27,6 +27,13 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - **2025-10-31 alignment**: MapGeneratorLib now shares the server river/lake heuristics so Unity tooling and the dedicated server render identical sandbanks, basins, and meanders across chunk seams.
 - **Pond shaping**: inland ponds now relax their banks after filling, replacing cliffy edges with gentle sand shelves to avoid hard transitions in Unity meshes.
 
+### November 2025 Hydrology Update
+
+- **Karst sinkholes & aquifer vents**: both `WorldManager.GenerateCavesInternal` and `MapGeneratorLib.GenerateSphereCaves` sample the hydrology + flow-accumulation masks to punch surface sinkholes, floodable cave pools, and short connector tunnels that track the local slope/river direction. The new helpers (`IntegrateKarstInlets` / `IntegrateKarstSinkholes`) keep underground lakes aligned with nearby river plains so Unity previews match the dedicated server.
+- **Tributary stitching**: `StitchTributaryChannels` now extends minor watercourses from high-hydrology columns into the nearest river flow vector, reducing orphaned basins. The helper runs after the primary river pass in both codebases so erosion and sediment passes still honour the newly carved channels.
+- **Clay/sand terraces**: `DepositLakeSedimentRings` lays down clay inside the lake bowl and sand on the immediate rim so the Unity mesh baker can shade shorelines accurately. This runs for procedural lakes in both the server and `MapGeneratorLib` so tooling screenshots and live gameplay stay in sync.
+- **Validation loop**: `ChunkPayloadBuilder` calls `ProtocolValidator.ValidateEnhancedContracts()` on first use. If the Unity-generated protobuf classes fall out of date you will see a compile/build failure before chunk data ships to clients. Re-run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` and rebuild `SharedProtocol/SharedProtocol.csproj` to clear the guard.
+
 ## Highlands & Cliffs
 
 - **Mountains**: ridged noise creates high elevation peaks; above ~Y105 we favour stone caps, optionally transitioning to cobblestone for rugged summits.

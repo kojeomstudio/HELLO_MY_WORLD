@@ -1,4 +1,4 @@
-# Minecraft Client & Server Feature Matrix (2025-10-24)
+# Minecraft Client & Server Feature Matrix (2025-11-11)
 
 This matrix consolidates the end-to-end Minecraft-style features we are tracking. Each row pairs the .NET server responsibilities with the Unity client work so future sessions can pick up sequentially without rediscovery.
 
@@ -28,9 +28,13 @@ This matrix consolidates the end-to-end Minecraft-style features we are tracking
 | F-22 | Player Options & Keybind Sync | Persist per-player settings, expose config endpoints | Present settings UI, push updates to server on change | Planned | Task-22A: define settings contract and persistence layout. |
 | F-23 | Hydrology-Tuned Terrain | Hydrology-weighted cave pools, river sediment shelves, terraced lakes shared between WorldManager & MapGeneratorLib | Unity tooling mirrors cave pools, sediment pass, and terraced lakes so previews match server output | Done | Monitor erosion metrics + expose toggles in MapGenerator UI. |
 | F-24 | Enhanced Proto Contract Validation | Validate ChunkLoadRequest/Response descriptors and enforce required fields during server startup | Regenerate `Assets/Generated/Protobuf` from the same `.proto` source before opening Unity, hook warnings into tooling | Done | Automate proto regeneration in CI & Unity preflight scripts. |
+| F-25 | Cave Stability & Support Field | `WorldManager` builds a per-column stability field, sculpts air pressure, and injects stone buttresses so long caverns stay traversable | `MapGeneratorLib` mirrors the stability computation so in-editor previews match runtime cave clearances | Done | Surface a debug toggle in the world inspector to visualise stability heatmaps. |
+| F-26 | River Wetlands & Point Bars | River stages now deposit sand/clay point bars, braid shallow channels, and fill wetlands based on hydrology + flow accumulation | Surface generator renders the same wetlands so Unity terrain editing shows braid candidates before export | Done | Add biome-aware foliage prefabs for wetland rings (Task-26B). |
+| F-27 | Lacustrine Micro Features | Lakes add shoreline vegetation belts, inlet seeps, and multi-step shelves; MapGenerator parity keeps sculpted basins identical | Unity lake tooling inherits the same terracing and vegetation hints for artists | Done | Author lighting presets for dusk reflections (Task-27C). |
+| F-28 | Proto Diagnostics & Registry Report | `ProtoDiagnostics` logs descriptor/registration mismatches at startup, ensuring regenerated protobufs stay in sync with handlers | Unity can re-use the report to warn artists if generated assets are stale before play mode | Done | Wire the diagnostics report into CI artifact upload for historical diffing. |
 
 ## Sequential Work Notes
-- Current session: Hydrology-driven cave pools, river sediment terraces, and terraced lakes now run on both the authoritative server and MapGeneratorLib so world previews match runtime chunks. ProtocolValidator also verifies the generated ChunkLoadRequest/ChunkLoadResponse descriptors after protobuf regeneration.
+- Current session: Added a shared cave-stability field with support pillars, braided river/wetland passes, and shoreline vegetation/seeps so both WorldManager and MapGeneratorLib stay visually aligned. `ProtoDiagnostics` now emits a descriptor/registry report each time the server boots, catching stale protobufs before playtests.
 - Previously: ServerStatusResponse grew death/respawn counters surfaced in the Unity HUD (Task-20A), and the HUD death feed responds to PlayerDeath/PlayerRespawnBroadcast (Task-19B).
 - Measurements: Task-19E shifts to pause-menu analytics once telemetry endpoints expand (Task-20B dependency).
 - Keep function implementations under 200 lines; split existing monoliths when touching related code.

@@ -438,6 +438,35 @@ namespace GameServerApp.World
             return Math.Clamp((value + 1.0) * 0.5, 0.0, 1.0);
         }
 
+        private static double SampleField(double[,] field, double x, double z)
+        {
+            if (field == null)
+            {
+                return 0.0;
+            }
+
+            int width = field.GetLength(0);
+            int depth = field.GetLength(1);
+            double clampedX = Math.Clamp(x, 0.0, width - 1);
+            double clampedZ = Math.Clamp(z, 0.0, depth - 1);
+
+            int x0 = (int)Math.Floor(clampedX);
+            int z0 = (int)Math.Floor(clampedZ);
+            int x1 = Math.Min(x0 + 1, width - 1);
+            int z1 = Math.Min(z0 + 1, depth - 1);
+            double tx = clampedX - x0;
+            double tz = clampedZ - z0;
+
+            double v00 = field[x0, z0];
+            double v10 = field[x1, z0];
+            double v01 = field[x0, z1];
+            double v11 = field[x1, z1];
+
+            double vx0 = v00 + (v10 - v00) * tx;
+            double vx1 = v01 + (v11 - v01) * tx;
+            return vx0 + (vx1 - vx0) * tz;
+        }
+
         private double SampleRidgedNoise(double worldX, double worldZ, double frequency, int octaves, double amplitude, double persistence, int seed)
         {
             var noise = SimplexNoise.Generate(worldX, worldZ, frequency, octaves, amplitude, persistence, seed);
@@ -458,25 +487,179 @@ namespace GameServerApp.World
             var riverField = GetRiverFieldCache(context);
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
-            GenerateMainCaveSystem(chunk, rand);
-            
+            var caveStabilityField = BuildCaveStabilityField(context, surfaceCache, hydrologyMask, flowAccumulation);
+
+            GenerateMainCaveSystem(chunk, rand, caveStabilityField);
+
             // 소형 동굴방 추가
             GenerateSmallCaveRooms(chunk, rand);
-            
+
             // 수직 동굴 (수직갱)
             GenerateVerticalShafts(chunk, rand);
 
             // 노이즈 기반 동굴층 추가 (연속성 보장)
-            GenerateNoiseCavePass(context, chunk, surfaceCache);
+            GenerateNoiseCavePass(context, chunk, surfaceCache, caveStabilityField);
             ApplyCaveHydrologyFeatures(context, chunk, surfaceCache, hydrologyMask);
             IntegrateKarstInlets(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
+            AddCaveColumnSupports(chunk, surfaceCache, caveStabilityField, rand);
             AddCaveDripstoneFeatures(context, chunk);
         }
         
+        private double[,] BuildCaveStabilityField(
+            TerrainGenerationContext context,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation)
+        {
+            var stability = new double[16, 16];
+            int originX = context.ChunkX * 16;
+            int originZ = context.ChunkZ * 16;
+
+            double surfaceRange = Math.Max(1, MaxSurfaceHeight - MinSurfaceHeight);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        stability[x, z] = 0.0;
+                        continue;
+                    }
+
+                    double depthFactor = Math.Clamp((surface - MinSurfaceHeight) / surfaceRange, 0.0, 1.0);
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    double roughness = NormalizeNoise(SimplexNoise.Generate(originX + x * 0.85, originZ + z * 0.85, 0.012, 3, 1.0, 0.6, 91517));
+                    double warp = NormalizeNoise(PerlinNoise.Generate(originX + x * 0.5, originZ + z * 0.5, 0.018, 2, 1.0, 0.55, 52301));
+
+                    double saturation = hydrology * 0.45 + flow * 0.25 + (1.0 - depthFactor) * 0.2 + (roughness + warp) * 0.1;
+                    stability[x, z] = Math.Clamp(saturation, 0.0, 1.0);
+                }
+            }
+
+            return stability;
+        }
+
+        private void AddCaveColumnSupports(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] caveStabilityField,
+            Random rand)
+        {
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double stability = caveStabilityField[x, z];
+                    if (stability < 0.58)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 12)
+                    {
+                        continue;
+                    }
+
+                    int top = -1;
+                    int bottom = -1;
+                    bool insideAir = false;
+                    int scanStart = Math.Min(surface - 2, 140);
+
+                    for (int y = scanStart; y >= 8; y--)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air || block == BlockType.Water)
+                        {
+                            if (!insideAir)
+                            {
+                                insideAir = true;
+                                top = y;
+                            }
+                        }
+                        else if (insideAir)
+                        {
+                            bottom = y + 1;
+                            break;
+                        }
+                    }
+
+                    if (!insideAir || top == -1 || bottom == -1)
+                    {
+                        continue;
+                    }
+
+                    int cavityHeight = top - bottom + 1;
+                    if (cavityHeight < 6)
+                    {
+                        continue;
+                    }
+
+                    int supportSpan = Math.Clamp((int)Math.Round(cavityHeight * (0.3 + stability * 0.4)), 3, cavityHeight - 1);
+                    int baseOffset = rand.Next(0, Math.Max(1, cavityHeight - supportSpan));
+                    int columnBase = bottom + baseOffset;
+                    int columnTop = Math.Min(top - 1, columnBase + supportSpan);
+                    int radius = stability > 0.82 ? 2 : 1;
+
+                    for (int y = columnBase; y <= columnTop; y++)
+                    {
+                        if ((y - columnBase) % 2 == 0 || y == columnTop)
+                        {
+                            PlaceSupportNode(chunk, x, y, z, radius);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void PlaceSupportNode(ChunkData chunk, int x, int y, int z, int radius)
+        {
+            if (y < 1 || y >= 255 || x <= 0 || x >= 15 || z <= 0 || z >= 15)
+            {
+                return;
+            }
+
+            chunk.SetBlock(x, y, z, BlockType.Cobblestone);
+
+            if (radius <= 1)
+            {
+                return;
+            }
+
+            var offsets = new (int dx, int dz)[]
+            {
+                (1, 0), (-1, 0), (0, 1), (0, -1)
+            };
+
+            foreach (var (dx, dz) in offsets)
+            {
+                int nx = x + dx;
+                int nz = z + dz;
+                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                {
+                    continue;
+                }
+
+                var block = chunk.GetBlock(nx, y, nz);
+                if (block == BlockType.Air)
+                {
+                    chunk.SetBlock(nx, y, nz, BlockType.Stone);
+                }
+            }
+
+            if (y - 1 >= 1 && chunk.GetBlock(x, y - 1, z) == BlockType.Air)
+            {
+                chunk.SetBlock(x, y - 1, z, BlockType.Stone);
+            }
+        }
+
         /// <summary>
         /// 메인 동굴 시스템 생성
         /// </summary>
-        private void GenerateMainCaveSystem(ChunkData chunk, Random rand)
+        private void GenerateMainCaveSystem(ChunkData chunk, Random rand, double[,] caveStabilityField)
         {
             int wormCount = 1 + rand.Next(3); // 1~3개의 메인 웜
             double radiusNoiseSeed = rand.NextDouble() * 1000.0;
@@ -495,9 +678,16 @@ namespace GameServerApp.World
                 for (int s = 0; s < steps; s++)
                 {
                     // 동적으로 변하는 반지름 (넓어지고 좁아지는 효과)
+                    double stability = SampleField(caveStabilityField, x, z);
                     double radiusNoise = SimplexNoise.Generate(x + radiusNoiseSeed, z + radiusNoiseSeed, 0.12, 2, 1.0, 0.55, 55127);
-                    double currentRadius = baseRadius + Math.Sin(s * 0.1) * 0.8 + radiusNoise * 0.6;
-                    currentRadius = Math.Clamp(currentRadius, 1.6, baseRadius + 1.9);
+                    double radiusTurbulence = Math.Sin(s * 0.1) * 0.8 + radiusNoise * 0.6;
+                    double pressureBias = 0.65 + (1.0 - stability) * 0.45;
+                    double currentRadius = (baseRadius + radiusTurbulence) * pressureBias;
+                    if (stability > 0.75)
+                    {
+                        currentRadius *= 1.05 + stability * 0.2;
+                    }
+                    currentRadius = Math.Clamp(currentRadius, 1.6, baseRadius + 2.1);
                     
                     int cx = (int)Math.Round(x);
                     int cy = (int)Math.Round(y);
@@ -524,7 +714,8 @@ namespace GameServerApp.World
 
                     // 방향 변화 (더 자연스럽게)
                     double directionalNoise = SimplexNoise.Generate(x + directionalNoiseSeed, y + directionalNoiseSeed, 0.05, 2, 1.0, 0.5, 91357);
-                    yaw += (rand.NextDouble() - 0.5) * 0.3 + directionalNoise * 0.35;
+                    double turnBias = 0.7 - stability * 0.35;
+                    yaw += (rand.NextDouble() - 0.5) * 0.3 * turnBias + directionalNoise * 0.35;
                     pitch += (rand.NextDouble() - 0.5) * 0.15 + directionalNoise * 0.18;
                     pitch = Math.Clamp(pitch, -0.7, 0.7);
 
@@ -601,7 +792,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 노이즈 기반 동굴층 - 연속된 노이즈 필드를 사용하여 청크 경계를 넘는 동굴을 형성한다.
         /// </summary>
-        private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache)
+        private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache, double[,] caveStabilityField)
         {
             int baseX = context.ChunkX * 16;
             int baseZ = context.ChunkZ * 16;
@@ -646,12 +837,14 @@ namespace GameServerApp.World
                         }
 
                         double aquifer = SimplexNoise.Generate(worldX, y, 0.0042, 2, 1.0, 0.58, 147113);
-                        double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
-                        double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
-                        double dynamicThreshold = NoiseCaveThreshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
+                    double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
+                    double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
+                    double dynamicThreshold = NoiseCaveThreshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
+                    double stability = SampleField(caveStabilityField, x, z);
+                    dynamicThreshold -= (stability - 0.5) * 0.08;
 
-                        if (density < dynamicThreshold)
-                        {
+                    if (density < dynamicThreshold)
+                    {
                             var block = chunk.GetBlock(x, y, z);
                             if (block == BlockType.Air || block == BlockType.Water || block == BlockType.Lava)
                             {
@@ -1508,6 +1701,8 @@ namespace GameServerApp.World
             StitchTributaryChannels(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField, riverIntensity);
             ApplyRiverbankErosion(chunk, surfaceCache, riverField, hydrologyMask);
             ApplyRiverSedimentPass(context, chunk, surfaceCache, riverField, hydrologyMask);
+            ApplyRiverPointBarSediment(context, chunk, surfaceCache, riverField, riverIntensity);
+            AddFloodplainWetlands(context, chunk, surfaceCache, hydrologyMask, riverIntensity);
         }
 
         private void CreateCavePool(ChunkData chunk, int centerX, int centerY, int centerZ, int radius)
@@ -1718,6 +1913,8 @@ namespace GameServerApp.World
             {
                 ApplyLakeTerraces(chunk, surfaceCache, centerX, centerZ, waterLevel, radiusX, radiusZ, rotation);
                 DepositLakeSedimentRings(chunk, centerX, centerZ, waterLevel, radiusX, radiusZ);
+                EnhanceLakeShoreVegetation(chunk, centerX, centerZ, radiusX, radiusZ, rand);
+                CreateLakeSeeps(context, chunk, surfaceCache, hydrologyMask, centerX, centerZ, waterLevel, radiusX, radiusZ, rand);
                 TryLinkLakeToRiver(context, chunk, riverField, hydrologyMask, flowAccumulation, surfaceCache, centerX, centerZ, waterLevel, radiusX, radiusZ);
             }
         }
@@ -2226,6 +2423,110 @@ namespace GameServerApp.World
             }
         }
 
+        private void EnhanceLakeShoreVegetation(ChunkData chunk, int centerX, int centerZ, int radiusX, int radiusZ, Random rand)
+        {
+            int extentX = radiusX + 5;
+            int extentZ = radiusZ + 5;
+
+            for (int dx = -extentX; dx <= extentX; dx++)
+            {
+                for (int dz = -extentZ; dz <= extentZ; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    double ellipse = Math.Sqrt(
+                        (dx * dx) / Math.Max(1.0, radiusX * radiusX) +
+                        (dz * dz) / Math.Max(1.0, radiusZ * radiusZ));
+
+                    if (ellipse > 1.45)
+                    {
+                        continue;
+                    }
+
+                    int surface = FindSurfaceLevel(chunk, x, z);
+                    if (surface <= 0 || surface + 1 >= 256)
+                    {
+                        continue;
+                    }
+
+                    var topBlock = chunk.GetBlock(x, surface, z);
+                    if (topBlock == BlockType.Sand && rand.NextDouble() < 0.45)
+                    {
+                        if (chunk.GetBlock(x, surface + 1, z) == BlockType.Air)
+                        {
+                            chunk.SetBlock(x, surface + 1, z, rand.NextDouble() < 0.7 ? BlockType.TallGrass : BlockType.DeadBush);
+                        }
+                    }
+                    else if (topBlock == BlockType.Dirt && ellipse <= 1.1 && rand.NextDouble() < 0.35)
+                    {
+                        chunk.SetBlock(x, surface, z, BlockType.Grass);
+                        if (chunk.GetBlock(x, surface + 1, z) == BlockType.Air && rand.NextDouble() < 0.4)
+                        {
+                            chunk.SetBlock(x, surface + 1, z, BlockType.TallGrass);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CreateLakeSeeps(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            int centerX,
+            int centerZ,
+            int waterSurface,
+            int radiusX,
+            int radiusZ,
+            Random rand)
+        {
+            int attempts = 4;
+
+            for (int attempt = 0; attempt < attempts; attempt++)
+            {
+                int sampleX = Math.Clamp(centerX + rand.Next(-radiusX - 5, radiusX + 6), 1, 14);
+                int sampleZ = Math.Clamp(centerZ + rand.Next(-radiusZ - 5, radiusZ + 6), 1, 14);
+
+                double hydrology = hydrologyMask[sampleX, sampleZ];
+                if (hydrology < 0.75)
+                {
+                    continue;
+                }
+
+                int surface = surfaceCache[sampleX, sampleZ];
+                if (surface <= waterSurface + 1)
+                {
+                    continue;
+                }
+
+                int trenchDepth = Math.Clamp((int)Math.Round(1 + (hydrology - 0.7) * 4.0), 1, 4);
+                int floor = Math.Max(surface - trenchDepth, 1);
+
+                for (int y = surface; y >= floor; y--)
+                {
+                    chunk.SetBlock(sampleX, y, sampleZ, BlockType.Air);
+                }
+
+                for (int y = floor; y <= waterSurface && y < 256; y++)
+                {
+                    chunk.SetBlock(sampleX, y, sampleZ, BlockType.Water);
+                }
+
+                if (floor - 1 >= 1)
+                {
+                    chunk.SetBlock(sampleX, floor - 1, sampleZ, BlockType.Clay);
+                }
+
+                surfaceCache[sampleX, sampleZ] = Math.Max(surfaceCache[sampleX, sampleZ], Math.Min(waterSurface, 255));
+            }
+        }
+
         private void TraceTributaryChannel(
             ChunkData chunk,
             int[,] surfaceCache,
@@ -2422,6 +2723,151 @@ namespace GameServerApp.World
                     {
                         chunk.SetBlock(x, targetHeight + 1, z, BlockType.Air);
                     }
+                }
+            }
+        }
+
+        private void ApplyRiverPointBarSediment(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            RiverFieldCache riverField,
+            double[,] riverIntensity)
+        {
+            int originX = context.ChunkX * 16;
+            int originZ = context.ChunkZ * 16;
+
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double intensity = riverIntensity[x, z];
+                    if (intensity < RiverCenterThreshold * 0.85 || intensity > RiverBankThreshold * 1.05)
+                    {
+                        continue;
+                    }
+
+                    Vector2 flow = riverField.Flow[x, z];
+                    if (flow.LengthSquared() < 1e-4f)
+                    {
+                        continue;
+                    }
+
+                    Vector2 perpendicular = new Vector2(-flow.Y, flow.X);
+                    if (perpendicular.LengthSquared() < 1e-5f)
+                    {
+                        perpendicular = new Vector2(1, 0);
+                    }
+                    perpendicular = Vector2.Normalize(perpendicular);
+
+                    double noise = SimplexNoise.Generate(originX + x * 0.45, originZ + z * 0.45, 0.08, 2, 1.0, 0.55, 8713);
+                    int offsetSign = noise >= 0 ? 1 : -1;
+                    int targetX = x + Math.Clamp((int)Math.Round(perpendicular.X) * offsetSign, -1, 1);
+                    int targetZ = z + Math.Clamp((int)Math.Round(perpendicular.Y) * offsetSign, -1, 1);
+                    if (targetX < 0 || targetX >= 16 || targetZ < 0 || targetZ >= 16)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[targetX, targetZ];
+                    if (surface <= 0)
+                    {
+                        surface = FindSurfaceLevel(chunk, targetX, targetZ);
+                        if (surface <= 0)
+                        {
+                            continue;
+                        }
+                        surfaceCache[targetX, targetZ] = surface;
+                    }
+
+                    var topBlock = chunk.GetBlock(targetX, surface, targetZ);
+                    if (topBlock == BlockType.Air)
+                    {
+                        continue;
+                    }
+
+                    if (topBlock == BlockType.Grass || topBlock == BlockType.Dirt || topBlock == BlockType.Clay)
+                    {
+                        chunk.SetBlock(targetX, surface, targetZ, BlockType.Sand);
+                        if (surface - 1 >= 1 && chunk.GetBlock(targetX, surface - 1, targetZ) == BlockType.Dirt)
+                        {
+                            chunk.SetBlock(targetX, surface - 1, targetZ, BlockType.Clay);
+                        }
+                    }
+
+                    if (intensity < RiverCenterThreshold * 1.05)
+                    {
+                        int waterFloor = Math.Max(1, surface - 1);
+                        chunk.SetBlock(targetX, Math.Max(1, waterFloor - 1), targetZ, BlockType.Sand);
+                        chunk.SetBlock(targetX, waterFloor, targetZ, BlockType.Water);
+                        if (surface + 1 < 256)
+                        {
+                            chunk.SetBlock(targetX, surface + 1, targetZ, BlockType.Air);
+                        }
+                        surfaceCache[targetX, targetZ] = Math.Max(surfaceCache[targetX, targetZ], waterFloor);
+                    }
+                }
+            }
+        }
+
+        private void AddFloodplainWetlands(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] riverIntensity)
+        {
+            var rand = new Random((context.ChunkX * 49157) ^ (context.ChunkZ * 12289) ^ 0xB17F);
+
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double hydrology = hydrologyMask[x, z];
+                    if (hydrology < 0.72)
+                    {
+                        continue;
+                    }
+
+                    double channelProximity = 1.0 - Math.Clamp(
+                        (riverIntensity[x, z] - RiverCenterThreshold) /
+                        (RiverBankThreshold - RiverCenterThreshold + 1e-5),
+                        0.0,
+                        1.0);
+
+                    double weight = hydrology * 0.6 + channelProximity * 0.4;
+                    if (weight < 0.78 || rand.NextDouble() > weight)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 2 || surface >= 255)
+                    {
+                        continue;
+                    }
+
+                    int basinDepth = Math.Clamp((int)Math.Round(1 + weight * 3.0), 1, 4);
+                    int floor = Math.Max(surface - basinDepth, 1);
+                    for (int y = surface; y >= floor; y--)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Air);
+                    }
+
+                    int supportY = Math.Max(1, floor - 1);
+                    chunk.SetBlock(x, supportY, z, BlockType.Clay);
+                    int waterTop = Math.Min(floor + 1, surface);
+                    for (int y = floor; y <= waterTop; y++)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Water);
+                    }
+
+                    if (surface + 1 < 256 && rand.NextDouble() < 0.35)
+                    {
+                        chunk.SetBlock(x, surface + 1, z, BlockType.TallGrass);
+                    }
+
+                    surfaceCache[x, z] = Math.Max(surfaceCache[x, z], waterTop);
                 }
             }
         }

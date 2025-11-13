@@ -14,7 +14,7 @@ namespace GameServerApp.Handlers
         private readonly SessionManager _sessionManager;
 
         public CommandHandler(CommandSystem commandSystem, SessionManager sessionManager)
-            : base(null, null)
+            : base(MessageType.CommandRequest)
         {
             _commandSystem = commandSystem;
             _sessionManager = sessionManager;

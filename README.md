@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-11-13: Stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib, and the new `ProtoFingerprint` gate blocks stale protobuf assets before the server boots or the Unity client connects (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).
 - 2025-11-11: Added a shared cave-stability field with stone support columns, braided river wetlands/point bars, shoreline vegetation + seep carving for lakes, and a new `ProtoDiagnostics` report that validates EnhancedMinecraft registrations during both server boot and Unity tooling (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).
 - 2025-11-10: Karst sinkholes, tributary stitching, clay-banked lakes, and stricter EnhancedMinecraft protobuf validation now run in both `WorldManager` and `MapGeneratorLib`. The shared `ChunkPayloadBuilder` now enforces `ProtocolValidator.ValidateEnhancedContracts()` so stale generated code is caught instantly (see `docs/minecraft_feature_plan.md` & `docs/world-generation.md`).
 - 2025-11-09: Hydrology-driven cave pools, river sediment terraces, and terraced lakes now run in both WorldManager and MapGeneratorLib, and the server validates ChunkLoadRequest/Response descriptors at startup (see docs/minecraft_feature_worldgen_alignment.md & docs/minecraft_feature_plan.md).

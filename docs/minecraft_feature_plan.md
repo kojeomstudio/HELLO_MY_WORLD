@@ -38,8 +38,9 @@ This document enumerates the client and server level capabilities that are requi
 1. **Terrain Algorithm Enhancements** ? Update cave, river, and lake generation heuristics on both the dedicated server (WorldManager stages) and shared generator (MapGeneratorLib) to produce richer formations and fewer artifacts.
    - 2025-11-09: hydrology-driven cave pools, sedimented riverbeds, terraced lakes, plus the prior catchment-weighted rivers and basin-stability lakes.
    - **2025-11-10 (in progress):** add karst sinkholes with aquifer vents, stitch minor tributaries into the main channel flow, and lay down clay/sand lake terraces with matching Unity preview data.
+   - 2025-11-13: stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib so hydrology parity is maintained end-to-end.
    - Deliverables: tuned noise parameters, erosion passes, improved flood-fill stability, and parity between tooling + dedicated server.
-2. **Protobuf Contract Audit** ??Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(ChunkLoadRequest/Response descriptors are now validated at startup; legacy message sweep still in progress.)*
+2. **Protobuf Contract Audit** ??Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(ChunkLoadRequest/Response descriptors are now validated at startup; the new `ProtoFingerprint` guard blocks mismatched generated assets ahead of runtime.)*
 3. **Client Integration Updates** ??Adjust Unity client systems to consume the enhanced protobuf payloads for chunk data, block updates, and entity events. *(Unity now parses enhanced chunk payload metadata for residency + diagnostics.)*
 4. **Documentation & Tooling** ??Update README and protocol docs to describe the data flow, regeneration commands, and testing recipes.
 5. **Validation Pipeline** ??Run `dotnet build`, `dotnet test`, and targeted smoke checks; document any Unity-specific validation requirements.
@@ -49,6 +50,7 @@ This document enumerates the client and server level capabilities that are requi
 - [ ] All protobuf messages referenced via `using` directives resolve to existing types in SharedProtocol or generated assets.
 - [x] Enhanced chunk request/response descriptors are validated at startup (missing fields fail fast).
 - [x] Enhanced chunk payload metadata is parsed on the client and cross-checked against legacy chunk responses.
+- [x] SharedProtocol and Unity builds share a verified `ProtoFingerprint` so stale `Assets/Generated/Protobuf` artifacts are rejected at startup.
 - [ ] Client and server feature matrices remain synchronized after each change (update this document as features evolve).
 - [ ] README includes latest build/test instructions when modifications impact developer workflow.
 
@@ -57,9 +59,10 @@ Keep this plan updated whenever feature scope or implementation status changes.
 ## 6. November 2025 Hydrology Execution Order
 | Order | Feature | Client Touchpoints | Server/Tooling Touchpoints | Status & Notes |
 |---|---|---|---|---|
-| 1 | Karst sinkholes & aquifer vents | Unity chunk renderer consumes `EnhancedChunkMetadata.GenerationTimestamp` to flag moisture overlays and surface decals. | `WorldManager.GenerateCavesInternal`, `MapGeneratorLib.WorldGenAlgorithms.GenerateSphereCaves` gain hydrology-aware sinkholes and drip-fed pools. | In progress (this change) |
-| 2 | Tributary weaving & catchment stitching | Chunk streaming controller tracks hydrology tags from enhanced payloads to request adjacent tributary chunks earlier. | `WorldManager.GenerateRiversInternal` and `MapGeneratorLib.WorldGenAlgorithms.GenerateRiverSystems` add tributary channel carving + slope blending. | Queued for this change set immediately after #1. |
-| 3 | Lake sediment terraces & proto contract audit | Unity mesh baker references enhanced payload metadata to apply shoreline materials; README/docs updated with hydration commands. | `WorldManager.GenerateLakesInternal`, `MapGeneratorLib` lake passes, and `SharedProtocol.EnhancedMinecraft.ProtocolValidator` capture clay bank rules + regeneration steps. | Scheduled after verifying protobuf references/tests. |
+| 1 | Karst sinkholes & aquifer vents | Unity chunk renderer consumes `EnhancedChunkMetadata.GenerationTimestamp` to flag moisture overlays and surface decals. | `WorldManager.GenerateCavesInternal`, `MapGeneratorLib.WorldGenAlgorithms.GenerateSphereCaves` gain hydrology-aware sinkholes and drip-fed pools. | Complete (2025-11-10) |
+| 2 | Tributary weaving & catchment stitching | Chunk streaming controller tracks hydrology tags from enhanced payloads to request adjacent tributary chunks earlier. | `WorldManager.GenerateRiversInternal` and `MapGeneratorLib.WorldGenAlgorithms.GenerateRiverSystems` add tributary channel carving + slope blending. | Complete (2025-11-10) |
+| 3 | Lake sediment terraces & proto contract audit | Unity mesh baker references enhanced payload metadata to apply shoreline materials; README/docs updated with hydration commands. | `WorldManager.GenerateLakesInternal`, `MapGeneratorLib` lake passes, and `SharedProtocol.EnhancedMinecraft.ProtocolValidator` capture clay bank rules + regeneration steps. | Complete (2025-11-11) |
+| 4 | Shelfed caves, swales, and wetland spillways | Unity preview tooling renders the new shelf/swale/spillway metadata so editors match runtime terrain. | `WorldManager` + `MapGeneratorLib` share shelf/swale/spillway passes and `ProtoFingerprint.AssertDescriptorFingerprint()` blocks stale protobufs. | Complete (2025-11-13) |
 
 These steps must be executed sequentially so client rendering logic always trails server/tooling changes by at most one feature batch, preventing protocol or terrain drift.
 

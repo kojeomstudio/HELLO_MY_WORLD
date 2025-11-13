@@ -32,14 +32,21 @@ This matrix consolidates the end-to-end Minecraft-style features we are tracking
 | F-26 | River Wetlands & Point Bars | River stages now deposit sand/clay point bars, braid shallow channels, and fill wetlands based on hydrology + flow accumulation | Surface generator renders the same wetlands so Unity terrain editing shows braid candidates before export | Done | Add biome-aware foliage prefabs for wetland rings (Task-26B). |
 | F-27 | Lacustrine Micro Features | Lakes add shoreline vegetation belts, inlet seeps, and multi-step shelves; MapGenerator parity keeps sculpted basins identical | Unity lake tooling inherits the same terracing and vegetation hints for artists | Done | Author lighting presets for dusk reflections (Task-27C). |
 | F-28 | Proto Diagnostics & Registry Report | `ProtoDiagnostics` logs descriptor/registration mismatches at startup, ensuring regenerated protobufs stay in sync with handlers | Unity can re-use the report to warn artists if generated assets are stale before play mode | Done | Wire the diagnostics report into CI artifact upload for historical diffing. |
+| F-29 | Cave Shelf Terraces & Walkways | `WorldManager` carves stability-weighted shelf bands and mid-span ledges so caves expose traversable routes | MapGeneratorLib reproduces the same shelf pass so Unity previews match the dedicated server | Done | Surface shelf debug overlays plus ServerConfig tunables for shelf density. |
+| F-30 | River Floodplain Swales & Overflow Gutters | Floodplain swales cut shallow braided gutters based on river intensity bands and hydrate them with sand/water rims | MapGeneratorLib mirrors the swale pass so braided gutters appear in editor captures | Done | Capture erosion metrics per biome to tune swale spacing. |
+| F-31 | Lake Wetland Spillways | Lake rings spawn wetland pockets, seep-fed ponds, and clay/sand rims using the shared hydrology mask | Unity tooling mirrors the spillway pass so artists preview wetland pockets before export | Done | Attach biome-aware foliage/FX presets to wetland metadata. |
+| F-32 | Proto Fingerprint Gate | `ProtoFingerprint.AssertDescriptorFingerprint()` now guards SharedProtocol + GameServer builds and logs descriptor diffs via `ProtoDiagnostics` | Unity networking bootstrap verifies the same fingerprint before connecting, preventing stale `Assets/Generated/Protobuf` payloads | Done | Automate fingerprint regeneration within the protoc wrapper + CI. |
 
 ## Sequential Work Notes
-- Current session: Added a shared cave-stability field with support pillars, braided river/wetland passes, and shoreline vegetation/seeps so both WorldManager and MapGeneratorLib stay visually aligned. `ProtoDiagnostics` now emits a descriptor/registry report each time the server boots, catching stale protobufs before playtests.
-- Previously: ServerStatusResponse grew death/respawn counters surfaced in the Unity HUD (Task-20A), and the HUD death feed responds to PlayerDeath/PlayerRespawnBroadcast (Task-19B).
+- Current session: Cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib, eliminating hydrology drift between server streams and Unity tooling. The new `ProtoFingerprint` gate blocks mismatched generated protobuf assets on both server boot and Unity networking startup.
+- Previously: Added a shared cave-stability field with support pillars plus braided river/wetland passes and shoreline vegetation/seeps so WorldManager and MapGeneratorLib stayed visually aligned. `ProtoDiagnostics` began emitting descriptor reports each server boot to catch stale regenerations.
 - Measurements: Task-19E shifts to pause-menu analytics once telemetry endpoints expand (Task-20B dependency).
 - Keep function implementations under 200 lines; split existing monoliths when touching related code.
 
 ## Next Implementation Queue
+- [ ] Task-29A – Surface cave shelf debug overlays in MapGenerator tooling and expose ServerConfig knobs (`ShelfMinHeight`, `ShelfRadiusBias`).
+- [ ] Task-30A – Feed swale erosion + sand deposition counters into the server analytics pipeline for biome-aware tuning.
+- [ ] Task-31A – Spawn biome-aware foliage/FX presets for newly generated wetland pockets and expose metadata to the Unity chunk renderer.
 - [ ] Task-12C ? Hook container diff events into chest/furnace UI prefabs.
 - [ ] Task-10E ? Author ambient presets and bind weather intensity to scene lights/sounds.
 - [ ] Task-24A ? Automate proto regeneration/validation in CI and surface warnings in Unity startup scripts.

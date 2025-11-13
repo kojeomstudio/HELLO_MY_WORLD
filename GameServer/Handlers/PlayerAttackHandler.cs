@@ -15,7 +15,7 @@ namespace GameServerApp.Handlers
         private readonly SessionManager _sessionManager;
 
         public PlayerAttackHandler(CombatSystem combatSystem, HealthAndHungerSystem healthSystem, SessionManager sessionManager)
-            : base(null, null)
+            : base(MessageType.PlayerAttackRequest)
         {
             _combatSystem = combatSystem;
             _healthSystem = healthSystem;

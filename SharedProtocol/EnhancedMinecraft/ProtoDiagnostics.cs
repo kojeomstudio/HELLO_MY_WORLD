@@ -16,6 +16,8 @@ public static class ProtoDiagnostics
     public sealed record ProtoReferenceReport(
         string FileName,
         string Package,
+        string DescriptorFingerprint,
+        string ComputedFingerprint,
         IReadOnlyList<string> DeclaredMessages,
         IReadOnlyList<(MinecraftMessageType MessageType, string PrototypeName)> RegisteredMessages,
         IReadOnlyList<MinecraftMessageType> MissingRegistrations,
@@ -47,9 +49,14 @@ public static class ProtoDiagnostics
             .Where(name => !registeredMessages.Any(entry => string.Equals(entry.Item2, name, StringComparison.Ordinal)))
             .ToArray();
 
+        string baselineFingerprint = ProtoFingerprint.DescriptorFingerprint;
+        string computedFingerprint = ProtoFingerprint.ComputeFingerprint();
+
         return new ProtoReferenceReport(
             descriptor.Name ?? string.Empty,
             descriptor.Package ?? string.Empty,
+            baselineFingerprint,
+            computedFingerprint,
             declaredMessages,
             registeredMessages,
             missing,
@@ -61,6 +68,12 @@ public static class ProtoDiagnostics
         var report = BuildReferenceReport();
         Console.WriteLine("[Proto] EnhancedMinecraft descriptor: " + report.FileName);
         Console.WriteLine("[Proto] Package: " + report.Package);
+        Console.WriteLine("[Proto] Expected fingerprint: " + report.DescriptorFingerprint);
+        Console.WriteLine("[Proto] Computed fingerprint: " + report.ComputedFingerprint);
+        if (!report.DescriptorFingerprint.Equals(report.ComputedFingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("[Proto][WARN] Descriptor fingerprint mismatch detected.");
+        }
         Console.WriteLine("[Proto] Declared messages: " + string.Join(", ", report.DeclaredMessages));
 
         foreach (var (messageType, prototypeName) in report.RegisteredMessages)

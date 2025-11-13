@@ -21,6 +21,8 @@ public static class ProtocolValidator
 
     public static void ValidateEnhancedContracts()
     {
+        ProtoFingerprint.AssertDescriptorFingerprint();
+
         foreach (var message in RequiredMessages)
         {
             ProtocolRegistry.EnsureRegistered(message);
@@ -30,11 +32,11 @@ public static class ProtocolValidator
         ValidateChunkRequestAndResponseDescriptors();
     }
 
-        private static void ValidateChunkDescriptor()
-        {
-            var descriptor = RequireDescriptor(nameof(ChunkData));
-            EnsureFields(descriptor, "chunk_x", "chunk_z", "block_data", "biome_data", "light_data", "generation_timestamp", "entities", "tile_entities");
-        }
+    private static void ValidateChunkDescriptor()
+    {
+        var descriptor = RequireDescriptor(nameof(ChunkData));
+        EnsureFields(descriptor, "chunk_x", "chunk_z", "block_data", "biome_data", "light_data", "generation_timestamp", "entities", "tile_entities");
+    }
 
     private static void ValidateChunkRequestAndResponseDescriptors()
     {

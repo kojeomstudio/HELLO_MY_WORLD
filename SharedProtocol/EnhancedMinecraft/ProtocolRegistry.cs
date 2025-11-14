@@ -15,10 +15,20 @@ public static class ProtocolRegistry
     private static readonly IReadOnlyDictionary<MinecraftMessageType, Func<IMessage>> _prototypes =
         new Dictionary<MinecraftMessageType, Func<IMessage>>
         {
-            { MinecraftMessageType.ChunkDataRequest, () => new ChunkLoadRequest() },
-            { MinecraftMessageType.ChunkDataResponse, () => new ChunkLoadResponse() },
-            { MinecraftMessageType.ChunkUnloadNotification, () => new ChunkUnloadNotification() },
-            { MinecraftMessageType.ChunkUnloadAcknowledge, () => new ChunkUnloadAck() }
+            { MinecraftMessageType.PlayerStateUpdate, () => new EnhancedMinecraftProtocol.PlayerInfo() },
+            { MinecraftMessageType.PlayerActionRequest, () => new EnhancedMinecraftProtocol.PlayerActionRequest() },
+            { MinecraftMessageType.PlayerActionResponse, () => new EnhancedMinecraftProtocol.PlayerActionResponse() },
+            { MinecraftMessageType.ChunkDataRequest, () => new EnhancedMinecraftProtocol.ChunkLoadRequest() },
+            { MinecraftMessageType.ChunkDataResponse, () => new EnhancedMinecraftProtocol.ChunkLoadResponse() },
+            { MinecraftMessageType.ChunkUnloadNotification, () => new EnhancedMinecraftProtocol.ChunkUnloadNotification() },
+            { MinecraftMessageType.ChunkUnloadAcknowledge, () => new EnhancedMinecraftProtocol.ChunkUnloadAck() },
+            { MinecraftMessageType.BlockChangeNotification, () => new EnhancedMinecraftProtocol.BlockChangeBroadcast() },
+            { MinecraftMessageType.EntitySpawn, () => new EnhancedMinecraftProtocol.EntitySpawnBroadcast() },
+            { MinecraftMessageType.EntityDespawn, () => new EnhancedMinecraftProtocol.EntityDespawnBroadcast() },
+            { MinecraftMessageType.TimeUpdate, () => new EnhancedMinecraftProtocol.TimeUpdateBroadcast() },
+            { MinecraftMessageType.WeatherChange, () => new EnhancedMinecraftProtocol.WeatherUpdateBroadcast() },
+            { MinecraftMessageType.SoundEffect, () => new EnhancedMinecraftProtocol.SoundEffect() },
+            { MinecraftMessageType.ParticleEffect, () => new EnhancedMinecraftProtocol.ParticleEffect() }
         };
 
     /// <summary>

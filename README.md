@@ -28,6 +28,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2025-11-15: Hydrology-aligned cave aquifer channels, river gradient smoothing, and the lake water-table equalizer now run in both WorldManager and MapGeneratorLib. `ProtocolRegistry` also registers the enhanced chunk/action/entity/time/weather DTOs so `ProtoDiagnostics` can gate stale protobufs before the server or Unity tooling boot.
 - 2025-11-14: Ventilation shafts, confluence delta fans, and lake overflow channels now run in lock-step across WorldManager and MapGeneratorLib, and `ProtoDiagnostics.AssertRegistryClean()` fails startup if EnhancedMinecraft registrations drift from the generated protobufs (see docs/minecraft_feature_client_server_matrix.md & docs/world-generation.md).
 - 2025-11-13: Stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib, and the new `ProtoFingerprint` gate blocks stale protobuf assets before the server boots or the Unity client connects (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).
 - 2025-11-11: Added a shared cave-stability field with stone support columns, braided river wetlands/point bars, shoreline vegetation + seep carving for lakes, and a new `ProtoDiagnostics` report that validates EnhancedMinecraft registrations during both server boot and Unity tooling (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).

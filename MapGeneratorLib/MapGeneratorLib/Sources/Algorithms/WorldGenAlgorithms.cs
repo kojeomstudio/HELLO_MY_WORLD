@@ -945,6 +945,7 @@ namespace MapGenLib
             AddFloodplainWetlands(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity);
             AddFloodplainSwales(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity, channelThreshold, bankThreshold);
             AddRiverDeltaFans(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
+            ApplyRiverGradientSmoothing(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity, bankThreshold);
         }
 
         private static void CarveRiverColumn(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z, float normalized, float channelPressure, int riverSurface, CustomVector2 flowDir)
@@ -1811,6 +1812,7 @@ namespace MapGenLib
                 EnhanceLakeShoreVegetation(subWorldBlockData, subWorldSize, centerX, centerZ, radiusX, radiusZ);
                 CreateLakeSeeps(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, centerX, centerZ, waterSurface, radiusX, radiusZ);
                 AddLakeWetlandPockets(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, centerX, centerZ, waterSurface, radiusX, radiusZ);
+                waterSurface = EqualizeLakeWaterTable(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, centerX, centerZ, radiusX, radiusZ, waterSurface);
                 AddLakeOverflowChannels(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, centerX, centerZ, waterSurface, radiusX, radiusZ);
             }
         }
@@ -2426,8 +2428,10 @@ namespace MapGenLib
             AddHydrologySupportColumns(subWorldBlockData, subWorldSize, caveStabilityField);
             int[,] caveSurfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
             float[,] caveHydrologyMask = BuildHydrologyMask(subWorldSize, caveSurfaceCache);
+            float[,] caveFlowAccumulation = BuildFlowAccumulation(caveSurfaceCache, subWorldSize);
             AddCaveShelfBands(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
             AddCaveVentilationShafts(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
+            AddCaveAquiferChannels(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             IntegrateKarstSinkholes(subWorldBlockData, subWorldSize);
         }
 
@@ -2635,6 +2639,151 @@ namespace MapGenLib
                     }
                 }
             }
+        }
+
+        private static int EqualizeLakeWaterTable(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] hydrologyMask,
+            int centerX,
+            int centerZ,
+            int radiusX,
+            int radiusZ,
+            int waterSurface)
+        {
+            float rimHydrology = SampleLakeRingHydrology(hydrologyMask, centerX, centerZ, radiusX, radiusZ, 1.05f, 1.4f);
+            float basinHydrology = hydrologyMask[CustomMathf.Clamp(centerX, 0, subWorldSize.SizeX - 1), CustomMathf.Clamp(centerZ, 0, subWorldSize.SizeZ - 1)];
+            float pressureDelta = (rimHydrology - basinHydrology) * 3.5f;
+            int targetLevel = CustomMathf.Clamp(waterSurface + CustomMathf.RoundToInt(pressureDelta), waterSurface - 2, waterSurface + 3);
+            targetLevel = CustomMathf.Clamp(targetLevel, 32, CustomMathf.Min(GlobalRiverWaterLevel + 4, subWorldSize.SizeY - 2));
+
+            if (targetLevel == waterSurface)
+            {
+                return waterSurface;
+            }
+
+            AdjustLakeWaterColumns(subWorldBlockData, subWorldSize, surfaceCache, centerX, centerZ, radiusX, radiusZ, waterSurface, targetLevel);
+            return targetLevel;
+        }
+
+        private static float SampleLakeRingHydrology(
+            float[,] hydrologyMask,
+            int centerX,
+            int centerZ,
+            int radiusX,
+            int radiusZ,
+            float inner,
+            float outer)
+        {
+            float sum = 0f;
+            int samples = 0;
+            int limitX = radiusX + 6;
+            int limitZ = radiusZ + 6;
+
+            for (int dx = -limitX; dx <= limitX; dx++)
+            {
+                for (int dz = -limitZ; dz <= limitZ; dz++)
+                {
+                    float ellipse = CustomMathf.Sqrt(
+                        (dx * dx) / Math.Max(1.0f, (radiusX + 0.5f) * (radiusX + 0.5f)) +
+                        (dz * dz) / Math.Max(1.0f, (radiusZ + 0.5f) * (radiusZ + 0.5f)));
+
+                    if (ellipse < inner || ellipse > outer)
+                    {
+                        continue;
+                    }
+
+                    int sampleX = CustomMathf.Clamp(centerX + dx, 0, hydrologyMask.GetLength(0) - 1);
+                    int sampleZ = CustomMathf.Clamp(centerZ + dz, 0, hydrologyMask.GetLength(1) - 1);
+                    sum += hydrologyMask[sampleX, sampleZ];
+                    samples++;
+                }
+            }
+
+            if (samples == 0)
+            {
+                return hydrologyMask[CustomMathf.Clamp(centerX, 0, hydrologyMask.GetLength(0) - 1), CustomMathf.Clamp(centerZ, 0, hydrologyMask.GetLength(1) - 1)];
+            }
+
+            return sum / samples;
+        }
+
+        private static void AdjustLakeWaterColumns(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            int centerX,
+            int centerZ,
+            int radiusX,
+            int radiusZ,
+            int previousSurface,
+            int targetSurface)
+        {
+            int maxX = radiusX + 4;
+            int maxZ = radiusZ + 4;
+
+            for (int dx = -maxX; dx <= maxX; dx++)
+            {
+                for (int dz = -maxZ; dz <= maxZ; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (!WorldGenerateUtils.CheckSubWorldBoundary(x, 0, z, subWorldSize))
+                    {
+                        continue;
+                    }
+
+                    float ellipse = CustomMathf.Sqrt(
+                        (dx * dx) / Math.Max(1.0f, (radiusX + 0.35f) * (radiusX + 0.35f)) +
+                        (dz * dz) / Math.Max(1.0f, (radiusZ + 0.35f) * (radiusZ + 0.35f)));
+
+                    if (ellipse <= 1.05f)
+                    {
+                        int floor = FindLakeFloor(subWorldBlockData, subWorldSize, x, z, targetSurface);
+                        floor = CustomMathf.Max(1, floor);
+                        subWorldBlockData[x, floor, z].CurrentType = (byte)BlockTileType.SAND;
+
+                        int waterTop = CustomMathf.Min(targetSurface, subWorldSize.SizeY - 2);
+                        for (int y = floor + 1; y <= waterTop && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                        }
+
+                        int maxClear = CustomMathf.Max(previousSurface, waterTop);
+                        for (int y = waterTop + 1; y <= maxClear && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
+                        }
+
+                        surfaceCache[x, z] = waterTop;
+                    }
+                    else if (ellipse <= 1.35f)
+                    {
+                        double rimStrength = Math.Clamp(1.35 - ellipse, 0.0, 0.6);
+                        SculptLakeBank(subWorldBlockData, subWorldSize, x, z, targetSurface, rimStrength + 0.2f);
+                    }
+                }
+            }
+        }
+
+        private static int FindLakeFloor(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int x,
+            int z,
+            int searchStart)
+        {
+            for (int y = CustomMathf.Min(searchStart, subWorldSize.SizeY - 2); y >= 1; y--)
+            {
+                BlockTileType block = (BlockTileType)subWorldBlockData[x, y, z].CurrentType;
+                if (block != BlockTileType.EMPTY && block != BlockTileType.WATER)
+                {
+                    return y;
+                }
+            }
+
+            return 1;
         }
 
         private static void AddLakeOverflowChannels(
@@ -2979,10 +3128,307 @@ namespace MapGenLib
 
                     if (subWorldBlockData[rimX, rimSurface, rimZ].CurrentType == (byte)BlockTileType.EMPTY)
                     {
-                        subWorldBlockData[rimX, rimSurface, rimZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                    subWorldBlockData[rimX, rimSurface, rimZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                }
+            }
+        }
+
+        private static void AddCaveAquiferChannels(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] hydrologyMask,
+            float[,] flowAccumulation)
+        {
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
+                    float catchment = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
+                    if (hydrology < 0.7f && catchment < 0.35f)
+                    {
+                        continue;
+                    }
+
+                    if (!TryFindCaveSpan(subWorldBlockData, subWorldSize, surfaceCache, x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    if (top - bottom < 6)
+                    {
+                        continue;
+                    }
+
+                    float pressure = CustomMathf.Clamp01((hydrology - 0.65f) * 1.4f + catchment * 0.85f);
+                    int channelY = bottom + CustomMathf.Clamp(
+                        CustomMathf.RoundToInt((top - bottom) * (0.25f + pressure * 0.35f)),
+                        2,
+                        top - 2);
+
+                    if (surfaceCache[x, z] - channelY < 6)
+                    {
+                        continue;
+                    }
+
+                    CustomVector2 slopeDir = ComputeTerrainSlopeDirection(surfaceCache, subWorldSize, x, z);
+                    CustomVector2 flowDir = ComputeRiverFlowDirection(x + 0.5f, z + 0.5f);
+                    if (slopeDir.sqrMagnitude > CustomVector2.kEpsilon)
+                    {
+                        flowDir = (flowDir * 0.55f + slopeDir * 0.45f).normalized;
+                    }
+
+                    if (flowDir.sqrMagnitude < CustomVector2.kEpsilon)
+                    {
+                        flowDir = CustomVector2.right;
+                    }
+
+                    int steps = CustomMathf.Clamp(CustomMathf.RoundToInt(3 + pressure * 5f + catchment * 4f), 3, 9);
+                    int radius = pressure > 0.7f ? 2 : 1;
+                    bool floodChannel = hydrology > 0.8f || catchment > 0.6f;
+
+                    int cx = x;
+                    int cz = z;
+                    for (int step = 0; step < steps; step++)
+                    {
+                        if (!WorldGenerateUtils.CheckSubWorldBoundary(cx, channelY, cz, subWorldSize))
+                        {
+                            break;
+                        }
+
+                        CarveAquiferChannelNode(subWorldBlockData, subWorldSize, cx, channelY, cz, radius, floodChannel);
+                        var delta = GetAquiferStep(flowDir, step);
+                        cx = CustomMathf.Clamp(cx + delta.dx, 1, subWorldSize.SizeX - 2);
+                        cz = CustomMathf.Clamp(cz + delta.dz, 1, subWorldSize.SizeZ - 2);
                     }
                 }
             }
+        }
+
+        private static void ApplyRiverGradientSmoothing(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] hydrologyMask,
+            float[,] riverIntensity,
+            float bankThreshold)
+        {
+            int[,] adjustments = new int[subWorldSize.SizeX, subWorldSize.SizeZ];
+            bool hasAdjustment = false;
+
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    float intensity = riverIntensity[x, z];
+                    if (intensity > bankThreshold * 1.15f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    int neighborSum = 0;
+                    int neighborCount = 0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= subWorldSize.SizeX || nz < 0 || nz >= subWorldSize.SizeZ)
+                            {
+                                continue;
+                            }
+
+                            if (riverIntensity[nx, nz] > bankThreshold * 1.2f)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[nx, nz];
+                            if (neighborSurface <= 0)
+                            {
+                                continue;
+                            }
+
+                            neighborSum += neighborSurface;
+                            neighborCount++;
+                        }
+                    }
+
+                    if (neighborCount < 3)
+                    {
+                        continue;
+                    }
+
+                    float averageSurface = neighborSum / (float)neighborCount;
+                    float hydrologyBias = (hydrologyMask[x, z] - 0.5f) * 2f;
+                    int targetSurface = CustomMathf.RoundToInt(averageSurface - hydrologyBias);
+                    int delta = targetSurface - surface;
+                    if (CustomMathf.Abs(delta) <= 2)
+                    {
+                        continue;
+                    }
+
+                    adjustments[x, z] = CustomMathf.Clamp(delta, -4, 3);
+                    hasAdjustment = true;
+                }
+            }
+
+            if (!hasAdjustment)
+            {
+                return;
+            }
+
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    int delta = adjustments[x, z];
+                    if (delta == 0)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    int targetSurface = CustomMathf.Clamp(surface + delta, 2, subWorldSize.SizeY - 2);
+                    if (delta < 0)
+                    {
+                        for (int y = surface; y > targetSurface && y >= 1; y--)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
+                        }
+
+                        int waterTop = CustomMathf.Min(GlobalRiverWaterLevel, CustomMathf.Min(surface, subWorldSize.SizeY - 2));
+                        for (int y = targetSurface; y <= waterTop && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                        }
+                    }
+                    else
+                    {
+                        for (int y = surface + 1; y <= targetSurface && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.SAND;
+                        }
+
+                        if (targetSurface < GlobalRiverWaterLevel)
+                        {
+                            int limit = CustomMathf.Min(GlobalRiverWaterLevel, surface);
+                            for (int y = targetSurface + 1; y <= limit && y < subWorldSize.SizeY; y++)
+                            {
+                                subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                            }
+                        }
+                    }
+
+                    surfaceCache[x, z] = targetSurface;
+                }
+            }
+        }
+
+        private static (int dx, int dz) GetAquiferStep(CustomVector2 direction, int stepIndex)
+        {
+            int dx = 0;
+            int dz = 0;
+            if (direction.x > 0.35f)
+            {
+                dx = 1;
+            }
+            else if (direction.x < -0.35f)
+            {
+                dx = -1;
+            }
+
+            if (direction.y > 0.35f)
+            {
+                dz = 1;
+            }
+            else if (direction.y < -0.35f)
+            {
+                dz = -1;
+            }
+
+            if (dx == 0 && dz == 0)
+            {
+                if (CustomMathf.Abs(direction.x) >= CustomMathf.Abs(direction.y))
+                {
+                    dx = direction.x >= 0 ? 1 : -1;
+                }
+                else
+                {
+                    dz = direction.y >= 0 ? 1 : -1;
+                }
+            }
+
+            if (stepIndex % 3 == 2 && CustomMathf.Abs(direction.x) > 0.15f && CustomMathf.Abs(direction.y) > 0.15f)
+            {
+                dx = CustomMathf.Clamp(dx + (direction.x >= 0 ? 1 : -1), -1, 1);
+                dz = CustomMathf.Clamp(dz + (direction.y >= 0 ? 1 : -1), -1, 1);
+            }
+
+            return (dx, dz);
+        }
+
+        private static void CarveAquiferChannelNode(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int centerX,
+            int centerY,
+            int centerZ,
+            int radius,
+            bool floodChannel)
+        {
+            int floor = CustomMathf.Max(2, centerY - 2);
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = centerX + dx;
+                    int nz = centerZ + dz;
+                    if (!WorldGenerateUtils.CheckSubWorldBoundary(nx, floor, nz, subWorldSize))
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - (CustomMathf.Abs(dx) + CustomMathf.Abs(dz)) * (radius == 1 ? 0.6f : 0.45f);
+                    if (falloff <= 0f)
+                    {
+                        continue;
+                    }
+
+                    int roof = CustomMathf.Min(subWorldSize.SizeY - 2, centerY + (radius > 1 ? 2 : 1));
+                    for (int y = roof; y >= floor; y--)
+                    {
+                        subWorldBlockData[nx, y, nz].CurrentType = (byte)BlockTileType.EMPTY;
+                    }
+
+                    int floorBlock = CustomMathf.Max(1, floor - 1);
+                    subWorldBlockData[nx, floorBlock, nz].CurrentType = floodChannel
+                        ? (byte)BlockTileType.SAND
+                        : (byte)BlockTileType.STONE_SMALL;
+
+                    if (floodChannel)
+                    {
+                        for (int y = floor; y <= centerY && y < subWorldSize.SizeY; y++)
+                        {
+                            subWorldBlockData[nx, y, nz].CurrentType = (byte)BlockTileType.WATER;
+                        }
+                    }
+                }
+            }
+        }
         }
 
         private static bool TryFindCaveSpan(

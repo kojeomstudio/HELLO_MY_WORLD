@@ -13,6 +13,24 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// </summary>
 public static class ProtoDiagnostics
 {
+    private static readonly string[] TrackedDescriptorNames =
+    {
+        nameof(ChunkLoadRequest),
+        nameof(ChunkLoadResponse),
+        nameof(ChunkUnloadNotification),
+        nameof(ChunkUnloadAck),
+        nameof(PlayerInfo),
+        nameof(PlayerActionRequest),
+        nameof(PlayerActionResponse),
+        nameof(BlockChangeBroadcast),
+        nameof(EntitySpawnBroadcast),
+        nameof(EntityDespawnBroadcast),
+        nameof(TimeUpdateBroadcast),
+        nameof(WeatherUpdateBroadcast),
+        nameof(SoundEffect),
+        nameof(ParticleEffect)
+    };
+
     public sealed record ProtoReferenceReport(
         string FileName,
         string Package,
@@ -33,20 +51,21 @@ public static class ProtoDiagnostics
             {
                 if (ProtocolRegistry.TryCreatePrototype(mt, out IMessage? prototype))
                 {
-                    return (mt, prototype.Descriptor?.Name ?? string.Empty);
+                    return (MessageType: mt, PrototypeName: prototype.Descriptor?.Name ?? string.Empty);
                 }
 
-                return (mt, string.Empty);
+                return (MessageType: mt, PrototypeName: string.Empty);
             })
             .ToArray();
 
         var missing = registeredMessages
-            .Where(entry => string.IsNullOrWhiteSpace(entry.Item2))
-            .Select(entry => entry.mt)
+            .Where(entry => string.IsNullOrWhiteSpace(entry.PrototypeName))
+            .Select(entry => entry.MessageType)
             .ToArray();
 
-        var orphaned = declaredMessages
-            .Where(name => !registeredMessages.Any(entry => string.Equals(entry.Item2, name, StringComparison.Ordinal)))
+        var tracked = new HashSet<string>(TrackedDescriptorNames, StringComparer.Ordinal);
+        var orphaned = tracked
+            .Where(name => !registeredMessages.Any(entry => string.Equals(entry.PrototypeName, name, StringComparison.Ordinal)))
             .ToArray();
 
         string baselineFingerprint = ProtoFingerprint.DescriptorFingerprint;

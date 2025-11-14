@@ -14,6 +14,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Assets\Generated\Protobuf\Common.cs">
+      <Link>Generated\Common.cs</Link>
+    </Compile>
     <Compile Include="..\Assets\Generated\Protobuf\EnhancedMinecraftGame.cs">
       <Link>Generated\EnhancedMinecraftGame.cs</Link>
     </Compile>

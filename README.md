@@ -23,12 +23,12 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Documents/` – design documents and guides (`Project_PDD.md`).
 - `Packages/` – Unity package manifest listing engine dependencies.
 - `proto/` – Protobuf IDL files compiled into C# under `Assets/Generated/Protobuf`.
-- `docs/` – networking overview, protocol notes, and the Minecraft feature workplan (`docs/minecraft_feature_plan.md`).
+- `docs/` – networking overview, protocol notes, and the Minecraft feature workplan (`docs/minecraft_feature_plan.md`, `docs/minecraft_feature_client_server_sequence.md`).
 - `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- 2025-11-15: Hydrology-aligned cave aquifer channels, river gradient smoothing, and the lake water-table equalizer now run in both WorldManager and MapGeneratorLib. `ProtocolRegistry` also registers the enhanced chunk/action/entity/time/weather DTOs so `ProtoDiagnostics` can gate stale protobufs before the server or Unity tooling boot.
+- 2025-11-15: Cave ribbon terraces, river meander benches, and multi-ring shoreline terraces landed in both `GameServer/World/WorldManager.cs` and `MapGeneratorLib`, keeping spelunking routes, sandbars, and lake benches identical across server chunks and Unity previews. The refreshed `ProtocolRegistry` now publishes descriptor metadata so `ProtoDiagnostics` automatically flags stale EnhancedMinecraft protobufs. See `docs/world-generation.md` for the terrain details and `docs/minecraft_feature_client_server_sequence.md` for the updated feature rollout.
 - 2025-11-14: Ventilation shafts, confluence delta fans, and lake overflow channels now run in lock-step across WorldManager and MapGeneratorLib, and `ProtoDiagnostics.AssertRegistryClean()` fails startup if EnhancedMinecraft registrations drift from the generated protobufs (see docs/minecraft_feature_client_server_matrix.md & docs/world-generation.md).
 - 2025-11-13: Stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib, and the new `ProtoFingerprint` gate blocks stale protobuf assets before the server boots or the Unity client connects (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).
 - 2025-11-11: Added a shared cave-stability field with stone support columns, braided river wetlands/point bars, shoreline vegetation + seep carving for lakes, and a new `ProtoDiagnostics` report that validates EnhancedMinecraft registrations during both server boot and Unity tooling (see `docs/world-generation.md` & `docs/minecraft_feature_client_server_matrix.md`).

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 
@@ -12,30 +13,34 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// </summary>
 public static class ProtocolRegistry
 {
-    private static readonly IReadOnlyDictionary<MinecraftMessageType, Func<IMessage>> _prototypes =
-        new Dictionary<MinecraftMessageType, Func<IMessage>>
-        {
-            { MinecraftMessageType.PlayerStateUpdate, () => new EnhancedMinecraftProtocol.PlayerInfo() },
-            { MinecraftMessageType.PlayerActionRequest, () => new EnhancedMinecraftProtocol.PlayerActionRequest() },
-            { MinecraftMessageType.PlayerActionResponse, () => new EnhancedMinecraftProtocol.PlayerActionResponse() },
-            { MinecraftMessageType.ChunkDataRequest, () => new EnhancedMinecraftProtocol.ChunkLoadRequest() },
-            { MinecraftMessageType.ChunkDataResponse, () => new EnhancedMinecraftProtocol.ChunkLoadResponse() },
-            { MinecraftMessageType.ChunkUnloadNotification, () => new EnhancedMinecraftProtocol.ChunkUnloadNotification() },
-            { MinecraftMessageType.ChunkUnloadAcknowledge, () => new EnhancedMinecraftProtocol.ChunkUnloadAck() },
-            { MinecraftMessageType.BlockChangeNotification, () => new EnhancedMinecraftProtocol.BlockChangeBroadcast() },
-            { MinecraftMessageType.EntitySpawn, () => new EnhancedMinecraftProtocol.EntitySpawnBroadcast() },
-            { MinecraftMessageType.EntityDespawn, () => new EnhancedMinecraftProtocol.EntityDespawnBroadcast() },
-            { MinecraftMessageType.TimeUpdate, () => new EnhancedMinecraftProtocol.TimeUpdateBroadcast() },
-            { MinecraftMessageType.WeatherChange, () => new EnhancedMinecraftProtocol.WeatherUpdateBroadcast() },
-            { MinecraftMessageType.SoundEffect, () => new EnhancedMinecraftProtocol.SoundEffect() },
-            { MinecraftMessageType.ParticleEffect, () => new EnhancedMinecraftProtocol.ParticleEffect() }
-        };
+    private sealed record ProtocolBinding(MinecraftMessageType MessageType, string DescriptorName, Func<IMessage> Factory);
+
+    private static readonly ProtocolBinding[] Bindings =
+    {
+        new(MinecraftMessageType.PlayerStateUpdate, nameof(EnhancedMinecraftProtocol.PlayerInfo), () => new EnhancedMinecraftProtocol.PlayerInfo()),
+        new(MinecraftMessageType.PlayerActionRequest, nameof(EnhancedMinecraftProtocol.PlayerActionRequest), () => new EnhancedMinecraftProtocol.PlayerActionRequest()),
+        new(MinecraftMessageType.PlayerActionResponse, nameof(EnhancedMinecraftProtocol.PlayerActionResponse), () => new EnhancedMinecraftProtocol.PlayerActionResponse()),
+        new(MinecraftMessageType.ChunkDataRequest, nameof(EnhancedMinecraftProtocol.ChunkLoadRequest), () => new EnhancedMinecraftProtocol.ChunkLoadRequest()),
+        new(MinecraftMessageType.ChunkDataResponse, nameof(EnhancedMinecraftProtocol.ChunkLoadResponse), () => new EnhancedMinecraftProtocol.ChunkLoadResponse()),
+        new(MinecraftMessageType.ChunkUnloadNotification, nameof(EnhancedMinecraftProtocol.ChunkUnloadNotification), () => new EnhancedMinecraftProtocol.ChunkUnloadNotification()),
+        new(MinecraftMessageType.ChunkUnloadAcknowledge, nameof(EnhancedMinecraftProtocol.ChunkUnloadAck), () => new EnhancedMinecraftProtocol.ChunkUnloadAck()),
+        new(MinecraftMessageType.BlockChangeNotification, nameof(EnhancedMinecraftProtocol.BlockChangeBroadcast), () => new EnhancedMinecraftProtocol.BlockChangeBroadcast()),
+        new(MinecraftMessageType.EntitySpawn, nameof(EnhancedMinecraftProtocol.EntitySpawnBroadcast), () => new EnhancedMinecraftProtocol.EntitySpawnBroadcast()),
+        new(MinecraftMessageType.EntityDespawn, nameof(EnhancedMinecraftProtocol.EntityDespawnBroadcast), () => new EnhancedMinecraftProtocol.EntityDespawnBroadcast()),
+        new(MinecraftMessageType.TimeUpdate, nameof(EnhancedMinecraftProtocol.TimeUpdateBroadcast), () => new EnhancedMinecraftProtocol.TimeUpdateBroadcast()),
+        new(MinecraftMessageType.WeatherChange, nameof(EnhancedMinecraftProtocol.WeatherUpdateBroadcast), () => new EnhancedMinecraftProtocol.WeatherUpdateBroadcast()),
+        new(MinecraftMessageType.SoundEffect, nameof(EnhancedMinecraftProtocol.SoundEffect), () => new EnhancedMinecraftProtocol.SoundEffect()),
+        new(MinecraftMessageType.ParticleEffect, nameof(EnhancedMinecraftProtocol.ParticleEffect), () => new EnhancedMinecraftProtocol.ParticleEffect())
+    };
+
+    private static readonly IReadOnlyDictionary<MinecraftMessageType, ProtocolBinding> BindingsByType =
+        Bindings.ToDictionary(binding => binding.MessageType);
 
     /// <summary>
     /// Returns <c>true</c> if the message type is backed by a generated protobuf contract.
     /// </summary>
     public static bool IsRegistered(MinecraftMessageType messageType) =>
-        _prototypes.ContainsKey(messageType);
+        BindingsByType.ContainsKey(messageType);
 
     /// <summary>
     /// Throws if the provided message type is not registered. This is useful for early validation
@@ -56,9 +61,9 @@ public static class ProtocolRegistry
     /// </summary>
     public static bool TryCreatePrototype(MinecraftMessageType messageType, out IMessage prototype)
     {
-        if (_prototypes.TryGetValue(messageType, out var factory))
+        if (BindingsByType.TryGetValue(messageType, out var binding))
         {
-            prototype = factory();
+            prototype = binding.Factory();
             return true;
         }
 
@@ -69,5 +74,8 @@ public static class ProtocolRegistry
     /// <summary>
     /// Enumerates the currently registered message types. Useful for auditing regeneration output.
     /// </summary>
-    public static IEnumerable<MinecraftMessageType> RegisteredMessageTypes => _prototypes.Keys;
+    public static IEnumerable<MinecraftMessageType> RegisteredMessageTypes => BindingsByType.Keys;
+
+    internal static IEnumerable<(MinecraftMessageType MessageType, string DescriptorName)> RegisteredDescriptors =>
+        Bindings.Select(binding => (binding.MessageType, binding.DescriptorName));
 }

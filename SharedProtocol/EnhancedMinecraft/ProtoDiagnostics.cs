@@ -13,23 +13,6 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// </summary>
 public static class ProtoDiagnostics
 {
-    private static readonly string[] TrackedDescriptorNames =
-    {
-        nameof(ChunkLoadRequest),
-        nameof(ChunkLoadResponse),
-        nameof(ChunkUnloadNotification),
-        nameof(ChunkUnloadAck),
-        nameof(PlayerInfo),
-        nameof(PlayerActionRequest),
-        nameof(PlayerActionResponse),
-        nameof(BlockChangeBroadcast),
-        nameof(EntitySpawnBroadcast),
-        nameof(EntityDespawnBroadcast),
-        nameof(TimeUpdateBroadcast),
-        nameof(WeatherUpdateBroadcast),
-        nameof(SoundEffect),
-        nameof(ParticleEffect)
-    };
 
     public sealed record ProtoReferenceReport(
         string FileName,
@@ -63,9 +46,10 @@ public static class ProtoDiagnostics
             .Select(entry => entry.MessageType)
             .ToArray();
 
-        var tracked = new HashSet<string>(TrackedDescriptorNames, StringComparer.Ordinal);
+        var tracked = ProtocolRegistry.RegisteredDescriptors.ToArray();
         var orphaned = tracked
-            .Where(name => !registeredMessages.Any(entry => string.Equals(entry.PrototypeName, name, StringComparison.Ordinal)))
+            .Select(binding => binding.DescriptorName)
+            .Where(name => !declaredMessages.Contains(name, StringComparer.Ordinal))
             .ToArray();
 
         string baselineFingerprint = ProtoFingerprint.DescriptorFingerprint;

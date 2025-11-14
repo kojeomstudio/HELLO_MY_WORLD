@@ -11,7 +11,7 @@ This document enumerates the client and server level capabilities that are requi
 | Priority | Feature | Description | Status | Owner System / File(s) | Next Action |
 |---|---|---|---|---|---|
 | P0 | Session & Authentication | Account login, session lifecycle, rate limits | Implemented | `GameServer/Handlers/LoginHandler.cs`, `GameServer/SessionManager.cs` | Periodic audit |
-| P0 | Chunk Generation & Storage | Deterministic chunk pipeline with persistence | Implemented | `GameServer/World/WorldManager.cs`, `GameServer/World/Generation/TerrainGenerationPipeline.cs` | Enhance cave/river/lake stages (current task) |
+| P0 | Chunk Generation & Storage | Deterministic chunk pipeline with persistence | Implemented | `GameServer/World/WorldManager.cs`, `GameServer/World/Generation/TerrainGenerationPipeline.cs` | Surface vent/delta/overflow tunables + telemetry after the latest hydrology passes |
 | P0 | Chunk Streaming | Serve chunk payloads, unload notifications | Implemented | `GameServer/Handlers/MinecraftChunkHandler.cs` | Validate enhanced payload sanity checks |
 | P0 | Block Updates | Authoritative block mutations, history logging | Implemented | `GameServer/Handlers/MinecraftPlayerActionHandler.cs`, `GameServer/Handlers/WorldBlockHandler.cs` | Ensure terrain edits propagate protobuf events |
 | P1 | Entity Synchronization | Spawn/Despawn/Movement broadcast | Implemented | `GameServer/Systems/EntitySyncService.cs` | Confirm proto usage for entity payload |
@@ -39,8 +39,9 @@ This document enumerates the client and server level capabilities that are requi
    - 2025-11-09: hydrology-driven cave pools, sedimented riverbeds, terraced lakes, plus the prior catchment-weighted rivers and basin-stability lakes.
    - **2025-11-10 (in progress):** add karst sinkholes with aquifer vents, stitch minor tributaries into the main channel flow, and lay down clay/sand lake terraces with matching Unity preview data.
    - 2025-11-13: stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib so hydrology parity is maintained end-to-end.
+   - 2025-11-14: ventilation shafts, confluence delta fans, and lake overflow channels now align between WorldManager and MapGeneratorLib so Unity previews match the dedicated server output.
    - Deliverables: tuned noise parameters, erosion passes, improved flood-fill stability, and parity between tooling + dedicated server.
-2. **Protobuf Contract Audit** ??Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(ChunkLoadRequest/Response descriptors are now validated at startup; the new `ProtoFingerprint` guard blocks mismatched generated assets ahead of runtime.)*
+2. **Protobuf Contract Audit** ??Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(ChunkLoadRequest/Response descriptors are now validated at startup; `ProtoFingerprint` plus `ProtoDiagnostics.AssertRegistryClean()` block mismatched or unregistered generated assets ahead of runtime.)*
 3. **Client Integration Updates** ??Adjust Unity client systems to consume the enhanced protobuf payloads for chunk data, block updates, and entity events. *(Unity now parses enhanced chunk payload metadata for residency + diagnostics.)*
 4. **Documentation & Tooling** ??Update README and protocol docs to describe the data flow, regeneration commands, and testing recipes.
 5. **Validation Pipeline** ??Run `dotnet build`, `dotnet test`, and targeted smoke checks; document any Unity-specific validation requirements.

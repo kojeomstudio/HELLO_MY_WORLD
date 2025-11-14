@@ -63,6 +63,25 @@ public static class ProtoDiagnostics
             orphaned);
     }
 
+    public static void AssertRegistryClean()
+    {
+        var report = BuildReferenceReport();
+
+        if (report.MissingRegistrations.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "[Proto] Missing EnhancedMinecraft registrations: " +
+                string.Join(", ", report.MissingRegistrations));
+        }
+
+        if (report.OrphanedDescriptors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "[Proto] Generated EnhancedMinecraft messages are not registered: " +
+                string.Join(", ", report.OrphanedDescriptors));
+        }
+    }
+
     public static void LogSummary()
     {
         var report = BuildReferenceReport();

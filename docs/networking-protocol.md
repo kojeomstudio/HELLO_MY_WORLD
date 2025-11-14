@@ -175,6 +175,11 @@ Because both sides are dealing with raw byte arrays (rather than a repeated list
 
 Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Game.*` protos, the Unity project includes `enhanced_minecraft_game.proto` which defines all Minecraft-specific DTOs (`ChunkDataResponse`, `PlayerActionRequest`, `EntityInfo`, etc.). Run the bundled `protoc` command whenever fields change, then commit the regenerated C# to keep the client in sync with `SharedProtocol/MinecraftMessages.cs`.
 
+### Descriptor Validation
+
+- `ProtoFingerprint.AssertDescriptorFingerprint()` runs inside `ProtocolValidator.ValidateEnhancedContracts()` on the server and `GameNetworkManager` on the Unity client. If the generated DTOs drift from the `.proto` sources those entry points throw and instruct you to rerun `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`.
+- `ProtoDiagnostics.AssertRegistryClean()` now executes alongside the fingerprint check so missing registrations or orphaned descriptors fail fast during startup instead of emitting only warnings.
+
 ## Server Compatibility Changes
 
 - `SharedProtocol/Session.cs` now supports:

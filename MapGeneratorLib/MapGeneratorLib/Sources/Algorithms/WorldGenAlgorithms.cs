@@ -2699,7 +2699,7 @@ namespace MapGenLib
                     if (floor >= 1)
                     {
                         subWorldBlockData[x, floor, z].CurrentType = fillWithWater
-                            ? (byte)BlockTileType.SAND
+                            ? (byte)BlockTileType.CLAY
                             : (byte)BlockTileType.STONE_SMALL;
                     }
 
@@ -3396,7 +3396,8 @@ namespace MapGenLib
                     }
                     else
                     {
-                        subWorldBlockData[x, floor, z].CurrentType = (byte)BlockTileType.SAND;
+                        var fillMaterial = hydrology > 0.78f ? BlockTileType.CLAY : BlockTileType.SAND;
+                        subWorldBlockData[x, floor, z].CurrentType = (byte)fillMaterial;
                     }
 
                     surfaceCache[x, z] = floor;

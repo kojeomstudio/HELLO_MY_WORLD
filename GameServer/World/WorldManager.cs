@@ -520,6 +520,7 @@ namespace GameServerApp.World
             AddCaveVentShafts(chunk, surfaceCache, hydrologyMask, caveStabilityField);
             AddCaveAquiferChannels(chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
             AddCaveRibbonTerraces(chunk, surfaceCache, hydrologyMask, caveStabilityField, flowAccumulation);
+            ApplyCaveHydrologyErosion(chunk, surfaceCache, hydrologyMask, flowAccumulation);
         }
         
         private double[,] BuildCaveStabilityField(
@@ -944,6 +945,94 @@ namespace GameServerApp.World
                         for (int y = floorY + 1; y <= clearanceTop; y++)
                         {
                             chunk.SetBlock(worldX, y, worldZ, BlockType.Air);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyCaveHydrologyErosion(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation)
+        {
+            int[,] neighborOffsets =
+            {
+                { 1, 0 },
+                { -1, 0 },
+                { 0, 1 },
+                { 0, -1 }
+            };
+
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    double moisture = Math.Max(hydrology, flow);
+                    if (moisture < 0.55)
+                    {
+                        continue;
+                    }
+
+                    if (!TryFindCaveSpan(chunk, surfaceCache[x, z], x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    int cavityHeight = top - bottom;
+                    if (cavityHeight < 5)
+                    {
+                        continue;
+                    }
+
+                    int streamHeight = Math.Clamp((int)Math.Round(cavityHeight * (0.25 + flow * 0.35)), 2, cavityHeight - 1);
+                    int streamTop = Math.Min(top - 1, bottom + streamHeight);
+                    int thickness = Math.Clamp(
+                        (int)Math.Round(1 + (moisture - 0.45) * 6.0),
+                        1,
+                        Math.Max(2, streamHeight));
+                    int streamBottom = Math.Max(bottom + 1, streamTop - thickness);
+                    bool fillWithWater = hydrology > 0.68;
+                    BlockType fillBlock = fillWithWater ? BlockType.Water : BlockType.Air;
+                    BlockType floorMaterial = fillWithWater ? BlockType.Clay : BlockType.Cobblestone;
+                    int floor = Math.Max(streamBottom - 1, 1);
+
+                    for (int y = streamBottom; y <= streamTop && y < 255; y++)
+                    {
+                        chunk.SetBlock(x, y, z, fillBlock);
+                    }
+
+                    chunk.SetBlock(x, floor, z, floorMaterial);
+
+                    for (int i = 0; i < neighborOffsets.GetLength(0); i++)
+                    {
+                        int nx = x + neighborOffsets[i, 0];
+                        int nz = z + neighborOffsets[i, 1];
+                        if (nx < 1 || nx >= 15 || nz < 1 || nz >= 15)
+                        {
+                            continue;
+                        }
+
+                        double cue = SampleDeterministicNoise(nx + floor, nz + floor, 9731);
+                        if (cue < moisture * 0.45)
+                        {
+                            continue;
+                        }
+
+                        int linkBottom = streamBottom;
+                        int linkTop = Math.Min(streamTop, linkBottom + 2 + (int)Math.Round(flow * 3.0));
+                        for (int y = linkBottom; y <= linkTop && y < 255; y++)
+                        {
+                            chunk.SetBlock(nx, y, nz, fillBlock);
+                        }
+
+                        int guardY = Math.Min(linkTop + 1, 254);
+                        if (chunk.GetBlock(nx, guardY, nz) != BlockType.Air)
+                        {
+                            chunk.SetBlock(nx, guardY, nz, BlockType.Air);
                         }
                     }
                 }
@@ -2229,6 +2318,7 @@ namespace GameServerApp.World
             AddRiverDeltaFans(chunk, surfaceCache, riverField, hydrologyMask, flowAccumulation, riverIntensity);
             ApplyRiverGradientSmoothing(chunk, surfaceCache, hydrologyMask, riverIntensity);
             ApplyRiverMeanderTerraces(chunk, surfaceCache, riverIntensity, hydrologyMask, riverField);
+            ApplyRiverHydrologyFeedback(chunk, surfaceCache, riverField, hydrologyMask, flowAccumulation, riverIntensity);
         }
 
         private void CreateCavePool(ChunkData chunk, int centerX, int centerY, int centerZ, int radius)
@@ -2446,6 +2536,7 @@ namespace GameServerApp.World
                 AddLakeWetlandPockets(chunk, surfaceCache, hydrologyMask, centerX, centerZ, waterLevel, radiusX, radiusZ, rand);
                 waterLevel = EqualizeLakeWaterTable(chunk, surfaceCache, hydrologyMask, centerX, centerZ, radiusX, radiusZ, waterLevel);
                 AddLakeOverflowChannels(chunk, surfaceCache, hydrologyMask, flowAccumulation, centerX, centerZ, waterLevel, radiusX, radiusZ);
+                StabilizeLakeCatchments(chunk, surfaceCache, hydrologyMask, flowAccumulation, centerX, centerZ, waterLevel, radiusX, radiusZ);
             }
         }
 
@@ -3547,6 +3638,81 @@ namespace GameServerApp.World
             }
         }
 
+        private void StabilizeLakeCatchments(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation,
+            int centerX,
+            int centerZ,
+            int waterSurface,
+            int radiusX,
+            int radiusZ)
+        {
+            int extentX = radiusX + 5;
+            int extentZ = radiusZ + 5;
+
+            for (int dx = -extentX; dx <= extentX; dx++)
+            {
+                for (int dz = -extentZ; dz <= extentZ; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    double ellipse = Math.Sqrt(
+                        (dx * dx) / Math.Max(1.0, Math.Pow(radiusX + 0.6, 2)) +
+                        (dz * dz) / Math.Max(1.0, Math.Pow(radiusZ + 0.6, 2)));
+                    if (ellipse < 0.9 || ellipse > 1.6)
+                    {
+                        continue;
+                    }
+
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    double pressure = Math.Max(hydrology, flow);
+                    if (pressure < 0.55)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 1 || surface < waterSurface - 4)
+                    {
+                        continue;
+                    }
+
+                    int erosionDepth = Math.Clamp((int)Math.Round((pressure - 0.45) * 6.0), 1, 4);
+                    int floor = Math.Max(surface - erosionDepth, 1);
+                    for (int y = surface; y >= floor && y >= 1; y--)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Air);
+                    }
+
+                    int fillTop = Math.Min(waterSurface, 254);
+                    if (hydrology > 0.65)
+                    {
+                        for (int y = floor; y <= fillTop && y < 256; y++)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Water);
+                        }
+                    }
+                    else
+                    {
+                        var fillMaterial = hydrology > 0.78 ? BlockType.Clay : BlockType.Sand;
+                        chunk.SetBlock(x, floor, z, fillMaterial);
+                    }
+
+                    surfaceCache[x, z] = floor;
+                    double rimStrength = Math.Clamp(pressure * 0.8, 0.2, 0.85);
+                    SculptLakeBank(chunk, x, z, waterSurface, rimStrength);
+                }
+            }
+        }
+
         private void TraceTributaryChannel(
             ChunkData chunk,
             int[,] surfaceCache,
@@ -4304,6 +4470,97 @@ namespace GameServerApp.World
 
                     double gradient = Math.Clamp(Math.Abs(posIntensity - negIntensity) * 38.0, 0.2, 0.85);
                     ShapeRiverBank(chunk, surfaceCache, outerX, outerZ, gradient * 0.5 + 0.2, riverSurface, allowFlood: false);
+                }
+            }
+        }
+
+        private void ApplyRiverHydrologyFeedback(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            RiverFieldCache riverField,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation,
+            double[,] riverIntensity)
+        {
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    if (!TryResolveSurface(chunk, surfaceCache, x, z, out int surface))
+                    {
+                        continue;
+                    }
+
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    if (hydrology < 0.45 && flow < 0.45)
+                    {
+                        continue;
+                    }
+
+                    double intensity = riverIntensity[x, z];
+                    int riverSurface = Math.Min(surface, Math.Min(254, GlobalWaterLevel));
+
+                    var flowDir = riverField.Flow[x, z];
+                    if (flowDir.LengthSquared() < 1e-5f)
+                    {
+                        flowDir = ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                    }
+
+                    if (flowDir.LengthSquared() < 1e-5f)
+                    {
+                        flowDir = Vector2.UnitX;
+                    }
+
+                    flowDir = Vector2.Normalize(flowDir);
+
+                    if (intensity < RiverCenterThreshold * 0.95)
+                    {
+                        int infiltration = Math.Clamp((int)Math.Round(1 + (hydrology + flow) * 3.5), 1, 6);
+                        int floor = Math.Max(riverSurface - infiltration, 1);
+                        for (int y = surface; y >= floor && y >= 1; y--)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Air);
+                        }
+
+                        if (hydrology > 0.62)
+                        {
+                            int fillTop = Math.Min(riverSurface, 254);
+                            for (int y = floor; y <= fillTop && y < 256; y++)
+                            {
+                                chunk.SetBlock(x, y, z, BlockType.Water);
+                            }
+                        }
+
+                        int supportY = Math.Max(floor - 1, 0);
+                        chunk.SetBlock(x, supportY, z, BlockType.Sand);
+                        surfaceCache[x, z] = floor;
+                        continue;
+                    }
+
+                    if (intensity >= RiverBankThreshold)
+                    {
+                        chunk.SetBlock(x, surface, z, BlockType.Sand);
+                        if (surface + 1 < 256)
+                        {
+                            chunk.SetBlock(x, surface + 1, z, BlockType.Grass);
+                        }
+                        continue;
+                    }
+
+                    double bankStrength = Math.Clamp((hydrology + flow) * 0.5, 0.0, 1.0);
+                    var perpendicular = new Vector2(-flowDir.Y, flowDir.X);
+                    if (perpendicular.LengthSquared() < 1e-5f)
+                    {
+                        perpendicular = Vector2.UnitY;
+                    }
+
+                    perpendicular = Vector2.Normalize(perpendicular);
+                    ResolvePerpendicularOffset(perpendicular, 1, out int offsetX, out int offsetZ);
+                    ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, bankStrength * 0.45 + 0.2, riverSurface, true);
+
+                    ResolvePerpendicularOffset(new Vector2(-perpendicular.X, -perpendicular.Y), 1, out offsetX, out offsetZ);
+                    ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, bankStrength * 0.35 + 0.15, riverSurface, false);
                 }
             }
         }

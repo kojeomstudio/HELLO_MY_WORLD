@@ -144,7 +144,7 @@ namespace GameServerApp.Systems
                 return 0f;
             }
 
-            return Math.Max(0, state.LastGroundY - state.Position.Y);
+            return MathF.Max(0f, state.LastGroundY - state.Position.Y);
         }
 
         /// <summary>

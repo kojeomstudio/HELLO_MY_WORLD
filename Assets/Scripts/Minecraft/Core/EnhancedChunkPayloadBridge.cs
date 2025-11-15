@@ -3,11 +3,17 @@ using System.Linq;
 using EnhancedMinecraftProtocol;
 using Minecraft.World;
 using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
 
 namespace Minecraft.Core
 {
     internal static class EnhancedChunkPayloadBridge
     {
+        static EnhancedChunkPayloadBridge()
+        {
+            ProtoRuntime.EnsureInitialized();
+        }
+
         public static EnhancedChunkMetadata Decode(ChunkDataResponseMessage response, Action<string>? logWarning = null)
         {
             if (response.EnhancedPayload == null || response.EnhancedPayload.Length == 0)

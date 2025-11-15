@@ -1,4 +1,4 @@
-# Minecraft Client/Server Feature Sequence (2025-11-16)
+# Minecraft Client/Server Feature Sequence (2025-11-18)
 
 This matrix enumerates the Minecraft-style capabilities that must exist on both the dedicated server (`GameServer`) and the Unity client toolchain (`Assets` + `MapGeneratorLib`). Each row links the owning code and records whether the implementation is complete, actively being enhanced, or queued. The rightmost column documents how we plan to iterate sequentially so follow-up work can pick up without rediscovery.
 
@@ -16,15 +16,20 @@ This matrix enumerates the Minecraft-style capabilities that must exist on both 
 | F-10 | Future Biome/Lighting Pass | `WorldManager.GenerateBaseTerrainInternal`, lighting propagation helpers. | Unity lighting shaders + `Assets/MyAssets/Scripts/GameWorld/Chunk/TerrainChunk`. | 🟢 Planned | Unlocks once enhanced world-gen (F-06) + proto validation (F-07) are stable. |
 | F-11 | Hydrology Feedback Loop | `WorldManager.ApplyCaveHydrologyErosion`, `GenerateRiversInternal.ApplyRiverHydrologyFeedback`, `GenerateLakesInternal.StabilizeLakeCatchments`. | `MapGeneratorLib` mirrors each helper so editor previews match the dedicated server. | ✅ New | **This change** finishes the shared hydrology feedback loop so caves, rivers, and lakes all reference the same saturation data. Sequence unblocks biome moisture tuning. |
 | F-12 | Unified Proto Runtime Guard | `ProtoRuntime.EnsureInitialized()` is called from both `GameServer` bootstrap and chunk handlers. | `EnhancedChunkPayloadBridge` now executes the same guard before decoding EnhancedMinecraft payloads. | ✅ New | Lock step validation now fires regardless of whether chunks are loaded in Unity tooling or from a live server connection. |
+| F-13 | Hydrology Runoff Alignment | `WorldManager.ApplyCaveHydrologyErosion` now delegates to `ExtendCaveHydrologyRunoff` so saturated cave streams follow the hydrology gradient across multiple columns. | `MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.ApplyCaveHydrologyErosion` mirrors the helper so Unity previews render the identical clay/cobblestone ribbons. | ✅ New | Needed before biome moisture tuning so tooling screenshots and streamed chunks share the same underground runoff. |
+| F-14 | Riparian Seepage Channels | `GenerateRiversInternal.AddRiverSeepageChannels` scans hydrology/flow masks to carve levee seep paths and flood them when saturation remains high. | `MapGeneratorLib` executes the identical pass, keeping wetland shoulders, sand benches, and seep-fed ponds in sync with the server output. | ✅ New | Prerequisite for F-08 vegetation so reeds/pads can hook into the seep geometry. |
+| F-15 | Lake Hydrology Feedback | `GenerateLakesInternal.ApplyLakeHydrologyFeedback` lowers or floods shoreline voxels based on combined hydrology + flow accumulation to create clay aprons or sand berms. | `MapGeneratorLib` mirrors the shoreline feedback helper so MapTool captures match the dedicated server. | ✅ New | Stabilizes lake perimeters for future biome decorators and physics triggers. |
+| F-16 | Proto Binding Verifier | `ProtocolRegistry.ValidateBindings()` instantiates each EnhancedMinecraft DTO to ensure registry metadata references real generated types; startup fails if a binding goes stale. | Unity already calls `ProtoRuntime.EnsureInitialized()`; the shared diagnostics now report missing Google.Protobuf classes before connecting. | ✅ New | Guarantees every `using` reference for generated protobuf DTOs is backed by an actual class on both server and client. |
 
 ## Execution Order & Current Focus
 
 1. **Foundation (complete)** – F-01 through F-03 were prioritized first so authentication, chunk streaming, and block deltas worked end-to-end.
 2. **Gameplay sync (active)** – F-04/F-05 keep entity combat and inventory persistence in lockstep; these continue in the background.
 3. **Terrain alignment (complete)** – F-06 (terrain) + F-07 (proto validation) stabilize the base pipeline for the remaining work.
-4. **Hydrology feedback (this change)** – F-11 closes the hydrology loop (caves/rivers/lakes) and F-12 ensures Unity tooling validates protobufs before connecting.
-5. **Hydrology polish (next)** – F-08 expands wetlands/vegetation once the new feedback passes settle.
-6. **Observability (near future)** – F-09 adds residency metrics using the enhanced protocol payloads.
-7. **Visual fidelity (future)** – F-10 covers lighting and biome-specific tweaks once the above are stable.
+4. **Hydrology feedback (complete)** – F-11 closed the hydrology loop and F-12 made proto validation symmetrical between server and Unity.
+5. **Gradient seepage parity (this change)** – F-13 through F-15 keep cave runoff, riparian seepage, and lake shorelines identical across WorldManager and MapGeneratorLib, while F-16 guarantees every EnhancedMinecraft descriptor binding resolves before packets move.
+6. **Hydrology polish (next)** – F-08 expands wetlands/vegetation once the new seepage geometry settles.
+7. **Observability (near future)** – F-09 adds residency metrics using the enhanced protocol payloads.
+8. **Visual fidelity (future)** – F-10 covers lighting and biome-specific tweaks once the above are stable.
 
 Use this sequence when picking up new work: verify upstream items first, then continue down the list so client/server features stay synchronized.

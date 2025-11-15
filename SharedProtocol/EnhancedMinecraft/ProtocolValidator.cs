@@ -31,6 +31,7 @@ public static class ProtocolValidator
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ProtoDiagnostics.AssertRegistryClean();
+        ProtocolRegistry.ValidateBindings();
     }
 
     private static void ValidateChunkDescriptor()

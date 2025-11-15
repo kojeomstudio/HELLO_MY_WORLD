@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using EnhancedMinecraftProtocol;
@@ -78,4 +79,24 @@ public static class ProtocolRegistry
 
     internal static IEnumerable<(MinecraftMessageType MessageType, string DescriptorName)> RegisteredDescriptors =>
         Bindings.Select(binding => (binding.MessageType, binding.DescriptorName));
+
+    public static void ValidateBindings()
+    {
+        foreach (var binding in Bindings)
+        {
+            var prototype = binding.Factory();
+            var descriptorName = prototype.Descriptor?.Name ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(descriptorName))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' is missing a descriptor. Regenerate protobuf assets.");
+            }
+
+            if (!string.Equals(binding.DescriptorName, descriptorName, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract mismatch for {binding.MessageType}: expected '{binding.DescriptorName}' but generated '{descriptorName}'. Regenerate protobuf assets so SharedProtocol and Unity stay aligned.");
+            }
+        }
+    }
 }

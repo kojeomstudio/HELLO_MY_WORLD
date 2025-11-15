@@ -7,6 +7,7 @@ using GameServerApp.Systems;
 using GameServerApp.World;
 using GameServerApp.AI;
 using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
 using GameProtocol;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -44,6 +45,7 @@ namespace GameServerApp
 
         public GameServer(int port = 9000, string databaseFile = "minecraft_game.db", ServerConfig? config = null)
         {
+            ProtoRuntime.EnsureInitialized();
             _config = config ?? ServerConfig.LoadFromFile();
 
             var resolvedPort = config?.Network.Port ?? port;

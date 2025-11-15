@@ -144,8 +144,7 @@ public static class ServerLauncher
 
         try
         {
-            ProtocolValidator.ValidateEnhancedContracts();
-            ProtoDiagnostics.LogSummary();
+            ProtoRuntime.EnsureInitialized();
 
             var config = ServerConfig.LoadFromFile();
             var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);

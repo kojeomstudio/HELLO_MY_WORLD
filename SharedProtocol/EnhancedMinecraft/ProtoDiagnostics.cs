@@ -22,6 +22,7 @@ public static class ProtoDiagnostics
         IReadOnlyList<string> DeclaredMessages,
         IReadOnlyList<(MinecraftMessageType MessageType, string PrototypeName)> RegisteredMessages,
         IReadOnlyList<MinecraftMessageType> MissingRegistrations,
+        IReadOnlyList<MinecraftMessageType> UnregisteredMessageTypes,
         IReadOnlyList<string> OrphanedDescriptors);
 
     public static ProtoReferenceReport BuildReferenceReport()
@@ -52,6 +53,11 @@ public static class ProtoDiagnostics
             .Where(name => !declaredMessages.Contains(name, StringComparer.Ordinal))
             .ToArray();
 
+        var allMessageTypes = Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>();
+        var unregistered = allMessageTypes
+            .Where(type => !ProtocolRegistry.IsRegistered(type))
+            .ToArray();
+
         string baselineFingerprint = ProtoFingerprint.DescriptorFingerprint;
         string computedFingerprint = ProtoFingerprint.ComputeFingerprint();
 
@@ -63,6 +69,7 @@ public static class ProtoDiagnostics
             declaredMessages,
             registeredMessages,
             missing,
+            unregistered,
             orphaned);
     }
 
@@ -75,6 +82,13 @@ public static class ProtoDiagnostics
             throw new InvalidOperationException(
                 "[Proto] Missing EnhancedMinecraft registrations: " +
                 string.Join(", ", report.MissingRegistrations));
+        }
+
+        if (report.UnregisteredMessageTypes.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "[Proto] Enum values missing ProtocolRegistry bindings: " +
+                string.Join(", ", report.UnregisteredMessageTypes));
         }
 
         if (report.OrphanedDescriptors.Count > 0)
@@ -114,6 +128,12 @@ public static class ProtoDiagnostics
         {
             Console.WriteLine("[Proto][WARN] Generated messages not wired into the registry: " +
                               string.Join(", ", report.OrphanedDescriptors));
+        }
+
+        if (report.UnregisteredMessageTypes.Count > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Enum values missing ProtocolRegistry bindings: " +
+                              string.Join(", ", report.UnregisteredMessageTypes));
         }
     }
 }

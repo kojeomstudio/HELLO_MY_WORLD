@@ -933,10 +933,10 @@ namespace MapGenLib
                     float catchment = flowAccumulation[x, z];
                     float catchmentStrength = CustomMathf.Clamp01(catchment / 6f);
                     float channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
-                    channelPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.15f);
-                    float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.01f;
+                    channelPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f);
+                    float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.0125f;
                     adjustedMask = CustomMathf.Max(0f, adjustedMask);
-                    riverIntensity[x, z] = CustomMathf.Max(0f, adjustedMask * (1f - riparian * 0.15f));
+                    riverIntensity[x, z] = CustomMathf.Max(0f, adjustedMask * (1f - riparian * 0.2f));
 
                     if (adjustedMask >= bankThreshold)
                     {
@@ -961,13 +961,13 @@ namespace MapGenLib
                     if (adjustedMask < channelThreshold)
                     {
                         float normalized = CustomMathf.Clamp01(1.0f - adjustedMask / channelThreshold);
-                        float enrichedPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f);
+                        float enrichedPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f + hydrology * 0.05f);
                         CarveRiverColumn(subWorldBlockData, subWorldSize, surfaceCache, x, z, normalized, enrichedPressure, riverSurface, flowDir);
                     }
                     else
                     {
                         float bankStrength = CustomMathf.Clamp01(1.0f - (adjustedMask - channelThreshold) / (bankThreshold - channelThreshold));
-                        bankStrength *= 0.85f + channelPressure * 0.35f + riparian * 0.45f;
+                        bankStrength *= 0.85f + channelPressure * 0.35f + riparian * 0.35f;
                         bankStrength = CustomMathf.Clamp01(bankStrength);
                         FeatherRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
@@ -980,6 +980,7 @@ namespace MapGenLib
             ApplyRiverPointBarSediment(subWorldBlockData, subWorldSize, surfaceCache, riverIntensity, hydrologyMask);
             AddFloodplainWetlands(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity);
             AddFloodplainSwales(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity, channelThreshold, bankThreshold);
+            ApplyRiparianBankStabilization(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riparianSaturation, riverIntensity, channelThreshold, bankThreshold);
             AddRiverDeltaFans(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
             ApplyRiverGradientSmoothing(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, riverIntensity, bankThreshold);
             ApplyRiverMeanderTerraces(subWorldBlockData, subWorldSize, surfaceCache, riverIntensity, hydrologyMask);
@@ -1102,6 +1103,49 @@ namespace MapGenLib
 
                 ResolvePerpendicularOffset(new CustomVector2(-perpendicular.x, -perpendicular.y), step, out offsetX, out offsetZ);
                 ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x + offsetX, z + offsetZ, falloff, riverSurface, false);
+            }
+        }
+
+        private static void ApplyRiparianBankStabilization(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] hydrologyMask,
+            float[,] riparianSaturation,
+            float[,] riverIntensity,
+            float channelThreshold,
+            float bankThreshold)
+        {
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    float riparian = riparianSaturation[x, z];
+                    if (riparian < 0.6f)
+                    {
+                        continue;
+                    }
+
+                    float intensity = riverIntensity[x, z];
+                    if (intensity >= bankThreshold || intensity <= channelThreshold * 0.45f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 1)
+                    {
+                        continue;
+                    }
+
+                    int riverSurface = CustomMathf.Min(surface, CustomMathf.Min(subWorldSize.SizeY - 2, GlobalRiverWaterLevel));
+                    float hydrology = hydrologyMask[x, z];
+                    float shelfStrength = CustomMathf.Clamp01((riparian - 0.55f) * 1.4f + hydrology * 0.25f);
+                    bool allowFlood = intensity < bankThreshold * 0.65f;
+
+                    ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, shelfStrength * 0.8f, riverSurface, allowFlood);
+                    ShapeRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, shelfStrength * 0.5f, riverSurface, false);
+                }
             }
         }
 
@@ -1838,11 +1882,14 @@ namespace MapGenLib
                 }
 
                 float hydrology = hydrologyMask[centerX, centerZ];
+                float riparian = riparianSaturation[centerX, centerZ];
+                float flow = CustomMathf.Clamp01(flowAccumulation[centerX, centerZ] / 12f);
                 float candidateScore = lakeCandidateHeatmap[centerX, centerZ];
                 float relief = ComputeLocalRelief(surfaceCache, subWorldSize, centerX, centerZ, 6);
                 float basinStability = 1f - CustomMathf.Clamp01(relief / 10f);
                 float ridgeNoise = Noise.GetNoise((centerX + 37.0f) * 0.06f, 0, (centerZ - 11.0f) * 0.06f);
                 float spawnWeight = CustomMathf.Clamp01((ridgeNoise - 0.35f) * 1.4f + hydrology * 0.9f + candidateScore * 0.85f);
+                spawnWeight = CustomMathf.Clamp01(spawnWeight + riparian * 0.25f + flow * 0.15f);
                 spawnWeight *= CustomMathf.Lerp(0.65f, 1.2f, basinStability);
                 if (candidateScore < 0.2f && spawnWeight < 0.4f)
                 {
@@ -1854,8 +1901,8 @@ namespace MapGenLib
                     continue;
                 }
 
-                int radiusX = Utilitys.RandomInteger(4, 7) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f);
-                int radiusZ = Utilitys.RandomInteger(3, 6) + CustomMathf.RoundToInt(hydrology * 1.5f) + CustomMathf.RoundToInt(candidateScore * 2.5f);
+                int radiusX = Utilitys.RandomInteger(4, 7) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(riparian * 2f);
+                int radiusZ = Utilitys.RandomInteger(3, 6) + CustomMathf.RoundToInt(hydrology * 1.5f) + CustomMathf.RoundToInt(candidateScore * 2.5f) + CustomMathf.RoundToInt(riparian * 1.5f);
                 radiusX = CustomMathf.Clamp(radiusX, 4, 9);
                 radiusZ = CustomMathf.Clamp(radiusZ, 3, 8);
                 int maxDepth = Utilitys.RandomInteger(3, 5) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f);
@@ -1865,7 +1912,8 @@ namespace MapGenLib
                     GlobalRiverWaterLevel +
                     Utilitys.RandomInteger(-1, 2) +
                     CustomMathf.RoundToInt((hydrology - 0.5f) * 3f) +
-                    CustomMathf.RoundToInt((candidateScore - 0.5f) * 2f),
+                    CustomMathf.RoundToInt((candidateScore - 0.5f) * 2f) +
+                    CustomMathf.RoundToInt((riparian - 0.5f) * 3f),
                     45,
                     CustomMathf.Min(subWorldSize.SizeY - 3, GlobalRiverWaterLevel + 2));
                 if (surface < waterSurface - 4 || surface > waterSurface + 8)
@@ -2619,6 +2667,7 @@ namespace MapGenLib
             AddCaveRibbonTerraces(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField, caveFlowAccumulation);
             ApplyCaveHydrologyErosion(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             AddCaveDripstoneClusters(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
+            StabilizeMoistCaveCeilings(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             IntegrateKarstSinkholes(subWorldBlockData, subWorldSize);
         }
 
@@ -2650,6 +2699,77 @@ namespace MapGenLib
             }
 
             return field;
+        }
+
+        private static void StabilizeMoistCaveCeilings(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    float moisture = CustomMathf.Max(hydrologyMask[x, z], CustomMathf.Clamp01(flowAccumulation[x, z] / 6f));
+                    if (moisture < 0.55f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 5)
+                    {
+                        continue;
+                    }
+
+                    int scanStart = CustomMathf.Max(1, surface - 6);
+                    bool insideAir = false;
+                    int airTop = -1;
+                    int airBottom = -1;
+
+                    for (int y = surface; y >= scanStart; y--)
+                    {
+                        bool isEmpty = subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY ||
+                                       subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.WATER;
+                        if (isEmpty && !insideAir)
+                        {
+                            insideAir = true;
+                            airTop = y;
+                        }
+                        else if (!isEmpty && insideAir)
+                        {
+                            airBottom = y + 1;
+                            break;
+                        }
+                    }
+
+                    if (!insideAir || airTop == -1)
+                    {
+                        continue;
+                    }
+
+                    if (airBottom == -1)
+                    {
+                        airBottom = scanStart;
+                    }
+
+                    int roofThickness = surface - airTop;
+                    if (roofThickness >= 3)
+                    {
+                        continue;
+                    }
+
+                    int fillTop = CustomMathf.Clamp(surface - 1, 2, subWorldSize.SizeY - 2);
+                    int fillBottom = CustomMathf.Max(airBottom, fillTop - 2);
+                    float sealStrength = CustomMathf.Clamp01((0.75f - roofThickness * 0.25f) + moisture * 0.35f);
+
+                    for (int y = fillTop; y >= fillBottom; y--)
+                    {
+                        if (Utilitys.RandomFloat(0f, 1f) <= sealStrength)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                            surfaceCache[x, z] = CustomMathf.Max(surfaceCache[x, z], y);
+                        }
+                    }
+                }
+            }
         }
 
         private static void AddHydrologySupportColumns(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, float[,] stabilityField)

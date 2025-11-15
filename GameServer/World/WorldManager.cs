@@ -521,6 +521,7 @@ namespace GameServerApp.World
             AddCaveAquiferChannels(chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
             AddCaveRibbonTerraces(chunk, surfaceCache, hydrologyMask, caveStabilityField, flowAccumulation);
             ApplyCaveHydrologyErosion(chunk, surfaceCache, hydrologyMask, flowAccumulation);
+            StabilizeMoistCaveCeilings(chunk, surfaceCache, hydrologyMask, flowAccumulation);
         }
         
         private double[,] BuildCaveStabilityField(
@@ -627,6 +628,82 @@ namespace GameServerApp.World
                         if ((y - columnBase) % 2 == 0 || y == columnTop)
                         {
                             PlaceSupportNode(chunk, x, y, z, radius);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void StabilizeMoistCaveCeilings(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] flowAccumulation)
+        {
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double moisture = Math.Max(hydrologyMask[x, z], Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0));
+                    if (moisture < 0.55)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 5)
+                    {
+                        continue;
+                    }
+
+                    int scanStart = Math.Max(1, surface - 6);
+                    bool insideAir = false;
+                    int airTop = -1;
+                    int airBottom = -1;
+
+                    for (int y = surface; y >= scanStart; y--)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        bool isEmpty = block == BlockType.Air || block == BlockType.Water;
+                        if (isEmpty && !insideAir)
+                        {
+                            insideAir = true;
+                            airTop = y;
+                        }
+                        else if (!isEmpty && insideAir)
+                        {
+                            airBottom = y + 1;
+                            break;
+                        }
+                    }
+
+                    if (!insideAir || airTop == -1)
+                    {
+                        continue;
+                    }
+
+                    if (airBottom == -1)
+                    {
+                        airBottom = scanStart;
+                    }
+
+                    int roofThickness = surface - airTop;
+                    if (roofThickness >= 3)
+                    {
+                        continue;
+                    }
+
+                    int fillTop = Math.Clamp(surface - 1, 2, 254);
+                    int fillBottom = Math.Max(airBottom, fillTop - 2);
+                    double sealStrength = Math.Clamp((0.75 - roofThickness * 0.25) + moisture * 0.35, 0.0, 1.0);
+
+                    for (int y = fillTop; y >= fillBottom; y--)
+                    {
+                        double selector = SampleDeterministicNoise(x * 31 + y, z * 37 + surface, 9127);
+                        if (selector <= sealStrength)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Stone);
+                            surfaceCache[x, z] = Math.Max(surfaceCache[x, z], y);
                         }
                     }
                 }
@@ -2328,6 +2405,48 @@ namespace GameServerApp.World
             return smoothed;
         }
 
+        private double[,] BuildRiparianSaturationMap(int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            int width = surfaceCache.GetLength(0);
+            int depth = surfaceCache.GetLength(1);
+            var riparian = new double[width, depth];
+
+            int maxHeight = 1;
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    maxHeight = Math.Max(maxHeight, surfaceCache[x, z]);
+                }
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        riparian[x, z] = 0.0;
+                        continue;
+                    }
+
+                    double hydrology = hydrologyMask[x, z];
+                    double accumulation = Math.Clamp(flowAccumulation[x, z] / 8.0, 0.0, 1.0);
+                    double relief = ComputeLocalRelief(surfaceCache, x, z, 2);
+                    double slopePenalty = Math.Clamp(relief / 10.0, 0.0, 1.0);
+                    double altitude = Math.Clamp(surface / (double)maxHeight, 0.0, 1.0);
+                    double valleyBias = Math.Clamp((GlobalWaterLevel - surface) / 14.0, 0.0, 1.0);
+                    double lowlandBias = 1.0 - altitude;
+                    double moisture = hydrology * 0.55 + accumulation * 0.3 + lowlandBias * 0.1 + valleyBias * 0.25;
+                    double erosionResilience = Math.Clamp(1.0 - slopePenalty * 0.5, 0.0, 1.0);
+                    riparian[x, z] = Math.Clamp(moisture * erosionResilience, 0.0, 1.0);
+                }
+            }
+
+            return riparian;
+        }
+
         private static double AdjustRiverIntensity(double baseIntensity, double hydrologyBias)
         {
             double clamped = Math.Clamp(hydrologyBias, 0.0, 1.0);
@@ -2361,6 +2480,8 @@ namespace GameServerApp.World
 
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
 
+            var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
+
             var riverIntensity = new double[16, 16];
 
             for (int x = 0; x < 16; x++)
@@ -2378,10 +2499,13 @@ namespace GameServerApp.World
                     }
 
                     double hydrology = hydrologyMask[x, z];
+                    double riparian = riparianSaturation[x, z];
                     double catchment = flowAccumulation[x, z];
                     double catchmentStrength = Math.Clamp(catchment / 6.0, 0.0, 1.0);
-                    double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
-                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015;
+                    double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
+                    
+                    channelPressure = Math.Clamp(channelPressure + riparian * 0.2, 0.0, 1.0);
+                    double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015 - riparian * 0.0125;
                     intensity = Math.Max(0.0, intensity);
                     riverIntensity[x, z] = intensity;
                     if (intensity >= RiverBankThreshold)
@@ -2408,12 +2532,13 @@ namespace GameServerApp.World
                     if (intensity < RiverCenterThreshold)
                     {
                         double normalized = 1.0 - Math.Clamp(intensity / RiverCenterThreshold, 0.0, 1.0);
-                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, channelPressure, flowDir);
+                        double enrichedPressure = Math.Clamp(channelPressure + riparian * 0.2 + hydrology * 0.05, 0.0, 1.0);
+                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, enrichedPressure, flowDir);
                     }
                     else
                     {
                         double bankStrength = 1.0 - Math.Clamp((intensity - RiverCenterThreshold) / (RiverBankThreshold - RiverCenterThreshold), 0.0, 1.0);
-                        bankStrength *= 0.85 + channelPressure * 0.35;
+                        bankStrength *= 0.85 + channelPressure * 0.35 + riparian * 0.35;
                         FeatherRiverBank(chunk, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
                 }
@@ -2425,6 +2550,7 @@ namespace GameServerApp.World
             ApplyRiverPointBarSediment(context, chunk, surfaceCache, riverField, riverIntensity);
             AddFloodplainWetlands(context, chunk, surfaceCache, hydrologyMask, riverIntensity);
             AddFloodplainSwales(chunk, surfaceCache, hydrologyMask, riverIntensity);
+            ApplyRiparianBankStabilization(chunk, surfaceCache, hydrologyMask, riparianSaturation, riverIntensity);
             AddRiverDeltaFans(chunk, surfaceCache, riverField, hydrologyMask, flowAccumulation, riverIntensity);
             ApplyRiverGradientSmoothing(chunk, surfaceCache, hydrologyMask, riverIntensity);
             ApplyRiverMeanderTerraces(chunk, surfaceCache, riverIntensity, hydrologyMask, riverField);
@@ -2517,6 +2643,7 @@ namespace GameServerApp.World
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+            var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
             double lakeSimplex = SimplexNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);
             double lakePerlin = PerlinNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.028, 2, 1.0, 0.6, 77811);
@@ -2530,20 +2657,23 @@ namespace GameServerApp.World
             int centerX = rand.Next(4, 12);
             int centerZ = rand.Next(4, 12);
             double hydrology = hydrologyMask[centerX, centerZ];
+            double riparian = riparianSaturation[centerX, centerZ];
+            double flow = Math.Clamp(flowAccumulation[centerX, centerZ] / 12.0, 0.0, 1.0);
             double relief = ComputeLocalRelief(surfaceCache, centerX, centerZ, 6);
             double basinStability = 1.0 - Math.Clamp(relief / 10.0, 0.0, 1.0);
             double spawnWeight = Math.Clamp((chunkWeight * 0.6 + hydrology * 0.8) * (0.65 + basinStability * 0.5), 0.0, 1.2);
+            spawnWeight = Math.Clamp(spawnWeight + riparian * 0.25 + flow * 0.15, 0.0, 1.2);
             if (spawnWeight < 0.25 || rand.NextDouble() > spawnWeight || basinStability < 0.3)
                 return;
 
-            int radiusX = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0);
-            int radiusZ = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0);
+            int radiusX = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 2.0);
+            int radiusZ = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5);
             radiusX = Math.Clamp(radiusX, 3, 9);
             radiusZ = Math.Clamp(radiusZ, 3, 9);
-            int maxDepth = 3 + rand.Next(3) + (int)Math.Round(hydrology * 2.0);
+            int maxDepth = 3 + rand.Next(3) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5);
             maxDepth = Math.Clamp((int)Math.Round(Math.Clamp(maxDepth * (0.7 + basinStability * 0.6), 3, 9)), 3, 9);
             int waterLevel = Math.Clamp(
-                GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0),
+                GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0) + (int)Math.Round((riparian - 0.5) * 3.0),
                 45,
                 80);
 
@@ -3288,6 +3418,46 @@ namespace GameServerApp.World
 
                 ResolvePerpendicularOffset(new Vector2(-perpendicular.X, -perpendicular.Y), step, out offsetX, out offsetZ);
                 ShapeRiverBank(chunk, surfaceCache, x + offsetX, z + offsetZ, falloff, riverSurface, false);
+            }
+        }
+
+        private void ApplyRiparianBankStabilization(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] riparianSaturation,
+            double[,] riverIntensity)
+        {
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    double riparian = riparianSaturation[x, z];
+                    if (riparian < 0.6)
+                    {
+                        continue;
+                    }
+
+                    double intensity = riverIntensity[x, z];
+                    if (intensity >= RiverBankThreshold || intensity <= RiverCenterThreshold * 0.45)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    int riverSurface = Math.Min(surface, GlobalWaterLevel);
+                    double hydrology = hydrologyMask[x, z];
+                    double shelfStrength = Math.Clamp((riparian - 0.55) * 1.4 + hydrology * 0.25, 0.0, 1.0);
+                    bool allowFlood = intensity < RiverBankThreshold * 0.65;
+
+                    ShapeRiverBank(chunk, surfaceCache, x, z, shelfStrength * 0.8, riverSurface, allowFlood);
+                    ShapeRiverBank(chunk, surfaceCache, x, z, shelfStrength * 0.5, riverSurface, false);
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-# Minecraft Client/Server Feature Sequence (2025-11-18)
+# Minecraft Client/Server Feature Sequence (2025-11-16)
 
 This matrix enumerates the Minecraft-style capabilities that must exist on both the dedicated server (`GameServer`) and the Unity client toolchain (`Assets` + `MapGeneratorLib`). Each row links the owning code and records whether the implementation is complete, actively being enhanced, or queued. The rightmost column documents how we plan to iterate sequentially so follow-up work can pick up without rediscovery.
 
@@ -20,6 +20,10 @@ This matrix enumerates the Minecraft-style capabilities that must exist on both 
 | F-14 | Riparian Seepage Channels | `GenerateRiversInternal.AddRiverSeepageChannels` scans hydrology/flow masks to carve levee seep paths and flood them when saturation remains high. | `MapGeneratorLib` executes the identical pass, keeping wetland shoulders, sand benches, and seep-fed ponds in sync with the server output. | ✅ New | Prerequisite for F-08 vegetation so reeds/pads can hook into the seep geometry. |
 | F-15 | Lake Hydrology Feedback | `GenerateLakesInternal.ApplyLakeHydrologyFeedback` lowers or floods shoreline voxels based on combined hydrology + flow accumulation to create clay aprons or sand berms. | `MapGeneratorLib` mirrors the shoreline feedback helper so MapTool captures match the dedicated server. | ✅ New | Stabilizes lake perimeters for future biome decorators and physics triggers. |
 | F-16 | Proto Binding Verifier | `ProtocolRegistry.ValidateBindings()` instantiates each EnhancedMinecraft DTO to ensure registry metadata references real generated types; startup fails if a binding goes stale. | Unity already calls `ProtoRuntime.EnsureInitialized()`; the shared diagnostics now report missing Google.Protobuf classes before connecting. | ✅ New | Guarantees every `using` reference for generated protobuf DTOs is backed by an actual class on both server and client. |
+| F-17 | Riparian-Weighted Rivers & Shelves | `WorldManager.GenerateRiversInternal` now builds a riparian saturation mask and `ApplyRiparianBankStabilization` to widen or flood benches where wetlands should form. | `MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.GenerateRiverSystems` consumes the same riparian mask and stabilization pass so Unity previews match server rivers. | ✅ New | Aligns river breadth, shelving, and flood strength to shared hydrology/riparian data before vegetation (F-08). |
+| F-18 | Moist Cave Ceiling Stabilization | `WorldManager.StabilizeMoistCaveCeilings` reinforces thin roofs in high-hydrology columns during `GenerateCavesInternal`. | `MapGeneratorLib...StabilizeMoistCaveCeilings` runs inside `GenerateSphereCaves` to seal near-surface cavities in tooling. | ✅ New | Prevents hydrology-heavy cave ceilings from collapsing/leaking so later biome/lighting passes (F-08/F-10) have stable geometry. |
+| F-19 | Riparian-Aware Surface Lakes | `GenerateLakesInternal` sizes basins, depth, and water level with the shared riparian mask and flow accumulation. | `GenerateSurfaceLakes` mirrors the riparian weighting for lake spawn, depth, and rim smoothing. | ✅ New | Keeps lake placement consistent with river hydrology so wetlands render identically across server chunks and Unity captures. |
+| F-20 | Proto Enum Coverage Guard | `ProtoDiagnostics` now flags `MinecraftMessageType` values missing ProtocolRegistry bindings, enforced via `ProtoRuntime.EnsureInitialized()`. | Unity tooling hits the same guard when initializing `ProtoRuntime`, surfacing stale or missing generated DTOs. | ✅ New | Blocks new protocol enums from shipping without generated protobuf + handler coverage, tightening `using`/descriptor alignment. |
 
 ## Execution Order & Current Focus
 
@@ -27,9 +31,11 @@ This matrix enumerates the Minecraft-style capabilities that must exist on both 
 2. **Gameplay sync (active)** – F-04/F-05 keep entity combat and inventory persistence in lockstep; these continue in the background.
 3. **Terrain alignment (complete)** – F-06 (terrain) + F-07 (proto validation) stabilize the base pipeline for the remaining work.
 4. **Hydrology feedback (complete)** – F-11 closed the hydrology loop and F-12 made proto validation symmetrical between server and Unity.
-5. **Gradient seepage parity (this change)** – F-13 through F-15 keep cave runoff, riparian seepage, and lake shorelines identical across WorldManager and MapGeneratorLib, while F-16 guarantees every EnhancedMinecraft descriptor binding resolves before packets move.
-6. **Hydrology polish (next)** – F-08 expands wetlands/vegetation once the new seepage geometry settles.
-7. **Observability (near future)** – F-09 adds residency metrics using the enhanced protocol payloads.
-8. **Visual fidelity (future)** – F-10 covers lighting and biome-specific tweaks once the above are stable.
+5. **Gradient seepage parity (complete)** – F-13 through F-15 keep cave runoff, riparian seepage, and lake shorelines identical across WorldManager and MapGeneratorLib.
+6. **Riparian stabilization (this change)** – F-17 through F-19 weight rivers, lakes, and moist cave ceilings with the shared riparian mask so wetlands and near-surface geometry stay stable.
+7. **Protocol coverage guard (ongoing)** – F-12/F-16/F-20 enforce protobuf coverage for every `MinecraftMessageType` before handlers register.
+8. **Hydrology polish (next)** – F-08 expands wetlands/vegetation once the new riparian geometry settles.
+9. **Observability (near future)** – F-09 adds residency metrics using the enhanced protocol payloads.
+10. **Visual fidelity (future)** – F-10 covers lighting and biome-specific tweaks once the above are stable.
 
 Use this sequence when picking up new work: verify upstream items first, then continue down the list so client/server features stay synchronized.

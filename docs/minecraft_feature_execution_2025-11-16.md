@@ -1,14 +1,25 @@
-# Minecraft Feature Execution Plan (2025-11-16)
+# Minecraft Feature Execution Log — 2025-11-16
 
-This run continues the Minecraft client/server rollout log. It captures the exact responsibilities that landed in this session so the next contributor can keep extending the same sequence without rediscovering why the order matters.
+This log captures the Minecraft-style client/server features addressed in this session and how they map to the shared sequence in `docs/minecraft_feature_client_server_sequence.md`. Use it as a handoff so follow-up work can continue in order without rediscovery.
 
-| Order | Feature | Server Responsibilities | Client / Tooling Responsibilities | Status | Follow-ups |
-|-------|---------|-------------------------|-----------------------------------|--------|------------|
-| 1 | Hydrology-Coupled Cave Erosion | `WorldManager.GenerateCavesInternal` now invokes `ApplyCaveHydrologyErosion` so underground pools, clay beds, and drainage corridors react to the shared hydrology/flow masks before chunk payloads ship. | `MapGeneratorLib.GenerateSphereCaves` mirrors the same erosion step so Unity previews show the identical ribbon terraces, pillars, and drained pockets that the server produces. | ✅ Done | Surface the erosion tunables in `WorldSeedConfig` if QA needs to bias moisture-heavy worlds. |
-| 2 | River Hydrology Feedback | `WorldManager.GenerateRiversInternal` feeds `ApplyRiverHydrologyFeedback`, carving infiltration shelves when moisture is high and reinforcing perpendicular banks with sand if the intensity crosses the bank threshold. | `MapGeneratorLib.GenerateRivers` applies the exact same pressure calculus so editor captures and server chunks expose the same wetted banks and terraces. | ✅ Done | Add per-chunk debug overlays once we expand the Server Status HUD (ties into F-09). |
-| 3 | Lake Catchment Stabilization | `WorldManager.GenerateLakesInternal` finishes with `StabilizeLakeCatchments`, shaving unstable rims, topping up saturated pockets, and updating the surface cache before overflow channels run. | `MapGeneratorLib.GenerateLakes` now calls the same helper so Unity’s MapTool renders the adjusted catchments and wetland pockets before exporting heightmaps. | ✅ Done | Hook the stabilizer weight into biome configs so deserts remain drier than wetlands. |
-| 4 | Proto Runtime Guard in Unity | `EnhancedChunkPayloadBridge` executes `ProtoRuntime.EnsureInitialized()` on first use so Unity editors validate the generated EnhancedMinecraft DTOs just like the dedicated server bootstrap does. | The SharedProtocol runtime now provides identical diagnostics regardless of whether chunks are consumed from the server or decoded inside editor tooling. | ✅ Done | Wire the guard into automated Unity startup scripts once we land CI coverage. |
+## Feature Inventory
 
-## Notes
-- Implement the features in the order shown above so hydrology masks stay in sync before the networking guard enforces the protobuf contracts. Running things out of order risks regenerating proto assets without matching terrain output between the server and Unity previews.
-- Keep `docs/minecraft_feature_client_server_sequence.md` and `docs/world-generation.md` updated whenever a new row is added to this execution table so downstream contributors can see both the status matrix and the chronological log.
+| ID | Feature | Server Implementation | Client/Tools Implementation | Status |
+|----|---------|----------------------|-----------------------------|--------|
+| F-17 | Riparian-weighted rivers & shelves | `WorldManager.GenerateRiversInternal` now builds `BuildRiparianSaturationMap`, reweights channel pressure, and applies `ApplyRiparianBankStabilization` to flood benches in wet columns. | `MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.GenerateRiverSystems` consumes the same riparian mask and stabilization pass so Unity previews track server river breadth and shelves. | ✅ |
+| F-18 | Moist cave ceiling stabilization | `WorldManager.StabilizeMoistCaveCeilings` seals thin hydrology-heavy roofs after the erosion pass to prevent leaks/collapses. | `MapGeneratorLib...StabilizeMoistCaveCeilings` runs inside `GenerateSphereCaves` to mirror the sealing in tooling. | ✅ |
+| F-19 | Riparian-aware surface lakes | `GenerateLakesInternal` sizes basins, depth, and water level with the riparian mask + flow accumulation. | `GenerateSurfaceLakes` mirrors the riparian weighting for spawn chance, basin size, and rim smoothing. | ✅ |
+| F-20 | Proto enum coverage guard | `ProtoDiagnostics` now reports `MinecraftMessageType` values missing `ProtocolRegistry` bindings; enforced via `ProtoRuntime.EnsureInitialized()`. | Unity hits the same guard during `ProtoRuntime` initialization, surfacing stale or missing generated DTOs before connecting. | ✅ |
+
+## Implementation Notes
+
+1. Rivers: riparian saturation now feeds channel pressure and a new stabilization pass to widen or flood benches where wetlands should exist, keeping flow accumulation, hydrology, and bank geometry aligned across server and MapGeneratorLib.
+2. Caves: moisture-heavy near-surface cavities gain deterministic sealing so hydrology-driven erosion no longer pokes through thin roofs; this keeps biome and lighting passes stable in both codebases.
+3. Lakes: surface lake spawn weight, basin dimensions, and water table height now include riparian and flow data, reducing mismatches between river plains and inland basins in Unity captures versus live chunks.
+4. Protobuf: diagnostics now fail fast when a `MinecraftMessageType` lacks a matching generated descriptor, tightening the `using`/registry alignment for Google.Protobuf DTOs on both client and server.
+
+## Sequential Plan
+
+1. Finish F-08 by attaching vegetation/wetland decorators to the shared riparian mask so reeds/pads spawn where the new benches and lake rims form.
+2. Resume F-09 residency telemetry once the riparian-weighted geometry is stable, ensuring packet metrics reflect the updated chunk residency profile.
+3. Keep the proto coverage guard in CI by rerunning `protoc` before builds and extending handler registration tests to assert registry completeness for new message types.

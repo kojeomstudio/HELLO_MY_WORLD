@@ -13,6 +13,7 @@ namespace SharedProtocol
     public class MinecraftMessageDispatcher
     {
         private readonly Dictionary<MinecraftMessageType, IMinecraftMessageHandler> _handlers = new();
+        private readonly Dictionary<MinecraftMessageType, Type> _handlerContracts = new();
         private readonly MessageDispatcher _baseDispatcher;
 
         public MinecraftMessageDispatcher(MessageDispatcher baseDispatcher)
@@ -26,11 +27,26 @@ namespace SharedProtocol
         public void RegisterHandler<T>(MinecraftMessageType messageType, IMinecraftMessageHandler<T> handler)
             where T : class
         {
-            _handlers[messageType] = handler;
-            if (!ProtocolRegistry.IsRegistered(messageType))
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+
+            ProtoRuntime.EnsureInitialized();
+            ProtocolRegistry.EnsureRegistered(messageType);
+
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
             {
-                Console.WriteLine($"[MinecraftDispatcher] EnhancedMinecraft protocol registry has no entry for '{messageType}'.");
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft registry failed to resolve '{messageType}'. Regenerate protobuf assets and rebuild SharedProtocol.");
             }
+
+            var descriptorType = prototype.Descriptor?.ClrType;
+            if (descriptorType != null && descriptorType != typeof(T))
+            {
+                throw new InvalidOperationException(
+                    $"Handler for '{messageType}' expects {typeof(T).Name} but generated contract '{descriptorType.Name}' was registered. Update the handler or regenerate protobufs.");
+            }
+
+            _handlers[messageType] = handler;
+            _handlerContracts[messageType] = typeof(T);
         }
 
         /// <summary>
@@ -87,6 +103,23 @@ namespace SharedProtocol
         {
             // 청크 범위 내 플레이어들에게만 전송 (최적화)
             Console.WriteLine($"Sending message {messageType} to players in chunk [{chunkX}, {chunkZ}] with view distance {viewDistance}");
+        }
+
+        public bool TryGetHandlerContract(MinecraftMessageType messageType, out Type contractType) =>
+            _handlerContracts.TryGetValue(messageType, out contractType!);
+
+        public IReadOnlyCollection<MinecraftMessageType> GetUnboundProtocolMessages()
+        {
+            var missing = new List<MinecraftMessageType>();
+            foreach (var registered in ProtocolRegistry.RegisteredMessageTypes)
+            {
+                if (!_handlerContracts.ContainsKey(registered))
+                {
+                    missing.Add(registered);
+                }
+            }
+
+            return missing;
         }
 
         /// <summary>

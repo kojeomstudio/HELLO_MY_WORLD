@@ -194,6 +194,16 @@ namespace GameServerApp
             Console.WriteLine("✓ Biome-based World Generation");
             Console.WriteLine("✓ Item Drop & Pickup System");
             Console.WriteLine("===========================================");
+
+            var missingProtocols = _minecraftDispatcher.GetUnboundProtocolMessages();
+            if (missingProtocols.Count > 0)
+            {
+                Console.WriteLine("[MinecraftDispatcher] Missing EnhancedMinecraft handlers: " + string.Join(", ", missingProtocols));
+            }
+            else
+            {
+                Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");
+            }
         }
 
         public async Task StartAsync()

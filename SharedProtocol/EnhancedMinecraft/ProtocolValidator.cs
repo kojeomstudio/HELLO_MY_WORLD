@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf.Reflection;
@@ -28,6 +29,7 @@ public static class ProtocolValidator
             ProtocolRegistry.EnsureRegistered(message);
         }
 
+        ValidateRegistryDescriptors();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ProtoDiagnostics.AssertRegistryClean();
@@ -72,6 +74,42 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraftProtocol.{descriptor.Name} descriptor missing required field '{fieldName}'. Regenerate proto assets.");
+            }
+        }
+    }
+
+    private static void ValidateRegistryDescriptors()
+    {
+        var descriptor = EnhancedMinecraftGameReflection.Descriptor;
+        string descriptorPackage = descriptor.Package ?? string.Empty;
+
+        var registeredNames = new HashSet<string>(
+            ProtocolRegistry.RegisteredDescriptors.Select(binding => binding.DescriptorName),
+            StringComparer.Ordinal);
+
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            var messageDescriptor = descriptor.MessageTypes.FirstOrDefault(d => d.Name == binding.DescriptorName);
+            if (messageDescriptor == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft descriptor '{binding.DescriptorName}' is missing from generated protobufs. Regenerate proto assets so registry bindings stay valid.");
+            }
+
+            string package = messageDescriptor.File?.Package ?? string.Empty;
+            if (!string.Equals(package, descriptorPackage, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' is generated with package '{package}', expected '{descriptorPackage}'. Regenerate protobuf assets so using references resolve to the correct namespace.");
+            }
+        }
+
+        foreach (var declared in descriptor.MessageTypes)
+        {
+            if (!registeredNames.Contains(declared.Name))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft generated message '{declared.Name}' is not registered in ProtocolRegistry. Add a binding so protobuf references are validated consistently on client and server.");
             }
         }
     }

@@ -727,6 +727,37 @@ namespace MapGenLib
             return smoothed;
         }
 
+        private static void BlendHydrologySeams(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int maxX = subWorldSize.SizeX - 1;
+            int maxZ = subWorldSize.SizeZ - 1;
+
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    bool isEdge = x == 0 || z == 0 || x == maxX || z == maxZ;
+                    if (!isEdge)
+                    {
+                        continue;
+                    }
+
+                    int neighborX = CustomMathf.Clamp(x + (x == 0 ? 1 : -1), 0, maxX);
+                    int neighborZ = CustomMathf.Clamp(z + (z == 0 ? 1 : -1), 0, maxZ);
+                    float neighborHydrology = hydrologyMask[neighborX, neighborZ];
+                    float anchorNoise = Noise.GetNoise((x + 19.5f) / 72f, 0, (z - 11.5f) / 72f);
+                    float anchorHydrology = CustomMathf.Clamp01(0.55f + (anchorNoise - 0.5f) * 0.9f);
+                    float blendedHydrology = (hydrologyMask[x, z] * 2.2f + neighborHydrology * 0.6f + anchorHydrology * 0.4f) / 3.2f;
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(blendedHydrology);
+
+                    float neighborFlow = flowAccumulation[neighborX, neighborZ];
+                    float anchorFlow = CustomMathf.Clamp(anchorHydrology * 0.9f + CustomMathf.Abs(anchorNoise - 0.5f) * 1.35f, 0f, 8f);
+                    float blendedFlow = (flowAccumulation[x, z] * 1.5f + neighborFlow * 0.6f + anchorFlow * 0.5f) / 2.6f;
+                    flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, 8f);
+                }
+            }
+        }
+
         private static float[,] BuildRiparianSaturationMap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
         {
             float[,] riparian = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
@@ -917,6 +948,8 @@ namespace MapGenLib
             int[,] surfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
+            BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
 
             const float channelThreshold = 0.033f;
             const float bankThreshold = 0.07f;
@@ -1866,6 +1899,7 @@ namespace MapGenLib
             int[,] surfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
+            BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
 
@@ -2661,6 +2695,7 @@ namespace MapGenLib
             int[,] caveSurfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
             float[,] caveHydrologyMask = BuildHydrologyMask(subWorldSize, caveSurfaceCache);
             float[,] caveFlowAccumulation = BuildFlowAccumulation(caveSurfaceCache, subWorldSize);
+            BlendHydrologySeams(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             AddCaveShelfBands(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
             AddCaveVentilationShafts(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
             AddCaveAquiferChannels(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
@@ -2676,6 +2711,7 @@ namespace MapGenLib
             int[,] surfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
+            BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             var field = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
 
             for (int x = 0; x < subWorldSize.SizeX; x++)

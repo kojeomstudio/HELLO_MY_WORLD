@@ -497,6 +497,7 @@ namespace GameServerApp.World
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
             var riverField = GetRiverFieldCache(context);
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
@@ -2405,6 +2406,44 @@ namespace GameServerApp.World
             return smoothed;
         }
 
+        private void BlendHydrologySeams(int chunkX, int chunkZ, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    bool isEdge = x == 0 || z == 0 || x == width - 1 || z == depth - 1;
+                    if (!isEdge)
+                    {
+                        continue;
+                    }
+
+                    int neighborX = Math.Clamp(x + (x == 0 ? 1 : -1), 0, width - 1);
+                    int neighborZ = Math.Clamp(z + (z == 0 ? 1 : -1), 0, depth - 1);
+                    double neighborHydrology = hydrologyMask[neighborX, neighborZ];
+                    double anchorNoise = SimplexNoise.Generate(
+                        chunkX * 16 + x + 19.5,
+                        chunkZ * 16 + z - 11.5,
+                        0.0028,
+                        3,
+                        1.0,
+                        0.55,
+                        91013);
+                    double anchorHydrology = Math.Clamp(0.55 + anchorNoise * 0.45, 0.0, 1.0);
+                    double blendedHydrology = (hydrologyMask[x, z] * 2.2 + neighborHydrology * 0.6 + anchorHydrology * 0.4) / 3.2;
+                    hydrologyMask[x, z] = Math.Clamp(blendedHydrology, 0.0, 1.0);
+
+                    double neighborFlow = flowAccumulation[neighborX, neighborZ];
+                    double anchorFlow = Math.Clamp(anchorHydrology * 0.9 + Math.Abs(anchorNoise) * 0.65, 0.0, 8.0);
+                    double blendedFlow = (flowAccumulation[x, z] * 1.5 + neighborFlow * 0.6 + anchorFlow * 0.4) / 2.5;
+                    flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
+                }
+            }
+        }
+
         private double[,] BuildRiparianSaturationMap(int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
         {
             int width = surfaceCache.GetLength(0);
@@ -2479,6 +2518,8 @@ namespace GameServerApp.World
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
 
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+
+            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
 
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
 
@@ -2643,6 +2684,7 @@ namespace GameServerApp.World
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
             double lakeSimplex = SimplexNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);

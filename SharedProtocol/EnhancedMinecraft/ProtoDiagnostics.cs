@@ -23,6 +23,7 @@ public static class ProtoDiagnostics
         IReadOnlyList<(MinecraftMessageType MessageType, string PrototypeName)> RegisteredMessages,
         IReadOnlyList<MinecraftMessageType> MissingRegistrations,
         IReadOnlyList<MinecraftMessageType> UnregisteredMessageTypes,
+        IReadOnlyList<string> UnboundDescriptors,
         IReadOnlyList<string> OrphanedDescriptors);
 
     public static ProtoReferenceReport BuildReferenceReport()
@@ -53,6 +54,10 @@ public static class ProtoDiagnostics
             .Where(name => !declaredMessages.Contains(name, StringComparer.Ordinal))
             .ToArray();
 
+        var unbound = declaredMessages
+            .Where(name => tracked.All(binding => !string.Equals(binding.DescriptorName, name, StringComparison.Ordinal)))
+            .ToArray();
+
         var allMessageTypes = Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>();
         var unregistered = allMessageTypes
             .Where(type => !ProtocolRegistry.IsRegistered(type))
@@ -70,6 +75,7 @@ public static class ProtoDiagnostics
             registeredMessages,
             missing,
             unregistered,
+            unbound,
             orphaned);
     }
 
@@ -89,6 +95,13 @@ public static class ProtoDiagnostics
             throw new InvalidOperationException(
                 "[Proto] Enum values missing ProtocolRegistry bindings: " +
                 string.Join(", ", report.UnregisteredMessageTypes));
+        }
+
+        if (report.UnboundDescriptors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "[Proto] Generated EnhancedMinecraft messages are not bound in ProtocolRegistry: " +
+                string.Join(", ", report.UnboundDescriptors));
         }
 
         if (report.OrphanedDescriptors.Count > 0)
@@ -128,6 +141,12 @@ public static class ProtoDiagnostics
         {
             Console.WriteLine("[Proto][WARN] Generated messages not wired into the registry: " +
                               string.Join(", ", report.OrphanedDescriptors));
+        }
+
+        if (report.UnboundDescriptors.Count > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Generated descriptors missing ProtocolRegistry bindings: " +
+                              string.Join(", ", report.UnboundDescriptors));
         }
 
         if (report.UnregisteredMessageTypes.Count > 0)

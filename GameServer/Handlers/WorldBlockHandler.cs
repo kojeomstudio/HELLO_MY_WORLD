@@ -1,4 +1,5 @@
 using GameServerApp.Database;
+using GameServerApp.Models;
 using GameServerApp.World;
 using SharedProtocol;
 
@@ -56,7 +57,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 await SendFailureResponse(session, "블록 Y 좌표가 허용 범위를 벗어났습니다.");
                 return;
             }
-            if (!Enum.IsDefined(typeof(World.BlockType), message.BlockType))
+            if (!Enum.IsDefined(typeof(BlockType), message.BlockType))
             {
                 await SendFailureResponse(session, "알 수 없는 블록 타입입니다.");
                 return;
@@ -130,7 +131,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
         if (message.BlockPosition.Z < 0) chunkZ--;
 
         var playerId = 1;
-        var blockType = (World.BlockType)message.BlockType;
+        var blockType = (BlockType)message.BlockType;
         
         await _worldManager.UpdateBlockAsync(chunkX, chunkZ, 
             message.BlockPosition.X, message.BlockPosition.Y, message.BlockPosition.Z,

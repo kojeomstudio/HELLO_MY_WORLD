@@ -1,73 +1,70 @@
-# Minecraft Feature Implementation Plan
+# 마인크래프트 기능 구현 및 개선 계획
 
-This document enumerates the client and server level capabilities that are required to support the enhanced Minecraft experience in this repository. It also records the current implementation status and the immediate follow-up actions so the features can be implemented or refined sequentially.
+이 문서는 제미니 CLI 에이전트가 수행할 마인크래프트 핵심 기능의 구현 및 개선 계획을 정의합니다.
 
-## 1. High-Level Goals
-- Deliver a cohesive Minecraft-like gameplay loop covering world generation, player interaction, progression, and live service needs.
-- Ensure client and server responsibilities are clearly delineated while sharing protocol contracts through protobuf.
-- Maintain deterministic world state through robust terrain algorithms (caves, rivers, lakes) and synchronized network messaging.
+## 1. 클라이언트/서버 기능 목록
 
-## 2. Server Capabilities
-| Priority | Feature | Description | Status | Owner System / File(s) | Next Action |
-|---|---|---|---|---|---|
-| P0 | Session & Authentication | Account login, session lifecycle, rate limits | Implemented | `GameServer/Handlers/LoginHandler.cs`, `GameServer/SessionManager.cs` | Periodic audit |
-| P0 | Chunk Generation & Storage | Deterministic chunk pipeline with persistence | Implemented | `GameServer/World/WorldManager.cs`, `GameServer/World/Generation/TerrainGenerationPipeline.cs` | Surface vent/delta/overflow tunables + telemetry after the latest hydrology passes |
-| P0 | Chunk Streaming | Serve chunk payloads, unload notifications | Implemented | `GameServer/Handlers/MinecraftChunkHandler.cs` | Validate enhanced payload sanity checks |
-| P0 | Block Updates | Authoritative block mutations, history logging | Implemented | `GameServer/Handlers/MinecraftPlayerActionHandler.cs`, `GameServer/Handlers/WorldBlockHandler.cs` | Ensure terrain edits propagate protobuf events |
-| P1 | Entity Synchronization | Spawn/Despawn/Movement broadcast | Implemented | `GameServer/Systems/EntitySyncService.cs` | Confirm proto usage for entity payload |
-| P1 | Inventory & Crafting | Snapshot persistence, crafting rules | Implemented | `GameServer/Handlers/InventoryHandler.cs`, `GameServer/Handlers/CraftingHandler.cs` | Add protobuf-backed inventory updates |
-| P1 | Environment Simulation | Time, weather, biome-aware updates | Implemented | `GameServer/Systems/WorldTimeSystem.cs`, `GameServer/Systems/WeatherSystem.cs` | Integrate client notifications |
-| P1 | Procedural Structures | Trees, lakes, caves, rivers, dungeons | Hydrology-weighted rivers/lakes plus new karst sinkholes, tributary stitching, and clay-banked lake terraces (2025-11-10 in progress) | `MapGeneratorLib/...`, `WorldManager` stages | Surface tunables via config & MapGenerator UI; capture erosion metrics (current task) |
-| P2 | Metrics & Maintenance | Health checks, chunk eviction, backups | Implemented | `GameServer/Systems/ServerMetricsService.cs`, `GameServer/GameServer.cs` | Automate reporting |
-| P2 | Chat & Social | Room management, chat dispatch | Implemented | `GameServer/Handlers/ChatHandler.cs`, `GameServer/Room` | Extend moderation hooks |
+다음은 필수적인 클라이언트 및 서버 기능 목록입니다. 기존 코드베이스에 이미 구현된 기능과 신규 구현이 필요한 기능을 포함합니다.
 
-## 3. Client Capabilities
-| Priority | Feature | Description | Status | Owner System / File(s) | Next Action |
-|---|---|---|---|---|---|
-| P0 | Networking Core | Connect/disconnect, heartbeat, reconnection | Implemented | `Assets/MyAssets/Scripts/Network/GameNetworkManager.cs` | Ensure protobuf channel integration |
-| P0 | Chunk Streaming & Rendering | Request chunks, mesh generation, culling | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/InstancingHelper.cs` | Enhanced protobuf metadata parsed on client; monitor mesh rebuild timings |
-| P0 | Block Interaction | Place/destroy blocks, durability feedback | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/Player/...` | Align with server action protocol |
-| P0 | Player Control | Movement, camera, input mapping | Implemented | `Assets/MyAssets/Scripts/Input/...`, `Assets/MyAssets/Scripts/Player/...` | Verify physics sync with server |
-| P1 | Inventory UI | Hotbar, crafting grid, tooltips | Implemented | `Assets/MyAssets/Scripts/UI/...`, `Assets/MyAssets/Scripts/GameMode/...` | Add protobuf-driven updates |
-| P1 | Entity Rendering | Visualize nearby entities with animations | Implemented | `Assets/MyAssets/Scripts/GameWorld/...` | Sync entity payload transformations |
-| P1 | Environment Effects | Weather visuals, day/night cycle | Implemented | `Assets/MyAssets/Scripts/GameWorld/...`, `Assets/MyAssets/Scripts/GameSound/...` | Trigger from server proto notifications |
-| P1 | Terrain Caching | Disk cache & streaming optimizations | Partial | `Assets/MyAssets/Scripts/DataManagement/...` | Align with server chunk residency |
-| P2 | Diagnostics & Telemetry | Performance HUD, logging hooks | Partial | `Assets/MyAssets/Scripts/Utility/...`, `docs/` | Define protobuf diagnostics channel |
+### 1.1. 월드 및 플레이어 관리
+- **[구현됨]** 플레이어 접속 및 인증
+- **[구현됨]** 플레이어 위치 동기화
+- **[구현됨]** 청크 기반 월드 스트리밍
+- **[개선 필요]** 플레이어 인벤토리 관리 (현재 일부 구현, 확장 필요)
+- **[신규]** 플레이어 상태 (체력, 허기) 동기화 및 관리
+- **[신규]** 경험치 및 레벨 시스템
 
-## 4. Sequential Implementation Roadmap
-1. **Terrain Algorithm Enhancements** ? Update cave, river, and lake generation heuristics on both the dedicated server (WorldManager stages) and shared generator (MapGeneratorLib) to produce richer formations and fewer artifacts.
-   - 2025-11-09: hydrology-driven cave pools, sedimented riverbeds, terraced lakes, plus the prior catchment-weighted rivers and basin-stability lakes.
-   - **2025-11-10 (in progress):** add karst sinkholes with aquifer vents, stitch minor tributaries into the main channel flow, and lay down clay/sand lake terraces with matching Unity preview data.
-   - 2025-11-13: stability-weighted cave shelf terraces, river floodplain swales, and lake wetland spillways now run in both WorldManager and MapGeneratorLib so hydrology parity is maintained end-to-end.
-   - 2025-11-14: ventilation shafts, confluence delta fans, and lake overflow channels now align between WorldManager and MapGeneratorLib so Unity previews match the dedicated server output.
-   - 2025-11-15: hydrology-weighted cave aquifer channels, river gradient smoothing, and the new lake water-table equalizer landed in both codebases so Unity terrain captures stay pixel-matched with the server.
-   - Deliverables: tuned noise parameters, erosion passes, improved flood-fill stability, and parity between tooling + dedicated server.
-2. **Protobuf Contract Audit** ??Ensure `proto/*.proto` schemas map cleanly to generated C# under `SharedProtocol` and `Assets/Generated/Protobuf`. Remove dead legacy payloads and validate handler wiring on both ends. *(ChunkLoadRequest/Response descriptors are now validated at startup; `ProtoFingerprint` plus `ProtoDiagnostics.AssertRegistryClean()` block mismatched or unregistered generated assets ahead of runtime.)*
-   - 2025-11-15: `ProtocolRegistry` now registers the chunk/action/entity/time/weather DTOs we actually ship, `ProtoDiagnostics` validates that curated list, and `SharedProtocol` links the regenerated `Common.cs` types so the server builds without Unity.
-3. **Client Integration Updates** ??Adjust Unity client systems to consume the enhanced protobuf payloads for chunk data, block updates, and entity events. *(Unity now parses enhanced chunk payload metadata for residency + diagnostics.)*
-4. **Documentation & Tooling** ??Update README and protocol docs to describe the data flow, regeneration commands, and testing recipes.
-5. **Validation Pipeline** ??Run `dotnet build`, `dotnet test`, and targeted smoke checks; document any Unity-specific validation requirements.
+### 1.2. 월드 상호작용
+- **[구현됨]** 블록 설치 및 파괴
+- **[개선 필요]** 컨테이너(상자, 화로) 상호작용 (현재 기본 구현, UI 및 기능 확장 필요)
+- **[신규]** 제작(Crafting) 시스템
+- **[신규]** 아이템 줍기 및 버리기
 
-## 5. Validation Checklist
-- [ ] Terrain generation stages produce deterministic caves, rivers, and lakes across seeds.
-- [ ] All protobuf messages referenced via `using` directives resolve to existing types in SharedProtocol or generated assets.
-- [x] Enhanced chunk request/response descriptors are validated at startup (missing fields fail fast).
-- [x] Enhanced chunk payload metadata is parsed on the client and cross-checked against legacy chunk responses.
-- [x] SharedProtocol and Unity builds share a verified `ProtoFingerprint` so stale `Assets/Generated/Protobuf` artifacts are rejected at startup.
-- [x] EnhancedMinecraft `ProtocolRegistry` coverage stays in sync with the curated descriptor list enforced by `ProtoDiagnostics`.
-- [ ] Client and server feature matrices remain synchronized after each change (update this document as features evolve).
-- [ ] README includes latest build/test instructions when modifications impact developer workflow.
+### 1.3. 지형 생성 (World Generation)
+- **[구현됨]** 다중 바이옴 기반 지형 생성
+- **[구현됨]** 광물 생성
+- **[개선 필요]** 동굴, 강, 호수, 던전 생성 알고리즘 (본 문서 2장에서 상세히 다룸)
+- **[신규]** 구조물(마을, 사원 등) 생성 시스템
 
-Keep this plan updated whenever feature scope or implementation status changes.
+### 1.4. AI 및 엔티티
+- **[구현됨]** 기본 AI 액터 스폰 및 관리
+- **[개선 필요]** AI 행동 패턴 개선 (길찾기, 플레이어 추적, 공격 등)
+- **[신규]** 동물 및 몬스터 종류 추가
 
-## 6. November 2025 Hydrology Execution Order
-| Order | Feature | Client Touchpoints | Server/Tooling Touchpoints | Status & Notes |
-|---|---|---|---|---|
-| 1 | Karst sinkholes & aquifer vents | Unity chunk renderer consumes `EnhancedChunkMetadata.GenerationTimestamp` to flag moisture overlays and surface decals. | `WorldManager.GenerateCavesInternal`, `MapGeneratorLib.WorldGenAlgorithms.GenerateSphereCaves` gain hydrology-aware sinkholes and drip-fed pools. | Complete (2025-11-10) |
-| 2 | Tributary weaving & catchment stitching | Chunk streaming controller tracks hydrology tags from enhanced payloads to request adjacent tributary chunks earlier. | `WorldManager.GenerateRiversInternal` and `MapGeneratorLib.WorldGenAlgorithms.GenerateRiverSystems` add tributary channel carving + slope blending. | Complete (2025-11-10) |
-| 3 | Lake sediment terraces & proto contract audit | Unity mesh baker references enhanced payload metadata to apply shoreline materials; README/docs updated with hydration commands. | `WorldManager.GenerateLakesInternal`, `MapGeneratorLib` lake passes, and `SharedProtocol.EnhancedMinecraft.ProtocolValidator` capture clay bank rules + regeneration steps. | Complete (2025-11-11) |
-| 4 | Shelfed caves, swales, and wetland spillways | Unity preview tooling renders the new shelf/swale/spillway metadata so editors match runtime terrain. | `WorldManager` + `MapGeneratorLib` share shelf/swale/spillway passes and `ProtoFingerprint.AssertDescriptorFingerprint()` blocks stale protobufs. | Complete (2025-11-13) |
-| 5 | Aquifer channels, river smoothing, lake equalizer | Unity map previews ingest the same aquifer tunnels, gradient-smoothed rivers, and water-table-equalized lakes that the server now emits, preventing art/server drift. | `WorldManager` + `MapGeneratorLib` add aquifer passes, river gradient smoothing, and a lake equalizer that runs before overflow channels; `ProtocolRegistry` validates the protobuf payloads that carry the new metadata. | Complete (2025-11-15) |
+## 2. 지형 생성 알고리즘 개선
 
-These steps must be executed sequentially so client rendering logic always trails server/tooling changes by at most one feature batch, preventing protocol or terrain drift.
+현재 지형 생성 코드는 `GameServer/World/WorldManager.cs`에 매우 정교하게 구현되어 있습니다. 전체 재작성보다는 기존 코드를 존중하면서 다음과 같이 개선을 진행합니다.
 
+### 2.1. 공통 개선 전략
+- **설정 분리:** 지형 생성에 사용되는 매직 넘버(Noise 파라미터, 임계값 등)를 별도의 `*Settings.cs` 클래스로 분리하여 코드 변경 없이 쉽게 조정하고 테스트할 수 있도록 리팩토링합니다.
+- **모듈화:** 거대한 `Generate*Internal` 메서드 내부의 로직을 의미 있는 단위로 분리하여 가독성과 유지보수성을 높입니다.
+
+### 2.2. 동굴 생성 (Caves) - 우선순위: 높음
+- **목표:** 더 다양하고 탐험 가치가 높은 동굴 시스템을 생성합니다.
+- **개선 방안:**
+    1. **'침수 동굴(Flooded Caves)' 추가:** 특정 조건(예: 해수면 근처, 습한 바이옴)에서 생성되는 동굴이 완전히 물로 채워지는 새로운 동굴 타입을 추가합니다. 기존 수문학(Hydrology) 로직을 활용하여 구현합니다.
+    2. **'스파게티 동굴'과 '치즈 동굴' 분리:** `GenerateMainCaveSystem` (스파게티)과 `GenerateNoiseCavePass` (치즈)의 파라미터를 명확히 분리하고, 각 동굴 타입의 특성이 더 잘 드러나도록 노이즈 설정을 조정합니다.
+    3. **동굴 바이옴(Cave Biome) 개념 도입:** 동굴의 특정 영역에 다른 종류의 블록(예: 이끼, 발광석)이나 구조물이 생성되도록 하여 단조로움을 줄입니다. (장기 목표)
+
+### 2.3. 강 생성 (Rivers) - 우선순위: 중간
+- **목표:** 더 자연스러운 강줄기와 강둑을 생성합니다.
+- **개선 방안:**
+    1. **강 폭 및 깊이 다양화:** `SampleRiverField` 노이즈 값을 기반으로 강의 폭과 깊이가 더 역동적으로 변하도록 파라미터를 조정합니다.
+    2. **강둑(Riverbank) 지형 개선:** `ShapeRiverBank` 메서드를 개선하여 강둑이 더 완만하거나, 때로는 절벽 형태로 나타나도록 다양성을 추가합니다.
+    3. **건조한 강바닥(Dry Riverbeds) 추가:** 특정 바이옴(예: 사막)에서는 물 없이 모래나 자갈로만 채워진 강 지형이 생성되도록 합니다.
+
+### 2.4. 호수 생성 (Lakes) - 우선순위: 중간
+- **목표:** 지형에 어울리는 다양한 크기와 형태의 호수를 생성합니다.
+- **개선 방안:**
+    1. **호수 형태 개선:** `GenerateLakesInternal`에서 사용하는 타원(Ellipse) 형태 외에, 여러 노이즈를 조합하여 더 불규칙하고 자연스러운 형태의 호수를 생성합니다.
+    2. **호숫가 지형 개선:** `SculptLakeBank`를 개선하여 모래사장, 자갈 해변 등 다양한 호숫가 지형을 생성합니다.
+
+## 3. Protobuf 및 컴파일 검토
+
+- **[완료]** Protobuf 참조 검토: `SharedProtocol.csproj`가 `Assets/Generated/Protobuf`에 생성된 파일을 올바르게 링크(Link)하여 참조하는 것을 확인했습니다. 이 구조는 클라이언트(Unity)와 서버가 동일한 프로토콜 코드를 공유하게 하므로, 현재 구조를 유지합니다.
+- **[진행 예정]** 컴파일 테스트: 지형 생성 코드 수정 후, 전체 서버 프로젝트(`GameServer`, `SharedProtocol`)를 빌드하여 컴파일 오류가 없는지, 새로 추가/변경된 프로토콜 메시지가 정상적으로 처리되는지 확인합니다.
+
+## 4. 문서 업데이트
+
+- 모든 주요 변경 사항은 관련 `docs` 폴더 내 문서에 반영할 것입니다.
+- 코드 변경이 최종 완료되면 `README.md`에 해당 내용의 요약을 추가합니다.

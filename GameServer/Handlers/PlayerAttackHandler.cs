@@ -96,12 +96,18 @@ namespace GameServerApp.Handlers
                 if (targetSession != null)
                 {
                     // HealthSystem을 통해 데미지 적용
-                    await _healthSystem.ApplyDamageAsync(
-                        targetSession,
+                    var combatContext = new CombatEventContext
+                    {
+                        AttackerUserName = session.UserName,
+                        AttackerDisplayName = session.PlayerInfo?.DisplayName,
+                        WeaponName = message.WeaponName,
+                        IsCritical = attackResult.IsCritical
+                    };
+                    await _healthSystem.DamagePlayerAsync(
+                        message.TargetPlayerName,
                         attackResult.Damage,
-                        (int)CombatSystem.DamageType.Melee,
-                        session.UserName,
-                        message.WeaponName
+                        DamageType.PvP,
+                        combatContext
                     );
                 }
 
@@ -112,15 +118,17 @@ namespace GameServerApp.Handlers
                     TargetName = message.TargetPlayerName,
                     Damage = attackResult.Damage,
                     IsCritical = attackResult.IsCritical,
-                    KnockbackVector = new Vector3(0, attackResult.Knockback, 0),
+                    KnockbackVector = new Vector3 { Y = attackResult.Knockback },
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 };
 
-                await _sessionManager.BroadcastToNearbyPlayersAsync(
-                    attackerState.Position,
-                    128f,
+                await _sessionManager.BroadcastToAreaAsync(
+                    attackerState.CurrentWorldId,
+                    attackerState.CurrentChunkX,
+                    attackerState.CurrentChunkZ,
                     MessageType.PlayerAttackBroadcast,
-                    broadcast
+                    broadcast,
+                    session.UserName // 제외할 플레이어
                 );
 
                 Console.WriteLine($"[Combat] {session.UserName} attacked {message.TargetPlayerName} for {attackResult.Damage:F1} damage" +

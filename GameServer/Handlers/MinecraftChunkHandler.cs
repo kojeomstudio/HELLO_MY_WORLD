@@ -1,6 +1,7 @@
 ﻿using GameServerApp.Database;
 using GameServerApp.Systems;
 using GameServerApp.World;
+using GameServerApp.Models;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
 using System.Collections.Concurrent;

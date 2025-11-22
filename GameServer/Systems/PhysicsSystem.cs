@@ -47,7 +47,7 @@ namespace GameServerApp.Systems
             if (state.IsFlying)
             {
                 // Creative mode에서는 물리 법칙 무시
-                state.Velocity = new Vector3(0, 0, 0);
+                state.Velocity = new Vector3 { X = 0, Y = 0, Z = 0 };
                 state.IsOnGround = false;
                 return state;
             }
@@ -55,7 +55,7 @@ namespace GameServerApp.Systems
             // 1. 중력 적용
             if (!state.IsOnGround && !state.IsInWater)
             {
-                float gravityForce = state.IsInLava ? MinecraftGravity * 0.5f : MinecraftGravity;
+                double gravityForce = state.IsInLava ? MinecraftGravity * 0.5f : MinecraftGravity;
                 state.Velocity.Y -= gravityForce * deltaTime;
 
                 // 종단 속도 제한
@@ -72,11 +72,11 @@ namespace GameServerApp.Systems
             }
 
             // 2. 속도 적용하여 새 위치 계산
-            var newPosition = new Vector3(
-                state.Position.X + state.Velocity.X * deltaTime,
-                state.Position.Y + state.Velocity.Y * deltaTime,
-                state.Position.Z + state.Velocity.Z * deltaTime
-            );
+            var newPosition = new Vector3 {
+                X = state.Position.X + state.Velocity.X * deltaTime,
+                Y = state.Position.Y + state.Velocity.Y * deltaTime,
+                Z = state.Position.Z + state.Velocity.Z * deltaTime
+            };
 
             // 3. 충돌 감지 및 처리
             var collision = CheckCollision(newPosition, worldData);
@@ -89,7 +89,7 @@ namespace GameServerApp.Systems
                     if (state.Velocity.Y < 0) // 바닥 충돌
                     {
                         state.IsOnGround = true;
-                        state.LastGroundY = newPosition.Y;
+                        state.LastGroundY = (float)newPosition.Y;
                         newPosition.Y = collision.CorrectedY;
                     }
                     state.Velocity.Y = 0;
@@ -144,7 +144,7 @@ namespace GameServerApp.Systems
                 return 0f;
             }
 
-            return MathF.Max(0f, state.LastGroundY - state.Position.Y);
+            return MathF.Max(0f, state.LastGroundY - (float)state.Position.Y);
         }
 
         /// <summary>
@@ -160,12 +160,12 @@ namespace GameServerApp.Systems
             };
 
             // 플레이어 AABB 바운딩 박스
-            float minX = position.X - PlayerWidth / 2;
-            float maxX = position.X + PlayerWidth / 2;
-            float minY = position.Y;
-            float maxY = position.Y + PlayerHeight;
-            float minZ = position.Z - PlayerWidth / 2;
-            float maxZ = position.Z + PlayerWidth / 2;
+            double minX = position.X - PlayerWidth / 2;
+            double maxX = position.X + PlayerWidth / 2;
+            double minY = position.Y;
+            double maxY = position.Y + PlayerHeight;
+            double minZ = position.Z - PlayerWidth / 2;
+            double maxZ = position.Z + PlayerWidth / 2;
 
             // 주변 블록 검사 범위
             int startX = (int)Math.Floor(minX);
@@ -245,9 +245,9 @@ namespace GameServerApp.Systems
             public bool CollidesX { get; set; }
             public bool CollidesY { get; set; }
             public bool CollidesZ { get; set; }
-            public float CorrectedX { get; set; }
-            public float CorrectedY { get; set; }
-            public float CorrectedZ { get; set; }
+            public double CorrectedX { get; set; }
+            public double CorrectedY { get; set; }
+            public double CorrectedZ { get; set; }
         }
     }
 

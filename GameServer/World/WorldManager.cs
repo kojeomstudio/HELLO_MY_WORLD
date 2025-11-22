@@ -73,6 +73,7 @@ namespace GameServerApp.World
 
             // 시드를 사용하여 Random 초기화 (결정적 생성을 위함)
             _random = new Random(_worldSeed.Seed);
+            _caveSettings = new CaveGenerationSettings();
 
             Console.WriteLine($"[WorldManager] {_worldSeed}");
 
@@ -351,7 +352,7 @@ namespace GameServerApp.World
             return profile;
         }
 
-        private void GenerateBaseTerrainInternal(TerrainGenerationContext context)
+        public void GenerateBaseTerrainInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var profiles = context.GetOrAddMetadata(TerrainProfilesKey, () => new TerrainProfile[16, 16]);
@@ -490,7 +491,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 3D 동굴 생성 시스템 - 더 자연스럽고 다양한 동굴 구조
         /// </summary>
-        private void GenerateCavesInternal(TerrainGenerationContext context)
+        public void GenerateCavesInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
@@ -1589,7 +1590,26 @@ namespace GameServerApp.World
         }
 
         /// <summary>
+        /// Holds all configurable parameters for noise-based cave generation.
+        /// </summary>
+        private class CaveGenerationSettings
+        {
+            public double HorizontalFrequency { get; set; } = 0.0026;
+            public double VerticalFrequency { get; set; } = 0.018;
+            public double Threshold { get; set; } = 0.42;
+            public double LavaThreshold { get; set; } = 0.28;
+            public double WaterThreshold { get; set; } = 0.34;
+            // Flooded caves are more likely to appear at lower elevations.
+            public double FloodedCaveNoiseFrequency { get; set; } = 0.0031;
+            public double FloodedCaveProximityToWaterTableWeight { get; set; } = 0.6;
+            public double FloodedCaveThreshold { get; set; } = 0.75;
+        }
+
+        private readonly CaveGenerationSettings _caveSettings;
+
+        /// <summary>
         /// 노이즈 기반 동굴층 - 연속된 노이즈 필드를 사용하여 청크 경계를 넘는 동굴을 형성한다.
+        /// 개선: 침수 동굴(Flooded Caves) 기능을 추가하여 특정 높이 이하, 그리고 수문학적 요인에 따라 물로 채워진 동굴을 생성합니다.
         /// </summary>
         private void GenerateNoiseCavePass(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache, double[,] caveStabilityField)
         {
@@ -1606,16 +1626,20 @@ namespace GameServerApp.World
                     var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.00095, 0.0015, 22.0, 14.0, 53117);
                     double warpedX = worldX + warp.dx;
                     double warpedZ = worldZ + warp.dz;
+                    
+                    // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                    double horizontalNoise = SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.HorizontalFrequency, 4, 1.0, 0.55, 640371);
+                    double secondaryNoise = SimplexNoise.Generate(warpedX * 1.35, warpedZ * 1.35, _caveSettings.HorizontalFrequency * 1.6, 2, 1.0, 0.5, 93217);
+                    double ridged = SampleRidgedNoise(warpedX * 0.85, warpedZ * 0.85, _caveSettings.HorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
+                    double striation = SimplexNoise.Generate(warpedX * 0.9, warpedZ * 0.9, _caveSettings.HorizontalFrequency * 1.1, 2, 1.0, 0.55, 128713) - 0.5;
+                    double flowNoise = SimplexNoise.Generate(warpedX * 0.25 + 37.1, warpedZ * 0.25 - 11.4, _caveSettings.HorizontalFrequency * 0.4, 2, 1.0, 0.6, 87121) - 0.5;
 
-                    double horizontalNoise = SimplexNoise.Generate(warpedX, warpedZ, NoiseCaveHorizontalFrequency, 4, 1.0, 0.55, 640371);
-                    double secondaryNoise = SimplexNoise.Generate(warpedX * 1.35, warpedZ * 1.35, NoiseCaveHorizontalFrequency * 1.6, 2, 1.0, 0.5, 93217);
-                    double ridged = SampleRidgedNoise(warpedX * 0.85, warpedZ * 0.85, NoiseCaveHorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
-                    double striation = SimplexNoise.Generate(warpedX * 0.9, warpedZ * 0.9, NoiseCaveHorizontalFrequency * 1.1, 2, 1.0, 0.55, 128713) - 0.5;
-                    double flowNoise = SimplexNoise.Generate(warpedX * 0.25 + 37.1, warpedZ * 0.25 - 11.4, NoiseCaveHorizontalFrequency * 0.4, 2, 1.0, 0.6, 87121) - 0.5;
+                    // 신규: 침수 동굴을 위한 노이즈 값 계산
+                    double floodedCaveNoise = NormalizeNoise(SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.FloodedCaveNoiseFrequency, 3, 1.0, 0.5, 488171));
 
                     for (int y = 8; y < 120; y++)
                     {
-                        double verticalNoise = SimplexNoise.Generate(warpedX, y, NoiseCaveVerticalFrequency, 3, 1.0, 0.62, 128947);
+                        double verticalNoise = SimplexNoise.Generate(warpedX, y, _caveSettings.VerticalFrequency, 3, 1.0, 0.62, 128947);
                         double density = Math.Abs(horizontalNoise) * 0.5 +
                                          Math.Abs(verticalNoise) * 0.35 +
                                          Math.Abs(secondaryNoise) * 0.2;
@@ -1636,25 +1660,37 @@ namespace GameServerApp.World
                         }
 
                         double aquifer = SimplexNoise.Generate(worldX, y, 0.0042, 2, 1.0, 0.58, 147113);
-                    double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
-                    double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
-                    double dynamicThreshold = NoiseCaveThreshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
-                    double stability = SampleField(caveStabilityField, x, z);
-                    dynamicThreshold -= (stability - 0.5) * 0.08;
+                        double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
+                        double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
+                        // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                        double dynamicThreshold = _caveSettings.Threshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
+                        double stability = SampleField(caveStabilityField, x, z);
+                        dynamicThreshold -= (stability - 0.5) * 0.08;
 
-                    if (density < dynamicThreshold)
-                    {
+                        if (density < dynamicThreshold)
+                        {
                             var block = chunk.GetBlock(x, y, z);
                             if (block == BlockType.Air || block == BlockType.Water || block == BlockType.Lava)
                             {
                                 continue;
                             }
+                            
+                            // 신규: 침수 동굴 로직
+                            // y좌표가 해수면보다 낮고, 침수 동굴 노이즈 값이 특정 임계값을 넘을 경우 동굴을 물로 채웁니다.
+                            double waterTableProximity = Math.Clamp((GlobalWaterLevel - y) / (double)GlobalWaterLevel, 0.0, 1.0);
+                            double floodedCheck = floodedCaveNoise * (1.0 - _caveSettings.FloodedCaveProximityToWaterTableWeight) + 
+                                                  waterTableProximity * _caveSettings.FloodedCaveProximityToWaterTableWeight;
 
-                            if (density < Math.Min(NoiseCaveLavaThreshold, dynamicThreshold * 0.55) && y < 18)
+                            if (y < GlobalWaterLevel && floodedCheck > _caveSettings.FloodedCaveThreshold)
+                            {
+                                chunk.SetBlock(x, y, z, BlockType.Water);
+                            }
+                            // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                            else if (density < Math.Min(_caveSettings.LavaThreshold, dynamicThreshold * 0.55) && y < 18)
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Lava);
                             }
-                            else if (density < NoiseCaveWaterThreshold + liquidity * 0.05 && y < GlobalWaterLevel - 6)
+                            else if (density < _caveSettings.WaterThreshold + liquidity * 0.05 && y < GlobalWaterLevel - 6)
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Water);
                             }
@@ -1732,6 +1768,7 @@ namespace GameServerApp.World
                         int waterEnd = Math.Min(cavityTop - 1, sedimentY + poolDepth - 1);
                         for (int fillY = waterStart; fillY <= waterEnd; fillY++)
                         {
+                            // 여기서는 침수 동굴과 달리, 얕은 웅덩이만 생성하므로 기존 로직 유지
                             var fillBlock = fillY < GlobalWaterLevel - 4 ? BlockType.Water : BlockType.Air;
                             chunk.SetBlock(x, fillY, z, fillBlock);
                         }
@@ -2045,7 +2082,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 던전 생성 시스템 - 더 복잡하고 다양한 구조의 던전
         /// </summary>
-        private void GenerateDungeonsInternal(TerrainGenerationContext context)
+        public void GenerateDungeonsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 83492791) ^ (context.ChunkZ * 297657976));
@@ -2499,7 +2536,7 @@ namespace GameServerApp.World
             return Math.Clamp(baseValue, 0.0, 1.0);
         }
 
-        private void GenerateRiversInternal(TerrainGenerationContext context)
+        public void GenerateRiversInternal(TerrainGenerationContext context)
 
         {
 
@@ -2677,7 +2714,7 @@ namespace GameServerApp.World
             return (max - min) + stdDev;
         }
 
-        private void GenerateLakesInternal(TerrainGenerationContext context)
+        public void GenerateLakesInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var riverField = GetRiverFieldCache(context);
@@ -3329,7 +3366,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateCloudsInternal(TerrainGenerationContext context)
+        public void GenerateCloudsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             for (int x = 0; x < 16; x++)
@@ -5466,7 +5503,7 @@ namespace GameServerApp.World
         /// <summary>
         /// 개선된 광물 생성 시스템 - 더 현실적이고 균형 잡힌 분배
         /// </summary>
-        private void GenerateOresInternal(TerrainGenerationContext context)
+        public void GenerateOresInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random(context.ChunkX * 1000 + context.ChunkZ);
@@ -5551,7 +5588,7 @@ namespace GameServerApp.World
             }
         }
 
-        private void GenerateVegetationInternal(TerrainGenerationContext context)
+        public void GenerateVegetationInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = new Random(context.ChunkX * 2000 + context.ChunkZ);
@@ -5782,159 +5819,6 @@ namespace GameServerApp.World
             // 현재는 빈 리스트 반환
             return new List<Models.Entity>();
         }
-    }
-
-    public class LoadedChunk
-    {
-        public ChunkData Data { get; set; }
-        public DateTime LastAccessed { get; set; }
-        public bool IsModified { get; set; }
-    }
-
-    public class ChunkData
-    {
-        private readonly BlockType[,,] _blocks = new BlockType[16, 256, 16];
-        private readonly BiomeType[,] _biomes = new BiomeType[16, 16];
-        public int ChunkX { get; }
-        public int ChunkZ { get; }
-
-        public ChunkData(int chunkX, int chunkZ)
-        {
-            ChunkX = chunkX;
-            ChunkZ = chunkZ;
-        }
-
-        public BlockType GetBlock(int x, int y, int z)
-        {
-            if (x >= 0 && x < 16 && y >= 0 && y < 256 && z >= 0 && z < 16)
-                return _blocks[x, y, z];
-            return BlockType.Air;
-        }
-
-        public void SetBlock(int x, int y, int z, BlockType blockType)
-        {
-            if (x >= 0 && x < 16 && y >= 0 && y < 256 && z >= 0 && z < 16)
-                _blocks[x, y, z] = blockType;
-        }
-
-        public BiomeType GetBiome(int x, int z)
-        {
-            if (x >= 0 && x < 16 && z >= 0 && z < 16)
-                return _biomes[x, z];
-            return BiomeType.Plains;
-        }
-
-        public void SetBiome(int x, int z, BiomeType biome)
-        {
-            if (x >= 0 && x < 16 && z >= 0 && z < 16)
-                _biomes[x, z] = biome;
-        }
-
-        public (byte[] blockData, byte[] biomeData) ToBytes()
-        {
-            var blockData = new byte[16 * 256 * 16 * 2];
-            var biomeData = new byte[16 * 16];
-            
-            int blockIndex = 0;
-            for (int y = 0; y < 256; y++)
-            {
-                for (int z = 0; z < 16; z++)
-                {
-                    for (int x = 0; x < 16; x++)
-                    {
-                        var blockType = (ushort)_blocks[x, y, z];
-                        blockData[blockIndex] = (byte)(blockType & 0xFF);
-                        blockData[blockIndex + 1] = (byte)((blockType >> 8) & 0xFF);
-                        blockIndex += 2;
-                    }
-                }
-            }
-            
-            int biomeIndex = 0;
-            for (int z = 0; z < 16; z++)
-            {
-                for (int x = 0; x < 16; x++)
-                {
-                    biomeData[biomeIndex++] = (byte)_biomes[x, z];
-                }
-            }
-            
-            return (blockData, biomeData);
-        }
-
-        public static ChunkData FromBytes(byte[] blockData, byte[] biomeData)
-        {
-            var chunk = new ChunkData(0, 0);
-            
-            if (blockData.Length >= 16 * 256 * 16 * 2)
-            {
-                int blockIndex = 0;
-                for (int y = 0; y < 256; y++)
-                {
-                    for (int z = 0; z < 16; z++)
-                    {
-                        for (int x = 0; x < 16; x++)
-                        {
-                            var blockType = (BlockType)(blockData[blockIndex] | (blockData[blockIndex + 1] << 8));
-                            chunk._blocks[x, y, z] = blockType;
-                            blockIndex += 2;
-                        }
-                    }
-                }
-            }
-            
-            if (biomeData.Length >= 16 * 16)
-            {
-                int biomeIndex = 0;
-                for (int z = 0; z < 16; z++)
-                {
-                    for (int x = 0; x < 16; x++)
-                    {
-                        chunk._biomes[x, z] = (BiomeType)biomeData[biomeIndex++];
-                    }
-                }
-            }
-            
-            return chunk;
-        }
-    }
-
-    public enum BlockType : ushort
-    {
-        Air = 0,
-        Stone = 1,
-        Grass = 2,
-        Dirt = 3,
-        Cobblestone = 4,
-        Wood = 5,
-        Leaves = 6,
-        Sand = 7,
-        Water = 8,
-        Lava = 9,
-        Bedrock = 10,
-        CoalOre = 11,
-        IronOre = 12,
-        GoldOre = 13,
-        DiamondOre = 14,
-        TallGrass = 15,
-        DeadBush = 16,
-        Ice = 17,
-        Snow = 18,
-        Cloud = 19,
-        Clay = 20
-    }
-
-    public enum BiomeType : byte
-    {
-        Plains = 0,
-        Forest = 1,
-        Desert = 2,
-        Tundra = 3,
-        Ocean = 4,
-        Mountains = 5,
-        Hills = 6,
-        Cliffs = 7,
-        Beach = 8
     }
 
     public static class SimplexNoise

@@ -202,7 +202,7 @@ namespace GameServerApp.Systems
 
             public async Task<CommandResult> ExecuteAsync(CommandContext context)
             {
-                var spawnPosition = new Vector3(0, 70, 0); // 기본 스폰
+                var spawnPosition = new SharedProtocol.Vector3 { X = 0, Y = 70, Z = 0 }; // 기본 스폰
 
                 // 플레이어 위치 업데이트
                 var playerState = context.SessionManager.GetPlayerState(context.PlayerName);

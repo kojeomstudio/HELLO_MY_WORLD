@@ -34,6 +34,7 @@ public static class ProtocolValidator
         ValidateRegistryPrototypes();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
+        ValidateWorldControlDescriptors();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -51,6 +52,21 @@ public static class ProtocolValidator
 
         var response = RequireDescriptor(nameof(ChunkLoadResponse));
         EnsureFields(response, "chunks", "total_requested", "total_sent");
+    }
+
+    private static void ValidateWorldControlDescriptors()
+    {
+        var worldInfo = RequireDescriptor(nameof(WorldInfo));
+        EnsureFields(worldInfo, "world_name", "world_seed", "world_type", "default_game_mode", "hardcore_mode", "world_time", "day_time", "weather", "spawn_point", "difficulty", "world_border");
+
+        var weather = RequireDescriptor(nameof(WeatherInfo));
+        EnsureFields(weather, "weather_type", "duration_ticks", "intensity", "thundering");
+
+        var worldBorder = RequireDescriptor(nameof(WorldBorder));
+        EnsureFields(worldBorder, "center", "diameter", "target_diameter", "time_to_target", "warning_distance", "warning_time", "damage_per_block", "damage_buffer");
+
+        var timeUpdate = RequireDescriptor(nameof(TimeUpdateBroadcast));
+        EnsureFields(timeUpdate, "world_time", "day_time");
     }
 
     private static MessageDescriptor RequireDescriptor(string messageName)

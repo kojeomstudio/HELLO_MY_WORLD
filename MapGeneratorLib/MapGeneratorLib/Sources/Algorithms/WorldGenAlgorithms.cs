@@ -727,6 +727,68 @@ namespace MapGenLib
             return smoothed;
         }
 
+        private static void StabilizeHydrologyGradients(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            float[,] hydrologyBuffer = new float[width, depth];
+            float[,] flowBuffer = new float[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float hydrology = hydrologyMask[x, z];
+                    float flow = flowAccumulation[x, z];
+                    float blendedHydrology = hydrology;
+                    float blendedFlow = flow;
+                    float weight = 1f;
+
+                    int surface = surfaceCache[x, z];
+                    float shoreBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / 5f);
+                    shoreBias = CustomMathf.Max(0.1f, shoreBias * 0.6f);
+
+                    for (int offsetX = -1; offsetX <= 1; offsetX++)
+                    {
+                        for (int offsetZ = -1; offsetZ <= 1; offsetZ++)
+                        {
+                            if (offsetX == 0 && offsetZ == 0)
+                            {
+                                continue;
+                            }
+
+                            int sampleX = x + offsetX;
+                            int sampleZ = z + offsetZ;
+                            if (WorldGenerateUtils.CheckSubWorldBoundary(sampleX, 0, sampleZ, subWorldSize) == false)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[sampleX, sampleZ];
+                            float slopePenalty = CustomMathf.Clamp01(CustomMathf.Abs(surface - neighborSurface) / 6f);
+                            float smoothingWeight = 1f - slopePenalty * 0.45f;
+
+                            blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
+                            blendedFlow += flowAccumulation[sampleX, sampleZ] * smoothingWeight;
+                            weight += smoothingWeight;
+                        }
+                    }
+
+                    hydrologyBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, blendedHydrology / weight, 0.35f + shoreBias));
+                    flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, blendedFlow / weight, 0.25f + shoreBias * 0.5f));
+                }
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    hydrologyMask[x, z] = hydrologyBuffer[x, z];
+                    flowAccumulation[x, z] = flowBuffer[x, z];
+                }
+            }
+        }
+
         private static void SmoothScalarField(float[,] field, int iterations, float blend)
         {
             int width = field.GetLength(0);
@@ -1066,6 +1128,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
 
@@ -2021,6 +2084,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -5276,6 +5340,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float horizontalScale = 52f;
             float verticalScale = 30f;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EnhancedMinecraftProtocol;
+using Google.Protobuf;
 using Google.Protobuf.Reflection;
 
 namespace SharedProtocol.EnhancedMinecraft;
@@ -30,6 +31,7 @@ public static class ProtocolValidator
         }
 
         ValidateRegistryDescriptors();
+        ValidateRegistryPrototypes();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ProtoDiagnostics.AssertRegistryClean();
@@ -74,6 +76,41 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraftProtocol.{descriptor.Name} descriptor missing required field '{fieldName}'. Regenerate proto assets.");
+            }
+        }
+    }
+
+    private static void ValidateRegistryPrototypes()
+    {
+        string expectedNamespace = typeof(ChunkLoadResponse).Namespace ?? string.Empty;
+
+        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out IMessage? prototype))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft registry binding for '{messageType}' resolved to a null prototype. Regenerate protobuf assets so using references point at generated classes.");
+            }
+
+            var descriptor = prototype.Descriptor;
+            if (descriptor == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' is missing descriptor metadata. Ensure generated protobuf assemblies are referenced and up to date.");
+            }
+
+            string prototypeNamespace = descriptor.ClrType?.Namespace ?? prototype.GetType().Namespace ?? string.Empty;
+            if (!string.Equals(prototypeNamespace, expectedNamespace, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' was generated into namespace '{prototypeNamespace}', expected '{expectedNamespace}'. Check using directives or regenerate protobuf assets so server and Unity share the same namespace.");
+            }
+
+            string fileName = descriptor.File?.Name ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' is missing a file descriptor reference. Ensure the generated protobuf classes are included in SharedProtocol and Unity exports.");
             }
         }
     }

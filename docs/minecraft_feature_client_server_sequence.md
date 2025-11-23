@@ -25,8 +25,10 @@ This matrix enumerates the Minecraft-style capabilities that must exist on both 
 | F-19 | Riparian-Aware Surface Lakes | `GenerateLakesInternal` sizes basins, depth, and water level with the shared riparian mask and flow accumulation. | `GenerateSurfaceLakes` mirrors the riparian weighting for lake spawn, depth, and rim smoothing. | ✅ New | Keeps lake placement consistent with river hydrology so wetlands render identically across server chunks and Unity captures. |
 | F-20 | Proto Enum Coverage Guard | `ProtoDiagnostics` now flags `MinecraftMessageType` values missing ProtocolRegistry bindings, enforced via `ProtoRuntime.EnsureInitialized()`. | Unity tooling hits the same guard when initializing `ProtoRuntime`, surfacing stale or missing generated DTOs. | ✅ New | Blocks new protocol enums from shipping without generated protobuf + handler coverage, tightening `using`/descriptor alignment. |
 
-| F-21 | Edge-Stitched Hydrology Masks | `BlendHydrologySeams` smooths hydrology + flow accumulation at chunk borders before caves, rivers, and lakes run in `WorldManager`. | `BlendHydrologySeams` mirrors the same smoothing inside `WorldGenAlgorithms` so Unity previews avoid seam artefacts. | ??New | Reduces chunk-boundary tears across rivers, lakes, and cave hydrology so streamed chunks and tooling captures stay aligned. |
-| F-22 | Descriptor Coverage Guard | `ProtocolValidator.ValidateRegistryDescriptors` ensures every generated EnhancedMinecraft descriptor is present, packaged correctly, and registered. | `ProtoDiagnostics` now reports unbound descriptors so stale Unity protobuf generation fails fast. | ??New | Guarantees every `using EnhancedMinecraftProtocol` reference resolves to an actual generated class and registry entry on both client and server. |
+| F-21 | Edge-Stitched Hydrology Masks | `BlendHydrologySeams` smooths hydrology + flow accumulation at chunk borders before caves, rivers, and lakes run in `WorldManager`. | `BlendHydrologySeams` mirrors the same smoothing inside `WorldGenAlgorithms` so Unity previews avoid seam artefacts. | ✅ Enhanced | Reduces chunk-boundary tears across rivers, lakes, and cave hydrology so streamed chunks and tooling captures stay aligned. |
+| F-22 | Descriptor Coverage Guard | `ProtocolValidator.ValidateRegistryDescriptors` ensures every generated EnhancedMinecraft descriptor is present, packaged correctly, and registered. | `ProtoDiagnostics` now reports unbound descriptors so stale Unity protobuf generation fails fast. | ✅ Enhanced | Guarantees every `using EnhancedMinecraftProtocol` reference resolves to an actual generated class and registry entry on both client and server. |
+| F-23 | Erosion-Risk Field Alignment | `WorldManager.BuildErosionRiskField` blends hydrology, flow, relief, and altitude; `GenerateNoiseCavePass`/`GenerateRiversInternal`/`GenerateLakesInternal` use it to smooth intensity maps, deepen basins, and perturb lake rims. | `MapGeneratorLib.BuildErosionRiskField` feeds `GenerateRiverSystems`, `GenerateNoiseCaves`, and surface lakes so Unity previews mirror the server’s erosion-aware carving. | ✅ New | This change harmonises caves/rivers/lakes across chunk seams and wetter basins by sharing the same erosion-pressure field before carving. |
+| F-24 | Proto Namespace Guard | `ProtocolValidator.ValidateRegistryPrototypes()` instantiates each registry binding and verifies descriptor namespaces/files so stale generated DTOs or mismatched `using` directives fail fast. | Unity hits the same guard through `ProtoRuntime.EnsureInitialized()` to ensure generated namespaces align with the registry before connecting. | ✅ New | Prevents namespace drift between regenerated protobufs and `using EnhancedMinecraftProtocol` references on both sides, blocking mismatched packets early. |
 
 ## Execution Order & Current Focus
 
@@ -34,12 +36,11 @@ This matrix enumerates the Minecraft-style capabilities that must exist on both 
 2. **Gameplay sync (active)** – F-04/F-05 keep entity combat and inventory persistence in lockstep; these continue in the background.
 3. **Terrain alignment (complete)** – F-06 (terrain) + F-07 (proto validation) stabilize the base pipeline for the remaining work.
 4. **Hydrology feedback (complete)** – F-11 closed the hydrology loop and F-12 made proto validation symmetrical between server and Unity.
-5. **Gradient seepage parity (complete)** ??F-13 through F-15 keep cave runoff, riparian seepage, and lake shorelines identical across WorldManager and MapGeneratorLib.
-6. **Riparian stabilization (this change)** ??F-17 through F-19 weight rivers, lakes, and moist cave ceilings with the shared riparian mask so wetlands and near-surface geometry stay stable.
-7. **Protocol coverage guard (ongoing)** ??F-12/F-16/F-20/F-22 enforce protobuf coverage and descriptor bindings before handlers register.
-8. **Seam stabilization (this change)** ??F-17 through F-21 align riparian weighting and border blending so rivers, lakes, and caves stay stable across chunk seams.
-9. **Hydrology polish (next)** ??F-08 expands wetlands/vegetation once the new riparian geometry settles.
-10. **Observability (near future)** ??F-09 adds residency metrics using the enhanced protocol payloads.
-11. **Visual fidelity (future)** ??F-10 covers lighting and biome-specific tweaks once the above are stable.
+5. **Gradient seepage parity (complete)** – F-13 through F-15 keep cave runoff, riparian seepage, and lake shorelines identical across WorldManager and MapGeneratorLib.
+6. **Erosion-risk harmonization (this change)** – F-17/F-21/F-23 blend riparian masks with the new erosion-risk field so rivers, lakes, and caves carve smoothly across chunk seams and wetter basins.
+7. **Protocol coverage guard (ongoing)** – F-12/F-16/F-20/F-22/F-24 enforce protobuf coverage, namespaces, and descriptor bindings before handlers register.
+8. **Hydrology polish (next)** – F-08 expands wetlands/vegetation once the erosion-aware geometry settles.
+9. **Observability (near future)** – F-09 adds residency metrics using the enhanced protocol payloads.
+10. **Visual fidelity (future)** – F-10 covers lighting and biome-specific tweaks once the above are stable.
 
 Use this sequence when picking up new work: verify upstream items first, then continue down the list so client/server features stay synchronized.

@@ -199,9 +199,9 @@ namespace GameServerApp
             var missingProtocols = _minecraftDispatcher.GetUnboundProtocolMessages();
             if (missingProtocols.Count > 0)
             {
-                var missingList = string.Join(", ", missingProtocols);
+                var missingList = string.Join(", ", missingProtocols.OrderBy(p => p));
                 Console.WriteLine("[MinecraftDispatcher][ERROR] Missing EnhancedMinecraft handlers: " + missingList);
-                throw new InvalidOperationException($"EnhancedMinecraft protobuf handlers missing: {missingList}");
+                throw new InvalidOperationException($"EnhancedMinecraft protobuf handlers missing: {missingList}. Regenerate protobufs (protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto) and wire handlers in RegisterMinecraftHandlers.");
             }
 
             Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");

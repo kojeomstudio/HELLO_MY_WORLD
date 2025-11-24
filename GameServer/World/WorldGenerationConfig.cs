@@ -64,6 +64,10 @@ namespace GameServerApp.World
         public int GlobalWaterLevel { get; set; } = 62;
         public double RiverCenterThreshold { get; set; } = 0.0125;
         public double RiverBankThreshold { get; set; } = 0.028;
+        public int HydrologySmoothIterations { get; set; } = 1;
+        public double HydrologySmoothBlend { get; set; } = 0.55;
+        public double RiverBankErosionWeight { get; set; } = 0.18;
+        public double LakeRimErosionWeight { get; set; } = 0.25;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
     }
@@ -79,6 +83,8 @@ namespace GameServerApp.World
         public double FloodedCaveNoiseFrequency { get; set; } = 0.0031;
         public double FloodedCaveProximityToWaterTableWeight { get; set; } = 0.6;
         public double FloodedCaveThreshold { get; set; } = 0.75;
+        public int StabilitySmoothIterations { get; set; } = 1;
+        public double StabilitySmoothBlend { get; set; } = 0.55;
     }
 
     public sealed class LakeConfig

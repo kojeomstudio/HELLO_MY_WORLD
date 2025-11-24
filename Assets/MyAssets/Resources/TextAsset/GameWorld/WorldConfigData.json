@@ -16,5 +16,11 @@
   "EnableCaves": true,
   "LakeMinDepth": 3,
   "LakeMaxDepth": 9,
-  "LakeMaxRadius": 9
+  "LakeMaxRadius": 9,
+  "HydrologySmoothIterations": 1,
+  "HydrologySmoothBlend": 0.55,
+  "RiverBankErosionWeight": 0.18,
+  "LakeRimErosionWeight": 0.25,
+  "CaveStabilitySmoothIterations": 1,
+  "CaveStabilitySmoothBlend": 0.55
 }

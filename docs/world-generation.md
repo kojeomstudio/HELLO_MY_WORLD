@@ -22,6 +22,7 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 - Server boot now loads hydrology and cave/lake tuning from `config/world.json` via `WorldGenerationConfig` (path controlled by `World.WorldConfigPath` in `server-config.json`). Rivers, lakes, and noise-cave thresholds/flags can be toggled without recompiling.
 - Unity tooling reads the same knobs from `Resources/TextAsset/GameWorld/WorldConfigData.json` through `WorldConfigFile`, keeping preview meshes aligned with the dedicated server.
+- Hydrology smoothing is now data-driven: `Water.HydrologySmoothIterations/HydrologySmoothBlend` govern hydrology/flow blur, `Water.RiverBankErosionWeight` and `Water.LakeRimErosionWeight` scale bank carving, and `Caves.StabilitySmoothIterations/StabilitySmoothBlend` control the cave stability filter. Server and Unity configs expose the same keys.
 
 ## Water Features
 

@@ -23,6 +23,12 @@ public struct WorldConfig
     public int LakeMinDepth;
     public int LakeMaxDepth;
     public int LakeMaxRadius;
+    public int HydrologySmoothIterations;
+    public float HydrologySmoothBlend;
+    public float RiverBankErosionWeight;
+    public float LakeRimErosionWeight;
+    public int CaveStabilitySmoothIterations;
+    public float CaveStabilitySmoothBlend;
 }
 
 /// <summary>
@@ -79,6 +85,12 @@ public class WorldConfigFile : BaseDataFile
                 Config.LakeMinDepth = ParseInt(data, "LakeMinDepth", 3);
                 Config.LakeMaxDepth = ParseInt(data, "LakeMaxDepth", 9);
                 Config.LakeMaxRadius = ParseInt(data, "LakeMaxRadius", 9);
+                Config.HydrologySmoothIterations = ParseInt(data, "HydrologySmoothIterations", 1);
+                Config.HydrologySmoothBlend = ParseFloat(data, "HydrologySmoothBlend", 0.55f);
+                Config.RiverBankErosionWeight = ParseFloat(data, "RiverBankErosionWeight", 0.18f);
+                Config.LakeRimErosionWeight = ParseFloat(data, "LakeRimErosionWeight", 0.25f);
+                Config.CaveStabilitySmoothIterations = ParseInt(data, "CaveStabilitySmoothIterations", 1);
+                Config.CaveStabilitySmoothBlend = ParseFloat(data, "CaveStabilitySmoothBlend", 0.55f);
                 break;
             case JSONObject.Type.ARRAY:
                 break;

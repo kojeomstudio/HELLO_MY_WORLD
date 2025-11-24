@@ -1,32 +1,32 @@
 # Minecraft Feature Core/Content/Util Map
 
-Snapshot 2025-11-24. The list aligns server and client responsibilities and the protobuf messages that keep them in sync. Categories follow the current Minecraft-style scope.
+Snapshot 2025-12-03. Categorizes must-have Minecraft-style features and the cross-cutting data/protocol wiring that keeps server and client aligned.
 
-## Core (Simulation, Networking, Persistence)
-| Area | Server ownership | Client side | Protocol / Data | Status |
+## Core (authority, sync, persistence)
+| Feature | Server | Client | Data / Protocol | Notes |
 | --- | --- | --- | --- | --- |
-| World authority | Chunk generation, persistence, block updates, time/weather, seed + config broadcast | Request/stream chunks, apply block diffs, render time/weather | `ChunkLoadRequest/Response`, `ChunkUnloadNotification`, `WorldInfo`, `TimeUpdateBroadcast`, `WeatherInfo` | In progress (new worldgen config wiring) |
-| Player lifecycle | Auth, session HB, spawn/respawn, death handling | Login UI, render remote players, death/respawn UX | `LoginRequest/Response`, `PlayerRespawnBroadcast`, `PlayerDeathBroadcast` | Mostly done |
-| Movement + sync | Validation, anti-cheat, authoritative positions | Input, prediction/interp, remote smoothing | `MovementUpdate`, `PositionUpdateBroadcast` | Mostly done |
-| Block interaction | Authoritative place/break, durability, persistence | Input -> request, VFX/SFX | `BlockChangeRequest`, `BlockChangeBroadcast` | Mostly done |
+| Chunk & world control | Seeded generation, chunk save/load, block diffs, time/weather broadcast | Request chunks, apply deltas, render time/weather | `ChunkDataRequest/Response`, `ChunkUnloadNotification`, `TimeUpdate`, `WeatherChange`, `WorldInfo` | Driven by `server-config.json` + `config/world.json`; client mirrors in `Resources/TextAsset/GameWorld/WorldConfigData.json`. |
+| Player lifecycle & movement | Auth, session HB, spawn/respawn, death, anti-cheat | Prediction/interp, death/respawn UX | `LoginRequest/Response`, `PlayerRespawnBroadcast`, `MovementUpdate`, `PositionUpdateBroadcast` | Authority stays server-side; rate limits in config. |
+| Block interaction & permissions | Place/break validation, durability, rollback, ownership | Input -> request, VFX/SFX, UI feedback | `BlockChangeRequest/Broadcast`, `MultiBlockChange` | Uses data-driven block tables (`config/blocks.json`). |
+| Room/instance routing | Room creation/join/leave, chunk routing per room | Room list UI, migration UX | `RoomEnter/Leave/List` | Keeps simulation sharded and predictable. |
 
-## Content (Gameplay, World Features)
-| Area | Server ownership | Client side | Protocol / Data | Status |
+## Content (world + gameplay)
+| Feature | Server | Client | Data / Protocol | Notes |
 | --- | --- | --- | --- | --- |
-| Terrain features | Procedural terrain/caves/rivers/lakes, ores, vegetation | Visualize streamed chunks; optional local preview via MapGeneratorLib | Streamed chunk payloads | Updated (hydrology-configurable) |
-| Structures & dungeons | Placement, loot tables, persistence | Render structures, handle interactions | Streamed chunk payloads, container messages | In progress |
-| Biomes & weather | Biome tagging, weather schedule | Biome VFX/SFX, skybox/weather FX | `WorldInfo`, `WeatherInfo` | In progress |
-| Entities & AI | Spawn rules, combat/responses | Render entities, client-side feedback | `AISpawn`, `EntitySync` messages | In progress |
-| Items & crafting | Recipe validation, inventories, drops | UI, recipe browsing, drag/drop | `InventoryUpdate`, `CraftingRequest/Result`, container ops | In progress |
+| Terrain features | Procedural height, caves, rivers, lakes, aquifers, ore veins, vegetation | Render streamed chunks; optional local preview via MapGeneratorLib | Chunk payloads (blocks + biome tags) | Hydrology/cave tuning sourced from `world.json`/`WorldConfigData.json`. |
+| Biomes, weather, sky | Biome tagging, weather schedule, light levels | Skybox/weather FX, biome VFX/SFX | `WorldInfo`, `WeatherChange`, `ParticleEffect` | Biome table stays JSON-driven. |
+| Structures & dungeons | Placement rules, loot tables, persistence | Render + interact; container UI | Chunk payloads, `ContainerOpen/Update` | Loot/structure tables in JSON. |
+| Entities, AI, combat | Spawn rules, combat resolution | Render entities, local hit FX | `EntitySpawn/Update/Despawn`, `PlayerAttack`, `AISpawn`, `AIStateSyncBroadcast` | Damage rules align with gameplay config JSON. |
+| Items, crafting, inventory | Recipe validation, inventory authority | UI, drag/drop, recipe book | `InventoryUpdate`, `ItemUse/Drop/Pickup`, crafting messages | Recipes remain data-driven. |
 
-## Utility (Operational, Tools, Data)
-| Area | Server ownership | Client side | Protocol / Data | Status |
+## Utility (ops, data, tooling)
+| Feature | Server | Client | Data / Protocol | Notes |
 | --- | --- | --- | --- | --- |
-| Config & tuning | `server-config.json`, `config/world.json` drive worldgen, weather, limits | Consume synced config for visuals; resource JSON in `Resources/TextAsset` | Server pushes `WorldInfo`; shared JSON | Updated (worldgen section) |
-| Metrics & logging | Server metrics, chunk residency, rate limits | HUD overlays for status/metrics | `ServerStatusRequest/Response` | In progress |
-| Data-driven tables | JSON for blocks, recipes, world settings | Load from `Resources` JSON | Shared JSON assets | Ongoing maintenance |
+| Config & tuning | `server-config.json`, `config/world.json` (hydrology/cave/lake tuning, world seeds) | `Resources/TextAsset/GameWorld/WorldConfigData.json` mirror for preview/UI | `WorldInfo` syncs high-level knobs | JSON-first; keep seeds + thresholds aligned. |
+| Metrics & observability | Chunk residency, tick/frame timing, rate limits | Dev HUD/overlays | `ServerStatusRequest/Response` | Used during perf passes. |
+| Data-driven tables | Blocks, recipes, mobs, loot, worldgen knobs | Loads from `Resources` JSON | Shared JSON | Keep schema mirrored between server/client. |
 
-## Recommended Implementation Order (server → client)
-1) Core: enforce protobuf validation (`ProtoRuntime`) and world authority (chunk/time/weather).  
-2) Content: tune worldgen hydrology (rivers/lakes/caves) from `config/world.json`, align chunk payloads.  
-3) Utility: surface config + metrics to client UI, keep JSON tables in sync.
+## Delivery order
+1) Core authority + protocol validation (chunk/time/weather/block/room).  
+2) Content: worldgen (caves/rivers/lakes/biomes/structures) and combat/entities driven by JSON.  
+3) Utility: config sync surfaces + metrics dashboards, keep data tables mirrored.

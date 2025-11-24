@@ -105,6 +105,10 @@ namespace MapGenLib
     {
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
         private const int GlobalRiverWaterLevel = 62;
+        public static int HydrologySmoothIterations = 1;
+        public static float HydrologySmoothBlend = 0.55f;
+        public static int CaveStabilitySmoothIterations = 1;
+        public static float CaveStabilitySmoothBlend = 0.55f;
 
         public struct TerrainValue
         {
@@ -859,7 +863,7 @@ namespace MapGenLib
                 }
             }
 
-            SmoothScalarField(risk, 1, 0.6f);
+            SmoothScalarField(risk, HydrologySmoothIterations, HydrologySmoothBlend);
             return risk;
         }
 
@@ -2872,7 +2876,7 @@ namespace MapGenLib
         private static void GenerateSphereCaves(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
         {
             var caveStabilityField = BuildCaveStabilityField(subWorldBlockData, subWorldSize);
-            SmoothScalarField(caveStabilityField, 1, 0.55f);
+            SmoothScalarField(caveStabilityField, CaveStabilitySmoothIterations, CaveStabilitySmoothBlend);
 
             // 대형 동굴 시스템 생성
             GenerateLargeCaveSystem(subWorldBlockData, subWorldSize);

@@ -25,6 +25,10 @@
     "GlobalWaterLevel": 62,
     "RiverCenterThreshold": 0.0125,
     "RiverBankThreshold": 0.028,
+    "HydrologySmoothIterations": 1,
+    "HydrologySmoothBlend": 0.55,
+    "RiverBankErosionWeight": 0.18,
+    "LakeRimErosionWeight": 0.25,
     "RiverNoiseScale": 0.015,
     "RiverDepth": 5,
     "EnableOceans": true,
@@ -45,7 +49,9 @@
     "WaterThreshold": 0.34,
     "FloodedCaveNoiseFrequency": 0.0031,
     "FloodedCaveProximityToWaterTableWeight": 0.6,
-    "FloodedCaveThreshold": 0.75
+    "FloodedCaveThreshold": 0.75,
+    "StabilitySmoothIterations": 1,
+    "StabilitySmoothBlend": 0.55
   },
   "Ores": {
     "EnableOreGeneration": true,

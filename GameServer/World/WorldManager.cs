@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using GameServerApp;
 using GameServerApp.Database;
@@ -20,6 +21,12 @@ namespace GameServerApp.World
         private readonly bool _enableRivers;
         private readonly bool _enableLakes;
         private readonly TerrainGenerationPipeline _terrainPipeline;
+        private readonly int _hydrologySmoothIterations;
+        private readonly double _hydrologySmoothBlend;
+        private readonly double _riverBankErosionWeight;
+        private readonly double _lakeRimErosionWeight;
+        private readonly int _caveStabilitySmoothIterations;
+        private readonly double _caveStabilitySmoothBlend;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -108,6 +115,12 @@ namespace GameServerApp.World
             NoiseCaveThreshold = _caveSettings.Threshold;
             NoiseCaveLavaThreshold = _caveSettings.LavaThreshold;
             NoiseCaveWaterThreshold = _caveSettings.WaterThreshold;
+            _hydrologySmoothIterations = Math.Clamp(_worldGenConfig.Water.HydrologySmoothIterations, 0, 6);
+            _hydrologySmoothBlend = Math.Clamp(_worldGenConfig.Water.HydrologySmoothBlend, 0.0, 1.0);
+            _riverBankErosionWeight = Math.Clamp(_worldGenConfig.Water.RiverBankErosionWeight, 0.0, 1.0);
+            _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
+            _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
+            _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
 
@@ -561,12 +574,13 @@ namespace GameServerApp.World
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
             var riverField = GetRiverFieldCache(context);
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
             var caveStabilityField = BuildCaveStabilityField(context, surfaceCache, hydrologyMask, flowAccumulation);
-            SmoothScalarField(caveStabilityField, 1, 0.55);
+            SmoothScalarField(caveStabilityField, _caveStabilitySmoothIterations, _caveStabilitySmoothBlend);
 
             GenerateMainCaveSystem(chunk, rand, caveStabilityField);
 
@@ -2511,6 +2525,22 @@ namespace GameServerApp.World
             return smoothed;
         }
 
+        private void SmoothHydrologyFields(double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (_hydrologySmoothIterations <= 0 || _hydrologySmoothBlend <= 0.0)
+            {
+                return;
+            }
+
+            SmoothScalarField(hydrologyMask, _hydrologySmoothIterations, _hydrologySmoothBlend);
+
+            if (flowAccumulation != null)
+            {
+                var flowBlend = Math.Clamp(_hydrologySmoothBlend * 0.85, 0.0, 1.0);
+                SmoothScalarField(flowAccumulation, _hydrologySmoothIterations, flowBlend);
+            }
+        }
+
         private static void SmoothScalarField(double[,] field, int iterations, double blend)
         {
             int width = field.GetLength(0);
@@ -2749,6 +2779,7 @@ namespace GameServerApp.World
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
 
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
 
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
 
@@ -2779,7 +2810,7 @@ namespace GameServerApp.World
 
                     double channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
 
-                    channelPressure = Math.Clamp(channelPressure + riparian * 0.2 + erosionRisk * 0.18, 0.0, 1.0);
+                    channelPressure = Math.Clamp(channelPressure + riparian * 0.2 + erosionRisk * _riverBankErosionWeight, 0.0, 1.0);
                     double intensity = AdjustRiverIntensity(riverField.Intensity[x, z], hydrology) - catchmentStrength * 0.015 - riparian * 0.0125 - erosionRisk * 0.01;
                     intensity = Math.Max(0.0, intensity);
 
@@ -2814,7 +2845,7 @@ namespace GameServerApp.World
                     else
                     {
                         double bankStrength = 1.0 - Math.Clamp((intensity - RiverCenterThreshold) / (RiverBankThreshold - RiverCenterThreshold), 0.0, 1.0);
-                        bankStrength *= 0.85 + channelPressure * 0.35 + riparian * 0.35 + erosionRisk * 0.18;
+                        bankStrength *= 0.85 + channelPressure * 0.35 + riparian * 0.35 + erosionRisk * _riverBankErosionWeight;
                         bankStrength = Math.Clamp(bankStrength, 0.0, 1.25);
                         FeatherRiverBank(chunk, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
@@ -2928,6 +2959,7 @@ namespace GameServerApp.World
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
             var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
@@ -3063,7 +3095,7 @@ namespace GameServerApp.World
                     else if (sdf <= 0.45)
                     {
                         double rimStrength = Math.Clamp((0.45 - sdf) / 0.45, 0.0, 1.0);
-                        rimStrength *= 1.0 + erosionRiskField[x, z] * 0.25;
+                        rimStrength *= 1.0 + erosionRiskField[x, z] * _lakeRimErosionWeight;
                         rimStrength = Math.Clamp(rimStrength * (0.65 + shorelineBlend), 0.0, 1.35);
                         SculptLakeBank(chunk, x, z, waterLevel, rimStrength);
                     }

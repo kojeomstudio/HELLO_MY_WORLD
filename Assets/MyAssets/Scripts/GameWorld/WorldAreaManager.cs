@@ -45,6 +45,12 @@ public class WorldAreaManager : MonoBehaviour
             worldAreaGenParamGroup.Add(param);
         }
 
+        var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+        WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, tunedWorldConfig.HydrologySmoothIterations);
+        WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySmoothBlend);
+        WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
+        WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);
+
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.
         var mapData = await AsyncGenerateAreaMapDatas(worldAreaGenParamGroup);

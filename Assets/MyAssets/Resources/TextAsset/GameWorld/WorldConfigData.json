@@ -7,5 +7,14 @@
   "SubWorld_Count_Z_Axis_Per_WorldArea": 32,
   "ChunkSize": 8,
   "ChunkLoadIntervalSeconds": 0.05,
-  "OneTileUnit": 0.0625
+  "OneTileUnit": 0.0625,
+  "GlobalWaterLevel": 62,
+  "RiverCenterThreshold": 0.0125,
+  "RiverBankThreshold": 0.028,
+  "EnableRivers": true,
+  "EnableLakes": true,
+  "EnableCaves": true,
+  "LakeMinDepth": 3,
+  "LakeMaxDepth": 9,
+  "LakeMaxRadius": 9
 }

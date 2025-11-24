@@ -14,6 +14,15 @@ public struct WorldConfig
     public int ChunkSize;
     public float ChunkLoadIntervalSeconds;
     public WorldEnviromentsConfig EnviromentsConfig;
+    public int GlobalWaterLevel;
+    public float RiverCenterThreshold;
+    public float RiverBankThreshold;
+    public bool EnableRivers;
+    public bool EnableLakes;
+    public bool EnableCaves;
+    public int LakeMinDepth;
+    public int LakeMaxDepth;
+    public int LakeMaxRadius;
 }
 
 /// <summary>
@@ -52,33 +61,24 @@ public class WorldConfigFile : BaseDataFile
             case JSONObject.Type.OBJECT:
                 //to do
                 var data = JsonObject.ToDictionary();
-                string extractedValue;
-                data.TryGetValue("ChunkLoadIntervalSeconds", out extractedValue);
-                Config.ChunkLoadIntervalSeconds = float.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorldSizeX", out extractedValue);
-                Config.SubWorldSizeX = int.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorldSizeY", out extractedValue);
-                Config.SubWorldSizeY = int.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorldSizeZ", out extractedValue);
-                Config.SubWorldSizeZ = int.Parse(extractedValue);
-                //
-                data.TryGetValue("OneTileUnit", out extractedValue);
-                Config.OneTileUnit = float.Parse(extractedValue);
-                //
-                data.TryGetValue("ChunkSize", out extractedValue);
-                Config.ChunkSize = int.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorld_Count_X_Axis_Per_WorldArea", out extractedValue);
-                Config.SubWorld_Count_X_Axis_Per_WorldArea = int.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorld_Count_Y_Axis_Per_WorldArea", out extractedValue);
-                Config.SubWorld_Count_Y_Axis_Per_WorldArea = int.Parse(extractedValue);
-                //
-                data.TryGetValue("SubWorld_Count_Z_Axis_Per_WorldArea", out extractedValue);
-                Config.SubWorld_Count_Z_Axis_Per_WorldArea = int.Parse(extractedValue);
+                Config.ChunkLoadIntervalSeconds = ParseFloat(data, "ChunkLoadIntervalSeconds", 0.05f);
+                Config.SubWorldSizeX = ParseInt(data, "SubWorldSizeX", 32);
+                Config.SubWorldSizeY = ParseInt(data, "SubWorldSizeY", 32);
+                Config.SubWorldSizeZ = ParseInt(data, "SubWorldSizeZ", 32);
+                Config.OneTileUnit = ParseFloat(data, "OneTileUnit", 0.0625f);
+                Config.ChunkSize = ParseInt(data, "ChunkSize", 8);
+                Config.SubWorld_Count_X_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_X_Axis_Per_WorldArea", 32);
+                Config.SubWorld_Count_Y_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Y_Axis_Per_WorldArea", 32);
+                Config.SubWorld_Count_Z_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Z_Axis_Per_WorldArea", 32);
+                Config.GlobalWaterLevel = ParseInt(data, "GlobalWaterLevel", 62);
+                Config.RiverCenterThreshold = ParseFloat(data, "RiverCenterThreshold", 0.0125f);
+                Config.RiverBankThreshold = ParseFloat(data, "RiverBankThreshold", 0.028f);
+                Config.EnableRivers = ParseBool(data, "EnableRivers", true);
+                Config.EnableLakes = ParseBool(data, "EnableLakes", true);
+                Config.EnableCaves = ParseBool(data, "EnableCaves", true);
+                Config.LakeMinDepth = ParseInt(data, "LakeMinDepth", 3);
+                Config.LakeMaxDepth = ParseInt(data, "LakeMaxDepth", 9);
+                Config.LakeMaxRadius = ParseInt(data, "LakeMaxRadius", 9);
                 break;
             case JSONObject.Type.ARRAY:
                 break;
@@ -87,5 +87,35 @@ public class WorldConfigFile : BaseDataFile
                 break;
         }
 
+    }
+
+    private static int ParseInt(Dictionary<string, string> data, string key, int defaultValue)
+    {
+        string extractedValue;
+        if (data.TryGetValue(key, out extractedValue) == true && int.TryParse(extractedValue, out int parsed) == true)
+        {
+            return parsed;
+        }
+        return defaultValue;
+    }
+
+    private static float ParseFloat(Dictionary<string, string> data, string key, float defaultValue)
+    {
+        string extractedValue;
+        if (data.TryGetValue(key, out extractedValue) == true && float.TryParse(extractedValue, out float parsed) == true)
+        {
+            return parsed;
+        }
+        return defaultValue;
+    }
+
+    private static bool ParseBool(Dictionary<string, string> data, string key, bool defaultValue)
+    {
+        string extractedValue;
+        if (data.TryGetValue(key, out extractedValue) == true && bool.TryParse(extractedValue, out bool parsed) == true)
+        {
+            return parsed;
+        }
+        return defaultValue;
     }
 }

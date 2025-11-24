@@ -18,6 +18,11 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 `WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of `ITerrainGenerationStage` implementations. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable and testable.
 
+## Configuration
+
+- Server boot now loads hydrology and cave/lake tuning from `config/world.json` via `WorldGenerationConfig` (path controlled by `World.WorldConfigPath` in `server-config.json`). Rivers, lakes, and noise-cave thresholds/flags can be toggled without recompiling.
+- Unity tooling reads the same knobs from `Resources/TextAsset/GameWorld/WorldConfigData.json` through `WorldConfigFile`, keeping preview meshes aligned with the dedicated server.
+
 ## Water Features
 
 - **Global water level**: a constant `GlobalWaterLevel` (62) controls sea height. Ocean biomes carve a seafloor using sand and stone, then fill to this level.

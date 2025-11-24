@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using GameServerApp;
 using GameServerApp.Database;
 using GameServerApp.Models;
 using GameServerApp.World.Generation;
@@ -13,11 +14,16 @@ namespace GameServerApp.World
         private readonly Random _random;
         private int _worldId;
         private readonly WorldSeedConfig _worldSeed;
+        private readonly WorldSettings _worldSettings;
+        private readonly WorldGenerationConfig _worldGenConfig;
+        private readonly bool _enableCaves;
+        private readonly bool _enableRivers;
+        private readonly bool _enableLakes;
         private readonly TerrainGenerationPipeline _terrainPipeline;
 
-        private const int GlobalWaterLevel = 62;
-        private const double RiverCenterThreshold = 0.0125;
-        private const double RiverBankThreshold = 0.028;
+        private static int GlobalWaterLevel = 62;
+        private static double RiverCenterThreshold = 0.0125;
+        private static double RiverBankThreshold = 0.028;
         private const int CloudBaseAltitude = 200;
         private const double OceanThreshold = 0.36;
         private const double BeachThreshold = 0.42;
@@ -31,11 +37,11 @@ namespace GameServerApp.World
         private const double ValleyDepthMultiplier = 12.0;
         private const string TerrainProfilesKey = "terrain.profiles";
         private const string RiverFieldCacheKey = "terrain.riverField";
-        private const double NoiseCaveHorizontalFrequency = 0.0026;
-        private const double NoiseCaveVerticalFrequency = 0.018;
-        private const double NoiseCaveThreshold = 0.42;
-        private const double NoiseCaveLavaThreshold = 0.28;
-        private const double NoiseCaveWaterThreshold = 0.34;
+        private static double NoiseCaveHorizontalFrequency = 0.0026;
+        private static double NoiseCaveVerticalFrequency = 0.018;
+        private static double NoiseCaveThreshold = 0.42;
+        private static double NoiseCaveLavaThreshold = 0.28;
+        private static double NoiseCaveWaterThreshold = 0.34;
 
         private struct TerrainProfile
         {
@@ -62,30 +68,81 @@ namespace GameServerApp.World
             public bool IsInitialized { get; set; }
         }
 
-        public WorldManager(DatabaseHelper database, int worldId = 1, WorldSeedConfig? worldSeed = null)
+        public WorldManager(DatabaseHelper database, WorldSettings? worldSettings = null, WorldGenerationConfig? generationConfig = null, int worldId = 1, WorldSeedConfig? worldSeed = null)
         {
             _database = database;
+            _worldSettings = worldSettings ?? new WorldSettings();
+            _worldGenConfig = generationConfig ?? WorldGenerationConfig.Load(_worldSettings.WorldConfigPath);
             _worldId = worldId;
 
             // 월드 시드 초기화: 제공된 시드 또는 데이터베이스에서 로드, 또는 새로 생성
-            _worldSeed = worldSeed ?? LoadWorldSeedFromDatabase() ?? WorldSeedConfig.Random();
+            _worldSeed = worldSeed
+                ?? WorldSeedConfig.FromSeed((int)_worldSettings.WorldSeed)
+                ?? LoadWorldSeedFromDatabase()
+                ?? WorldSeedConfig.Random();
             SaveWorldSeedToDatabase();
 
             // 시드를 사용하여 Random 초기화 (결정적 생성을 위함)
             _random = new Random(_worldSeed.Seed);
-            _caveSettings = new CaveGenerationSettings();
+            _caveSettings = new CaveGenerationSettings
+            {
+                HorizontalFrequency = _worldGenConfig.Caves.HorizontalFrequency,
+                VerticalFrequency = _worldGenConfig.Caves.VerticalFrequency,
+                Threshold = _worldGenConfig.Caves.Threshold,
+                LavaThreshold = _worldGenConfig.Caves.LavaThreshold,
+                WaterThreshold = _worldGenConfig.Caves.WaterThreshold,
+                FloodedCaveNoiseFrequency = _worldGenConfig.Caves.FloodedCaveNoiseFrequency,
+                FloodedCaveProximityToWaterTableWeight = _worldGenConfig.Caves.FloodedCaveProximityToWaterTableWeight,
+                FloodedCaveThreshold = _worldGenConfig.Caves.FloodedCaveThreshold
+            };
 
-            Console.WriteLine($"[WorldManager] {_worldSeed}");
+            _enableCaves = _worldSettings.EnableCaves && _worldGenConfig.Caves.EnableCaves;
+            _enableRivers = _worldSettings.EnableRivers && _worldGenConfig.Water.EnableRivers;
+            _enableLakes = _worldSettings.EnableLakes && _worldGenConfig.Water.EnableLakes;
 
-            _terrainPipeline = new TerrainGenerationPipeline()
-                .AddStage(new BaseTerrainStage(this))
-                .AddStage(new OreGenerationStage(this))
-                .AddStage(new CaveGenerationStage(this))
-                .AddStage(new DungeonGenerationStage(this))
-                .AddStage(new RiverGenerationStage(this))
-                .AddStage(new LakeGenerationStage(this))
-                .AddStage(new VegetationGenerationStage(this))
-                .AddStage(new CloudGenerationStage(this));
+            GlobalWaterLevel = _worldGenConfig.Water.GlobalWaterLevel;
+            RiverCenterThreshold = _worldGenConfig.Water.RiverCenterThreshold;
+            RiverBankThreshold = _worldGenConfig.Water.RiverBankThreshold;
+            NoiseCaveHorizontalFrequency = _caveSettings.HorizontalFrequency;
+            NoiseCaveVerticalFrequency = _caveSettings.VerticalFrequency;
+            NoiseCaveThreshold = _caveSettings.Threshold;
+            NoiseCaveLavaThreshold = _caveSettings.LavaThreshold;
+            NoiseCaveWaterThreshold = _caveSettings.WaterThreshold;
+
+            Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
+
+            var pipeline = new TerrainGenerationPipeline()
+                .AddStage(new BaseTerrainStage(this));
+
+            if (_worldSettings.EnableOreGeneration)
+            {
+                pipeline.AddStage(new OreGenerationStage(this));
+            }
+
+            if (_enableCaves)
+            {
+                pipeline.AddStage(new CaveGenerationStage(this));
+            }
+
+            pipeline.AddStage(new DungeonGenerationStage(this));
+
+            if (_enableRivers)
+            {
+                pipeline.AddStage(new RiverGenerationStage(this));
+            }
+
+            if (_enableLakes)
+            {
+                pipeline.AddStage(new LakeGenerationStage(this));
+            }
+
+            if (_worldSettings.EnableVegetationGeneration)
+            {
+                pipeline.AddStage(new VegetationGenerationStage(this));
+            }
+
+            pipeline.AddStage(new CloudGenerationStage(this));
+            _terrainPipeline = pipeline;
         }
 
         public async Task<ChunkData?> GetChunkAsync(int chunkX, int chunkZ)
@@ -493,6 +550,11 @@ namespace GameServerApp.World
         /// </summary>
         public void GenerateCavesInternal(TerrainGenerationContext context)
         {
+            if (!_enableCaves)
+            {
+                return;
+            }
+
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
             var surfaceCache = BuildSurfaceCache(chunk);
@@ -2665,6 +2727,11 @@ namespace GameServerApp.World
 
         {
 
+            if (!_enableRivers)
+            {
+                return;
+            }
+
             var chunk = context.Chunk;
 
             var riverField = GetRiverFieldCache(context);
@@ -2850,6 +2917,11 @@ namespace GameServerApp.World
 
         public void GenerateLakesInternal(TerrainGenerationContext context)
         {
+            if (!_enableLakes)
+            {
+                return;
+            }
+
             var chunk = context.Chunk;
             var riverField = GetRiverFieldCache(context);
             var surfaceCache = BuildSurfaceCache(chunk);
@@ -2867,6 +2939,11 @@ namespace GameServerApp.World
 
             var rand = new Random((context.ChunkX * 928371) ^ (context.ChunkZ * 72341) ^ 0xC0FFEE);
             double chunkWeight = Math.Clamp((lakeNoise - 0.62) * 1.8, 0.0, 1.0);
+            var lakeConfig = _worldGenConfig.Lakes;
+            int maxRadiusSetting = Math.Clamp(lakeConfig.MaxRadius, 3, 12);
+            int minDepthSetting = Math.Clamp(lakeConfig.MinDepth, 2, 16);
+            int maxDepthSetting = Math.Clamp(lakeConfig.MaxDepth, minDepthSetting, 16);
+            double shorelineBlend = Math.Clamp(lakeConfig.ShorelineBlend, 0.0, 1.0);
 
             int centerX = rand.Next(4, 12);
             int centerZ = rand.Next(4, 12);
@@ -2877,21 +2954,21 @@ namespace GameServerApp.World
             double relief = ComputeLocalRelief(surfaceCache, centerX, centerZ, 6);
             double basinStability = 1.0 - Math.Clamp(relief / 10.0, 0.0, 1.0);
             double spawnWeight = Math.Clamp((chunkWeight * 0.6 + hydrology * 0.8) * (0.65 + basinStability * 0.5), 0.0, 1.2);
-            spawnWeight = Math.Clamp(spawnWeight + riparian * 0.25 + flow * 0.15 + erosionRisk * 0.35, 0.0, 1.3);
-            if (spawnWeight < 0.25 || rand.NextDouble() > spawnWeight || basinStability < 0.3)
+            spawnWeight = Math.Clamp(spawnWeight + riparian * 0.25 + flow * 0.15 + erosionRisk * 0.35 + lakeConfig.SpawnWeightBias, 0.0, 1.3);
+            if (spawnWeight < Math.Max(0.2, lakeConfig.SpawnWeightBias) || rand.NextDouble() > spawnWeight || basinStability < 0.3)
                 return;
 
             int radiusX = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 2.0);
             int radiusZ = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5);
-            radiusX = Math.Clamp(radiusX, 3, 9);
-            radiusZ = Math.Clamp(radiusZ, 3, 9);
+            radiusX = Math.Clamp(radiusX, 3, maxRadiusSetting);
+            radiusZ = Math.Clamp(radiusZ, 3, maxRadiusSetting);
             int maxDepth = 3 + rand.Next(3) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5);
             maxDepth += (int)Math.Round(erosionRisk * 2.0);
-            maxDepth = Math.Clamp((int)Math.Round(Math.Clamp(maxDepth * (0.7 + basinStability * 0.6), 3, 9)), 3, 9);
+            maxDepth = Math.Clamp((int)Math.Round(Math.Clamp(maxDepth * (0.7 + basinStability * 0.6), minDepthSetting, maxDepthSetting)), minDepthSetting, maxDepthSetting);
             int waterLevel = Math.Clamp(
                 GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0) + (int)Math.Round((riparian - 0.5) * 3.0) + (int)Math.Round((erosionRisk - 0.5) * 2.0),
-                45,
-                80);
+                Math.Max(40, GlobalWaterLevel - 18),
+                Math.Min(120, GlobalWaterLevel + 8));
 
             int sampleSurface = FindSurfaceLevel(chunk, centerX, centerZ);
             if (sampleSurface < waterLevel - 4 || sampleSurface > waterLevel + 8)
@@ -2987,6 +3064,7 @@ namespace GameServerApp.World
                     {
                         double rimStrength = Math.Clamp((0.45 - sdf) / 0.45, 0.0, 1.0);
                         rimStrength *= 1.0 + erosionRiskField[x, z] * 0.25;
+                        rimStrength = Math.Clamp(rimStrength * (0.65 + shorelineBlend), 0.0, 1.35);
                         SculptLakeBank(chunk, x, z, waterLevel, rimStrength);
                     }
                 }

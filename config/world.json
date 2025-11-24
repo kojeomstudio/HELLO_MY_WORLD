@@ -28,7 +28,8 @@
     "RiverNoiseScale": 0.015,
     "RiverDepth": 5,
     "EnableOceans": true,
-    "EnableRivers": true
+    "EnableRivers": true,
+    "EnableLakes": true
   },
   "Caves": {
     "EnableCaves": true,
@@ -36,7 +37,15 @@
     "CaveNoiseScale": 0.05,
     "CaveThreshold": 0.6,
     "MinCaveHeight": 5,
-    "MaxCaveHeight": 128
+    "MaxCaveHeight": 128,
+    "HorizontalFrequency": 0.0026,
+    "VerticalFrequency": 0.018,
+    "NoiseThreshold": 0.42,
+    "LavaThreshold": 0.28,
+    "WaterThreshold": 0.34,
+    "FloodedCaveNoiseFrequency": 0.0031,
+    "FloodedCaveProximityToWaterTableWeight": 0.6,
+    "FloodedCaveThreshold": 0.75
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -84,5 +93,12 @@
     "EnableMineshafts": false,
     "EnableDungeons": true,
     "DungeonChance": 0.01
+  },
+  "Lakes": {
+    "MinDepth": 3,
+    "MaxDepth": 9,
+    "MaxRadius": 9,
+    "SpawnWeightBias": 0.3,
+    "ShorelineBlend": 0.6
   }
 }

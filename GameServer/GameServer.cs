@@ -58,7 +58,8 @@ namespace GameServerApp
             _entitySync = new EntitySyncService(_sessions);
             _metrics = new ServerMetricsService(_sessions);
             _rooms = new Rooms.RoomManager(_sessions);
-            _worldManager = new WorldManager(_database);
+            var worldGenConfig = WorldGenerationConfig.Load(_config.World.WorldConfigPath);
+            _worldManager = new WorldManager(_database, _config.World, worldGenConfig);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
             _weatherSystem = new WeatherSystem(_sessions, _config.World);
@@ -198,12 +199,12 @@ namespace GameServerApp
             var missingProtocols = _minecraftDispatcher.GetUnboundProtocolMessages();
             if (missingProtocols.Count > 0)
             {
-                Console.WriteLine("[MinecraftDispatcher] Missing EnhancedMinecraft handlers: " + string.Join(", ", missingProtocols));
+                var missingList = string.Join(", ", missingProtocols);
+                Console.WriteLine("[MinecraftDispatcher][ERROR] Missing EnhancedMinecraft handlers: " + missingList);
+                throw new InvalidOperationException($"EnhancedMinecraft protobuf handlers missing: {missingList}");
             }
-            else
-            {
-                Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");
-            }
+
+            Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");
         }
 
         public async Task StartAsync()

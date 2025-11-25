@@ -15,10 +15,20 @@ public static class ProtocolValidator
 {
     private static readonly MinecraftMessageType[] RequiredMessages =
     {
+        MinecraftMessageType.PlayerStateUpdate,
+        MinecraftMessageType.PlayerActionRequest,
+        MinecraftMessageType.PlayerActionResponse,
         MinecraftMessageType.ChunkDataRequest,
         MinecraftMessageType.ChunkDataResponse,
         MinecraftMessageType.ChunkUnloadNotification,
-        MinecraftMessageType.ChunkUnloadAcknowledge
+        MinecraftMessageType.ChunkUnloadAcknowledge,
+        MinecraftMessageType.BlockChangeNotification,
+        MinecraftMessageType.EntitySpawn,
+        MinecraftMessageType.EntityDespawn,
+        MinecraftMessageType.TimeUpdate,
+        MinecraftMessageType.WeatherChange,
+        MinecraftMessageType.SoundEffect,
+        MinecraftMessageType.ParticleEffect
     };
 
     public static void ValidateEnhancedContracts()

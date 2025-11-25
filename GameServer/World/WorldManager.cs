@@ -574,6 +574,7 @@ namespace GameServerApp.World
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
             var riverField = GetRiverFieldCache(context);
@@ -2525,6 +2526,75 @@ namespace GameServerApp.World
             return smoothed;
         }
 
+        private void StabilizeHydrologyGradients(double[,] hydrologyMask, double[,] flowAccumulation, int[,] surfaceCache)
+        {
+            if (hydrologyMask == null || flowAccumulation == null || surfaceCache == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            var hydrologyBuffer = new double[width, depth];
+            var flowBuffer = new double[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double hydrology = hydrologyMask[x, z];
+                    double flow = flowAccumulation[x, z];
+                    double blendedHydrology = hydrology;
+                    double blendedFlow = flow;
+                    double weight = 1.0;
+
+                    int surface = surfaceCache[x, z];
+                    double shoreBias = Math.Clamp((GlobalWaterLevel - surface) / 5.0, 0.0, 1.0);
+                    shoreBias = Math.Max(0.1, shoreBias * 0.6);
+
+                    for (int offsetX = -1; offsetX <= 1; offsetX++)
+                    {
+                        for (int offsetZ = -1; offsetZ <= 1; offsetZ++)
+                        {
+                            if (offsetX == 0 && offsetZ == 0)
+                            {
+                                continue;
+                            }
+
+                            int sampleX = x + offsetX;
+                            int sampleZ = z + offsetZ;
+                            if (sampleX < 0 || sampleX >= width || sampleZ < 0 || sampleZ >= depth)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[sampleX, sampleZ];
+                            double slopePenalty = Math.Clamp(Math.Abs(surface - neighborSurface) / 6.0, 0.0, 1.0);
+                            double smoothingWeight = 1.0 - slopePenalty * 0.45;
+
+                            blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
+                            blendedFlow += flowAccumulation[sampleX, sampleZ] * smoothingWeight;
+                            weight += smoothingWeight;
+                        }
+                    }
+
+                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias, 0.0, 1.0);
+                    double flowBlend = Math.Clamp(0.25 + shoreBias * 0.5, 0.0, 1.0);
+                    hydrologyBuffer[x, z] = Math.Clamp(hydrology + (blendedHydrology / weight - hydrology) * hydrologyBlend, 0.0, 1.0);
+                    flowBuffer[x, z] = Math.Max(0.0, flow + (blendedFlow / weight - flow) * flowBlend);
+                }
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    hydrologyMask[x, z] = hydrologyBuffer[x, z];
+                    flowAccumulation[x, z] = flowBuffer[x, z];
+                }
+            }
+        }
+
         private void SmoothHydrologyFields(double[,] hydrologyMask, double[,] flowAccumulation)
         {
             if (_hydrologySmoothIterations <= 0 || _hydrologySmoothBlend <= 0.0)
@@ -2779,6 +2849,7 @@ namespace GameServerApp.World
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
 
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
 
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
@@ -2959,6 +3030,7 @@ namespace GameServerApp.World
             var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
             var flowAccumulation = BuildFlowAccumulation(surfaceCache);
             BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
             var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);

@@ -17,6 +17,8 @@
   "LakeMinDepth": 3,
   "LakeMaxDepth": 9,
   "LakeMaxRadius": 9,
+  "LakeSpawnWeightBias": 0.3,
+  "LakeShorelineBlend": 0.6,
   "HydrologySmoothIterations": 1,
   "HydrologySmoothBlend": 0.55,
   "HydrologyShorePush": 5.0,

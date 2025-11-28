@@ -91,3 +91,9 @@ Clouds still float above the world but now vary in altitude based on a domain-wa
 - **Tuning water features**: Adjust `RiverCenterThreshold`, `RiverBankThreshold`, and lake probability constants for different world densities.
 
 The updated generator aims to produce striking, traversable landscapes while remaining deterministic and race-free for multiplayer synchronisation.
+
+## Hydrology Cache & Config Sync (2025-12)
+
+- Hydrology, flow accumulation, and erosion risk fields are now built once per chunk and cached on `TerrainGenerationContext` (`terrain.hydrology`). Caves, rivers, and lakes read the same cached masks, removing chunk seam divergence and reducing redundant sampling work.
+- Server worldgen reads `config/world.json`; Unity mirrors the same knobs in `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`. Keep the two files aligned when tuning water/cave parameters.
+- After changing proto-backed world messages, regenerate `Assets/Generated/Protobuf` and `SharedProtocol` from `proto/*.proto`, then run `dotnet build SharedProtocol/SharedProtocol.csproj` to verify `ProtocolValidator` still passes.

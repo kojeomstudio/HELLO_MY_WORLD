@@ -49,6 +49,7 @@ namespace GameServerApp.World
         private const double ValleyDepthMultiplier = 12.0;
         private const string TerrainProfilesKey = "terrain.profiles";
         private const string RiverFieldCacheKey = "terrain.riverField";
+        private const string HydrologyFieldCacheKey = "terrain.hydrology";
         private static double NoiseCaveHorizontalFrequency = 0.0026;
         private static double NoiseCaveVerticalFrequency = 0.018;
         private static double NoiseCaveThreshold = 0.42;
@@ -65,6 +66,13 @@ namespace GameServerApp.World
             public BlockType SubSurfaceBlock;
             public BlockType FillerBlock;
             public bool UseCliffFace;
+        }
+
+        private sealed class HydrologyFieldCache
+        {
+            public double[,] HydrologyMask { get; set; } = default!;
+            public double[,] FlowAccumulation { get; set; } = default!;
+            public double[,] ErosionRisk { get; set; } = default!;
         }
 
         private sealed class RiverFieldCache
@@ -582,12 +590,10 @@ namespace GameServerApp.World
             var chunk = context.Chunk;
             var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
             var surfaceCache = BuildSurfaceCache(chunk);
-            var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
-            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
-            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
-            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
-            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
-            var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
+            var hydrologyField = GetHydrologyField(context, surfaceCache);
+            var hydrologyMask = hydrologyField.HydrologyMask;
+            var flowAccumulation = hydrologyField.FlowAccumulation;
+            var erosionRiskField = hydrologyField.ErosionRisk;
             var riverField = GetRiverFieldCache(context);
             
             // 메인 동굴 시스템 (기존 웜 방식 개선)
@@ -2288,6 +2294,26 @@ namespace GameServerApp.World
             }
         }
 
+        private HydrologyFieldCache GetHydrologyField(TerrainGenerationContext context, int[,] surfaceCache)
+        {
+            return context.GetOrAddMetadata(HydrologyFieldCacheKey, () =>
+            {
+                var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
+                var flowAccumulation = BuildFlowAccumulation(surfaceCache);
+                BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+                StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
+                SmoothHydrologyFields(hydrologyMask, flowAccumulation);
+                var erosionRisk = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
+
+                return new HydrologyFieldCache
+                {
+                    HydrologyMask = hydrologyMask,
+                    FlowAccumulation = flowAccumulation,
+                    ErosionRisk = erosionRisk
+                };
+            });
+        }
+
         private RiverFieldCache GetRiverFieldCache(TerrainGenerationContext context)
         {
             var cache = context.GetOrAddMetadata(RiverFieldCacheKey, () => new RiverFieldCache());
@@ -2859,17 +2885,11 @@ namespace GameServerApp.World
 
             var surfaceCache = BuildSurfaceCache(chunk);
 
-            var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
-
-            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
-
-            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
-            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
-            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
-
+            var hydrologyField = GetHydrologyField(context, surfaceCache);
+            var hydrologyMask = hydrologyField.HydrologyMask;
+            var flowAccumulation = hydrologyField.FlowAccumulation;
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
-
-            var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
+            var erosionRiskField = hydrologyField.ErosionRisk;
 
             var riverIntensity = new double[16, 16];
 
@@ -3042,13 +3062,11 @@ namespace GameServerApp.World
             var chunk = context.Chunk;
             var riverField = GetRiverFieldCache(context);
             var surfaceCache = BuildSurfaceCache(chunk);
-            var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
-            var flowAccumulation = BuildFlowAccumulation(surfaceCache);
-            BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
-            StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
-            SmoothHydrologyFields(hydrologyMask, flowAccumulation);
+            var hydrologyField = GetHydrologyField(context, surfaceCache);
+            var hydrologyMask = hydrologyField.HydrologyMask;
+            var flowAccumulation = hydrologyField.FlowAccumulation;
             var riparianSaturation = BuildRiparianSaturationMap(surfaceCache, hydrologyMask, flowAccumulation);
-            var erosionRiskField = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
+            var erosionRiskField = hydrologyField.ErosionRisk;
             var warp = SimplexNoise.DomainWarp(context.ChunkX * 16, context.ChunkZ * 16, 0.00045, 0.0009, 14.0, 9.0, 67891);
             double lakeSimplex = SimplexNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.035, 3, 1.0, 0.55, 67891);
             double lakePerlin = PerlinNoise.Generate(context.ChunkX + warp.dx, context.ChunkZ + warp.dz, 0.028, 2, 1.0, 0.6, 77811);

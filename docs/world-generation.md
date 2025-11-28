@@ -96,4 +96,6 @@ The updated generator aims to produce striking, traversable landscapes while rem
 
 - Hydrology, flow accumulation, and erosion risk fields are now built once per chunk and cached on `TerrainGenerationContext` (`terrain.hydrology`). Caves, rivers, and lakes read the same cached masks, removing chunk seam divergence and reducing redundant sampling work.
 - Server worldgen reads `config/world.json`; Unity mirrors the same knobs in `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`. Keep the two files aligned when tuning water/cave parameters.
+- Hydrology seam blending uses a new JSON-driven `HydrologyContinuityWeight` that controls how aggressively edge cells blend toward neighboring chunks; both `WorldManager.BlendHydrologySeams` and `WorldGenAlgorithms.BlendHydrologySeams` honor it so caves, rivers, and lakes stay aligned across streamed chunk borders.
+- Erosion-risk smoothing now reuses the hydrology smooth iteration/blend settings from `config/world.json`, so river banks, lake rims, and hydrology-driven cave channels all consume the same tuned mask sharpness on server and client previews.
 - After changing proto-backed world messages, regenerate `Assets/Generated/Protobuf` and `SharedProtocol` from `proto/*.proto`, then run `dotnet build SharedProtocol/SharedProtocol.csproj` to verify `ProtocolValidator` still passes.

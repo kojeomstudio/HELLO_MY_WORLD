@@ -26,6 +26,7 @@ namespace GameServerApp.World
         private readonly double _hydrologyShorePush;
         private readonly double _hydrologySlopePenalty;
         private readonly double _hydrologyFlowGain;
+        private readonly double _hydrologyContinuityWeight;
         private readonly double _riverBankErosionWeight;
         private readonly double _lakeRimErosionWeight;
         private readonly double _riverNoiseScale;
@@ -133,6 +134,7 @@ namespace GameServerApp.World
             _hydrologyShorePush = Math.Clamp(_worldGenConfig.Water.HydrologyShorePush, 1.0, 24.0);
             _hydrologySlopePenalty = Math.Clamp(_worldGenConfig.Water.HydrologySlopePenalty, 2.0, 18.0);
             _hydrologyFlowGain = Math.Clamp(_worldGenConfig.Water.HydrologyFlowGain, 0.0, 1.5);
+            _hydrologyContinuityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
             _riverBankErosionWeight = Math.Clamp(_worldGenConfig.Water.RiverBankErosionWeight, 0.0, 1.0);
             _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
             _riverNoiseScale = Math.Clamp(_worldGenConfig.Water.RiverNoiseScale, 0.0001, 0.05);
@@ -141,7 +143,7 @@ namespace GameServerApp.World
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -2724,7 +2726,9 @@ namespace GameServerApp.World
                 }
             }
 
-            SmoothScalarField(risk, 1, 0.6);
+            int iterations = Math.Max(1, _hydrologySmoothIterations);
+            double blend = _hydrologySmoothBlend > 0.0 ? _hydrologySmoothBlend : 0.6;
+            SmoothScalarField(risk, iterations, blend);
             return risk;
         }
 
@@ -2737,12 +2741,17 @@ namespace GameServerApp.World
             {
                 for (int z = 0; z < depth; z++)
                 {
-                    bool isEdge = x == 0 || z == 0 || x == width - 1 || z == depth - 1;
-                    if (!isEdge)
+                    int edgeDistance = Math.Min(
+                        Math.Min(x, z),
+                        Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance > 1)
                     {
                         continue;
                     }
 
+                    double continuity = Math.Clamp(_hydrologyContinuityWeight, 0.0, 1.0);
+                    double falloff = 1.0 - Math.Clamp(edgeDistance * 0.5, 0.0, 1.0);
+                    double blendWeight = Math.Clamp(continuity * falloff, 0.0, 1.0);
                     int neighborX = Math.Clamp(x + (x == 0 ? 1 : -1), 0, width - 1);
                     int neighborZ = Math.Clamp(z + (z == 0 ? 1 : -1), 0, depth - 1);
                     double neighborHydrology = hydrologyMask[neighborX, neighborZ];
@@ -2755,12 +2764,14 @@ namespace GameServerApp.World
                         0.55,
                         91013);
                     double anchorHydrology = Math.Clamp(0.55 + anchorNoise * 0.45, 0.0, 1.0);
-                    double blendedHydrology = (hydrologyMask[x, z] * 2.2 + neighborHydrology * 0.6 + anchorHydrology * 0.4) / 3.2;
+                    double baseHydrology = (hydrologyMask[x, z] * 2.2 + neighborHydrology * 0.6 + anchorHydrology * 0.4) / 3.2;
+                    double blendedHydrology = hydrologyMask[x, z] * (1.0 - blendWeight) + baseHydrology * blendWeight;
                     hydrologyMask[x, z] = Math.Clamp(blendedHydrology, 0.0, 1.0);
 
                     double neighborFlow = flowAccumulation[neighborX, neighborZ];
                     double anchorFlow = Math.Clamp(anchorHydrology * 0.9 + Math.Abs(anchorNoise) * 0.65, 0.0, 8.0);
-                    double blendedFlow = (flowAccumulation[x, z] * 1.5 + neighborFlow * 0.6 + anchorFlow * 0.4) / 2.5;
+                    double baseFlow = (flowAccumulation[x, z] * 1.5 + neighborFlow * 0.6 + anchorFlow * 0.4) / 2.5;
+                    double blendedFlow = flowAccumulation[x, z] * (1.0 - blendWeight) + baseFlow * blendWeight;
                     flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
                 }
             }

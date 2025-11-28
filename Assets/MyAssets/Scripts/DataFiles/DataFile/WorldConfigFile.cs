@@ -28,6 +28,7 @@ public struct WorldConfig
     public float HydrologyShorePush;
     public float HydrologySlopePenalty;
     public float HydrologyFlowGain;
+    public float HydrologyContinuityWeight;
     public float RiverBankErosionWeight;
     public float LakeRimErosionWeight;
     public float RiverNoiseScale;
@@ -95,6 +96,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyShorePush = ParseFloat(data, "HydrologyShorePush", 5.0f);
                 Config.HydrologySlopePenalty = ParseFloat(data, "HydrologySlopePenalty", 6.0f);
                 Config.HydrologyFlowGain = ParseFloat(data, "HydrologyFlowGain", 0.5f);
+                Config.HydrologyContinuityWeight = ParseFloat(data, "HydrologyContinuityWeight", 0.35f);
                 Config.RiverNoiseScale = ParseFloat(data, "RiverNoiseScale", 0.015f);
                 Config.RiverDepth = ParseInt(data, "RiverDepth", 5);
                 Config.RiverBankErosionWeight = ParseFloat(data, "RiverBankErosionWeight", 0.18f);

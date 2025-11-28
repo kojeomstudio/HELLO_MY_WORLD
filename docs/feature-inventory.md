@@ -2,6 +2,7 @@
 
 ## Core
 - Server: chunk auth/session pipeline (`GameServer/SessionManager.cs`), deterministic worldgen pipeline with hydrology cache and caves/rivers/lakes stages (`GameServer/World/WorldManager.cs`), data-driven knobs via `config/world.json` and `server-config.json`, protobuf registry/validator (`SharedProtocol/EnhancedMinecraft`).
+- Hydrology seam continuity + erosion smoothing: JSON knob `HydrologyContinuityWeight` and hydrology smooth iterations/blend keep `WorldManager.BlendHydrologySeams` and `MapGeneratorLib/.../WorldGenAlgorithms.BlendHydrologySeams` aligned for caves, rivers, and lakes.
 - Client: world area + chunk streaming (`Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs`), block editing managers (`ModifyWorldManager.cs`, `EnhancedModifyWorldManager.cs`), data-driven world sizing and water/cave toggles (`Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`).
 - Shared: protocol DTOs generated from `proto/*.proto` into `SharedProtocol` and `Assets/Generated/Protobuf`, runtime registry (`SharedProtocol/MinecraftMessages.cs`) and fingerprint guard (`ProtoFingerprint.cs`).
 

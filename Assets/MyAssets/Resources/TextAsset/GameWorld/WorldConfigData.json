@@ -22,6 +22,7 @@
   "HydrologyShorePush": 5.0,
   "HydrologySlopePenalty": 6.0,
   "HydrologyFlowGain": 0.5,
+  "HydrologyContinuityWeight": 0.35,
   "RiverNoiseScale": 0.015,
   "RiverDepth": 5,
   "RiverBankErosionWeight": 0.18,

@@ -49,8 +49,16 @@ namespace GameCommon.Configuration
         public double RiverBankThreshold { get; set; } = 0.028;
         public double RiverNoiseScale { get; set; } = 0.015;
         public int RiverDepth { get; set; } = 5;
+        public int HydrologySmoothIterations { get; set; } = 1;
+        public double HydrologySmoothBlend { get; set; } = 0.55;
+        public double HydrologyShorePush { get; set; } = 5.0;
+        public double HydrologySlopePenalty { get; set; } = 6.0;
+        public double HydrologyFlowGain { get; set; } = 0.5;
+        public double RiverBankErosionWeight { get; set; } = 0.18;
+        public double LakeRimErosionWeight { get; set; } = 0.25;
         public bool EnableOceans { get; set; } = true;
         public bool EnableRivers { get; set; } = true;
+        public bool EnableLakes { get; set; } = true;
     }
 
     public class CaveConfig

@@ -109,6 +109,11 @@ namespace MapGenLib
         public static float HydrologySmoothBlend = 0.55f;
         public static int CaveStabilitySmoothIterations = 1;
         public static float CaveStabilitySmoothBlend = 0.55f;
+        public static float HydrologyShorePush = 5f;
+        public static float HydrologySlopePenalty = 6f;
+        public static float HydrologyFlowGain = 0.5f;
+        public static float RiverNoiseScale = 0.015f;
+        public static int RiverDepth = 5;
 
         public struct TerrainValue
         {
@@ -749,7 +754,7 @@ namespace MapGenLib
                     float weight = 1f;
 
                     int surface = surfaceCache[x, z];
-                    float shoreBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / 5f);
+                    float shoreBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / CustomMathf.Max(0.001f, HydrologyShorePush));
                     shoreBias = CustomMathf.Max(0.1f, shoreBias * 0.6f);
 
                     for (int offsetX = -1; offsetX <= 1; offsetX++)
@@ -769,7 +774,7 @@ namespace MapGenLib
                             }
 
                             int neighborSurface = surfaceCache[sampleX, sampleZ];
-                            float slopePenalty = CustomMathf.Clamp01(CustomMathf.Abs(surface - neighborSurface) / 6f);
+                            float slopePenalty = CustomMathf.Clamp01(CustomMathf.Abs(surface - neighborSurface) / CustomMathf.Max(0.001f, HydrologySlopePenalty));
                             float smoothingWeight = 1f - slopePenalty * 0.45f;
 
                             blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
@@ -778,8 +783,10 @@ namespace MapGenLib
                         }
                     }
 
-                    hydrologyBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, blendedHydrology / weight, 0.35f + shoreBias));
-                    flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, blendedFlow / weight, 0.25f + shoreBias * 0.5f));
+                    float hydrologyBlend = CustomMathf.Clamp01(0.35f + shoreBias * HydrologyFlowGain);
+                    float flowBlend = CustomMathf.Clamp01(0.25f + shoreBias * HydrologyFlowGain * 0.65f);
+                    hydrologyBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, blendedHydrology / weight, hydrologyBlend));
+                    flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, blendedFlow / weight, flowBlend));
                 }
             }
 
@@ -959,7 +966,8 @@ namespace MapGenLib
 
         private static CustomVector2 ComputeRiverFlowDirection(float sampleX, float sampleZ)
         {
-            const float gradientStep = 0.0125f;
+            float baseFrequency = CustomMathf.Max(0.0001f, RiverNoiseScale * 1.25f);
+            float gradientStep = CustomMathf.Clamp(baseFrequency * 0.68f, 0.0015f, 0.05f);
 
             float forwardX = Noise.GetNoise(sampleX + gradientStep, 0, sampleZ);
             float backwardX = Noise.GetNoise(sampleX - gradientStep, 0, sampleZ);
@@ -985,9 +993,11 @@ namespace MapGenLib
 
         private static float EvaluateRiverIntensity(int x, int z, out CustomVector2 flowDir)
         {
-            const float sampleScale = 54f;
-            const float warpScale = 92f;
-            const float warpStrength = 5.25f;
+            float baseFrequency = CustomMathf.Max(0.0001f, RiverNoiseScale * 1.25f);
+            float sampleScale = 1f / baseFrequency;
+            float warpFrequency = baseFrequency * 0.58f;
+            float warpScale = 1f / CustomMathf.Max(0.0001f, warpFrequency);
+            float warpStrength = CustomMathf.Max(2.5f, 5.25f * (RiverDepth / 5f));
 
             float warpX = Noise.GetNoise((x + 321.37f) / warpScale, 0, (z - 811.19f) / warpScale);
             float warpZ = Noise.GetNoise((x - 217.91f) / warpScale, 0, (z + 607.53f) / warpScale);
@@ -1218,7 +1228,11 @@ namespace MapGenLib
             }
 
             float pressureScale = 0.85f + channelPressure * 0.65f;
-            int channelDepth = CustomMathf.Clamp(3 + CustomMathf.RoundToInt(CustomMathf.Lerp(1.5f, 6.5f, normalized * pressureScale)), 3, 10);
+            int baseDepth = CustomMathf.Clamp(RiverDepth, 2, 24);
+            int channelDepth = CustomMathf.Clamp(
+                baseDepth + CustomMathf.RoundToInt(CustomMathf.Lerp(1.0f, baseDepth * 0.6f, normalized * pressureScale)),
+                baseDepth,
+                baseDepth + 8);
             int waterFloor = CustomMathf.Max(1, riverSurface - channelDepth);
 
             for (int y = surface; y >= waterFloor; y--)

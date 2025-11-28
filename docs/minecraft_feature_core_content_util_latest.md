@@ -33,6 +33,7 @@ Hydrology gradient/seam tuning (`HydrologyShorePush`, `HydrologySlopePenalty`, `
 
 ## Sequenced rollout (server/client)
 - [x] MapGeneratorLib now smooths hydrology/flow masks (config-driven iterations/blend) before rivers, lakes, and caves to match server seam handling.
+- [x] Shared JSON knobs (`HydrologyShorePush/SlopePenalty/FlowGain`, `HydrologySmooth*`, `RiverNoiseScale`, `RiverDepth`) feed both WorldManager and MapGeneratorLib so river spacing, depth, and shoreline pressure stay identical across streamed chunks and Unity previews.
 - [x] Pond generation carves shallow basins with sand floors and clears air above waterline to better approximate lake rim behaviour in streamed chunks.
 - [x] EnhancedMinecraft proto registry validation runs via `ChunkPayloadBuilder`/`ProtoRuntime`; keep generated classes aligned with `proto/*.proto` fingerprint before handler registration.
 - [ ] Align client container/inventory EnhancedMinecraft bindings and update registry once DTOs are regenerated.

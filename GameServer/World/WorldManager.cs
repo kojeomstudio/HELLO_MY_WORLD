@@ -23,8 +23,13 @@ namespace GameServerApp.World
         private readonly TerrainGenerationPipeline _terrainPipeline;
         private readonly int _hydrologySmoothIterations;
         private readonly double _hydrologySmoothBlend;
+        private readonly double _hydrologyShorePush;
+        private readonly double _hydrologySlopePenalty;
+        private readonly double _hydrologyFlowGain;
         private readonly double _riverBankErosionWeight;
         private readonly double _lakeRimErosionWeight;
+        private readonly double _riverNoiseScale;
+        private readonly int _riverDepth;
         private readonly int _caveStabilitySmoothIterations;
         private readonly double _caveStabilitySmoothBlend;
 
@@ -117,12 +122,18 @@ namespace GameServerApp.World
             NoiseCaveWaterThreshold = _caveSettings.WaterThreshold;
             _hydrologySmoothIterations = Math.Clamp(_worldGenConfig.Water.HydrologySmoothIterations, 0, 6);
             _hydrologySmoothBlend = Math.Clamp(_worldGenConfig.Water.HydrologySmoothBlend, 0.0, 1.0);
+            _hydrologyShorePush = Math.Clamp(_worldGenConfig.Water.HydrologyShorePush, 1.0, 24.0);
+            _hydrologySlopePenalty = Math.Clamp(_worldGenConfig.Water.HydrologySlopePenalty, 2.0, 18.0);
+            _hydrologyFlowGain = Math.Clamp(_worldGenConfig.Water.HydrologyFlowGain, 0.0, 1.5);
             _riverBankErosionWeight = Math.Clamp(_worldGenConfig.Water.RiverBankErosionWeight, 0.0, 1.0);
             _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
+            _riverNoiseScale = Math.Clamp(_worldGenConfig.Water.RiverNoiseScale, 0.0001, 0.05);
+            _riverDepth = Math.Clamp(_worldGenConfig.Water.RiverDepth, 2, 24);
             _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -2190,15 +2201,19 @@ namespace GameServerApp.World
 
         private double SampleRiverField(double worldX, double worldZ)
         {
-            var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.0008, 0.0016, 20.0, 12.0, 91111);
+            double baseFrequency = Math.Clamp(_riverNoiseScale * 0.08, 0.00005, 0.02);
+            double warpSimplexFrequency = Math.Clamp(_riverNoiseScale * 0.053, 0.00001, 0.01);
+            double warpPerlinFrequency = Math.Clamp(_riverNoiseScale * 0.106, 0.00002, 0.02);
+
+            var warp = SimplexNoise.DomainWarp(worldX, worldZ, warpSimplexFrequency, warpPerlinFrequency, 20.0, 12.0, 91111);
             double sampleX = worldX + warp.dx;
             double sampleZ = worldZ + warp.dz;
-            return SimplexNoise.Generate(sampleX, sampleZ, 0.0012, 5, 1.0, 0.45, 91111);
+            return SimplexNoise.Generate(sampleX, sampleZ, baseFrequency, 5, 1.0, 0.45, 91111);
         }
 
         private Vector2 ComputeRiverFlowVector(int worldX, int worldZ)
         {
-            const double gradientStep = 1.0;
+            double gradientStep = Math.Clamp(1.0 / Math.Max(0.0001, _riverNoiseScale * 90.0), 0.35, 1.5);
 
             double forwardX = SampleRiverField(worldX + gradientStep, worldZ);
             double backwardX = SampleRiverField(worldX - gradientStep, worldZ);
@@ -2549,7 +2564,7 @@ namespace GameServerApp.World
                     double weight = 1.0;
 
                     int surface = surfaceCache[x, z];
-                    double shoreBias = Math.Clamp((GlobalWaterLevel - surface) / 5.0, 0.0, 1.0);
+                    double shoreBias = Math.Clamp((GlobalWaterLevel - surface) / _hydrologyShorePush, 0.0, 1.0);
                     shoreBias = Math.Max(0.1, shoreBias * 0.6);
 
                     for (int offsetX = -1; offsetX <= 1; offsetX++)
@@ -2569,7 +2584,7 @@ namespace GameServerApp.World
                             }
 
                             int neighborSurface = surfaceCache[sampleX, sampleZ];
-                            double slopePenalty = Math.Clamp(Math.Abs(surface - neighborSurface) / 6.0, 0.0, 1.0);
+                            double slopePenalty = Math.Clamp(Math.Abs(surface - neighborSurface) / _hydrologySlopePenalty, 0.0, 1.0);
                             double smoothingWeight = 1.0 - slopePenalty * 0.45;
 
                             blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
@@ -2578,8 +2593,8 @@ namespace GameServerApp.World
                         }
                     }
 
-                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias, 0.0, 1.0);
-                    double flowBlend = Math.Clamp(0.25 + shoreBias * 0.5, 0.0, 1.0);
+                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias * _hydrologyFlowGain, 0.0, 1.0);
+                    double flowBlend = Math.Clamp(0.25 + shoreBias * _hydrologyFlowGain * 0.65, 0.0, 1.0);
                     hydrologyBuffer[x, z] = Math.Clamp(hydrology + (blendedHydrology / weight - hydrology) * hydrologyBlend, 0.0, 1.0);
                     flowBuffer[x, z] = Math.Max(0.0, flow + (blendedFlow / weight - flow) * flowBlend);
                 }
@@ -3738,7 +3753,8 @@ namespace GameServerApp.World
                 return;
 
             double pressureScale = 0.85 + channelPressure * 0.65;
-            int channelDepth = Math.Clamp(3 + (int)Math.Round(normalized * 6.5 * pressureScale), 3, 10);
+            int baseDepth = Math.Clamp(_riverDepth, 2, 24);
+            int channelDepth = Math.Clamp(baseDepth + (int)Math.Round(normalized * baseDepth * 1.3 * pressureScale), baseDepth, baseDepth + 8);
             int waterFloor = Math.Max(1, riverSurface - channelDepth);
 
             for (int y = surface; y >= waterFloor; y--)

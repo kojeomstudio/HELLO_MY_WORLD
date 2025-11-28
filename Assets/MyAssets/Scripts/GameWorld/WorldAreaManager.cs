@@ -48,6 +48,11 @@ public class WorldAreaManager : MonoBehaviour
         var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
         WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, tunedWorldConfig.HydrologySmoothIterations);
         WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySmoothBlend);
+        WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(tunedWorldConfig.HydrologyShorePush, 0.1f, 64f);
+        WorldGenAlgorithms.HydrologySlopePenalty = Mathf.Clamp(tunedWorldConfig.HydrologySlopePenalty, 0.1f, 64f);
+        WorldGenAlgorithms.HydrologyFlowGain = Mathf.Clamp(tunedWorldConfig.HydrologyFlowGain, 0f, 2f);
+        WorldGenAlgorithms.RiverNoiseScale = Mathf.Clamp(tunedWorldConfig.RiverNoiseScale, 0.0001f, 0.05f);
+        WorldGenAlgorithms.RiverDepth = Mathf.Max(2, tunedWorldConfig.RiverDepth);
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);
 

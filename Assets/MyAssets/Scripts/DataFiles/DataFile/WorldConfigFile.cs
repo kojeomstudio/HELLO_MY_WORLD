@@ -25,8 +25,13 @@ public struct WorldConfig
     public int LakeMaxRadius;
     public int HydrologySmoothIterations;
     public float HydrologySmoothBlend;
+    public float HydrologyShorePush;
+    public float HydrologySlopePenalty;
+    public float HydrologyFlowGain;
     public float RiverBankErosionWeight;
     public float LakeRimErosionWeight;
+    public float RiverNoiseScale;
+    public int RiverDepth;
     public int CaveStabilitySmoothIterations;
     public float CaveStabilitySmoothBlend;
 }
@@ -87,6 +92,11 @@ public class WorldConfigFile : BaseDataFile
                 Config.LakeMaxRadius = ParseInt(data, "LakeMaxRadius", 9);
                 Config.HydrologySmoothIterations = ParseInt(data, "HydrologySmoothIterations", 1);
                 Config.HydrologySmoothBlend = ParseFloat(data, "HydrologySmoothBlend", 0.55f);
+                Config.HydrologyShorePush = ParseFloat(data, "HydrologyShorePush", 5.0f);
+                Config.HydrologySlopePenalty = ParseFloat(data, "HydrologySlopePenalty", 6.0f);
+                Config.HydrologyFlowGain = ParseFloat(data, "HydrologyFlowGain", 0.5f);
+                Config.RiverNoiseScale = ParseFloat(data, "RiverNoiseScale", 0.015f);
+                Config.RiverDepth = ParseInt(data, "RiverDepth", 5);
                 Config.RiverBankErosionWeight = ParseFloat(data, "RiverBankErosionWeight", 0.18f);
                 Config.LakeRimErosionWeight = ParseFloat(data, "LakeRimErosionWeight", 0.25f);
                 Config.CaveStabilitySmoothIterations = ParseInt(data, "CaveStabilitySmoothIterations", 1);

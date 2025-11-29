@@ -27,6 +27,8 @@
   "HydrologyContinuityWeight": 0.35,
   "HydrologyEdgeBlendRadius": 2,
   "HydrologyFlowPersistence": 0.55,
+  "HydrologySeamRelaxIterations": 2,
+  "HydrologySeamRelaxBlend": 0.45,
   "RiverNoiseScale": 0.015,
   "RiverDepth": 5,
   "RiverBankErosionWeight": 0.18,

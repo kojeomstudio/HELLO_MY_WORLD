@@ -72,6 +72,8 @@ namespace GameServerApp.World
         public double HydrologySlopePenalty { get; set; } = 6.0;
         public double HydrologyFlowGain { get; set; } = 0.5;
         public double HydrologyContinuityWeight { get; set; } = 0.35;
+        public int HydrologyEdgeBlendRadius { get; set; } = 2;
+        public double HydrologyFlowPersistence { get; set; } = 0.55;
         public double RiverBankErosionWeight { get; set; } = 0.18;
         public double LakeRimErosionWeight { get; set; } = 0.25;
         public bool EnableRivers { get; set; } = true;

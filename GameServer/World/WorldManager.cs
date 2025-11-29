@@ -27,6 +27,8 @@ namespace GameServerApp.World
         private readonly double _hydrologySlopePenalty;
         private readonly double _hydrologyFlowGain;
         private readonly double _hydrologyContinuityWeight;
+        private readonly int _hydrologyEdgeBlendRadius;
+        private readonly double _hydrologyFlowPersistence;
         private readonly double _riverBankErosionWeight;
         private readonly double _lakeRimErosionWeight;
         private readonly double _riverNoiseScale;
@@ -135,6 +137,8 @@ namespace GameServerApp.World
             _hydrologySlopePenalty = Math.Clamp(_worldGenConfig.Water.HydrologySlopePenalty, 2.0, 18.0);
             _hydrologyFlowGain = Math.Clamp(_worldGenConfig.Water.HydrologyFlowGain, 0.0, 1.5);
             _hydrologyContinuityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            _hydrologyEdgeBlendRadius = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeBlendRadius, 1, 6);
+            _hydrologyFlowPersistence = Math.Clamp(_worldGenConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
             _riverBankErosionWeight = Math.Clamp(_worldGenConfig.Water.RiverBankErosionWeight, 0.0, 1.0);
             _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
             _riverNoiseScale = Math.Clamp(_worldGenConfig.Water.RiverNoiseScale, 0.0001, 0.05);
@@ -2305,6 +2309,7 @@ namespace GameServerApp.World
                 BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
+                NormalizeHydrologyPressure(hydrologyMask, flowAccumulation);
                 var erosionRisk = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
 
                 return new HydrologyFieldCache
@@ -2621,8 +2626,8 @@ namespace GameServerApp.World
                         }
                     }
 
-                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias * _hydrologyFlowGain, 0.0, 1.0);
-                    double flowBlend = Math.Clamp(0.25 + shoreBias * _hydrologyFlowGain * 0.65, 0.0, 1.0);
+                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias * _hydrologyFlowGain + _hydrologyFlowPersistence * 0.1, 0.0, 1.0);
+                    double flowBlend = Math.Clamp(0.25 + shoreBias * _hydrologyFlowGain * 0.65 + _hydrologyFlowPersistence * 0.15, 0.0, 1.0);
                     hydrologyBuffer[x, z] = Math.Clamp(hydrology + (blendedHydrology / weight - hydrology) * hydrologyBlend, 0.0, 1.0);
                     flowBuffer[x, z] = Math.Max(0.0, flow + (blendedFlow / weight - flow) * flowBlend);
                 }
@@ -2649,7 +2654,7 @@ namespace GameServerApp.World
 
             if (flowAccumulation != null)
             {
-                var flowBlend = Math.Clamp(_hydrologySmoothBlend * 0.85, 0.0, 1.0);
+                var flowBlend = Math.Clamp(_hydrologySmoothBlend * (0.85 + _hydrologyFlowPersistence * 0.1), 0.0, 1.0);
                 SmoothScalarField(flowAccumulation, _hydrologySmoothIterations, flowBlend);
             }
         }
@@ -2736,6 +2741,8 @@ namespace GameServerApp.World
         {
             int width = hydrologyMask.GetLength(0);
             int depth = hydrologyMask.GetLength(1);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
 
             for (int x = 0; x < width; x++)
             {
@@ -2744,13 +2751,13 @@ namespace GameServerApp.World
                     int edgeDistance = Math.Min(
                         Math.Min(x, z),
                         Math.Min(width - 1 - x, depth - 1 - z));
-                    if (edgeDistance > 1)
+                    if (edgeDistance > edgeRadius)
                     {
                         continue;
                     }
 
-                    double continuity = Math.Clamp(_hydrologyContinuityWeight, 0.0, 1.0);
-                    double falloff = 1.0 - Math.Clamp(edgeDistance * 0.5, 0.0, 1.0);
+                    double falloff = 1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0);
+                    double continuity = Math.Clamp(_hydrologyContinuityWeight + falloff * 0.25, 0.0, 1.0);
                     double blendWeight = Math.Clamp(continuity * falloff, 0.0, 1.0);
                     int neighborX = Math.Clamp(x + (x == 0 ? 1 : -1), 0, width - 1);
                     int neighborZ = Math.Clamp(z + (z == 0 ? 1 : -1), 0, depth - 1);
@@ -2770,9 +2777,63 @@ namespace GameServerApp.World
 
                     double neighborFlow = flowAccumulation[neighborX, neighborZ];
                     double anchorFlow = Math.Clamp(anchorHydrology * 0.9 + Math.Abs(anchorNoise) * 0.65, 0.0, 8.0);
-                    double baseFlow = (flowAccumulation[x, z] * 1.5 + neighborFlow * 0.6 + anchorFlow * 0.4) / 2.5;
+                    double baseFlow = (flowAccumulation[x, z] * (1.2 + 0.4 * flowPersistence) + neighborFlow * 0.6 + anchorFlow * 0.5) / (2.3 + 0.4 * flowPersistence);
                     double blendedFlow = flowAccumulation[x, z] * (1.0 - blendWeight) + baseFlow * blendWeight;
                     flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
+                }
+            }
+        }
+
+        private void NormalizeHydrologyPressure(double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            double min = double.MaxValue;
+            double max = double.MinValue;
+            double sum = 0.0;
+            int count = 0;
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double value = hydrologyMask[x, z];
+                    min = Math.Min(min, value);
+                    max = Math.Max(max, value);
+                    sum += value;
+                    count++;
+                }
+            }
+
+            if (count == 0 || max <= min + double.Epsilon)
+            {
+                return;
+            }
+
+            double avg = sum / count;
+            double invRange = 1.0 / Math.Max(1e-5, max - min);
+            double avgNorm = Math.Clamp((avg - min) * invRange, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double normalized = Math.Clamp((hydrologyMask[x, z] - min) * invRange, 0.0, 1.0);
+                    double flowNorm = Math.Clamp(flowAccumulation[x, z] / (6.0 + 6.0 * _hydrologyFlowPersistence), 0.0, 1.0);
+                    int edgeDistance = Math.Min(
+                        Math.Min(x, z),
+                        Math.Min(width - 1 - x, depth - 1 - z));
+                    double edgeBlend = 1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0);
+                    double continuity = Math.Clamp(_hydrologyContinuityWeight + edgeBlend * 0.2, 0.0, 1.0);
+                    double baseline = normalized * (1.0 - continuity) + avgNorm * continuity;
+                    double flowBias = flowNorm * (0.35 + 0.3 * edgeBlend) * _hydrologyFlowPersistence;
+                    hydrologyMask[x, z] = Math.Clamp(baseline + flowBias, 0.0, 1.0);
                 }
             }
         }

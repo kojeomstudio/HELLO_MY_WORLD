@@ -993,6 +993,7 @@ namespace MapGenLib
             int maxX = subWorldSize.SizeX - 1;
             int maxZ = subWorldSize.SizeZ - 1;
             int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            int sampleRadius = CustomMathf.Max(1, edgeRadius);
             float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
@@ -1010,13 +1011,14 @@ namespace MapGenLib
                     float falloff = 1f - CustomMathf.Clamp01(edgeDistance / CustomMathf.Max(1f, (float)edgeRadius));
                     float continuity = CustomMathf.Clamp01(HydrologyContinuityWeight + falloff * 0.25f);
                     float blendWeight = CustomMathf.Clamp01(continuity * falloff);
+                    float ringBlend = CustomMathf.Clamp01(blendWeight * (0.85f + falloff * 0.25f));
                     float neighborHydrologySum = 0f;
                     float neighborFlowSum = 0f;
                     float neighborWeightTotal = 0f;
 
-                    for (int dx = -1; dx <= 1; dx++)
+                    for (int dx = -sampleRadius; dx <= sampleRadius; dx++)
                     {
-                        for (int dz = -1; dz <= 1; dz++)
+                        for (int dz = -sampleRadius; dz <= sampleRadius; dz++)
                         {
                             if (dx == 0 && dz == 0)
                             {
@@ -1025,17 +1027,20 @@ namespace MapGenLib
 
                             int neighborX = CustomMathf.Clamp(x + dx, 0, maxX);
                             int neighborZ = CustomMathf.Clamp(z + dz, 0, maxZ);
-                            float distance = CustomMathf.Abs(dx) + CustomMathf.Abs(dz);
-                            float neighborWeight = 1f - distance * 0.2f;
-                            float continuityBias = CustomMathf.Clamp01(0.85f + continuity * 0.35f);
-                            neighborWeight *= continuityBias;
+                            float radialDistance = CustomMathf.Sqrt(dx * dx + dz * dz);
+                            float ringFalloff = 1f - CustomMathf.Clamp01((radialDistance - 1f) / CustomMathf.Max(1f, sampleRadius - 0.75f));
+                            float manhattan = CustomMathf.Abs(dx) + CustomMathf.Abs(dz);
+                            float neighborWeight = CustomMathf.Max(0f, (1.15f - manhattan * 0.18f) * ringFalloff);
+                            float continuityBias = CustomMathf.Clamp01(0.82f + continuity * 0.4f);
+                            neighborWeight *= continuityBias * ringFalloff;
                             if (neighborWeight <= 0f)
                             {
                                 continue;
                             }
 
+                            float flowBias = 0.88f + flowPersistence * 0.35f;
                             neighborHydrologySum += hydrologyMask[neighborX, neighborZ] * neighborWeight;
-                            neighborFlowSum += flowAccumulation[neighborX, neighborZ] * neighborWeight * (0.9f + flowPersistence * 0.25f);
+                            neighborFlowSum += flowAccumulation[neighborX, neighborZ] * neighborWeight * flowBias;
                             neighborWeightTotal += neighborWeight;
                         }
                     }
@@ -1047,14 +1052,14 @@ namespace MapGenLib
                         ? neighborFlowSum / neighborWeightTotal
                         : flowAccumulation[x, z];
                     float anchorNoise = Noise.GetNoise((x + 19.5f) / 72f, 0, (z - 11.5f) / 72f);
-                    float anchorHydrology = CustomMathf.Clamp01(0.55f + (anchorNoise - 0.5f) * 0.9f);
-                    float baseHydrology = (hydrologyMask[x, z] * 2.0f + neighborHydrology * 1.4f + anchorHydrology * 0.4f) / 3.8f;
-                    float blendedHydrology = hydrologyMask[x, z] * (1f - blendWeight) + baseHydrology * blendWeight;
+                    float anchorHydrology = CustomMathf.Clamp01(0.55f + (anchorNoise - 0.5f) * 0.9f + falloff * 0.05f);
+                    float baseHydrology = (hydrologyMask[x, z] * (2.2f + falloff * 0.4f) + neighborHydrology * (1.6f + falloff * 0.5f) + anchorHydrology * (0.45f + falloff * 0.15f)) / (4.25f + falloff * 1.05f);
+                    float blendedHydrology = hydrologyMask[x, z] * (1f - ringBlend) + baseHydrology * ringBlend;
                     hydrologyMask[x, z] = CustomMathf.Clamp01(blendedHydrology);
 
                     float anchorFlow = CustomMathf.Clamp(anchorHydrology * 0.9f + CustomMathf.Abs(anchorNoise - 0.5f) * 1.35f, 0f, 8f);
-                    float baseFlow = (flowAccumulation[x, z] * CustomMathf.Lerp(1.1f, 1.55f, flowPersistence) + neighborFlow * (0.85f + 0.15f * flowPersistence) + anchorFlow * 0.45f) / (2.4f + flowPersistence * 0.35f);
-                    float blendedFlow = flowAccumulation[x, z] * (1f - blendWeight) + baseFlow * blendWeight;
+                    float baseFlow = (flowAccumulation[x, z] * CustomMathf.Lerp(1.1f, 1.55f, flowPersistence) + neighborFlow * (0.85f + 0.15f * flowPersistence) + anchorFlow * (0.45f + falloff * 0.1f)) / (2.4f + flowPersistence * 0.35f + falloff * 0.1f);
+                    float blendedFlow = flowAccumulation[x, z] * (1f - ringBlend) + baseFlow * ringBlend;
                     flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, 8f);
                 }
             }

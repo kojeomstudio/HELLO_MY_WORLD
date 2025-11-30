@@ -1,6 +1,6 @@
-# Minecraft Core / Content / Utility (current)
+# Minecraft Core / Content / Utility (2025-12-13)
 
-Current feature split and rollout order across server and Unity client. Updated 2025-12-13; mirrors `docs/minecraft_feature_core_content_util_2025-12-13.md` (multi-ring hydrology seam smoothing applied to both server and Unity preview pipelines).
+Refreshed split with the new multi-ring hydrology seam smoothing applied to both the server (`WorldManager.BlendHydrologySeams`) and Unity preview pipeline (`WorldGenAlgorithms.BlendHydrologySeams`).
 
 ## Core (authority, world map control, protocol)
 | Feature | Server (files) | Client (files) | Data / Protocol / Notes |
@@ -14,7 +14,7 @@ Current feature split and rollout order across server and Unity client. Updated 
 ## Content (worldgen, gameplay, entities)
 | Feature | Server (files) | Client (files) | Data / Protocol / Notes |
 | --- | --- | --- | --- |
-| Terrain & hydrology (caves/rivers/lakes) | `WorldManager` hydrology mask + flow + erosion with multi-ring seam smoothing and relaxation; generation stages in `Generation/Stages/*` | MapGeneratorLib mirrors hydrology/cave/river/lake masks for Unity preview with the same seam smoothing; streamed chunks rendered by world scripts | Config knobs: `Water.*` (`HydrologySmooth*`, `HydrologyEdgeBlendRadius`, `HydrologyFlowPersistence`, `HydrologySeamRelax*`, `RiverNoiseScale`, `RiverDepth`, erosion weights) + `Caves.*` stability/noise settings. |
+| Terrain & hydrology (caves/rivers/lakes) | `WorldManager` hydrology mask + flow + erosion with new multi-ring seam smoothing; generation stages in `Generation/Stages/*` | MapGeneratorLib mirrors hydrology/cave/river/lake masks for Unity preview with the same seam smoothing; streamed chunks rendered by world scripts | Config knobs: `Water.*` (`HydrologySmooth*`, `HydrologyEdgeBlendRadius`, `HydrologyFlowPersistence`, `HydrologySeamRelax*`, `RiverNoiseScale`, `RiverDepth`, erosion weights) + `Caves.*` stability/noise settings. |
 | Biomes/weather/sky | Biome tagging + weather scheduler (`WorldTimeSystem`, `WeatherSystem`) | Skybox/weather FX + biome VFX/SFX | Proto: `WorldInfo`, `WeatherChange`. |
 | Structures & loot | Dungeons/structures in `DungeonGenerationStage`; container broadcast handlers | Render + interact via container UI | Proto: `ContainerOpen/Update`; loot tables JSON. |
 | Entities/combat | Spawn/update/despawn handlers, combat resolution, pathing | Remote entity render/prediction | Proto: `EntitySpawn/Update/Despawn`, `PlayerAttack`. |
@@ -29,6 +29,6 @@ Current feature split and rollout order across server and Unity client. Updated 
 | Tooling/protobuf | Regenerate DTOs from `proto/*.proto`; validate registry coverage + parser availability | Consume generated classes in networking layer | Commands: `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`; `dotnet build SharedProtocol/SharedProtocol.csproj`. |
 
 ## Sequenced implementation order
-1) Core/authority: chunk routing + proto validation (registry + parser) before accepting traffic (Chunk/World/Time/Weather/Unload messages).  
-2) Content/worldgen: hydrology-driven caves/rivers/lakes + dungeon/biome pass using JSON knobs shared with Unity previews.  
-3) Utility/tooling: keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control and seam quality.  
+1) Core/authority: chunk routing + proto validation (registry + parser) before accepting traffic (Chunk/World/Time/Weather/Unload messages).
+2) Content/worldgen: hydrology-driven caves/rivers/lakes using shared seam smoothing and erosion tuning; align MapGeneratorLib with server so Unity previews match streamed chunks.
+3) Utility/tooling: keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control and seam quality.

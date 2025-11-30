@@ -1,6 +1,8 @@
 using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
@@ -42,6 +44,7 @@ public static class ProtocolValidator
 
         ValidateRegistryDescriptors();
         ValidateRegistryPrototypes();
+        ValidateParserBindings();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ValidateWorldControlDescriptors();
@@ -143,6 +146,43 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{messageType}' is missing a file descriptor reference. Ensure the generated protobuf classes are included in SharedProtocol and Unity exports.");
+            }
+        }
+    }
+
+    private static void ValidateParserBindings()
+    {
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(binding.MessageType, out IMessage? prototype))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft registry binding for '{binding.MessageType}' resolved to a null prototype. Regenerate protobuf assets so using references point at generated classes.");
+            }
+
+            Type prototypeType = prototype.GetType();
+            PropertyInfo? parserProperty = prototypeType.GetProperty("Parser", BindingFlags.Public | BindingFlags.Static);
+            if (parserProperty?.GetValue(null) is not MessageParser parser)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' is missing a static Parser. Ensure the generated protobuf classes are referenced by both server and client builds.");
+            }
+
+            IMessage parsedInstance;
+            try
+            {
+                parsedInstance = parser.ParseFrom(ByteString.Empty);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' cannot parse an empty payload. Verify the generated Parser and using directives are in sync with proto/*.proto.", ex);
+            }
+
+            if (!ReferenceEquals(parsedInstance.Descriptor, prototype.Descriptor))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' parsed descriptor does not match registry prototype. Regenerate protobuf assets so server and Unity share the same generated types.");
             }
         }
     }

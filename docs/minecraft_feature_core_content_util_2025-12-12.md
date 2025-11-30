@@ -1,12 +1,12 @@
-# Minecraft Core / Content / Utility (current)
+# Minecraft Core / Content / Utility (2025-12-12)
 
-Current feature split and rollout order across server and Unity client. Updated 2025-12-12; mirrors `docs/minecraft_feature_core_content_util_2025-12-12.md`.
+Latest cross-cut of client/server features grouped by core, content, and utility. Mirrors `docs/minecraft_feature_core_content_util_latest.md`.
 
 ## Core (authority, world map control, protocol)
 | Feature | Server (files) | Client (files) | Data / Protocol / Notes |
 | --- | --- | --- | --- |
-| World map control & chunk streaming | `GameServer/World/WorldManager.cs`, `Generation/*`, `ChunkPayloadBuilder` streaming + persistence; room-aware routing in `SessionManager.cs` | `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs` request/unload + apply payloads; sky/time/weather updates | Config: `config/world.json`, `server-config.json`; Unity mirror `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`. Proto: `ChunkDataRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdate`, `WeatherChange`. |
-| Session/auth/movement | Auth/heartbeat/spawn/respawn/anti-cheat, rate limiting | Prediction/interp, death/respawn UX, reconnection | Proto: `game_auth.proto`, `game_move.proto`, `game_core.proto`. |
+| World map control & chunk streaming | `GameServer/World/WorldManager.cs`, `Generation/*`, `SessionManager.cs` for chunk routing/unload, `ChunkPayloadBuilder` for payload assembly | `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs` request/unload + apply payloads; time/weather UI updates | Config: `config/world.json`, `server-config.json`; Unity mirror `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`. Proto: `ChunkDataRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdate`, `WeatherChange`. |
+| Session/auth/movement | Auth/heartbeat/spawn/respawn/anti-cheat, rate limiting, room scoping | Prediction/interp, death/respawn UX, reconnection | Proto: `game_auth.proto`, `game_move.proto`, `game_core.proto`. |
 | Block interaction & permissions | Validation + durability + ownership in `Handlers/WorldBlockHandler.cs`; rollback + EnhancedModifyWorldManager compatibility | Placement/break UI, VFX/SFX feedback | Proto: `BlockChangeRequest/Broadcast`, `MultiBlockChange`; data `config/blocks.json`. |
 | Protocol registry & guards | `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`, `ProtoRuntime.EnsureInitialized()`, registry seam checks (descriptor + parser validation), fingerprint checks | Unity tooling logs proto drift; regenerate DTOs when proto changes | Run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` then `dotnet build SharedProtocol/SharedProtocol.csproj`. |
 | Room/instance routing | Room lifecycle + per-room chunk broadcasts in `RoomManager`/`SessionManager` | Room list UI + migration prompts | Proto: `RoomEnter/Leave/List`. Docs: `docs/server-rooms-architecture.md`. |
@@ -26,9 +26,9 @@ Current feature split and rollout order across server and Unity client. Updated 
 | Config/tuning alignment | Load `config/world.json` + `server-config.json`; expose to worldgen/networking | Mirror values in `WorldConfigData.json` for previews/UI | Keep seeds/hydrology/cave toggles, seam smoothing, erosion weights in JSON; document new keys. |
 | Data-driven tables | Blocks, recipes, mobs, loot, worldgen knobs | Load matching Unity JSON | Ensure schemas shared across `config/*.json` and `Assets/...`. |
 | Metrics/observability | Chunk residency, tick/time, rate limits, protocol validation | Dev HUD overlays | Proto: `ServerStatusRequest/Response`; recordings under `Recordings/`. |
-| Tooling/protobuf | Regenerate DTOs from `proto/*.proto`; validate registry coverage + parser availability | Consume generated classes in networking layer | Commands: `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`; `dotnet build SharedProtocol/SharedProtocol.csproj`. |
+| Tooling/protobuf | Regenerate DTOs from `proto/*.proto`; validate registry coverage, parsers, namespaces | Consume generated classes in networking layer | Commands: `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`; `dotnet build SharedProtocol/SharedProtocol.csproj`. |
 
 ## Sequenced implementation order
-1) Core/authority: chunk routing + proto validation (registry + parser) before accepting traffic (Chunk/World/Time/Weather/Unload messages).  
-2) Content/worldgen: hydrology-driven caves/rivers/lakes + dungeon/biome pass using JSON knobs shared with Unity previews.  
-3) Utility/tooling: keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control and seam quality.  
+1. **Core/authority first** — chunk routing + proto validation (registry/descriptor/fingerprint + parser checks) before accepting traffic.  
+2. **Content/worldgen next** — hydrology-driven caves/rivers/lakes plus dungeon/biome passes using JSON knobs shared with Unity previews.  
+3. **Utility/tooling** — keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control and worldgen seam quality.  

@@ -2777,9 +2777,42 @@ namespace GameServerApp.World
                     double falloff = 1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0);
                     double continuity = Math.Clamp(_hydrologyContinuityWeight + falloff * 0.25, 0.0, 1.0);
                     double blendWeight = Math.Clamp(continuity * falloff, 0.0, 1.0);
-                    int neighborX = Math.Clamp(x + (x == 0 ? 1 : -1), 0, width - 1);
-                    int neighborZ = Math.Clamp(z + (z == 0 ? 1 : -1), 0, depth - 1);
-                    double neighborHydrology = hydrologyMask[neighborX, neighborZ];
+                    double neighborHydrologySum = 0.0;
+                    double neighborFlowSum = 0.0;
+                    double neighborWeightTotal = 0.0;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int neighborX = Math.Clamp(x + dx, 0, width - 1);
+                            int neighborZ = Math.Clamp(z + dz, 0, depth - 1);
+                            double distance = Math.Abs(dx) + Math.Abs(dz);
+                            double neighborWeight = 1.0 - distance * 0.2;
+                            double continuityBias = Math.Clamp(0.85 + continuity * 0.35, 0.0, 1.2);
+                            neighborWeight *= continuityBias;
+                            if (neighborWeight <= 0.0)
+                            {
+                                continue;
+                            }
+
+                            neighborHydrologySum += hydrologyMask[neighborX, neighborZ] * neighborWeight;
+                            neighborFlowSum += flowAccumulation[neighborX, neighborZ] * neighborWeight * (0.9 + flowPersistence * 0.25);
+                            neighborWeightTotal += neighborWeight;
+                        }
+                    }
+
+                    double neighborHydrology = neighborWeightTotal > 0.0
+                        ? neighborHydrologySum / neighborWeightTotal
+                        : hydrologyMask[x, z];
+                    double neighborFlow = neighborWeightTotal > 0.0
+                        ? neighborFlowSum / neighborWeightTotal
+                        : flowAccumulation[x, z];
                     double anchorNoise = SimplexNoise.Generate(
                         chunkX * 16 + x + 19.5,
                         chunkZ * 16 + z - 11.5,
@@ -2789,13 +2822,12 @@ namespace GameServerApp.World
                         0.55,
                         91013);
                     double anchorHydrology = Math.Clamp(0.55 + anchorNoise * 0.45, 0.0, 1.0);
-                    double baseHydrology = (hydrologyMask[x, z] * 2.2 + neighborHydrology * 0.6 + anchorHydrology * 0.4) / 3.2;
+                    double baseHydrology = (hydrologyMask[x, z] * 2.0 + neighborHydrology * 1.4 + anchorHydrology * 0.4) / 3.8;
                     double blendedHydrology = hydrologyMask[x, z] * (1.0 - blendWeight) + baseHydrology * blendWeight;
                     hydrologyMask[x, z] = Math.Clamp(blendedHydrology, 0.0, 1.0);
 
-                    double neighborFlow = flowAccumulation[neighborX, neighborZ];
                     double anchorFlow = Math.Clamp(anchorHydrology * 0.9 + Math.Abs(anchorNoise) * 0.65, 0.0, 8.0);
-                    double baseFlow = (flowAccumulation[x, z] * (1.2 + 0.4 * flowPersistence) + neighborFlow * 0.6 + anchorFlow * 0.5) / (2.3 + 0.4 * flowPersistence);
+                    double baseFlow = (flowAccumulation[x, z] * (1.1 + 0.45 * flowPersistence) + neighborFlow * (0.85 + 0.15 * flowPersistence) + anchorFlow * 0.45) / (2.4 + 0.35 * flowPersistence);
                     double blendedFlow = flowAccumulation[x, z] * (1.0 - blendWeight) + baseFlow * blendWeight;
                     flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
                 }

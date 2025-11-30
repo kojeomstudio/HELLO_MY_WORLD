@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using GameServerApp.Systems;
 using SharedProtocol;
+using ProtoVector3 = SharedProtocol.Vector3;
 
 namespace GameServerApp.Handlers
 {
@@ -99,7 +100,7 @@ namespace GameServerApp.Handlers
                     var combatContext = new CombatEventContext
                     {
                         AttackerUserName = session.UserName,
-                        AttackerDisplayName = session.PlayerInfo?.DisplayName,
+                        AttackerDisplayName = session.PlayerInfo?.Username ?? session.UserName,
                         WeaponName = message.WeaponName,
                         IsCritical = attackResult.IsCritical
                     };
@@ -118,7 +119,7 @@ namespace GameServerApp.Handlers
                     TargetName = message.TargetPlayerName,
                     Damage = attackResult.Damage,
                     IsCritical = attackResult.IsCritical,
-                    KnockbackVector = new Vector3 { Y = attackResult.Knockback },
+                    KnockbackVector = new ProtoVector3 { Y = attackResult.Knockback },
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 };
 

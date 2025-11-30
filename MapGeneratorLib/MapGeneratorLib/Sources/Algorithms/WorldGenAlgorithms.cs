@@ -596,6 +596,7 @@ namespace MapGenLib
             }
 
             float invRange = 1f / CustomMathf.Max(1, maxSurface - minSurface);
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
             {
@@ -640,13 +641,28 @@ namespace MapGenLib
                     float slope = neighborCount > 0 ? slopeAccum / neighborCount : 0f;
                     slope = CustomMathf.Clamp01(slope / 14f);
 
-                    float valley = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / 20f);
-                    float relative = 1f - CustomMathf.Clamp01((surface - minSurface) * invRange);
-                    float humidityNoise = Noise.GetNoise((x + 13.5f) / 96f, 0, (z - 71.5f) / 96f);
-                    float humidity = 1f - CustomMathf.Abs(humidityNoise - 0.5f) * 1.6f;
+                    float heightNormalized = CustomMathf.Clamp01((surface - minSurface) * invRange);
+                    float relief = 1f - heightNormalized;
+                    float valley = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / CustomMathf.Max(1f, HydrologyShorePush * 1.15f));
+                    int edgeDistance = CustomMathf.Min(
+                        CustomMathf.Min(x, z),
+                        CustomMathf.Min(subWorldSize.SizeX - 1 - x, subWorldSize.SizeZ - 1 - z));
+                    float edgeFalloff = 1f - CustomMathf.Clamp01(edgeDistance / (edgeRadius * 1.2f));
+
+                    float humidityFrequency = CustomMathf.Clamp(RiverNoiseScale * 0.65f, 0.0008f, 0.0065f);
+                    float humidityBase = Noise.GetNoise((x + 13.5f) * humidityFrequency, 0, (z - 71.5f) * humidityFrequency);
+                    float humidityRipples = Noise.GetNoise((x - 113.5f) * humidityFrequency * 1.9f, 0, (z + 21.5f) * humidityFrequency * 1.9f);
+                    float humidity = 1f - CustomMathf.Abs((humidityBase * 0.65f + humidityRipples * 0.35f) - 0.5f) * (1.35f - 0.25f * HydrologyFlowPersistence);
                     humidity = CustomMathf.Clamp01(humidity);
 
-                    hydrology[x, z] = CustomMathf.Clamp01(slope * 0.45f + valley * 0.3f + relative * 0.15f + humidity * 0.25f);
+                    float flowMemory = CustomMathf.Clamp01(HydrologyFlowPersistence);
+                    float hydrologyValue = slope * (0.32f + 0.18f * flowMemory + 0.08f * edgeFalloff)
+                        + valley * (0.34f + 0.12f * edgeFalloff)
+                        + relief * 0.12f
+                        + humidity * (0.22f + 0.08f * flowMemory)
+                        + flowMemory * 0.05f;
+
+                    hydrology[x, z] = CustomMathf.Clamp01(hydrologyValue);
                 }
             }
 

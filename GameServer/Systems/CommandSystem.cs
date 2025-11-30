@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SharedProtocol;
+using ServerVector3 = GameServerApp.Vector3;
+using ProtoVector3 = SharedProtocol.Vector3;
 
 namespace GameServerApp.Systems
 {
@@ -202,7 +204,7 @@ namespace GameServerApp.Systems
 
             public async Task<CommandResult> ExecuteAsync(CommandContext context)
             {
-                var spawnPosition = new SharedProtocol.Vector3 { X = 0, Y = 70, Z = 0 }; // 기본 스폰
+                var spawnPosition = new ServerVector3 { X = 0, Y = 70, Z = 0 }; // 기본 스폰
 
                 // 플레이어 위치 업데이트
                 var playerState = context.SessionManager.GetPlayerState(context.PlayerName);
@@ -215,7 +217,12 @@ namespace GameServerApp.Systems
                 var moveResponse = new MoveResponse
                 {
                     Success = true,
-                    NewPosition = spawnPosition,
+                    NewPosition = new ProtoVector3
+                    {
+                        X = (float)spawnPosition.X,
+                        Y = (float)spawnPosition.Y,
+                        Z = (float)spawnPosition.Z
+                    },
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 };
 
@@ -313,7 +320,12 @@ namespace GameServerApp.Systems
                 var moveResponse = new MoveResponse
                 {
                     Success = true,
-                    NewPosition = targetState.Position,
+                    NewPosition = new ProtoVector3
+                    {
+                        X = (float)targetState.Position.X,
+                        Y = (float)targetState.Position.Y,
+                        Z = (float)targetState.Position.Z
+                    },
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 };
 

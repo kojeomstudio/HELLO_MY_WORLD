@@ -166,13 +166,24 @@ public class SessionManager
     /// Broadcasts a message to all players in a specific area.
     /// </summary>
     public async Task BroadcastToAreaAsync<T>(int worldId, int chunkX, int chunkZ, 
-        MessageType messageType, T message) where T : class
+        MessageType messageType, T message, params string[]? excludeUserNames) where T : class
     {
+        HashSet<string>? excludes = null;
+        if (excludeUserNames != null && excludeUserNames.Length > 0)
+        {
+            excludes = new HashSet<string>(excludeUserNames, StringComparer.OrdinalIgnoreCase);
+        }
+
         var playersInArea = GetPlayersInChunk(worldId, chunkX, chunkZ);
         var tasks = new List<Task>();
         
         foreach (var playerName in playersInArea)
         {
+            if (excludes != null && excludes.Contains(playerName))
+            {
+                continue;
+            }
+
             var session = GetSession(playerName);
             if (session != null)
             {

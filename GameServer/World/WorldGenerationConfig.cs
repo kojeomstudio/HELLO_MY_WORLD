@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GameServerApp.World
 {
@@ -66,16 +67,16 @@ namespace GameServerApp.World
         public double RiverBankThreshold { get; set; } = 0.028;
         public double RiverNoiseScale { get; set; } = 0.015;
         public int RiverDepth { get; set; } = 5;
-        public int HydrologySmoothIterations { get; set; } = 1;
-        public double HydrologySmoothBlend { get; set; } = 0.55;
+        public int HydrologySmoothIterations { get; set; } = 2;
+        public double HydrologySmoothBlend { get; set; } = 0.6;
         public double HydrologyShorePush { get; set; } = 5.0;
         public double HydrologySlopePenalty { get; set; } = 6.0;
         public double HydrologyFlowGain { get; set; } = 0.5;
         public double HydrologyContinuityWeight { get; set; } = 0.35;
-        public int HydrologyEdgeBlendRadius { get; set; } = 2;
-        public double HydrologyFlowPersistence { get; set; } = 0.55;
+        public int HydrologyEdgeBlendRadius { get; set; } = 3;
+        public double HydrologyFlowPersistence { get; set; } = 0.62;
         public int HydrologySeamRelaxIterations { get; set; } = 2;
-        public double HydrologySeamRelaxBlend { get; set; } = 0.45;
+        public double HydrologySeamRelaxBlend { get; set; } = 0.5;
         public double RiverBankErosionWeight { get; set; } = 0.18;
         public double LakeRimErosionWeight { get; set; } = 0.25;
         public bool EnableRivers { get; set; } = true;
@@ -88,6 +89,20 @@ namespace GameServerApp.World
         public double HorizontalFrequency { get; set; } = 0.0026;
         public double VerticalFrequency { get; set; } = 0.018;
         public double Threshold { get; set; } = 0.42;
+
+        [JsonPropertyName("NoiseThreshold")]
+        public double NoiseThreshold
+        {
+            get => Threshold;
+            set => Threshold = value;
+        }
+
+        [JsonPropertyName("CaveThreshold")]
+        public double CaveThreshold
+        {
+            get => Threshold;
+            set => Threshold = value;
+        }
         public double LavaThreshold { get; set; } = 0.28;
         public double WaterThreshold { get; set; } = 0.34;
         public double FloodedCaveNoiseFrequency { get; set; } = 0.0031;

@@ -2425,6 +2425,7 @@ namespace GameServerApp.World
             }
 
             double invRange = 1.0 / Math.Max(1, maxSurface - minSurface);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
 
             for (int x = 0; x < width; x++)
             {
@@ -2469,16 +2470,28 @@ namespace GameServerApp.World
                     double slope = neighborCount > 0 ? slopeAccum / neighborCount : 0.0;
                     slope = Math.Clamp(slope / 14.0, 0.0, 1.0);
 
-                    double valley = Math.Clamp((GlobalWaterLevel - surface) / 20.0, 0.0, 1.0);
-                    double relative = 1.0 - Math.Clamp((surface - minSurface) * invRange, 0.0, 1.0);
+                    double heightNormalized = Math.Clamp((surface - minSurface) * invRange, 0.0, 1.0);
+                    double relief = 1.0 - heightNormalized;
+                    double valley = Math.Clamp((GlobalWaterLevel - surface) / Math.Max(1.0, _hydrologyShorePush * 1.15), 0.0, 1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (edgeRadius * 1.2), 0.0, 1.0);
 
                     int worldX = chunkX * 16 + x;
                     int worldZ = chunkZ * 16 + z;
-                    double humidityNoise = SimplexNoise.Generate(worldX + 13.5, worldZ - 71.5, 0.0012, 3, 1.0, 0.6, 71337);
-                    double humidity = 1.0 - Math.Abs(humidityNoise) * 0.8;
+                    double humidityFrequency = Math.Clamp(_riverNoiseScale * 0.65, 0.0008, 0.0065);
+                    double humidityBase = SimplexNoise.Generate(worldX + 13.5, worldZ - 71.5, humidityFrequency, 4, 1.0, 0.58, 71337);
+                    double humidityRipples = SimplexNoise.Generate(worldX - 113.5, worldZ + 21.5, humidityFrequency * 1.9, 2, 1.0, 0.5, 59113);
+                    double humidity = 1.0 - Math.Abs((humidityBase * 0.65 + humidityRipples * 0.35) - 0.5) * (1.35 - 0.25 * _hydrologyFlowPersistence);
                     humidity = Math.Clamp(humidity, 0.0, 1.0);
 
-                    mask[x, z] = Math.Clamp(slope * 0.45 + valley * 0.3 + relative * 0.15 + humidity * 0.25, 0.0, 1.0);
+                    double flowMemory = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+                    double hydrology = slope * (0.32 + 0.18 * flowMemory + 0.08 * edgeFalloff)
+                        + valley * (0.34 + 0.12 * edgeFalloff)
+                        + relief * 0.12
+                        + humidity * (0.22 + 0.08 * flowMemory)
+                        + flowMemory * 0.05;
+
+                    mask[x, z] = Math.Clamp(hydrology, 0.0, 1.0);
                 }
             }
 

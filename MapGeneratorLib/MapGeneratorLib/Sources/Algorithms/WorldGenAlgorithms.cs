@@ -115,6 +115,7 @@ namespace MapGenLib
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyEdgeFlowBias = 0.35f;
         public static int HydrologyEdgeBlendRadius = 2;
+        public static float HydrologyEdgeVarianceClamp = 0.32f;
         public static float HydrologyFlowPersistence = 0.55f;
         public static int HydrologySeamRelaxIterations = 2;
         public static float HydrologySeamRelaxBlend = 0.45f;
@@ -1007,6 +1008,52 @@ namespace MapGenLib
             return risk;
         }
 
+        private static float ComputeInteriorAverage(float[,] field, int edgeRadius)
+        {
+            int width = field.GetLength(0);
+            int depth = field.GetLength(1);
+
+            float sum = 0f;
+            int count = 0;
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = CustomMathf.Min(
+                        CustomMathf.Min(x, z),
+                        CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance <= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    sum += field[x, z];
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return 0f;
+            }
+
+            return sum / count;
+        }
+
+        private static float ClampEdgeVariance(float value, float anchor, float clampFraction, float absoluteFloor = 0.02f)
+        {
+            float maxDelta = CustomMathf.Max(absoluteFloor, CustomMathf.Abs(anchor) * clampFraction);
+            float delta = value - anchor;
+            if (CustomMathf.Abs(delta) <= maxDelta)
+            {
+                return value;
+            }
+
+            float clamped = anchor + (delta >= 0f ? maxDelta : -maxDelta);
+            return clamped;
+        }
+
         private static void BlendHydrologySeams(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
         {
             int maxX = subWorldSize.SizeX - 1;
@@ -1014,6 +1061,8 @@ namespace MapGenLib
             int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
             int sampleRadius = CustomMathf.Max(1, edgeRadius);
             float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
+            float interiorHydro = ComputeInteriorAverage(hydrologyMask, edgeRadius);
+            float interiorFlow = ComputeInteriorAverage(flowAccumulation, edgeRadius);
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
             {
@@ -1089,11 +1138,13 @@ namespace MapGenLib
                     float anchorHydrology = CustomMathf.Clamp01(0.55f + (anchorNoise - 0.5f) * 0.9f + falloff * 0.05f);
                     float baseHydrology = (hydrologyMask[x, z] * (2.2f + falloff * 0.4f) + neighborHydrology * (1.6f + falloff * 0.5f) + anchorHydrology * (0.45f + falloff * 0.15f)) / (4.25f + falloff * 1.05f);
                     float blendedHydrology = hydrologyMask[x, z] * (1f - ringBlend) + baseHydrology * ringBlend;
+                    blendedHydrology = ClampEdgeVariance(blendedHydrology, interiorHydro, HydrologyEdgeVarianceClamp);
                     hydrologyMask[x, z] = CustomMathf.Clamp01(blendedHydrology);
 
                     float anchorFlow = CustomMathf.Clamp(anchorHydrology * 0.9f + CustomMathf.Abs(anchorNoise - 0.5f) * 1.35f, 0f, 8f);
                     float baseFlow = (flowAccumulation[x, z] * CustomMathf.Lerp(1.1f, 1.55f, flowPersistence) + neighborFlow * (0.85f + 0.15f * flowPersistence) + anchorFlow * (0.45f + falloff * 0.1f)) / (2.4f + flowPersistence * 0.35f + falloff * 0.1f);
                     float blendedFlow = flowAccumulation[x, z] * (1f - ringBlend) + baseFlow * ringBlend;
+                    blendedFlow = ClampEdgeVariance(blendedFlow, interiorFlow, HydrologyEdgeVarianceClamp * 1.25f, 0.05f);
                     flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, 8f);
                 }
             }

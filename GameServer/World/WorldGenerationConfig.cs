@@ -77,6 +77,7 @@ namespace GameServerApp.World
         public double HydrologyContinuityWeight { get; set; } = 0.35;
         public double HydrologyEdgeFlowBias { get; set; } = 0.35;
         public int HydrologyEdgeBlendRadius { get; set; } = 3;
+        public double HydrologyEdgeVarianceClamp { get; set; } = 0.32;
         public double HydrologyFlowPersistence { get; set; } = 0.62;
         public int HydrologySeamRelaxIterations { get; set; } = 2;
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;

@@ -54,6 +54,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyContinuityWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyContinuityWeight);
         WorldGenAlgorithms.HydrologyEdgeFlowBias = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeFlowBias);
         WorldGenAlgorithms.HydrologyEdgeBlendRadius = Mathf.Max(1, tunedWorldConfig.HydrologyEdgeBlendRadius);
+        WorldGenAlgorithms.HydrologyEdgeVarianceClamp = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeVarianceClamp);
         WorldGenAlgorithms.HydrologyFlowPersistence = Mathf.Clamp01(tunedWorldConfig.HydrologyFlowPersistence);
         WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, tunedWorldConfig.HydrologySeamRelaxIterations);
         WorldGenAlgorithms.HydrologySeamRelaxBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySeamRelaxBlend);

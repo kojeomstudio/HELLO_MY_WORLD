@@ -33,6 +33,7 @@
     "HydrologyContinuityWeight": 0.35,
     "HydrologyEdgeFlowBias": 0.35,
     "HydrologyEdgeBlendRadius": 3,
+    "HydrologyEdgeVarianceClamp": 0.32,
     "HydrologyFlowPersistence": 0.62,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,

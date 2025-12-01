@@ -29,6 +29,7 @@ namespace GameServerApp.World
         private readonly double _hydrologyContinuityWeight;
         private readonly double _hydrologyEdgeFlowBias;
         private readonly int _hydrologyEdgeBlendRadius;
+        private readonly double _hydrologyEdgeVarianceClamp;
         private readonly double _hydrologyFlowPersistence;
         private readonly int _hydrologySeamRelaxIterations;
         private readonly double _hydrologySeamRelaxBlend;
@@ -145,6 +146,7 @@ namespace GameServerApp.World
             _hydrologyContinuityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
             _hydrologyEdgeFlowBias = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeFlowBias, 0.0, 1.25);
             _hydrologyEdgeBlendRadius = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeBlendRadius, 1, 6);
+            _hydrologyEdgeVarianceClamp = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeVarianceClamp, 0.0, 1.0);
             _hydrologyFlowPersistence = Math.Clamp(_worldGenConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
             _hydrologySeamRelaxIterations = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxIterations, 0, 4);
             _hydrologySeamRelaxBlend = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxBlend, 0.0, 1.0);
@@ -2766,6 +2768,54 @@ namespace GameServerApp.World
             return risk;
         }
 
+        private static (double hydro, double flow) ComputeInteriorHydrologyAverages(double[,] hydrologyMask, double[,] flowAccumulation, int edgeRadius)
+        {
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+
+            double hydroSum = 0.0;
+            double flowSum = 0.0;
+            int count = 0;
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(
+                        Math.Min(x, z),
+                        Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance <= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    hydroSum += hydrologyMask[x, z];
+                    flowSum += flowAccumulation[x, z];
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return (0.0, 0.0);
+            }
+
+            return (hydroSum / count, flowSum / count);
+        }
+
+        private static double ClampEdgeVariance(double value, double anchor, double clampFraction, double absoluteFloor = 0.02)
+        {
+            double maxDelta = Math.Max(absoluteFloor, Math.Abs(anchor) * clampFraction);
+            double delta = value - anchor;
+            if (Math.Abs(delta) <= maxDelta)
+            {
+                return value;
+            }
+
+            double clamped = anchor + Math.Sign(delta) * maxDelta;
+            return clamped;
+        }
+
         private void BlendHydrologySeams(int chunkX, int chunkZ, double[,] hydrologyMask, double[,] flowAccumulation)
         {
             int width = hydrologyMask.GetLength(0);
@@ -2773,6 +2823,7 @@ namespace GameServerApp.World
             int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
             int sampleRadius = Math.Max(1, edgeRadius);
             double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+            var interiorAverages = ComputeInteriorHydrologyAverages(hydrologyMask, flowAccumulation, edgeRadius);
 
             for (int x = 0; x < width; x++)
             {
@@ -2852,11 +2903,13 @@ namespace GameServerApp.World
                     double anchorHydrology = Math.Clamp(0.55 + anchorNoise * 0.45 + falloff * 0.05, 0.0, 1.0);
                     double baseHydrology = (hydrologyMask[x, z] * (2.2 + falloff * 0.4) + neighborHydrology * (1.6 + falloff * 0.5) + anchorHydrology * (0.45 + falloff * 0.15)) / (4.25 + falloff * 1.05);
                     double blendedHydrology = hydrologyMask[x, z] * (1.0 - ringBlend) + baseHydrology * ringBlend;
+                    blendedHydrology = ClampEdgeVariance(blendedHydrology, interiorAverages.hydro, _hydrologyEdgeVarianceClamp);
                     hydrologyMask[x, z] = Math.Clamp(blendedHydrology, 0.0, 1.0);
 
                     double anchorFlow = Math.Clamp(anchorHydrology * 0.9 + Math.Abs(anchorNoise) * 0.65, 0.0, 8.0);
                     double baseFlow = (flowAccumulation[x, z] * (1.1 + 0.45 * flowPersistence) + neighborFlow * (0.85 + 0.15 * flowPersistence) + anchorFlow * (0.45 + falloff * 0.1)) / (2.4 + 0.35 * flowPersistence + falloff * 0.1);
                     double blendedFlow = flowAccumulation[x, z] * (1.0 - ringBlend) + baseFlow * ringBlend;
+                    blendedFlow = ClampEdgeVariance(blendedFlow, interiorAverages.flow, _hydrologyEdgeVarianceClamp * 1.25, 0.05);
                     flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
                 }
             }

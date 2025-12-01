@@ -34,6 +34,7 @@ GameServer는 루트 디렉토리의 설정 파일을 사용합니다:
 - Gameplay 설정 (Difficulty, PhysicsEnabled 등)
 - Security 설정 (EnableAntiCheat 등)
 - Performance 설정 (MaxChunkLoadsPerTick 등)
+- Hydrology seam 설정 (`HydrologyEdgeVarianceClamp`, `HydrologyEdgeBlendRadius` 등) 추가 시 Unity `WorldConfigData.json`와 동기화 필요
 
 ### Unity Client 설정
 

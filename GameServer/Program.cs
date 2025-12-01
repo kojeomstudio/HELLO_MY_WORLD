@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp
 {
@@ -14,6 +15,7 @@ namespace GameServerApp
         {
             // Display server architecture information
             DisplayServerInfo();
+            ProtoRuntime.EnsureInitialized();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))

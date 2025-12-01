@@ -37,6 +37,8 @@
     "HydrologyFlowPersistence": 0.62,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,
+    "HydrologyWarpFrequency": 0.0009,
+    "HydrologyWarpAmplitude": 9.0,
     "RiverBankErosionWeight": 0.18,
     "LakeRimErosionWeight": 0.25,
     "RiverNoiseScale": 0.015,
@@ -65,7 +67,11 @@
     "FloodedCaveThreshold": 0.75,
     "StabilitySmoothIterations": 1,
     "StabilitySmoothBlend": 0.55,
-    "SupportDensity": 0.6
+    "SupportDensity": 0.6,
+    "HydrologyStabilityWeight": 0.45,
+    "FlowStabilityWeight": 0.25,
+    "RoughnessStabilityWeight": 0.1,
+    "RiverSuppressionWeight": 0.35
   },
   "Ores": {
     "EnableOreGeneration": true,

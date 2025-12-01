@@ -83,6 +83,8 @@ namespace GameServerApp.World
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;
         public double RiverBankErosionWeight { get; set; } = 0.18;
         public double LakeRimErosionWeight { get; set; } = 0.25;
+        public double HydrologyWarpFrequency { get; set; } = 0.0009;
+        public double HydrologyWarpAmplitude { get; set; } = 9.0;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
     }
@@ -115,6 +117,10 @@ namespace GameServerApp.World
         public int StabilitySmoothIterations { get; set; } = 1;
         public double StabilitySmoothBlend { get; set; } = 0.55;
         public double SupportDensity { get; set; } = 0.6;
+        public double HydrologyStabilityWeight { get; set; } = 0.45;
+        public double FlowStabilityWeight { get; set; } = 0.25;
+        public double RoughnessStabilityWeight { get; set; } = 0.1;
+        public double RiverSuppressionWeight { get; set; } = 0.35;
     }
 
     public sealed class LakeConfig

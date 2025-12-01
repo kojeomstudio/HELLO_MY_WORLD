@@ -37,6 +37,8 @@ protoc \
 
 Then refresh Unity so the generated C# appears. Ensure `Assets/link.xml` preserves the Google.Protobuf assembly for IL2CPP builds.
 
+Run `scripts/verify_protobuf.ps1` to confirm the generated C# files are newer than the `.proto` sources; if the script warns, rerun `protoc` and rebuild `SharedProtocol/SharedProtocol.csproj` so the server and client share identical packet DTOs.
+
 ## Message Types
 
 Message type IDs mirror `SharedProtocol.MessageType` on the server and must remain stable:

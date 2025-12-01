@@ -56,12 +56,16 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyEdgeBlendRadius = Mathf.Max(1, tunedWorldConfig.HydrologyEdgeBlendRadius);
         WorldGenAlgorithms.HydrologyEdgeVarianceClamp = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeVarianceClamp);
         WorldGenAlgorithms.HydrologyFlowPersistence = Mathf.Clamp01(tunedWorldConfig.HydrologyFlowPersistence);
+        WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(tunedWorldConfig.HydrologyWarpFrequency, 0.0001f, 0.01f);
+        WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(tunedWorldConfig.HydrologyWarpAmplitude, 0f, 48f);
         WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, tunedWorldConfig.HydrologySeamRelaxIterations);
         WorldGenAlgorithms.HydrologySeamRelaxBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySeamRelaxBlend);
         WorldGenAlgorithms.RiverNoiseScale = Mathf.Clamp(tunedWorldConfig.RiverNoiseScale, 0.0001f, 0.05f);
         WorldGenAlgorithms.RiverDepth = Mathf.Max(2, tunedWorldConfig.RiverDepth);
         WorldGenAlgorithms.RiverIntensitySmoothIterations = Mathf.Max(1, tunedWorldConfig.RiverIntensitySmoothIterations);
         WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.RiverIntensitySmoothBlend);
+        WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(tunedWorldConfig.RiverFlowAlignmentWeight, 0f, 2f);
+        WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(tunedWorldConfig.RiverGradientPenalty);
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
@@ -69,6 +73,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);
         WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(tunedWorldConfig.CaveSupportDensity);
+        WorldGenAlgorithms.CaveSupportHydrationBias = Mathf.Clamp01(tunedWorldConfig.SupportHydrationBias);
+        WorldGenAlgorithms.CaveSupportFlowBias = Mathf.Clamp01(tunedWorldConfig.SupportFlowBias);
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.

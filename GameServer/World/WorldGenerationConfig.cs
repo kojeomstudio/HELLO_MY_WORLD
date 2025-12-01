@@ -85,6 +85,8 @@ namespace GameServerApp.World
         public double LakeRimErosionWeight { get; set; } = 0.25;
         public double HydrologyWarpFrequency { get; set; } = 0.0009;
         public double HydrologyWarpAmplitude { get; set; } = 9.0;
+        public double RiverFlowAlignmentWeight { get; set; } = 0.2;
+        public double RiverGradientPenalty { get; set; } = 0.35;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
     }
@@ -121,6 +123,8 @@ namespace GameServerApp.World
         public double FlowStabilityWeight { get; set; } = 0.25;
         public double RoughnessStabilityWeight { get; set; } = 0.1;
         public double RiverSuppressionWeight { get; set; } = 0.35;
+        public double SupportHydrationBias { get; set; } = 0.35;
+        public double SupportFlowBias { get; set; } = 0.15;
     }
 
     public sealed class LakeConfig

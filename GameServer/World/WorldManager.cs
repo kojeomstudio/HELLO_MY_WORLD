@@ -2328,6 +2328,7 @@ namespace GameServerApp.World
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
                 NormalizeHydrologyPressure(hydrologyMask, flowAccumulation);
                 RelaxHydrologySeams(hydrologyMask, flowAccumulation);
+                AnchorHydrologySeamsToSlope(surfaceCache, hydrologyMask, flowAccumulation);
                 var erosionRisk = BuildErosionRiskField(surfaceCache, hydrologyMask, flowAccumulation);
 
                 return new HydrologyFieldCache
@@ -3050,6 +3051,53 @@ namespace GameServerApp.World
 
                 Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
                 Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
+            }
+        }
+
+        private void AnchorHydrologySeamsToSlope(int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (surfaceCache == null || hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    Vector2 slopeDir = ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                    if (slopeDir.LengthSquared() <= 1e-5f)
+                    {
+                        continue;
+                    }
+
+                    int step = Math.Max(1, edgeRadius - edgeDistance + 1);
+                    int anchorX = Math.Clamp(x + (int)Math.Round(slopeDir.X * step), 1, width - 2);
+                    int anchorZ = Math.Clamp(z + (int)Math.Round(slopeDir.Y * step), 1, depth - 2);
+                    double heightDelta = Math.Abs(surfaceCache[x, z] - surfaceCache[anchorX, anchorZ]);
+                    double slopeStrength = Math.Clamp(heightDelta / 12.0, 0.0, 1.0);
+                    double edgeWeight = 1.0 - edgeDistance / (double)Math.Max(1, edgeRadius);
+                    double blend = Math.Clamp(edgeWeight * (0.25 + slopeStrength * 0.35) * (0.7 + flowPersistence * 0.25), 0.0, 0.68);
+
+                    double anchorHydro = hydrologyMask[anchorX, anchorZ];
+                    double anchorFlow = flowAccumulation[anchorX, anchorZ];
+                    double blendedHydro = hydrologyMask[x, z] * (1.0 - blend) + anchorHydro * blend;
+                    double blendedFlow = flowAccumulation[x, z] * (1.0 - blend) + anchorFlow * blend;
+
+                    hydrologyMask[x, z] = Math.Clamp(blendedHydro, 0.0, 1.0);
+                    flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
+                }
             }
         }
 

@@ -36,8 +36,11 @@ namespace GameServerApp.World
         private readonly double _lakeRimErosionWeight;
         private readonly double _riverNoiseScale;
         private readonly int _riverDepth;
+        private readonly int _riverIntensitySmoothIterations;
+        private readonly double _riverIntensitySmoothBlend;
         private readonly int _caveStabilitySmoothIterations;
         private readonly double _caveStabilitySmoothBlend;
+        private readonly double _caveSupportDensity;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -149,11 +152,14 @@ namespace GameServerApp.World
             _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
             _riverNoiseScale = Math.Clamp(_worldGenConfig.Water.RiverNoiseScale, 0.0001, 0.05);
             _riverDepth = Math.Clamp(_worldGenConfig.Water.RiverDepth, 2, 24);
+            _riverIntensitySmoothIterations = Math.Clamp(_worldGenConfig.Water.RiverIntensitySmoothIterations, 1, 6);
+            _riverIntensitySmoothBlend = Math.Clamp(_worldGenConfig.Water.RiverIntensitySmoothBlend, 0.0, 1.0);
             _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
+            _caveSupportDensity = Math.Clamp(_worldGenConfig.Caves.SupportDensity, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, caveSupport={_caveSupportDensity:0.##}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -682,7 +688,8 @@ namespace GameServerApp.World
                 for (int z = 1; z < 15; z++)
                 {
                     double stability = caveStabilityField[x, z];
-                    if (stability < 0.58)
+                    double supportThreshold = _caveSupportDensity <= 0.0 ? 0.58 : _caveSupportDensity;
+                    if (stability < supportThreshold)
                     {
                         continue;
                     }
@@ -727,15 +734,17 @@ namespace GameServerApp.World
                         continue;
                     }
 
-                    int supportSpan = Math.Clamp((int)Math.Round(cavityHeight * (0.3 + stability * 0.4)), 3, cavityHeight - 1);
+                    double densityFactor = Math.Clamp(stability * 0.65 + supportThreshold * 0.45, 0.0, 1.0);
+                    int supportSpan = Math.Clamp((int)Math.Round(cavityHeight * (0.22 + densityFactor * 0.55)), 3, cavityHeight - 1);
                     int baseOffset = rand.Next(0, Math.Max(1, cavityHeight - supportSpan));
                     int columnBase = bottom + baseOffset;
                     int columnTop = Math.Min(top - 1, columnBase + supportSpan);
-                    int radius = stability > 0.82 ? 2 : 1;
+                    int radius = (stability > 0.82 || densityFactor > 0.75) ? 2 : 1;
+                    int step = densityFactor > 0.65 ? 1 : 2;
 
                     for (int y = columnBase; y <= columnTop; y++)
                     {
-                        if ((y - columnBase) % 2 == 0 || y == columnTop)
+                        if ((y - columnBase) % step == 0 || y == columnTop)
                         {
                             PlaceSupportNode(chunk, x, y, z, radius);
                         }
@@ -3046,47 +3055,55 @@ namespace GameServerApp.World
             return Math.Clamp(baseValue, 0.0, 1.0);
         }
 
-        private static void SmoothRiverIntensity(double[,] riverIntensity, double[,] erosionRiskField, double blend = 0.58)
+        private void SmoothRiverIntensity(double[,] riverIntensity, double[,] erosionRiskField, double[,] hydrologyMask)
         {
             int width = riverIntensity.GetLength(0);
             int depth = riverIntensity.GetLength(1);
+            int iterations = Math.Clamp(_riverIntensitySmoothIterations, 1, 8);
+            double baseBlend = Math.Clamp(_riverIntensitySmoothBlend, 0.0, 1.0);
             var scratch = new double[width, depth];
 
-            for (int x = 0; x < width; x++)
+            for (int iteration = 0; iteration < iterations; iteration++)
             {
-                for (int z = 0; z < depth; z++)
+                for (int x = 0; x < width; x++)
                 {
-                    double weightedSum = riverIntensity[x, z];
-                    double weightTotal = 1.0;
-
-                    for (int dx = -1; dx <= 1; dx++)
+                    for (int z = 0; z < depth; z++)
                     {
-                        for (int dz = -1; dz <= 1; dz++)
+                        double hydrology = hydrologyMask[x, z];
+                        double weightedSum = riverIntensity[x, z];
+                        double weightTotal = 1.0;
+
+                        for (int dx = -1; dx <= 1; dx++)
                         {
-                            if (dx == 0 && dz == 0)
+                            for (int dz = -1; dz <= 1; dz++)
                             {
-                                continue;
-                            }
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
 
-                            int nx = x + dx;
-                            int nz = z + dz;
-                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
-                            {
-                                continue;
-                            }
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                                {
+                                    continue;
+                                }
 
-                            double weight = 1.0 + erosionRiskField[nx, nz] * 0.75;
-                            weightedSum += riverIntensity[nx, nz] * weight;
-                            weightTotal += weight;
+                                double neighborHydrology = hydrologyMask[nx, nz];
+                                double weight = 1.0 + erosionRiskField[nx, nz] * 0.75 + hydrology * 0.35 + neighborHydrology * 0.25;
+                                weightedSum += riverIntensity[nx, nz] * weight;
+                                weightTotal += weight;
+                            }
                         }
+
+                        double average = weightTotal > 0.0 ? weightedSum / weightTotal : riverIntensity[x, z];
+                        double blend = Math.Clamp(baseBlend + hydrology * 0.2, 0.0, 1.0);
+                        scratch[x, z] = riverIntensity[x, z] * (1.0 - blend) + average * blend;
                     }
-
-                    double average = weightTotal > 0.0 ? weightedSum / weightTotal : riverIntensity[x, z];
-                    scratch[x, z] = riverIntensity[x, z] * (1.0 - blend) + average * blend;
                 }
-            }
 
-            Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+                Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+            }
         }
 
         public void GenerateRiversInternal(TerrainGenerationContext context)
@@ -3183,7 +3200,7 @@ namespace GameServerApp.World
                 }
             }
 
-            SmoothRiverIntensity(riverIntensity, erosionRiskField);
+            SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask);
 
             StitchTributaryChannels(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField, riverIntensity);
             ApplyRiverbankErosion(chunk, surfaceCache, riverField, hydrologyMask);

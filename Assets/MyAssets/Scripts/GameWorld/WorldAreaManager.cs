@@ -59,12 +59,15 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologySeamRelaxBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySeamRelaxBlend);
         WorldGenAlgorithms.RiverNoiseScale = Mathf.Clamp(tunedWorldConfig.RiverNoiseScale, 0.0001f, 0.05f);
         WorldGenAlgorithms.RiverDepth = Mathf.Max(2, tunedWorldConfig.RiverDepth);
+        WorldGenAlgorithms.RiverIntensitySmoothIterations = Mathf.Max(1, tunedWorldConfig.RiverIntensitySmoothIterations);
+        WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.RiverIntensitySmoothBlend);
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
         WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(tunedWorldConfig.LakeShorelineBlend);
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);
+        WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(tunedWorldConfig.CaveSupportDensity);
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.

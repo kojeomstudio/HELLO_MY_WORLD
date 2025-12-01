@@ -124,6 +124,9 @@ namespace MapGenLib
         public static float LakeShorelineBlend = 0.6f;
         public static float RiverNoiseScale = 0.015f;
         public static int RiverDepth = 5;
+        public static int RiverIntensitySmoothIterations = 2;
+        public static float RiverIntensitySmoothBlend = 0.58f;
+        public static float CaveSupportDensity = 0.6f;
 
         public struct TerrainValue
         {
@@ -1267,47 +1270,55 @@ namespace MapGenLib
             return CustomMathf.Clamp01(baseValue);
         }
 
-        private static void SmoothRiverIntensity(float[,] riverIntensity, float[,] erosionRiskField, float blend = 0.58f)
+        private static void SmoothRiverIntensity(float[,] riverIntensity, float[,] erosionRiskField, float[,] hydrologyMask)
         {
             int width = riverIntensity.GetLength(0);
             int depth = riverIntensity.GetLength(1);
+            int iterations = CustomMathf.Max(1, RiverIntensitySmoothIterations);
+            float baseBlend = CustomMathf.Clamp01(RiverIntensitySmoothBlend);
             var scratch = new float[width, depth];
 
-            for (int x = 0; x < width; x++)
+            for (int iteration = 0; iteration < iterations; iteration++)
             {
-                for (int z = 0; z < depth; z++)
+                for (int x = 0; x < width; x++)
                 {
-                    float weightedSum = riverIntensity[x, z];
-                    float weightTotal = 1f;
-
-                    for (int dx = -1; dx <= 1; dx++)
+                    for (int z = 0; z < depth; z++)
                     {
-                        for (int dz = -1; dz <= 1; dz++)
+                        float hydrology = hydrologyMask[x, z];
+                        float weightedSum = riverIntensity[x, z];
+                        float weightTotal = 1f;
+
+                        for (int dx = -1; dx <= 1; dx++)
                         {
-                            if (dx == 0 && dz == 0)
+                            for (int dz = -1; dz <= 1; dz++)
                             {
-                                continue;
-                            }
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
 
-                            int nx = x + dx;
-                            int nz = z + dz;
-                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
-                            {
-                                continue;
-                            }
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                                {
+                                    continue;
+                                }
 
-                            float weight = 1f + erosionRiskField[nx, nz] * 0.75f;
-                            weightedSum += riverIntensity[nx, nz] * weight;
-                            weightTotal += weight;
+                                float neighborHydrology = hydrologyMask[nx, nz];
+                                float weight = 1f + erosionRiskField[nx, nz] * 0.75f + hydrology * 0.35f + neighborHydrology * 0.25f;
+                                weightedSum += riverIntensity[nx, nz] * weight;
+                                weightTotal += weight;
+                            }
                         }
+
+                        float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
+                        float blend = CustomMathf.Clamp01(baseBlend + hydrology * 0.2f);
+                        scratch[x, z] = riverIntensity[x, z] * (1f - blend) + average * blend;
                     }
-
-                    float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
-                    scratch[x, z] = riverIntensity[x, z] * (1f - blend) + average * blend;
                 }
-            }
 
-            Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+                Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+            }
         }
 
         private static float SampleDeterministicNoise(int x, int z, int salt)
@@ -1451,7 +1462,7 @@ namespace MapGenLib
                 }
             }
 
-            SmoothRiverIntensity(riverIntensity, erosionRiskField);
+            SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask);
 
             StitchTributaryChannels(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
             ApplyRiverBankErosion(subWorldBlockData, subWorldSize, surfaceCache, riverIntensity, bankThreshold, channelThreshold);
@@ -3287,12 +3298,18 @@ namespace MapGenLib
 
         private static void AddHydrologySupportColumns(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, float[,] stabilityField)
         {
+            float supportThreshold = CustomMathf.Clamp01(CaveSupportDensity);
+            if (supportThreshold <= 0.01f)
+            {
+                supportThreshold = 0.58f;
+            }
+
             for (int x = 1; x < subWorldSize.SizeX - 1; x++)
             {
                 for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
                 {
                     float stability = stabilityField[x, z];
-                    if (stability < 0.58f)
+                    if (stability < supportThreshold)
                     {
                         continue;
                     }
@@ -3338,15 +3355,17 @@ namespace MapGenLib
                         continue;
                     }
 
-                    int span = CustomMathf.Clamp(CustomMathf.RoundToInt(cavityHeight * (0.3f + stability * 0.4f)), 3, cavityHeight - 1);
+                    float densityFactor = CustomMathf.Clamp01(stability * 0.65f + supportThreshold * 0.45f);
+                    int span = CustomMathf.Clamp(CustomMathf.RoundToInt(cavityHeight * (0.22f + densityFactor * 0.55f)), 3, cavityHeight - 1);
                     int offset = Utilitys.RandomInteger(0, CustomMathf.Max(1, cavityHeight - span));
                     int columnBase = bottom + offset;
                     int columnTop = CustomMathf.Min(top - 1, columnBase + span);
-                    bool wide = stability > 0.82f;
+                    bool wide = stability > 0.82f || densityFactor > 0.75f;
+                    int step = densityFactor > 0.65f ? 1 : 2;
 
                     for (int y = columnBase; y <= columnTop; y++)
                     {
-                        if ((y - columnBase) % 2 == 0 || y == columnTop)
+                        if ((y - columnBase) % step == 0 || y == columnTop)
                         {
                             PlaceSupportNode(subWorldBlockData, subWorldSize, x, y, z, wide);
                         }

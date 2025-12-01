@@ -32,8 +32,11 @@
   "HydrologySeamRelaxBlend": 0.5,
   "RiverNoiseScale": 0.015,
   "RiverDepth": 5,
+  "RiverIntensitySmoothIterations": 2,
+  "RiverIntensitySmoothBlend": 0.6,
   "RiverBankErosionWeight": 0.18,
   "LakeRimErosionWeight": 0.25,
   "CaveStabilitySmoothIterations": 1,
-  "CaveStabilitySmoothBlend": 0.55
+  "CaveStabilitySmoothBlend": 0.55,
+  "CaveSupportDensity": 0.6
 }

@@ -43,6 +43,7 @@ public static class ProtocolValidator
         }
 
         ValidateRegistryDescriptors();
+        ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
         ValidateParserBindings();
         ValidateChunkDescriptor();
@@ -236,6 +237,21 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft generated message '{declared.Name}' is not registered in ProtocolRegistry. Add a binding so protobuf references are validated consistently on client and server.");
+            }
+        }
+    }
+
+    private static void ValidateRegistryCoverage()
+    {
+        var registeredDescriptorTypes = new HashSet<MinecraftMessageType>(
+            ProtocolRegistry.RegisteredDescriptors.Select(binding => binding.MessageType));
+
+        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        {
+            if (!registeredDescriptorTypes.Contains(messageType))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft message '{messageType}' is registered without a descriptor binding. Ensure generated protobuf classes are referenced and ProtocolRegistry bindings include both parser and descriptor entries.");
             }
         }
     }

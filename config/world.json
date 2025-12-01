@@ -40,6 +40,8 @@
     "LakeRimErosionWeight": 0.25,
     "RiverNoiseScale": 0.015,
     "RiverDepth": 5,
+    "RiverIntensitySmoothIterations": 2,
+    "RiverIntensitySmoothBlend": 0.6,
     "EnableOceans": true,
     "EnableRivers": true,
     "EnableLakes": true
@@ -61,7 +63,8 @@
     "FloodedCaveProximityToWaterTableWeight": 0.6,
     "FloodedCaveThreshold": 0.75,
     "StabilitySmoothIterations": 1,
-    "StabilitySmoothBlend": 0.55
+    "StabilitySmoothBlend": 0.55,
+    "SupportDensity": 0.6
   },
   "Ores": {
     "EnableOreGeneration": true,

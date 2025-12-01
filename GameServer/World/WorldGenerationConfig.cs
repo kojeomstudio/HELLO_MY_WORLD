@@ -67,6 +67,8 @@ namespace GameServerApp.World
         public double RiverBankThreshold { get; set; } = 0.028;
         public double RiverNoiseScale { get; set; } = 0.015;
         public int RiverDepth { get; set; } = 5;
+        public int RiverIntensitySmoothIterations { get; set; } = 2;
+        public double RiverIntensitySmoothBlend { get; set; } = 0.58;
         public int HydrologySmoothIterations { get; set; } = 2;
         public double HydrologySmoothBlend { get; set; } = 0.6;
         public double HydrologyShorePush { get; set; } = 5.0;
@@ -111,6 +113,7 @@ namespace GameServerApp.World
         public double FloodedCaveThreshold { get; set; } = 0.75;
         public int StabilitySmoothIterations { get; set; } = 1;
         public double StabilitySmoothBlend { get; set; } = 0.55;
+        public double SupportDensity { get; set; } = 0.6;
     }
 
     public sealed class LakeConfig

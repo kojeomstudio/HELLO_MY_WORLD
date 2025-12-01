@@ -113,6 +113,7 @@ namespace MapGenLib
         public static float HydrologySlopePenalty = 6f;
         public static float HydrologyFlowGain = 0.5f;
         public static float HydrologyContinuityWeight = 0.35f;
+        public static float HydrologyEdgeFlowBias = 0.35f;
         public static int HydrologyEdgeBlendRadius = 2;
         public static float HydrologyFlowPersistence = 0.55f;
         public static int HydrologySeamRelaxIterations = 2;
@@ -863,6 +864,9 @@ namespace MapGenLib
                 {
                     for (int z = 0; z < depth; z++)
                     {
+                        var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        bool hasFlowDir = flowDir.sqrMagnitude > CustomVector2.kEpsilon;
+
                         int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
                         if (edgeDistance > edgeRadius)
                         {
@@ -892,6 +896,18 @@ namespace MapGenLib
                                 float neighborWeight = 1f - distance * 0.15f;
                                 float continuity = CustomMathf.Clamp01(HydrologyContinuityWeight + falloff * 0.2f);
                                 neighborWeight *= 0.85f + continuity * 0.35f;
+
+                                if (hasFlowDir)
+                                {
+                                    var neighborDir = new CustomVector2(dx, dz);
+                                    if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
+                                    {
+                                        neighborDir.Normalize();
+                                        float alignment = CustomMathf.Max(0f, CustomVector2.Dot(flowDir, neighborDir));
+                                        float flowWeight = 1f + HydrologyEdgeFlowBias * alignment;
+                                        neighborWeight *= flowWeight;
+                                    }
+                                }
 
                                 weightedHydro += hydrologyMask[nx, nz] * neighborWeight;
                                 weightedFlow += flowAccumulation[nx, nz] * neighborWeight * (0.8f + flowPersistence * 0.35f);
@@ -1000,6 +1016,9 @@ namespace MapGenLib
             {
                 for (int z = 0; z < subWorldSize.SizeZ; z++)
                 {
+                    var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                    bool hasFlowDir = flowDir.sqrMagnitude > CustomVector2.kEpsilon;
+
                     int edgeDistance = CustomMathf.Min(
                         CustomMathf.Min(x, z),
                         CustomMathf.Min(maxX - x, maxZ - z));
@@ -1036,6 +1055,18 @@ namespace MapGenLib
                             if (neighborWeight <= 0f)
                             {
                                 continue;
+                            }
+
+                            if (hasFlowDir)
+                            {
+                                var neighborDir = new CustomVector2(dx, dz);
+                                if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
+                                {
+                                    neighborDir.Normalize();
+                                    float alignment = CustomMathf.Max(0f, CustomVector2.Dot(flowDir, neighborDir));
+                                    float flowWeight = 1f + HydrologyEdgeFlowBias * alignment;
+                                    neighborWeight *= flowWeight;
+                                }
                             }
 
                             float flowBias = 0.88f + flowPersistence * 0.35f;

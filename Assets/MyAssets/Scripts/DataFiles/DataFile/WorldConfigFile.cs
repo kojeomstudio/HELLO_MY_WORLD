@@ -29,6 +29,7 @@ public struct WorldConfig
     public float HydrologySlopePenalty;
     public float HydrologyFlowGain;
     public float HydrologyContinuityWeight;
+    public float HydrologyEdgeFlowBias;
     public int HydrologyEdgeBlendRadius;
     public float HydrologyFlowPersistence;
     public int HydrologySeamRelaxIterations;
@@ -103,6 +104,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologySlopePenalty = ParseFloat(data, "HydrologySlopePenalty", 6.0f);
                 Config.HydrologyFlowGain = ParseFloat(data, "HydrologyFlowGain", 0.5f);
                 Config.HydrologyContinuityWeight = ParseFloat(data, "HydrologyContinuityWeight", 0.35f);
+                Config.HydrologyEdgeFlowBias = ParseFloat(data, "HydrologyEdgeFlowBias", 0.35f);
                 Config.HydrologyEdgeBlendRadius = ParseInt(data, "HydrologyEdgeBlendRadius", 2);
                 Config.HydrologyFlowPersistence = ParseFloat(data, "HydrologyFlowPersistence", 0.55f);
                 Config.HydrologySeamRelaxIterations = ParseInt(data, "HydrologySeamRelaxIterations", 2);

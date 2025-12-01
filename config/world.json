@@ -31,6 +31,7 @@
     "HydrologySlopePenalty": 6.0,
     "HydrologyFlowGain": 0.5,
     "HydrologyContinuityWeight": 0.35,
+    "HydrologyEdgeFlowBias": 0.35,
     "HydrologyEdgeBlendRadius": 3,
     "HydrologyFlowPersistence": 0.62,
     "HydrologySeamRelaxIterations": 2,

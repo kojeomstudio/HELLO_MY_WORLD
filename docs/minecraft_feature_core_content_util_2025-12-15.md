@@ -1,6 +1,6 @@
-# Minecraft Core / Content / Utility (current)
+# Minecraft Core / Content / Utility (2025-12-15 snapshot)
 
-Current feature split and rollout order across server and Unity client. Updated 2025-12-15; adds flow-aligned hydrology seam bias (`HydrologyEdgeFlowBias`) shared by server and MapGeneratorLib plus stricter EnhancedMinecraft protobuf assembly validation.
+Snapshot of the current feature split and rollout order across server and Unity client. Adds flow-aligned hydrology seam bias (`HydrologyEdgeFlowBias`) shared by server and MapGeneratorLib plus stricter EnhancedMinecraft protobuf assembly validation; mirrors `docs/minecraft_feature_core_content_util_latest.md`.
 
 ## Core (authority, world map control, protocol)
 | Feature | Server (files) | Client (files) | Data / Protocol / Notes |

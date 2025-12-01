@@ -141,6 +141,16 @@ public static class ProtocolValidator
                     $"EnhancedMinecraft contract '{messageType}' was generated into namespace '{prototypeNamespace}', expected '{expectedNamespace}'. Check using directives or regenerate protobuf assets so server and Unity share the same namespace.");
             }
 
+            Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
+            Assembly prototypeAssembly = prototype.GetType().Assembly;
+            Assembly descriptorAssembly = descriptor.ClrType?.Assembly ?? prototypeAssembly;
+
+            if (!ReferenceEquals(prototypeAssembly, expectedAssembly) || !ReferenceEquals(descriptorAssembly, expectedAssembly))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' is loaded from assembly '{prototypeAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Check project references and regenerate protobuf assets so server and Unity share the same generated assembly.");
+            }
+
             string fileName = descriptor.File?.Name ?? string.Empty;
             if (string.IsNullOrWhiteSpace(fileName))
             {
@@ -166,6 +176,13 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.DescriptorName}' is missing a static Parser. Ensure the generated protobuf classes are referenced by both server and client builds.");
+            }
+
+            Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
+            if (!ReferenceEquals(prototypeType.Assembly, expectedAssembly) || !ReferenceEquals(parser.GetType().Assembly, expectedAssembly))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' resolved from assembly '{prototypeType.Assembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Update using directives or regenerate protobuf assets so both server and Unity share the same generated DLL.");
             }
 
             IMessage parsedInstance;

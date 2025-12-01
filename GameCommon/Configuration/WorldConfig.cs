@@ -55,6 +55,7 @@ namespace GameCommon.Configuration
         public double HydrologySlopePenalty { get; set; } = 6.0;
         public double HydrologyFlowGain { get; set; } = 0.5;
         public double HydrologyContinuityWeight { get; set; } = 0.35;
+        public double HydrologyEdgeFlowBias { get; set; } = 0.35;
         public int HydrologyEdgeBlendRadius { get; set; } = 3;
         public double HydrologyFlowPersistence { get; set; } = 0.62;
         public int HydrologySeamRelaxIterations { get; set; } = 2;

@@ -27,6 +27,7 @@ namespace GameServerApp.World
         private readonly double _hydrologySlopePenalty;
         private readonly double _hydrologyFlowGain;
         private readonly double _hydrologyContinuityWeight;
+        private readonly double _hydrologyEdgeFlowBias;
         private readonly int _hydrologyEdgeBlendRadius;
         private readonly double _hydrologyFlowPersistence;
         private readonly int _hydrologySeamRelaxIterations;
@@ -139,6 +140,7 @@ namespace GameServerApp.World
             _hydrologySlopePenalty = Math.Clamp(_worldGenConfig.Water.HydrologySlopePenalty, 2.0, 18.0);
             _hydrologyFlowGain = Math.Clamp(_worldGenConfig.Water.HydrologyFlowGain, 0.0, 1.5);
             _hydrologyContinuityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            _hydrologyEdgeFlowBias = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeFlowBias, 0.0, 1.25);
             _hydrologyEdgeBlendRadius = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeBlendRadius, 1, 6);
             _hydrologyFlowPersistence = Math.Clamp(_worldGenConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
             _hydrologySeamRelaxIterations = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxIterations, 0, 4);
@@ -151,7 +153,7 @@ namespace GameServerApp.World
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -2767,6 +2769,9 @@ namespace GameServerApp.World
             {
                 for (int z = 0; z < depth; z++)
                 {
+                    var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                    bool hasFlowDir = flowDir.LengthSquared() > 1e-5f;
+
                     int edgeDistance = Math.Min(
                         Math.Min(x, z),
                         Math.Min(width - 1 - x, depth - 1 - z));
@@ -2803,6 +2808,15 @@ namespace GameServerApp.World
                             if (neighborWeight <= 0.0)
                             {
                                 continue;
+                            }
+
+                            if (hasFlowDir)
+                            {
+                                var neighborDir = new Vector2(dx, dz);
+                                neighborDir = neighborDir.LengthSquared() > 1e-5f ? Vector2.Normalize(neighborDir) : neighborDir;
+                                double alignment = Math.Max(0.0, Vector2.Dot(flowDir, neighborDir));
+                                double flowWeight = 1.0 + _hydrologyEdgeFlowBias * alignment;
+                                neighborWeight *= flowWeight;
                             }
 
                             double flowBias = 0.88 + flowPersistence * 0.35;
@@ -2914,6 +2928,9 @@ namespace GameServerApp.World
                 {
                     for (int z = 0; z < depth; z++)
                     {
+                        var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        bool hasFlowDir = flowDir.LengthSquared() > 1e-5f;
+
                         int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
                         if (edgeDistance > edgeRadius)
                         {
@@ -2943,6 +2960,15 @@ namespace GameServerApp.World
                                 double neighborWeight = 1.0 - distance * 0.15;
                                 double continuity = Math.Clamp(_hydrologyContinuityWeight + falloff * 0.2, 0.0, 1.2);
                                 neighborWeight *= 0.85 + continuity * 0.35;
+
+                                if (hasFlowDir)
+                                {
+                                    var neighborDir = new Vector2(dx, dz);
+                                    neighborDir = neighborDir.LengthSquared() > 1e-5f ? Vector2.Normalize(neighborDir) : neighborDir;
+                                    double alignment = Math.Max(0.0, Vector2.Dot(flowDir, neighborDir));
+                                    double flowWeight = 1.0 + _hydrologyEdgeFlowBias * alignment;
+                                    neighborWeight *= flowWeight;
+                                }
 
                                 weightedHydro += hydrologyMask[nx, nz] * neighborWeight;
                                 weightedFlow += flowAccumulation[nx, nz] * neighborWeight * (0.8 + flowPersistence * 0.35);

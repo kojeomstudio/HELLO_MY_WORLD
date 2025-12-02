@@ -131,9 +131,11 @@ namespace MapGenLib
         public static float RiverIntensitySmoothBlend = 0.58f;
         public static float RiverFlowAlignmentWeight = 0.28f;
         public static float RiverGradientPenalty = 0.42f;
+        public static float RiverReliefPenaltyWeight = 0.25f;
         public static float CaveSupportDensity = 0.6f;
         public static float CaveSupportHydrationBias = 0.42f;
         public static float CaveSupportFlowBias = 0.20f;
+        public static float LakeRiverProximitySuppression = 0.35f;
 
         public struct TerrainValue
         {
@@ -1388,6 +1390,18 @@ namespace MapGenLib
             return CustomMathf.Max(0f, scaled);
         }
 
+        private static float ComputeRiverReliefScale(int[,] surfaceCache, SubWorldSize subWorldSize, int x, int z)
+        {
+            float weight = CustomMathf.Max(0f, RiverReliefPenaltyWeight);
+            if (weight <= 0f)
+            {
+                return 1f;
+            }
+
+            float reliefPenalty = CustomMathf.Clamp01(ComputeLocalRelief(surfaceCache, subWorldSize, x, z, 2) / 8f);
+            return CustomMathf.Clamp01(1f - reliefPenalty * weight);
+        }
+
         private static CustomVector2 ComputeRiverFlowDirection(float sampleX, float sampleZ)
         {
             float baseFrequency = CustomMathf.Max(0.0001f, RiverNoiseScale * 1.25f);
@@ -1624,6 +1638,7 @@ namespace MapGenLib
                     channelPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f + erosionRisk * riverBankErosionWeight);
                     float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.0125f - erosionRisk * 0.01f;
                     adjustedMask = CustomMathf.Max(0f, adjustedMask);
+                    adjustedMask *= ComputeRiverReliefScale(surfaceCache, subWorldSize, x, z);
                     riverIntensity[x, z] = CustomMathf.Max(0f, adjustedMask * (1f - riparian * 0.2f));
 
                     if (adjustedMask >= bankThreshold)
@@ -2555,6 +2570,43 @@ namespace MapGenLib
             return heatmap;
         }
 
+        private static float[,] BuildRiverIntensityPreview(
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] hydrologyMask,
+            float[,] flowAccumulation,
+            float[,] riparianSaturation,
+            float[,] erosionRiskField)
+        {
+            float[,] riverIntensity = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
+            float reliefWeight = CustomMathf.Max(0f, RiverReliefPenaltyWeight);
+
+            for (int x = 1; x < subWorldSize.SizeX - 1; x++)
+            {
+                for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
+                {
+                    CustomVector2 flowDir;
+                    float riverMask = EvaluateRiverIntensity(x, z, out flowDir);
+                    float hydrology = hydrologyMask[x, z];
+                    float riparian = riparianSaturation[x, z];
+                    float catchmentStrength = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
+                    float erosionRisk = erosionRiskField[x, z];
+                    float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.0125f - erosionRisk * 0.01f;
+                    adjustedMask = CustomMathf.Max(0f, adjustedMask);
+
+                    if (reliefWeight > 0f)
+                    {
+                        adjustedMask *= ComputeRiverReliefScale(surfaceCache, subWorldSize, x, z);
+                    }
+
+                    riverIntensity[x, z] = CustomMathf.Max(0f, adjustedMask * (1f - riparian * 0.2f));
+                }
+            }
+
+            SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask, flowAccumulation);
+            return riverIntensity;
+        }
+
         private static void GenerateSurfaceLakes(Block[,,] subWorldBlockData, SubWorldSize subWorldSize)
         {
             int[,] surfaceCache = BuildSurfaceHeightCache(subWorldBlockData, subWorldSize);
@@ -2569,6 +2621,7 @@ namespace MapGenLib
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            float[,] riverIntensityPreview = BuildRiverIntensityPreview(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riparianSaturation, erosionRiskField);
             float lakeSpawnBias = CustomMathf.Clamp(LakeSpawnWeightBias, 0f, 1.3f);
 
             int lakeAttempts = Utilitys.RandomInteger(1, 3);
@@ -2593,6 +2646,12 @@ namespace MapGenLib
                 float erosionRisk = erosionRiskField[centerX, centerZ];
                 float spawnWeight = CustomMathf.Clamp((ridgeNoise - 0.35f) * 1.4f + hydrology * 0.9f + candidateScore * 0.85f, 0f, 1.2f);
                 spawnWeight = CustomMathf.Clamp(spawnWeight + riparian * 0.25f + flow * 0.15f + erosionRisk * 0.35f + lakeSpawnBias, 0f, 1.3f);
+                float riverPressure = SampleRiverIntensity(riverIntensityPreview, centerX, centerZ, 2);
+                if (LakeRiverProximitySuppression > 0f && riverPressure > 0f)
+                {
+                    float suppression = CustomMathf.Clamp(riverPressure * LakeRiverProximitySuppression, 0f, 0.85f);
+                    spawnWeight *= 1f - suppression;
+                }
                 spawnWeight *= CustomMathf.Lerp(0.65f, 1.2f, basinStability);
 
                 if (spawnWeight < CustomMathf.Max(0.2f, lakeSpawnBias) || (candidateScore < 0.2f && spawnWeight < CustomMathf.Max(0.4f, lakeSpawnBias + 0.1f)))
@@ -5316,6 +5375,26 @@ namespace MapGenLib
 
             value = field[x, z];
             return true;
+        }
+
+        private static float SampleRiverIntensity(float[,] riverIntensity, int centerX, int centerZ, int radius)
+        {
+            float sum = 0f;
+            int samples = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    if (TrySampleField(riverIntensity, centerX + dx, centerZ + dz, out float value))
+                    {
+                        sum += value;
+                        samples++;
+                    }
+                }
+            }
+
+            return samples > 0 ? sum / samples : 0f;
         }
 
         private static (int dx, int dz) GetAquiferStep(CustomVector2 direction, int stepIndex)

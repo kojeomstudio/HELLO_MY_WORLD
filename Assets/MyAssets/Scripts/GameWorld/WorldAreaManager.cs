@@ -66,10 +66,12 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.RiverIntensitySmoothBlend);
         WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(tunedWorldConfig.RiverFlowAlignmentWeight, 0f, 2f);
         WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(tunedWorldConfig.RiverGradientPenalty);
+        WorldGenAlgorithms.RiverReliefPenaltyWeight = Mathf.Clamp01(tunedWorldConfig.RiverReliefPenaltyWeight);
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
         WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(tunedWorldConfig.LakeShorelineBlend);
+        WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(tunedWorldConfig.RiverProximitySuppression);
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);
         WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(tunedWorldConfig.CaveSupportDensity);

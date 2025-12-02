@@ -32,6 +32,7 @@ Current feature split and rollout order across server and Unity client. Updated 
 3) Utility/tooling: keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control, hydrology quality, seam stability, and proto registry health.
 
 ## Current iteration scope
+- [x] River relief penalties and lake river-proximity suppression now run in MapGeneratorLib with the same JSON knobs (`RiverReliefPenaltyWeight`, `RiverProximitySuppression`) used by GameServer so Unity previews match streamed chunks and avoid river-adjacent lakes.
 - [x] Flow-aligned/gradient-aware river intensity smoothing (`RiverFlowAlignmentWeight`, `RiverGradientPenalty`) in both `WorldManager` and MapGeneratorLib using hydrology + flow accumulation.
 - [x] Moisture/flow-biased cave support columns with shared JSON knobs (`SupportHydrationBias`, `SupportFlowBias`) and hydrology warp sampling to keep humidity masks stable at seams.
 - [x] Configs kept in sync: `config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, `WorldConfigFile`, and `WorldGenerationConfig` now parse the new knobs for client/server parity.

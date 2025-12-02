@@ -105,8 +105,8 @@ namespace MapGenLib
     {
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
         private const int GlobalRiverWaterLevel = 62;
-        public static int HydrologySmoothIterations = 1;
-        public static float HydrologySmoothBlend = 0.55f;
+        public static int HydrologySmoothIterations = 2;
+        public static float HydrologySmoothBlend = 0.6f;
         public static int CaveStabilitySmoothIterations = 1;
         public static float CaveStabilitySmoothBlend = 0.55f;
         public static float HydrologyShorePush = 5f;
@@ -114,26 +114,26 @@ namespace MapGenLib
         public static float HydrologyFlowGain = 0.5f;
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyEdgeFlowBias = 0.35f;
-        public static int HydrologyEdgeBlendRadius = 2;
+        public static int HydrologyEdgeBlendRadius = 3;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
-        public static float HydrologyFlowPersistence = 0.55f;
+        public static float HydrologyFlowPersistence = 0.68f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
         public static int HydrologySeamRelaxIterations = 2;
-        public static float HydrologySeamRelaxBlend = 0.45f;
+        public static float HydrologySeamRelaxBlend = 0.5f;
         public static float RiverBankErosionWeight = 0.18f;
-        public static float LakeRimErosionWeight = 0.25f;
+        public static float LakeRimErosionWeight = 0.30f;
         public static float LakeSpawnWeightBias = 0.3f;
-        public static float LakeShorelineBlend = 0.6f;
+        public static float LakeShorelineBlend = 0.66f;
         public static float RiverNoiseScale = 0.015f;
-        public static int RiverDepth = 5;
-        public static int RiverIntensitySmoothIterations = 2;
+        public static int RiverDepth = 6;
+        public static int RiverIntensitySmoothIterations = 3;
         public static float RiverIntensitySmoothBlend = 0.58f;
-        public static float RiverFlowAlignmentWeight = 0.2f;
-        public static float RiverGradientPenalty = 0.35f;
+        public static float RiverFlowAlignmentWeight = 0.28f;
+        public static float RiverGradientPenalty = 0.42f;
         public static float CaveSupportDensity = 0.6f;
-        public static float CaveSupportHydrationBias = 0.35f;
-        public static float CaveSupportFlowBias = 0.15f;
+        public static float CaveSupportHydrationBias = 0.42f;
+        public static float CaveSupportFlowBias = 0.20f;
 
         public struct TerrainValue
         {
@@ -848,12 +848,83 @@ namespace MapGenLib
                 return;
             }
 
-            SmoothScalarField(hydrologyMask, HydrologySmoothIterations, HydrologySmoothBlend);
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            var hydroBuffer = new float[width, depth];
+            var flowBuffer = new float[width, depth];
+            float baseBlend = CustomMathf.Clamp01(HydrologySmoothBlend);
+            float anisotropy = CustomMathf.Clamp01(0.3f + HydrologyFlowPersistence * 0.55f + HydrologyContinuityWeight * 0.25f);
 
-            if (flowAccumulation != null)
+            for (int iteration = 0; iteration < HydrologySmoothIterations; iteration++)
             {
-                float flowBlend = CustomMathf.Clamp01(HydrologySmoothBlend * (0.85f + HydrologyFlowPersistence * 0.1f));
-                SmoothScalarField(flowAccumulation, HydrologySmoothIterations, flowBlend);
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        float hydrology = hydrologyMask[x, z];
+                        float flow = flowAccumulation[x, z];
+                        float weightedHydrology = hydrology;
+                        float weightedFlow = flow;
+                        float weightTotal = 1f;
+                        var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        CustomVector2 downhill = gradient.sqrMagnitude > CustomVector2.kEpsilon ? gradient * -1f : CustomVector2.zero;
+                        if (downhill.sqrMagnitude > CustomVector2.kEpsilon)
+                        {
+                            downhill.Normalize();
+                        }
+                        float maxAlignment = 0f;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                                {
+                                    continue;
+                                }
+
+                                float neighborHydrology = hydrologyMask[nx, nz];
+                                float neighborFlow = flowAccumulation[nx, nz];
+
+                                var neighborDir = new CustomVector2(dx, dz);
+                                if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
+                                {
+                                    neighborDir.Normalize();
+                                }
+
+                                float alignment = downhill.sqrMagnitude <= CustomVector2.kEpsilon ? 0f : CustomMathf.Max(0f, CustomVector2.Dot(downhill, neighborDir));
+                                maxAlignment = CustomMathf.Max(maxAlignment, alignment);
+
+                                float gradientDelta = CustomMathf.Abs(hydrology - neighborHydrology);
+                                float gradientWeight = CustomMathf.Clamp(1f - gradientDelta * (0.45f + HydrologyContinuityWeight * 0.35f), 0.25f, 1f);
+                                float continuityWeight = 1f + HydrologyContinuityWeight * 0.35f;
+                                float alignmentWeight = 1f + alignment * (0.8f + anisotropy * 0.6f);
+                                float baseWeight = 1f + hydrology * 0.3f + neighborHydrology * 0.35f + flow * 0.1f + neighborFlow * 0.1f;
+                                float finalWeight = baseWeight * alignmentWeight * gradientWeight * continuityWeight;
+
+                                weightedHydrology += neighborHydrology * finalWeight;
+                                weightedFlow += neighborFlow * finalWeight * (1f + alignment * 0.5f);
+                                weightTotal += finalWeight;
+                            }
+                        }
+
+                        float hydroTarget = weightTotal > 0f ? weightedHydrology / weightTotal : hydrology;
+                        float flowTarget = weightTotal > 0f ? weightedFlow / weightTotal : flow;
+                        float blend = CustomMathf.Clamp(baseBlend + hydrology * 0.12f + maxAlignment * 0.18f + HydrologyFlowPersistence * 0.08f, 0f, 0.95f);
+                        hydroBuffer[x, z] = CustomMathf.Lerp(hydrology, hydroTarget, blend);
+                        flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, flowTarget, blend));
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
+                Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
             }
         }
 
@@ -1392,8 +1463,15 @@ namespace MapGenLib
                     {
                         float hydrology = hydrologyMask[x, z];
                         float flow = flowAccumulation[x, z];
+                        var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        CustomVector2 flowDir = gradient.sqrMagnitude > CustomVector2.kEpsilon ? gradient * -1f : CustomVector2.zero;
+                        if (flowDir.sqrMagnitude > CustomVector2.kEpsilon)
+                        {
+                            flowDir.Normalize();
+                        }
                         float weightedSum = riverIntensity[x, z];
                         float weightTotal = 1f;
+                        float maxAlignment = 0f;
 
                         for (int dx = -1; dx <= 1; dx++)
                         {
@@ -1414,17 +1492,26 @@ namespace MapGenLib
                                 float neighborHydrology = hydrologyMask[nx, nz];
                                 float baseWeight = 1f + erosionRiskField[nx, nz] * 0.75f + hydrology * 0.35f + neighborHydrology * 0.25f;
                                 float neighborFlow = flowAccumulation[nx, nz];
-                                float flowWeight = 1f + RiverFlowAlignmentWeight * CustomMathf.Min(flow + neighborFlow, 2.5f);
-                                float gradient = CustomMathf.Abs(hydrology - neighborHydrology);
-                                float gradientWeight = CustomMathf.Clamp01(1f - RiverGradientPenalty * gradient);
-                                float finalWeight = baseWeight * CustomMathf.Clamp(flowWeight * CustomMathf.Max(0.35f, gradientWeight), 0.35f, 3.0f);
+                                var neighborDir = new CustomVector2(dx, dz);
+                                if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
+                                {
+                                    neighborDir.Normalize();
+                                }
+
+                                float alignment = flowDir.sqrMagnitude <= CustomVector2.kEpsilon ? 0f : CustomMathf.Max(0f, CustomVector2.Dot(flowDir, neighborDir));
+                                maxAlignment = CustomMathf.Max(maxAlignment, alignment);
+
+                                float flowWeight = 1f + RiverFlowAlignmentWeight * (CustomMathf.Min(flow + neighborFlow, 2.5f) * 0.45f + alignment * 1.1f);
+                                float hydrologyDelta = CustomMathf.Abs(hydrology - neighborHydrology);
+                                float gradientWeight = CustomMathf.Clamp(1f - RiverGradientPenalty * hydrologyDelta, 0.15f, 1f);
+                                float finalWeight = CustomMathf.Clamp(baseWeight * flowWeight * gradientWeight, 0.35f, 3.5f);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }
                         }
 
                         float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
-                        float blend = CustomMathf.Clamp01(baseBlend + hydrology * 0.2f + flow * 0.12f);
+                        float blend = CustomMathf.Clamp(baseBlend + hydrology * 0.2f + flow * 0.12f + maxAlignment * 0.2f, 0f, 0.95f);
                         scratch[x, z] = riverIntensity[x, z] * (1f - blend) + average * blend;
                     }
                 }

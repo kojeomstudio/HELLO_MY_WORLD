@@ -33,6 +33,7 @@ Current feature split and rollout order across server and Unity client. Updated 
 
 ## Current iteration scope (2025-12-02)
 - Raise hydrology flow persistence to 0.68 and align MapGeneratorLib defaults with JSON so flow direction and humidity stay coherent across chunk seams.
+- Add flow-directional hydrology smoothing (anisotropic blending that favors downhill vectors + continuity weight) in both WorldManager and MapGeneratorLib to keep world map control/chunk seams stable before streaming.
 - Increase anisotropic river smoothing (flow alignment 0.28, gradient penalty 0.42) with 3-pass intensity smoothing (blend 0.58) and river depth 6 to stabilize channels/banks for caves, rivers, and lakes.
 - Smooth lakes more aggressively (shoreline blend 0.66, rim erosion 0.30) and bias cave supports toward hydrated/flowing cells (0.42/0.20) to keep flooded caverns stable.
 - Keep protobuf validation enforced via `ProtocolValidator`; rebuild `SharedProtocol` after any proto regeneration to ensure `using` references remain valid on server and Unity.

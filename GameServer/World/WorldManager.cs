@@ -2734,12 +2734,79 @@ namespace GameServerApp.World
                 return;
             }
 
-            SmoothScalarField(hydrologyMask, _hydrologySmoothIterations, _hydrologySmoothBlend);
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            var hydroBuffer = new double[width, depth];
+            var flowBuffer = new double[width, depth];
+            double baseBlend = Math.Clamp(_hydrologySmoothBlend, 0.0, 1.0);
+            double anisotropy = Math.Clamp(0.3 + _hydrologyFlowPersistence * 0.55 + _hydrologyContinuityWeight * 0.25, 0.0, 1.0);
 
-            if (flowAccumulation != null)
+            for (int iteration = 0; iteration < _hydrologySmoothIterations; iteration++)
             {
-                var flowBlend = Math.Clamp(_hydrologySmoothBlend * (0.85 + _hydrologyFlowPersistence * 0.1), 0.0, 1.0);
-                SmoothScalarField(flowAccumulation, _hydrologySmoothIterations, flowBlend);
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        double hydrology = hydrologyMask[x, z];
+                        double flow = flowAccumulation[x, z];
+                        double weightedHydrology = hydrology;
+                        double weightedFlow = flow;
+                        double weightTotal = 1.0;
+                        var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        Vector2 downhill = gradient.LengthSquared() > 1e-5f ? Vector2.Normalize(-gradient) : Vector2.Zero;
+                        double maxAlignment = 0.0;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                                {
+                                    continue;
+                                }
+
+                                double neighborHydrology = hydrologyMask[nx, nz];
+                                double neighborFlow = flowAccumulation[nx, nz];
+
+                                var neighborDir = new Vector2(dx, dz);
+                                if (neighborDir.LengthSquared() > 1e-4f)
+                                {
+                                    neighborDir = Vector2.Normalize(neighborDir);
+                                }
+
+                                double alignment = downhill == Vector2.Zero ? 0.0 : Math.Max(0.0, Vector2.Dot(downhill, neighborDir));
+                                maxAlignment = Math.Max(maxAlignment, alignment);
+
+                                double gradientDelta = Math.Abs(hydrology - neighborHydrology);
+                                double gradientWeight = Math.Clamp(1.0 - gradientDelta * (0.45 + _hydrologyContinuityWeight * 0.35), 0.25, 1.0);
+                                double continuityWeight = 1.0 + _hydrologyContinuityWeight * 0.35;
+                                double alignmentWeight = 1.0 + alignment * (0.8 + anisotropy * 0.6);
+                                double baseWeight = 1.0 + hydrology * 0.3 + neighborHydrology * 0.35 + flow * 0.1 + neighborFlow * 0.1;
+                                double finalWeight = baseWeight * alignmentWeight * gradientWeight * continuityWeight;
+
+                                weightedHydrology += neighborHydrology * finalWeight;
+                                weightedFlow += neighborFlow * finalWeight * (1.0 + alignment * 0.5);
+                                weightTotal += finalWeight;
+                            }
+                        }
+
+                        double hydroTarget = weightTotal > 0.0 ? weightedHydrology / weightTotal : hydrology;
+                        double flowTarget = weightTotal > 0.0 ? weightedFlow / weightTotal : flow;
+                        double blend = Math.Clamp(baseBlend + hydrology * 0.12 + maxAlignment * 0.18 + _hydrologyFlowPersistence * 0.08, 0.0, 0.95);
+                        hydroBuffer[x, z] = hydrology * (1.0 - blend) + hydroTarget * blend;
+                        flowBuffer[x, z] = Math.Max(0.0, flow * (1.0 - blend) + flowTarget * blend);
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
+                Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
             }
         }
 
@@ -3224,8 +3291,11 @@ namespace GameServerApp.World
                     {
                         double hydrology = hydrologyMask[x, z];
                         double flow = flowAccumulation[x, z];
+                        var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                        Vector2 flowDir = gradient.LengthSquared() > 1e-5f ? Vector2.Normalize(-gradient) : Vector2.Zero;
                         double weightedSum = riverIntensity[x, z];
                         double weightTotal = 1.0;
+                        double maxAlignment = 0.0;
 
                         for (int dx = -1; dx <= 1; dx++)
                         {
@@ -3246,17 +3316,26 @@ namespace GameServerApp.World
                                 double neighborHydrology = hydrologyMask[nx, nz];
                                 double baseWeight = 1.0 + erosionRiskField[nx, nz] * 0.75 + hydrology * 0.35 + neighborHydrology * 0.25;
                                 double neighborFlow = flowAccumulation[nx, nz];
-                                double flowWeight = 1.0 + _riverFlowAlignmentWeight * Math.Min(flow + neighborFlow, 2.5);
-                                double gradient = Math.Abs(hydrology - neighborHydrology);
-                                double gradientWeight = Math.Clamp(1.0 - _riverGradientPenalty * gradient, 0.0, 1.0);
-                                double finalWeight = baseWeight * Math.Clamp(flowWeight * Math.Max(0.35, gradientWeight), 0.35, 3.0);
+                                var neighborDir = new Vector2(dx, dz);
+                                if (neighborDir.LengthSquared() > 1e-4f)
+                                {
+                                    neighborDir = Vector2.Normalize(neighborDir);
+                                }
+
+                                double alignment = flowDir == Vector2.Zero ? 0.0 : Math.Max(0.0, Vector2.Dot(flowDir, neighborDir));
+                                maxAlignment = Math.Max(maxAlignment, alignment);
+
+                                double flowWeight = 1.0 + _riverFlowAlignmentWeight * (Math.Min(flow + neighborFlow, 2.5) * 0.45 + alignment * 1.1);
+                                double hydrologyDelta = Math.Abs(hydrology - neighborHydrology);
+                                double gradientWeight = Math.Clamp(1.0 - _riverGradientPenalty * hydrologyDelta, 0.15, 1.0);
+                                double finalWeight = Math.Clamp(baseWeight * flowWeight * gradientWeight, 0.35, 3.5);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }
                         }
 
                         double average = weightTotal > 0.0 ? weightedSum / weightTotal : riverIntensity[x, z];
-                        double blend = Math.Clamp(baseBlend + hydrology * 0.2 + flow * 0.12, 0.0, 0.95);
+                        double blend = Math.Clamp(baseBlend + hydrology * 0.2 + flow * 0.12 + maxAlignment * 0.2, 0.0, 0.95);
                         scratch[x, z] = riverIntensity[x, z] * (1.0 - blend) + average * blend;
                     }
                 }

@@ -83,6 +83,7 @@ namespace GameServerApp.World
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;
         public double RiverBankErosionWeight { get; set; } = 0.18;
         public double LakeRimErosionWeight { get; set; } = 0.30;
+        public double RiverReliefPenaltyWeight { get; set; } = 0.25;
         public double HydrologyWarpFrequency { get; set; } = 0.0009;
         public double HydrologyWarpAmplitude { get; set; } = 9.0;
         public double RiverFlowAlignmentWeight { get; set; } = 0.28;
@@ -134,5 +135,6 @@ namespace GameServerApp.World
         public int MaxRadius { get; set; } = 9;
         public double SpawnWeightBias { get; set; } = 0.3;
         public double ShorelineBlend { get; set; } = 0.66;
+        public double RiverProximitySuppression { get; set; } = 0.35;
     }
 }

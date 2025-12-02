@@ -5907,6 +5907,9 @@ namespace MapGenLib
                         float flowBias = CustomMathf.Clamp01((flowNoise + 0.5f) * 0.5f + liquidity * 0.5f);
                         float threshold = 0.24f - liquidity * 0.08f + aquiferNoise * 0.02f - flowBias * 0.015f;
                         threshold -= CustomMathf.Clamp((erosionRisk - 0.35f) * 0.08f, -0.08f, 0.08f);
+                        float hydrologyPenalty = CustomMathf.Clamp(hydrologyMask[x, z], 0f, 1f) * 0.02f;
+                        float flowSuppression = CustomMathf.Clamp((float)flowAccumulation[x, z], 0f, 8f) * 0.01f;
+                        threshold += hydrologyPenalty + flowSuppression;
 
                         if (density < threshold)
                         {

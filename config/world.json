@@ -37,6 +37,7 @@
     "HydrologyFlowPersistence": 0.68,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,
+    "RiverReliefPenaltyWeight": 0.25,
     "HydrologyWarpFrequency": 0.0009,
     "HydrologyWarpAmplitude": 9.0,
     "RiverFlowAlignmentWeight": 0.28,
@@ -129,6 +130,7 @@
     "MaxDepth": 9,
     "MaxRadius": 9,
     "SpawnWeightBias": 0.3,
-    "ShorelineBlend": 0.66
+    "ShorelineBlend": 0.66,
+    "RiverProximitySuppression": 0.35
   }
 }

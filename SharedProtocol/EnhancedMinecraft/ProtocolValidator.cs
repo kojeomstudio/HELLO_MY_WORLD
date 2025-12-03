@@ -48,6 +48,7 @@ public static class ProtocolValidator
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ValidateWorldControlDescriptors();
+        ValidateEntityDescriptors();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -88,6 +89,18 @@ public static class ProtocolValidator
 
         var unloadAck = RequireDescriptor(nameof(ChunkUnloadAck));
         EnsureFields(unloadAck, "chunk_x", "chunk_z", "accepted", "remaining_chunks", "note");
+    }
+
+    private static void ValidateEntityDescriptors()
+    {
+        var entityData = RequireDescriptor(nameof(EntityData));
+        EnsureFields(entityData, "entity_id", "entity_type", "position", "rotation", "velocity", "health", "max_health", "metadata");
+
+        var entitySpawn = RequireDescriptor(nameof(EntitySpawnBroadcast));
+        EnsureFields(entitySpawn, "entity", "spawn_reason");
+
+        var entityDespawn = RequireDescriptor(nameof(EntityDespawnBroadcast));
+        EnsureFields(entityDespawn, "entity_id", "reason");
     }
 
     private static MessageDescriptor RequireDescriptor(string messageName)

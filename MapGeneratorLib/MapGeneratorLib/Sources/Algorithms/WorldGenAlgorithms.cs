@@ -114,6 +114,7 @@ namespace MapGenLib
         public static float HydrologyFlowGain = 0.5f;
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyEdgeFlowBias = 0.35f;
+        public static float HydrologyEdgeTangentWeight = 0.45f;
         public static int HydrologyEdgeBlendRadius = 3;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
         public static float HydrologyFlowPersistence = 0.68f;
@@ -1056,8 +1057,28 @@ namespace MapGenLib
                     float anchorHydro = hydrologyMask[anchorX, anchorZ];
                     float anchorFlow = flowAccumulation[anchorX, anchorZ];
 
-                    hydrologyMask[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], anchorHydro, blend));
-                    flowAccumulation[x, z] = CustomMathf.Clamp(flowAccumulation[x, z] * (1f - blend) + anchorFlow * blend, 0f, 8f);
+                    float anchoredHydro = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], anchorHydro, blend));
+                    float anchoredFlow = CustomMathf.Clamp(flowAccumulation[x, z] * (1f - blend) + anchorFlow * blend, 0f, 8f);
+
+                    CustomVector2 tangentDir = ComputeHydrologyTangentVector(hydrologyMask, x, z);
+                    if (tangentDir.sqrMagnitude > CustomVector2.kEpsilon && HydrologyEdgeTangentWeight > 0f)
+                    {
+                        tangentDir.Normalize();
+                        int tangentStepX = tangentDir.x >= 0f ? 1 : -1;
+                        int tangentStepZ = tangentDir.y >= 0f ? 1 : -1;
+                        int tangentX = CustomMathf.Clamp(x + tangentStepX, 1, width - 2);
+                        int tangentZ = CustomMathf.Clamp(z + tangentStepZ, 1, depth - 2);
+                        float tangentHydro = hydrologyMask[tangentX, tangentZ];
+                        float tangentFlow = flowAccumulation[tangentX, tangentZ];
+                        float tangentBlend = CustomMathf.Clamp01(edgeWeight * HydrologyEdgeTangentWeight * (0.55f + slopeStrength * 0.35f));
+                        float targetHydro = (anchoredHydro + tangentHydro) * 0.5f;
+                        float targetFlow = (anchoredFlow + tangentFlow) * 0.5f;
+                        anchoredHydro = CustomMathf.Clamp01(CustomMathf.Lerp(anchoredHydro, targetHydro, tangentBlend));
+                        anchoredFlow = CustomMathf.Clamp(anchoredFlow * (1f - tangentBlend) + targetFlow * tangentBlend, 0f, 8f);
+                    }
+
+                    hydrologyMask[x, z] = anchoredHydro;
+                    flowAccumulation[x, z] = anchoredFlow;
                 }
             }
         }

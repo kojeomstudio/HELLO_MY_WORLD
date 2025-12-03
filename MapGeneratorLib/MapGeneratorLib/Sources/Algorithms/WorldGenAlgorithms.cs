@@ -105,10 +105,10 @@ namespace MapGenLib
     {
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
         private const int GlobalRiverWaterLevel = 62;
-        public static int HydrologySmoothIterations = 2;
-        public static float HydrologySmoothBlend = 0.6f;
-        public static int CaveStabilitySmoothIterations = 1;
-        public static float CaveStabilitySmoothBlend = 0.55f;
+        public static int HydrologySmoothIterations = 3;
+        public static float HydrologySmoothBlend = 0.68f;
+        public static int CaveStabilitySmoothIterations = 2;
+        public static float CaveStabilitySmoothBlend = 0.6f;
         public static float HydrologyShorePush = 5f;
         public static float HydrologySlopePenalty = 6f;
         public static float HydrologyFlowGain = 0.5f;
@@ -1278,6 +1278,40 @@ namespace MapGenLib
             }
         }
 
+        private static void EnforceHydrologyEdgeConsistency(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float interiorHydro = ComputeInteriorAverage(hydrologyMask, edgeRadius);
+            float interiorFlow = ComputeInteriorAverage(flowAccumulation, edgeRadius);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - CustomMathf.Clamp01(edgeDistance / CustomMathf.Max(1f, (float)edgeRadius));
+                    float targetHydro = ClampEdgeVariance(hydrologyMask[x, z], interiorHydro, HydrologyEdgeVarianceClamp);
+                    float targetFlow = ClampEdgeVariance(flowAccumulation[x, z], interiorFlow, HydrologyEdgeVarianceClamp * 1.25f, 0.05f);
+                    float blend = CustomMathf.Clamp01(0.35f + falloff * (0.35f + HydrologyFlowPersistence * 0.1f));
+
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], targetHydro, blend));
+                    flowAccumulation[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flowAccumulation[x, z], targetFlow, blend));
+                }
+            }
+        }
+
         private static void NormalizeHydrologyRange(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
         {
             if (hydrologyMask == null || flowAccumulation == null)
@@ -1610,6 +1644,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            EnforceHydrologyEdgeConsistency(subWorldSize, hydrologyMask, flowAccumulation);
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);

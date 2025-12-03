@@ -115,6 +115,7 @@ namespace MapGenLib
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyEdgeFlowBias = 0.35f;
         public static float HydrologyEdgeTangentWeight = 0.45f;
+        public static float HydrologyEdgeFlowLockWeight = 0.38f;
         public static int HydrologyEdgeBlendRadius = 3;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
         public static float HydrologyFlowPersistence = 0.68f;
@@ -1059,6 +1060,31 @@ namespace MapGenLib
 
                     float anchoredHydro = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], anchorHydro, blend));
                     float anchoredFlow = CustomMathf.Clamp(flowAccumulation[x, z] * (1f - blend) + anchorFlow * blend, 0f, 8f);
+
+                    var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                    if (flowDir.sqrMagnitude > CustomVector2.kEpsilon && HydrologyEdgeFlowLockWeight > 0f)
+                    {
+                        flowDir.Normalize();
+                        int flowStep = CustomMathf.Max(1, edgeRadius - edgeDistance + 1);
+                        int flowX = CustomMathf.Clamp(x + CustomMathf.RoundToInt(flowDir.x * flowStep), 1, width - 2);
+                        int flowZ = CustomMathf.Clamp(z + CustomMathf.RoundToInt(flowDir.y * flowStep), 1, depth - 2);
+                        float flowHydro = hydrologyMask[flowX, flowZ];
+                        float flowFlow = flowAccumulation[flowX, flowZ];
+                        var downstreamDir = ComputeHydrologyGradientVector(hydrologyMask, flowX, flowZ);
+                        float alignment = 0f;
+                        if (downstreamDir.sqrMagnitude > CustomVector2.kEpsilon)
+                        {
+                            downstreamDir.Normalize();
+                            alignment = CustomVector2.Dot(flowDir, downstreamDir);
+                        }
+
+                        float alignmentStrength = CustomMathf.Clamp01(0.6f + CustomMathf.Max(0f, alignment) * 0.4f);
+                        float flowBlend = CustomMathf.Clamp01(edgeWeight * HydrologyEdgeFlowLockWeight * alignmentStrength * (0.55f + flowPersistence * 0.35f));
+                        float targetHydro = (anchoredHydro + flowHydro) * 0.5f;
+                        float targetFlow = (anchoredFlow + flowFlow) * 0.5f;
+                        anchoredHydro = CustomMathf.Lerp(anchoredHydro, targetHydro, flowBlend);
+                        anchoredFlow = CustomMathf.Lerp(anchoredFlow, targetFlow, flowBlend);
+                    }
 
                     CustomVector2 tangentDir = ComputeHydrologyTangentVector(hydrologyMask, x, z);
                     if (tangentDir.sqrMagnitude > CustomVector2.kEpsilon && HydrologyEdgeTangentWeight > 0f)

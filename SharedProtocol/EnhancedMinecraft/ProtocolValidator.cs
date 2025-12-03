@@ -41,6 +41,7 @@ public static class ProtocolValidator
             ProtocolRegistry.EnsureRegistered(message);
         }
 
+        ValidateUniqueBindings();
         ValidateRegistryDescriptors();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
@@ -267,6 +268,19 @@ public static class ProtocolValidator
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft message '{messageType}' is registered without a descriptor binding. Ensure generated protobuf classes are referenced and ProtocolRegistry bindings include both parser and descriptor entries.");
             }
+        }
+    }
+
+    private static void ValidateUniqueBindings()
+    {
+        var duplicate = ProtocolRegistry.RegisteredDescriptors
+            .GroupBy(binding => binding.DescriptorName, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate != null)
+        {
+            string messageTypes = string.Join(", ", duplicate.Select(binding => binding.MessageType));
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft descriptor '{duplicate.Key}' is bound to multiple message types ({messageTypes}). Update ProtocolRegistry so each protobuf contract maps to a single message type and using directive.");
         }
     }
 }

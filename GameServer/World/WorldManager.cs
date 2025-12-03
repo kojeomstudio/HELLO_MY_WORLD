@@ -3515,6 +3515,8 @@ namespace GameServerApp.World
             double[,] flowAccumulation)
         {
             double clamp = RiverBankThreshold * 1.35;
+            double continuityWeight = Math.Clamp(_hydrologyContinuityWeight, 0.0, 1.0);
+            double persistenceWeight = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
             int width = riverIntensity.GetLength(0);
             int depth = riverIntensity.GetLength(1);
 
@@ -3531,7 +3533,9 @@ namespace GameServerApp.World
 
                     double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
                     double flow = Math.Clamp(flowAccumulation[x, z] / 8.0, 0.0, 1.0);
-                    double weight = Math.Clamp(0.55 + hydrology * 0.35 + flow * 0.45, 0.35, 1.5);
+                    double hydrologyTerm = hydrology * (0.55 + continuityWeight * 0.6);
+                    double flowTerm = flow * (0.65 + persistenceWeight * 0.6);
+                    double weight = Math.Clamp(0.35 + hydrologyTerm + flowTerm, 0.35, 1.75);
                     double stabilized = intensity * weight;
 
                     if (stabilized < RiverCenterThreshold * 0.08)
@@ -3698,27 +3702,31 @@ namespace GameServerApp.World
             double relief = ComputeLocalRelief(surfaceCache, centerX, centerZ, 6);
             double basinStability = 1.0 - Math.Clamp(relief / 10.0, 0.0, 1.0);
             double hydrologyCoherence = Math.Clamp((hydrology + riparian) * 0.5 + flow * 0.35, 0.0, 1.0);
+            double erosionPenalty = Math.Clamp(1.0 - erosionRisk * 0.65, 0.25, 1.0);
             double spawnWeight = Math.Clamp((chunkWeight * 0.6 + hydrology * 0.8) * (0.65 + basinStability * 0.5), 0.0, 1.2);
-            spawnWeight = Math.Clamp(spawnWeight + riparian * 0.25 + flow * 0.2 + erosionRisk * 0.35 + hydrologyCoherence * 0.2 + lakeConfig.SpawnWeightBias, 0.0, 1.3);
+            spawnWeight = Math.Clamp(spawnWeight + riparian * 0.25 + flow * 0.2 + hydrologyCoherence * 0.2 + lakeConfig.SpawnWeightBias, 0.0, 1.3);
             double riverPressure = SampleRiverIntensity(riverField.Intensity, centerX, centerZ, 2);
             if (_lakeRiverProximitySuppression > 0.0 && riverPressure > 0.0)
             {
                 double suppression = Math.Clamp(riverPressure * _lakeRiverProximitySuppression, 0.0, 0.85);
                 spawnWeight *= 1.0 - suppression;
             }
+            spawnWeight *= erosionPenalty;
             spawnWeight *= Math.Clamp(0.85 + hydrologyCoherence * 0.35, 0.7, 1.35);
             if (spawnWeight < Math.Max(0.2, lakeConfig.SpawnWeightBias) || rand.NextDouble() > spawnWeight || basinStability < 0.3)
                 return;
 
             int radiusX = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 2.0) + (int)Math.Round(flow * 1.5);
             int radiusZ = 3 + rand.Next(4) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5) + (int)Math.Round(flow * 1.25);
+            radiusX = (int)Math.Round(radiusX * (0.8 + erosionPenalty * 0.45));
+            radiusZ = (int)Math.Round(radiusZ * (0.82 + erosionPenalty * 0.4));
             radiusX = Math.Clamp(radiusX, 3, maxRadiusSetting);
             radiusZ = Math.Clamp(radiusZ, 3, maxRadiusSetting);
             int maxDepth = 3 + rand.Next(3) + (int)Math.Round(hydrology * 2.0) + (int)Math.Round(riparian * 1.5) + (int)Math.Round(flow * 1.5);
-            maxDepth += (int)Math.Round(erosionRisk * 2.0);
+            maxDepth = (int)Math.Round(maxDepth * (0.75 + erosionPenalty * 0.35));
             maxDepth = Math.Clamp((int)Math.Round(Math.Clamp(maxDepth * (0.7 + basinStability * 0.6), minDepthSetting, maxDepthSetting)), minDepthSetting, maxDepthSetting);
             int waterLevel = Math.Clamp(
-                GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0) + (int)Math.Round((riparian - 0.5) * 3.0) + (int)Math.Round((erosionRisk - 0.5) * 2.0) + (int)Math.Round((flow - 0.5) * 2.0),
+                GlobalWaterLevel + rand.Next(-1, 2) + (int)Math.Round((hydrology - 0.5) * 3.0) + (int)Math.Round((riparian - 0.5) * 3.0) + (int)Math.Round((0.5 - erosionRisk) * 2.0) + (int)Math.Round((flow - 0.5) * 2.0),
                 Math.Max(40, GlobalWaterLevel - 18),
                 Math.Min(120, GlobalWaterLevel + 8));
 

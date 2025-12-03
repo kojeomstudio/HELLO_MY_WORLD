@@ -56,6 +56,10 @@ public struct WorldConfig
     public float CaveSupportDensity;
     public float SupportHydrationBias;
     public float SupportFlowBias;
+    public float HydrologyStabilityWeight;
+    public float FlowStabilityWeight;
+    public float RoughnessStabilityWeight;
+    public float RiverSuppressionWeight;
 }
 
 /// <summary>
@@ -145,6 +149,10 @@ public class WorldConfigFile : BaseDataFile
                 Config.CaveSupportDensity = ParseFloat(data, "CaveSupportDensity", 0.6f);
                 Config.SupportHydrationBias = ParseFloat(data, "SupportHydrationBias", 0.42f);
                 Config.SupportFlowBias = ParseFloat(data, "SupportFlowBias", 0.2f);
+                Config.HydrologyStabilityWeight = ParseFloat(data, "HydrologyStabilityWeight", 0.45f);
+                Config.FlowStabilityWeight = ParseFloat(data, "FlowStabilityWeight", 0.25f);
+                Config.RoughnessStabilityWeight = ParseFloat(data, "RoughnessStabilityWeight", 0.1f);
+                Config.RiverSuppressionWeight = ParseFloat(data, "RiverSuppressionWeight", 0.35f);
                 break;
             case JSONObject.Type.ARRAY:
                 break;

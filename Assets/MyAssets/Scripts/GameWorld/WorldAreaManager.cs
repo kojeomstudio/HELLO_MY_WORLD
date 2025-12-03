@@ -79,6 +79,12 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(tunedWorldConfig.CaveSupportDensity);
         WorldGenAlgorithms.CaveSupportHydrationBias = Mathf.Clamp01(tunedWorldConfig.SupportHydrationBias);
         WorldGenAlgorithms.CaveSupportFlowBias = Mathf.Clamp01(tunedWorldConfig.SupportFlowBias);
+        float caveWeightTotal = Mathf.Clamp01(tunedWorldConfig.HydrologyStabilityWeight + tunedWorldConfig.FlowStabilityWeight + tunedWorldConfig.RoughnessStabilityWeight);
+        WorldGenAlgorithms.CaveHydrologyWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyStabilityWeight);
+        WorldGenAlgorithms.CaveFlowWeight = Mathf.Clamp01(tunedWorldConfig.FlowStabilityWeight);
+        WorldGenAlgorithms.CaveRoughnessWeight = Mathf.Clamp01(tunedWorldConfig.RoughnessStabilityWeight);
+        WorldGenAlgorithms.CaveDepthWeight = Mathf.Clamp(1f - caveWeightTotal, 0.05f, 0.45f);
+        WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(tunedWorldConfig.RiverSuppressionWeight);
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.

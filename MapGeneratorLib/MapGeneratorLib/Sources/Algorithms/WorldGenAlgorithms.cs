@@ -1775,6 +1775,43 @@ namespace MapGenLib
             AddRiverSeepageChannels(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
         }
 
+        private static void NormalizeRiverIntensity(
+            float[,] riverIntensity,
+            float[,] hydrologyMask,
+            float[,] flowAccumulation,
+            float channelThreshold,
+            float bankThreshold)
+        {
+            float clamp = bankThreshold * 1.35f;
+            int width = riverIntensity.GetLength(0);
+            int depth = riverIntensity.GetLength(1);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float intensity = riverIntensity[x, z];
+                    if (intensity <= 0f)
+                    {
+                        riverIntensity[x, z] = 0f;
+                        continue;
+                    }
+
+                    float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
+                    float flow = CustomMathf.Clamp01(flowAccumulation[x, z] / 8f);
+                    float weight = CustomMathf.Clamp(0.55f + hydrology * 0.35f + flow * 0.45f, 0.35f, 1.5f);
+                    float stabilized = intensity * weight;
+
+                    if (stabilized < channelThreshold * 0.08f)
+                    {
+                        stabilized = 0f;
+                    }
+
+                    riverIntensity[x, z] = CustomMathf.Clamp(stabilized, 0f, clamp);
+                }
+            }
+        }
+
         private static void CarveRiverColumn(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z, float normalized, float channelPressure, int riverSurface, CustomVector2 flowDir)
         {
             int surface = surfaceCache[x, z];
@@ -2622,7 +2659,7 @@ namespace MapGenLib
             return (max - min) + stdDev;
         }
 
-        private static float[,] BuildLakeCandidateHeatmap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        private static float[,] BuildLakeCandidateHeatmap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation, float[,] erosionRiskField)
         {
             float[,] heatmap = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
 
@@ -2643,8 +2680,11 @@ namespace MapGenLib
                     float bowlStrength = CustomMathf.Clamp01(1f - relief / 8f);
                     float altitudeBias = 1f - CustomMathf.Clamp01(CustomMathf.Abs(surface - GlobalRiverWaterLevel) / 24f);
                     float shelterBias = CustomMathf.Clamp01((subWorldSize.SizeY - surface) / (float)subWorldSize.SizeY);
-                    float score = hydrology * 0.45f + accumulation * 0.25f + bowlStrength * 0.3f + altitudeBias * 0.2f + shelterBias * 0.1f;
+                    float erosion = CustomMathf.Clamp01(erosionRiskField[x, z]);
+                    float erosionPenalty = CustomMathf.Clamp01(erosion * 0.6f);
+                    float score = hydrology * 0.45f + accumulation * 0.3f + bowlStrength * 0.3f + altitudeBias * 0.2f + shelterBias * 0.1f;
                     score -= CustomMathf.Clamp01(relief / 18f) * 0.2f;
+                    score -= erosionPenalty * 0.25f;
                     heatmap[x, z] = CustomMathf.Clamp01(score);
                 }
             }
@@ -2685,6 +2725,7 @@ namespace MapGenLib
                 }
             }
 
+            NormalizeRiverIntensity(riverIntensity, hydrologyMask, flowAccumulation, channelThreshold, bankThreshold);
             SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask, flowAccumulation);
             return riverIntensity;
         }
@@ -2702,7 +2743,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
-            float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, erosionRiskField);
             float[,] riverIntensityPreview = BuildRiverIntensityPreview(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riparianSaturation, erosionRiskField);
             float lakeSpawnBias = CustomMathf.Clamp(LakeSpawnWeightBias, 0f, 1.3f);
 
@@ -2726,8 +2767,9 @@ namespace MapGenLib
                 float basinStability = 1f - CustomMathf.Clamp01(relief / 10f);
                 float ridgeNoise = Noise.GetNoise((centerX + 37.0f) * 0.06f, 0, (centerZ - 11.0f) * 0.06f);
                 float erosionRisk = erosionRiskField[centerX, centerZ];
+                float hydrologyCoherence = CustomMathf.Clamp01((hydrology + riparian) * 0.5f + flow * 0.35f);
                 float spawnWeight = CustomMathf.Clamp((ridgeNoise - 0.35f) * 1.4f + hydrology * 0.9f + candidateScore * 0.85f, 0f, 1.2f);
-                spawnWeight = CustomMathf.Clamp(spawnWeight + riparian * 0.25f + flow * 0.15f + erosionRisk * 0.35f + lakeSpawnBias, 0f, 1.3f);
+                spawnWeight = CustomMathf.Clamp(spawnWeight + riparian * 0.25f + flow * 0.2f + erosionRisk * 0.35f + hydrologyCoherence * 0.2f + lakeSpawnBias, 0f, 1.3f);
                 float riverPressure = SampleRiverIntensity(riverIntensityPreview, centerX, centerZ, 2);
                 if (LakeRiverProximitySuppression > 0f && riverPressure > 0f)
                 {
@@ -2735,6 +2777,7 @@ namespace MapGenLib
                     spawnWeight *= 1f - suppression;
                 }
                 spawnWeight *= CustomMathf.Lerp(0.65f, 1.2f, basinStability);
+                spawnWeight *= CustomMathf.Clamp(0.85f + hydrologyCoherence * 0.35f, 0.7f, 1.35f);
 
                 if (spawnWeight < CustomMathf.Max(0.2f, lakeSpawnBias) || (candidateScore < 0.2f && spawnWeight < CustomMathf.Max(0.4f, lakeSpawnBias + 0.1f)))
                 {
@@ -2746,11 +2789,11 @@ namespace MapGenLib
                     continue;
                 }
 
-                int radiusX = Utilitys.RandomInteger(4, 7) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(riparian * 2f) + CustomMathf.RoundToInt(erosionRisk * 2f);
-                int radiusZ = Utilitys.RandomInteger(3, 6) + CustomMathf.RoundToInt(hydrology * 1.5f) + CustomMathf.RoundToInt(candidateScore * 2.5f) + CustomMathf.RoundToInt(riparian * 1.5f) + CustomMathf.RoundToInt(erosionRisk * 1.5f);
+                int radiusX = Utilitys.RandomInteger(4, 7) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(riparian * 2f) + CustomMathf.RoundToInt(flow * 1.5f) + CustomMathf.RoundToInt(erosionRisk * 2f);
+                int radiusZ = Utilitys.RandomInteger(3, 6) + CustomMathf.RoundToInt(hydrology * 1.5f) + CustomMathf.RoundToInt(candidateScore * 2.5f) + CustomMathf.RoundToInt(riparian * 1.5f) + CustomMathf.RoundToInt(flow * 1.25f) + CustomMathf.RoundToInt(erosionRisk * 1.5f);
                 radiusX = CustomMathf.Clamp(radiusX, 4, 9);
                 radiusZ = CustomMathf.Clamp(radiusZ, 3, 8);
-                int maxDepth = Utilitys.RandomInteger(3, 5) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(erosionRisk * 2f);
+                int maxDepth = Utilitys.RandomInteger(3, 5) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(flow * 1.5f) + CustomMathf.RoundToInt(erosionRisk * 2f);
                 maxDepth = CustomMathf.Clamp(maxDepth, 3, 8);
 
                 int waterSurface = CustomMathf.Clamp(
@@ -2759,7 +2802,8 @@ namespace MapGenLib
                     CustomMathf.RoundToInt((hydrology - 0.5f) * 3f) +
                     CustomMathf.RoundToInt((candidateScore - 0.5f) * 2f) +
                     CustomMathf.RoundToInt((riparian - 0.5f) * 3f) +
-                    CustomMathf.RoundToInt((erosionRisk - 0.5f) * 2f),
+                    CustomMathf.RoundToInt((erosionRisk - 0.5f) * 2f) +
+                    CustomMathf.RoundToInt((flow - 0.5f) * 2f),
                     45,
                     CustomMathf.Min(subWorldSize.SizeY - 3, GlobalRiverWaterLevel + 2));
                 if (surface < waterSurface - 4 || surface > waterSurface + 8)
@@ -3561,8 +3605,11 @@ namespace MapGenLib
                     float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
                     float flow = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
                     float roughness = CustomMathf.Clamp01((Noise.GetNoise((x + 17) * 0.08f, 0, (z - 9) * 0.08f) + 1f) * 0.5f);
+                    float waterTableBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / 48f);
+                    float moisturePenalty = CustomMathf.Clamp01(hydrology * 0.35f + flow * 0.22f);
                     float saturation = hydrology * 0.45f + flow * 0.25f + (1f - depthFactor) * 0.2f + roughness * 0.1f;
-                    field[x, z] = CustomMathf.Clamp01(saturation);
+                    float stability = saturation * (1f + waterTableBias * 0.35f) * (1f - moisturePenalty * 0.35f);
+                    field[x, z] = CustomMathf.Clamp01(stability);
                 }
             }
 

@@ -32,6 +32,20 @@ public static class ProtocolValidator
         MinecraftMessageType.ParticleEffect
     };
 
+    private static readonly HashSet<MinecraftMessageType> OptionalMessages = new()
+    {
+        MinecraftMessageType.MultiBlockChange,
+        MinecraftMessageType.InventoryUpdate,
+        MinecraftMessageType.ItemUse,
+        MinecraftMessageType.ItemDrop,
+        MinecraftMessageType.ItemPickup,
+        MinecraftMessageType.EntityUpdate,
+        MinecraftMessageType.EntityInteract,
+        MinecraftMessageType.ContainerOpen,
+        MinecraftMessageType.ContainerClose,
+        MinecraftMessageType.ContainerUpdate
+    };
+
     public static void ValidateEnhancedContracts()
     {
         ProtoFingerprint.AssertDescriptorFingerprint();
@@ -50,6 +64,7 @@ public static class ProtocolValidator
         ValidateChunkRequestAndResponseDescriptors();
         ValidateWorldControlDescriptors();
         ValidateEntityDescriptors();
+        ValidateEnumBindings();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -268,6 +283,31 @@ public static class ProtocolValidator
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft message '{messageType}' is registered without a descriptor binding. Ensure generated protobuf classes are referenced and ProtocolRegistry bindings include both parser and descriptor entries.");
             }
+        }
+    }
+
+    private static void ValidateEnumBindings()
+    {
+        var missing = new List<MinecraftMessageType>();
+
+        foreach (var messageType in Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>())
+        {
+            if (OptionalMessages.Contains(messageType))
+            {
+                continue;
+            }
+
+            if (!ProtocolRegistry.IsRegistered(messageType))
+            {
+                missing.Add(messageType);
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            string joined = string.Join(", ", missing);
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft protocol registry is missing bindings for: {joined}. Add ProtocolRegistry entries or mark them optional so generated protobuf classes remain reachable via using directives.");
         }
     }
 

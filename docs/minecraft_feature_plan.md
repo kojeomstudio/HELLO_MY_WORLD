@@ -1,70 +1,18 @@
-# 마인크래프트 기능 구현 및 개선 계획
+# Minecraft Feature Plan (Core / Content / Util)
+Project-wide breakdown of Minecraft-style features, grouped by category and scoped to client vs. server. Use this as the sequence for upcoming work; mark items as we implement.
 
-이 문서는 제미니 CLI 에이전트가 수행할 마인크래프트 핵심 기능의 구현 및 개선 계획을 정의합니다.
+## Client (Unity)
+- Core: chunk streaming & LOD (`Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `MapGeneratorLib`); network/session bootstrap (`Assets/MyAssets/Scripts/Network`); protobuf packet handling (`Assets/Generated/Protobuf`).
+- Content: terrain visuals (caves/rivers/lakes) driven by `WorldConfigData.json`; biome decoration/vegetation (`WorldArea`, `Chunk` scripts); UI for inventory/chat/time/weather.
+- Util: data-driven configs (`Assets/MyAssets/Resources/TextAsset/GameWorld/*.json`), debug overlays/logging, editor tooling (`CustomToolSet`), automated hydration of map data assets.
 
-## 1. 클라이언트/서버 기능 목록
+## Server (.NET)
+- Core: world auth and chunk lifecycle (`GameServer/World/WorldManager.cs`, `Handlers/`, `SessionManager.cs`); protobuf registry/validation (`SharedProtocol/EnhancedMinecraft`); persistence and session safety (`GameServerApp`).
+- Content: world generation (caves/rivers/lakes/ore/vegetation) using `config/world.json`; time/weather cycles; entity spawn/despawn handling; block change and chunk streaming.
+- Util: config surfaces (`server-config.json`, `config/world.json`), telemetry/metrics hooks, maintenance jobs (backups, chunk save intervals), diagnostics (`docs/`, build logs).
 
-다음은 필수적인 클라이언트 및 서버 기능 목록입니다. 기존 코드베이스에 이미 구현된 기능과 신규 구현이 필요한 기능을 포함합니다.
-
-### 1.1. 월드 및 플레이어 관리
-- **[구현됨]** 플레이어 접속 및 인증
-- **[구현됨]** 플레이어 위치 동기화
-- **[구현됨]** 청크 기반 월드 스트리밍
-- **[개선 필요]** 플레이어 인벤토리 관리 (현재 일부 구현, 확장 필요)
-- **[신규]** 플레이어 상태 (체력, 허기) 동기화 및 관리
-- **[신규]** 경험치 및 레벨 시스템
-
-### 1.2. 월드 상호작용
-- **[구현됨]** 블록 설치 및 파괴
-- **[개선 필요]** 컨테이너(상자, 화로) 상호작용 (현재 기본 구현, UI 및 기능 확장 필요)
-- **[신규]** 제작(Crafting) 시스템
-- **[신규]** 아이템 줍기 및 버리기
-
-### 1.3. 지형 생성 (World Generation)
-- **[구현됨]** 다중 바이옴 기반 지형 생성
-- **[구현됨]** 광물 생성
-- **[개선 필요]** 동굴, 강, 호수, 던전 생성 알고리즘 (본 문서 2장에서 상세히 다룸)
-- **[신규]** 구조물(마을, 사원 등) 생성 시스템
-
-### 1.4. AI 및 엔티티
-- **[구현됨]** 기본 AI 액터 스폰 및 관리
-- **[개선 필요]** AI 행동 패턴 개선 (길찾기, 플레이어 추적, 공격 등)
-- **[신규]** 동물 및 몬스터 종류 추가
-
-## 2. 지형 생성 알고리즘 개선
-
-현재 지형 생성 코드는 `GameServer/World/WorldManager.cs`에 매우 정교하게 구현되어 있습니다. 전체 재작성보다는 기존 코드를 존중하면서 다음과 같이 개선을 진행합니다.
-
-### 2.1. 공통 개선 전략
-- **설정 분리:** 지형 생성에 사용되는 매직 넘버(Noise 파라미터, 임계값 등)를 별도의 `*Settings.cs` 클래스로 분리하여 코드 변경 없이 쉽게 조정하고 테스트할 수 있도록 리팩토링합니다.
-- **모듈화:** 거대한 `Generate*Internal` 메서드 내부의 로직을 의미 있는 단위로 분리하여 가독성과 유지보수성을 높입니다.
-
-### 2.2. 동굴 생성 (Caves) - 우선순위: 높음
-- **목표:** 더 다양하고 탐험 가치가 높은 동굴 시스템을 생성합니다.
-- **개선 방안:**
-    1. **'침수 동굴(Flooded Caves)' 추가:** 특정 조건(예: 해수면 근처, 습한 바이옴)에서 생성되는 동굴이 완전히 물로 채워지는 새로운 동굴 타입을 추가합니다. 기존 수문학(Hydrology) 로직을 활용하여 구현합니다.
-    2. **'스파게티 동굴'과 '치즈 동굴' 분리:** `GenerateMainCaveSystem` (스파게티)과 `GenerateNoiseCavePass` (치즈)의 파라미터를 명확히 분리하고, 각 동굴 타입의 특성이 더 잘 드러나도록 노이즈 설정을 조정합니다.
-    3. **동굴 바이옴(Cave Biome) 개념 도입:** 동굴의 특정 영역에 다른 종류의 블록(예: 이끼, 발광석)이나 구조물이 생성되도록 하여 단조로움을 줄입니다. (장기 목표)
-
-### 2.3. 강 생성 (Rivers) - 우선순위: 중간
-- **목표:** 더 자연스러운 강줄기와 강둑을 생성합니다.
-- **개선 방안:**
-    1. **강 폭 및 깊이 다양화:** `SampleRiverField` 노이즈 값을 기반으로 강의 폭과 깊이가 더 역동적으로 변하도록 파라미터를 조정합니다.
-    2. **강둑(Riverbank) 지형 개선:** `ShapeRiverBank` 메서드를 개선하여 강둑이 더 완만하거나, 때로는 절벽 형태로 나타나도록 다양성을 추가합니다.
-    3. **건조한 강바닥(Dry Riverbeds) 추가:** 특정 바이옴(예: 사막)에서는 물 없이 모래나 자갈로만 채워진 강 지형이 생성되도록 합니다.
-
-### 2.4. 호수 생성 (Lakes) - 우선순위: 중간
-- **목표:** 지형에 어울리는 다양한 크기와 형태의 호수를 생성합니다.
-- **개선 방안:**
-    1. **호수 형태 개선:** `GenerateLakesInternal`에서 사용하는 타원(Ellipse) 형태 외에, 여러 노이즈를 조합하여 더 불규칙하고 자연스러운 형태의 호수를 생성합니다.
-    2. **호숫가 지형 개선:** `SculptLakeBank`를 개선하여 모래사장, 자갈 해변 등 다양한 호숫가 지형을 생성합니다.
-
-## 3. Protobuf 및 컴파일 검토
-
-- **[완료]** Protobuf 참조 검토: `SharedProtocol.csproj`가 `Assets/Generated/Protobuf`에 생성된 파일을 올바르게 링크(Link)하여 참조하는 것을 확인했습니다. 이 구조는 클라이언트(Unity)와 서버가 동일한 프로토콜 코드를 공유하게 하므로, 현재 구조를 유지합니다.
-- **[진행 예정]** 컴파일 테스트: 지형 생성 코드 수정 후, 전체 서버 프로젝트(`GameServer`, `SharedProtocol`)를 빌드하여 컴파일 오류가 없는지, 새로 추가/변경된 프로토콜 메시지가 정상적으로 처리되는지 확인합니다.
-
-## 4. 문서 업데이트
-
-- 모든 주요 변경 사항은 관련 `docs` 폴더 내 문서에 반영할 것입니다.
-- 코드 변경이 최종 완료되면 `README.md`에 해당 내용의 요약을 추가합니다.
+## Implementation Order
+1) Core world-map control: keep client/server hydrology, river, lake, and cave generation in lockstep via config-driven knobs. (In progress)
+2) Proto transport hardening: validate enum/registry coverage and keep generated assemblies in sync. (In progress)
+3) Content polish: wetlands, terraces, biome decorations tuned per data files; ensure data-driven JSON stays authoritative.
+4) Utility/ops: metrics, backups, and editor tooling to speed map authoring; keep configs and docs aligned with code.

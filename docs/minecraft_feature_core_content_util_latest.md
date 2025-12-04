@@ -1,5 +1,10 @@
 Current feature split and rollout order across server and Unity client. Updated 2025-12-24; adds a hydrology edge-consistency pass shared between server worldgen and MapGeneratorLib so rivers/lakes stay continuous across chunk seams, plus existing proto registry guards. See also `docs/minecraft_feature_core_content_util_2025-12-24.md` for the dated snapshot.
 
+## Task-specific feature list (core/content/util)
+- Core: world seed-driven chunk RNG and world map control in `GameServer/World/WorldManager.cs`, session/room routing + proto guards for chunk/time/weather/block messages via `Program.cs`, `SessionManager.cs`, and `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`.
+- Content: terrain/hydrology (caves/rivers/lakes), dungeons/loot, ore/vegetation, and biome/weather sync across server (`WorldManager`, `WorldGenerationConfig`) and client previews (`Assets/MyAssets/Scripts/GameWorld/*`, `MapGeneratorLib`).
+- Utility: data-driven JSON configs (`config/world.json`, `server-config.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`), protobuf pipeline (`proto/*.proto`, `Assets/Generated/Protobuf`, `SharedProtocol`), and validation tooling (`scripts/verify_protobuf.ps1`).
+
 ## Core (authority, world map control, protocol)
 | Feature | Server (files) | Client (files) | Data / Protocol / Notes |
 | --- | --- | --- | --- |
@@ -33,6 +38,7 @@ Current feature split and rollout order across server and Unity client. Updated 
 
 ## Current iteration scope
 - [x] Edge-consistency smoothing shared across `WorldManager` and MapGeneratorLib so river/lake masks stay continuous at chunk seams.
+- [x] Deterministic chunk RNG now mixes the world seed into caves/rivers/lakes/dungeons/ores/vegetation so server and client previews stay aligned per world id.
 - [x] ProtocolValidator guards duplicate bindings and descriptor/parser/assembly drift so stale EnhancedMinecraft `using` directives fail fast before networking.
 - [x] Configs kept in sync: `config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, `WorldConfigFile`, and `WorldGenerationConfig` cover the hydrology/river/cave knobs in use.
 - Next: surface a hydrology seam debug overlay in Unity and biome-tune tangent/flow-lock weights based on seam QA captures.

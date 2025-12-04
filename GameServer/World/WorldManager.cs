@@ -80,6 +80,17 @@ namespace GameServerApp.World
         private static double NoiseCaveThreshold = 0.42;
         private static double NoiseCaveLavaThreshold = 0.28;
         private static double NoiseCaveWaterThreshold = 0.34;
+        private const int SaltCaveMain = 0x6CA5E001;
+        private const int SaltCaveHydro = 0x6CA5E00B;
+        private const int SaltCaveDrip = 0x6CA5E00D;
+        private const int SaltCaveKarst = 0x6CA5E00F;
+        private const int SaltDungeon = 0x6D00D001;
+        private const int SaltLake = 0x1A2E0001;
+        private const int SaltRiverTributary = 0x5A7B1001;
+        private const int SaltRiverSediment = 0x5A7B2001;
+        private const int SaltRiverWetland = 0x5A7B3001;
+        private const int SaltOre = 0x0F0E0D0C;
+        private const int SaltVegetation = 0x0A0B0C0D;
 
         private struct TerrainProfile
         {
@@ -346,6 +357,16 @@ namespace GameServerApp.World
         {
             int chunkSeed = _worldSeed.GetChunkSeed(chunkX, chunkZ);
             return new Random(chunkSeed);
+        }
+
+        private Random GetChunkRandom(int chunkX, int chunkZ, int salt)
+        {
+            unchecked
+            {
+                int baseSeed = _worldSeed.GetChunkSeed(chunkX, chunkZ);
+                int mixedSeed = baseSeed ^ (salt * 397) ^ (chunkX * 1013) ^ (chunkZ * 9173);
+                return new Random(mixedSeed);
+            }
         }
 
         public WorldSeedConfig GetWorldSeed() => _worldSeed;
@@ -643,7 +664,7 @@ namespace GameServerApp.World
             }
 
             var chunk = context.Chunk;
-            var rand = new Random((context.ChunkX * 73856093) ^ (context.ChunkZ * 19349663));
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltCaveMain);
             var surfaceCache = BuildSurfaceCache(chunk);
             var hydrologyField = GetHydrologyField(context, surfaceCache);
             var hydrologyMask = hydrologyField.HydrologyMask;
@@ -1891,7 +1912,7 @@ namespace GameServerApp.World
             int[,] surfaceCache,
             double[,] hydrologyMask)
         {
-            var rand = new Random((context.ChunkX * 15731) ^ (context.ChunkZ * 31337) ^ 0xCAF3);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltCaveHydro);
 
             for (int x = 0; x < 16; x++)
             {
@@ -1967,7 +1988,7 @@ namespace GameServerApp.World
 
         private void AddCaveDripstoneFeatures(TerrainGenerationContext context, ChunkData chunk)
         {
-            var rand = new Random((context.ChunkX * 59359) ^ (context.ChunkZ * 99733) ^ 0x5A5A5A);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltCaveDrip);
             for (int x = 0; x < 16; x++)
             {
                 for (int z = 0; z < 16; z++)
@@ -2091,7 +2112,7 @@ namespace GameServerApp.World
             double[,] flowAccumulation,
             RiverFieldCache riverField)
         {
-            var rand = new Random((context.ChunkX * 48611) ^ (context.ChunkZ * 27361) ^ 0x51AE);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltCaveKarst);
             for (int x = 1; x < 15; x++)
             {
                 for (int z = 1; z < 15; z++)
@@ -2266,7 +2287,7 @@ namespace GameServerApp.World
         public void GenerateDungeonsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
-            var rand = new Random((context.ChunkX * 83492791) ^ (context.ChunkZ * 297657976));
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltDungeon);
             if (rand.NextDouble() > 0.15) return; // 15% 확률로 증가
 
             // 던전 타입 결정
@@ -3721,7 +3742,7 @@ namespace GameServerApp.World
             if (lakeNoise < 0.62)
                 return;
 
-            var rand = new Random((context.ChunkX * 928371) ^ (context.ChunkZ * 72341) ^ 0xC0FFEE);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltLake);
             double chunkWeight = Math.Clamp((lakeNoise - 0.62) * 1.8, 0.0, 1.0);
             var lakeConfig = _worldGenConfig.Lakes;
             int maxRadiusSetting = Math.Clamp(lakeConfig.MaxRadius, 3, 12);
@@ -4571,7 +4592,7 @@ namespace GameServerApp.World
             RiverFieldCache riverField,
             double[,] riverIntensity)
         {
-            var rand = new Random((context.ChunkX * 29791) ^ (context.ChunkZ * 911) ^ 0x7F1B);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltRiverTributary);
             for (int x = 1; x < 15; x++)
             {
                 for (int z = 1; z < 15; z++)
@@ -5325,7 +5346,7 @@ namespace GameServerApp.World
             RiverFieldCache riverField,
             double[,] hydrologyMask)
         {
-            var rand = new Random((context.ChunkX * 83492791) ^ (context.ChunkZ * 297657976) ^ 0x51DED);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltRiverSediment);
 
             for (int x = 0; x < 16; x++)
             {
@@ -5462,7 +5483,7 @@ namespace GameServerApp.World
             double[,] hydrologyMask,
             double[,] riverIntensity)
         {
-            var rand = new Random((context.ChunkX * 49157) ^ (context.ChunkZ * 12289) ^ 0xB17F);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltRiverWetland);
 
             for (int x = 1; x < 15; x++)
             {
@@ -6528,7 +6549,7 @@ namespace GameServerApp.World
         public void GenerateOresInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
-            var rand = new Random(context.ChunkX * 1000 + context.ChunkZ);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltOre);
 
             // 각 광물별로 사실적인 깊이와 희귀성 설정
             GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // 석탄: 언제나, 여러 층에서
@@ -6613,7 +6634,7 @@ namespace GameServerApp.World
         public void GenerateVegetationInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
-            var rand = new Random(context.ChunkX * 2000 + context.ChunkZ);
+            var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltVegetation);
 
             for (int x = 0; x < 16; x++)
             {

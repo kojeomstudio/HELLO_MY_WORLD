@@ -31,6 +31,8 @@ namespace GameServerApp.World
         private readonly double _hydrologyEdgeTangentWeight;
         private readonly double _hydrologyEdgeFlowLockWeight;
         private readonly int _hydrologyEdgeBlendRadius;
+        private readonly int _hydrologyEdgeStabilityIterations;
+        private readonly double _hydrologyEdgeStabilityWeight;
         private readonly double _hydrologyEdgeVarianceClamp;
         private readonly double _hydrologyFlowPersistence;
         private readonly int _hydrologySeamRelaxIterations;
@@ -178,6 +180,8 @@ namespace GameServerApp.World
             _hydrologyEdgeTangentWeight = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeTangentWeight, 0.0, 1.5);
             _hydrologyEdgeFlowLockWeight = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeFlowLockWeight, 0.0, 1.5);
             _hydrologyEdgeBlendRadius = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeBlendRadius, 1, 6);
+            _hydrologyEdgeStabilityIterations = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeStabilityIterations, 0, 4);
+            _hydrologyEdgeStabilityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeStabilityWeight, 0.0, 1.0);
             _hydrologyEdgeVarianceClamp = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeVarianceClamp, 0.0, 1.0);
             _hydrologyFlowPersistence = Math.Clamp(_worldGenConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
             _hydrologySeamRelaxIterations = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxIterations, 0, 4);
@@ -207,7 +211,7 @@ namespace GameServerApp.World
             _lakeRiverProximitySuppression = Math.Clamp(_worldGenConfig.Lakes.RiverProximitySuppression, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -2969,6 +2973,7 @@ namespace GameServerApp.World
             int depth = hydrologyMask.GetLength(1);
             int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
             var interior = ComputeInteriorHydrologyAverages(hydrologyMask, flowAccumulation, edgeRadius);
+            double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
 
             for (int x = 0; x < width; x++)
             {
@@ -2989,6 +2994,58 @@ namespace GameServerApp.World
 
                     hydrologyMask[x, z] = Math.Clamp(hydrologyMask[x, z] * (1.0 - blend) + targetHydro * blend, 0.0, 1.0);
                     flowAccumulation[x, z] = Math.Max(0.0, flowAccumulation[x, z] * (1.0 - blend) + targetFlow * blend);
+                }
+            }
+
+            if (_hydrologyEdgeStabilityIterations > 0 && _hydrologyEdgeStabilityWeight > 0.0)
+            {
+                var hydroBuffer = new double[width, depth];
+                var flowBuffer = new double[width, depth];
+                double stabilityWeight = Math.Clamp(_hydrologyEdgeStabilityWeight, 0.0, 1.0);
+
+                for (int iteration = 0; iteration < _hydrologyEdgeStabilityIterations; iteration++)
+                {
+                    var iterationInterior = ComputeInteriorHydrologyAverages(hydrologyMask, flowAccumulation, edgeRadius);
+
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int z = 0; z < depth; z++)
+                        {
+                            int edgeDistance = Math.Min(
+                                Math.Min(x, z),
+                                Math.Min(width - 1 - x, depth - 1 - z));
+                            if (edgeDistance > edgeRadius)
+                            {
+                                hydroBuffer[x, z] = hydrologyMask[x, z];
+                                flowBuffer[x, z] = flowAccumulation[x, z];
+                                continue;
+                            }
+
+                            double falloff = 1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0);
+                            var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                            bool hasFlowDir = flowDir.LengthSquared() > 1e-5f;
+                            int sampleX = x;
+                            int sampleZ = z;
+                            if (hasFlowDir)
+                            {
+                                sampleX = Math.Clamp(x + Math.Sign(flowDir.X) * 2, 0, width - 1);
+                                sampleZ = Math.Clamp(z + Math.Sign(flowDir.Y) * 2, 0, depth - 1);
+                            }
+
+                            double alongFlowHydro = hydrologyMask[sampleX, sampleZ];
+                            double alongFlow = flowAccumulation[sampleX, sampleZ];
+                            double continuity = Math.Clamp(_hydrologyContinuityWeight + falloff * 0.2, 0.0, 1.0);
+                            double targetHydro = (hydrologyMask[x, z] * 0.9 + iterationInterior.hydro * (0.75 + continuity * 0.25) + alongFlowHydro * (0.55 + flowPersistence * 0.25)) / (2.2 + continuity * 0.25 + flowPersistence * 0.25);
+                            double targetFlow = (flowAccumulation[x, z] * (0.85 + flowPersistence * 0.2) + iterationInterior.flow * (0.6 + flowPersistence * 0.3) + alongFlow * (0.65 + continuity * 0.2)) / (2.1 + flowPersistence * 0.5 + continuity * 0.2);
+                            double blend = Math.Clamp(stabilityWeight * falloff * (0.6 + flowPersistence * 0.35), 0.0, 1.0);
+
+                            hydroBuffer[x, z] = Math.Clamp(hydrologyMask[x, z] * (1.0 - blend) + targetHydro * blend, 0.0, 1.0);
+                            flowBuffer[x, z] = Math.Max(0.0, flowAccumulation[x, z] * (1.0 - blend * 0.55) + targetFlow * (blend * 0.55));
+                        }
+                    }
+
+                    Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
+                    Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
                 }
             }
         }

@@ -117,6 +117,8 @@ namespace MapGenLib
         public static float HydrologyEdgeTangentWeight = 0.45f;
         public static float HydrologyEdgeFlowLockWeight = 0.38f;
         public static int HydrologyEdgeBlendRadius = 3;
+        public static int HydrologyEdgeStabilityIterations = 1;
+        public static float HydrologyEdgeStabilityWeight = 0.32f;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
         public static float HydrologyFlowPersistence = 0.68f;
         public static float HydrologyWarpFrequency = 0.0009f;
@@ -1342,6 +1344,7 @@ namespace MapGenLib
             int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
             float interiorHydro = ComputeInteriorAverage(hydrologyMask, edgeRadius);
             float interiorFlow = ComputeInteriorAverage(flowAccumulation, edgeRadius);
+            float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
 
             for (int x = 0; x < width; x++)
             {
@@ -1360,6 +1363,57 @@ namespace MapGenLib
 
                     hydrologyMask[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], targetHydro, blend));
                     flowAccumulation[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flowAccumulation[x, z], targetFlow, blend));
+                }
+            }
+
+            if (HydrologyEdgeStabilityIterations > 0 && HydrologyEdgeStabilityWeight > 0f)
+            {
+                var hydroBuffer = new float[width, depth];
+                var flowBuffer = new float[width, depth];
+                float stabilityWeight = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
+
+                for (int iteration = 0; iteration < HydrologyEdgeStabilityIterations; iteration++)
+                {
+                    interiorHydro = ComputeInteriorAverage(hydrologyMask, edgeRadius);
+                    interiorFlow = ComputeInteriorAverage(flowAccumulation, edgeRadius);
+
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int z = 0; z < depth; z++)
+                        {
+                            int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                            if (edgeDistance > edgeRadius)
+                            {
+                                hydroBuffer[x, z] = hydrologyMask[x, z];
+                                flowBuffer[x, z] = flowAccumulation[x, z];
+                                continue;
+                            }
+
+                            float falloff = 1f - CustomMathf.Clamp01(edgeDistance / CustomMathf.Max(1f, (float)edgeRadius));
+                            var flowDir = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                            bool hasFlowDir = flowDir.sqrMagnitude > CustomVector2.kEpsilon;
+                            int sampleX = x;
+                            int sampleZ = z;
+                            if (hasFlowDir)
+                            {
+                                sampleX = CustomMathf.Clamp(x + (flowDir.x >= 0f ? 2 : -2), 0, width - 1);
+                                sampleZ = CustomMathf.Clamp(z + (flowDir.y >= 0f ? 2 : -2), 0, depth - 1);
+                            }
+
+                            float alongFlowHydro = hydrologyMask[sampleX, sampleZ];
+                            float alongFlow = flowAccumulation[sampleX, sampleZ];
+                            float continuity = CustomMathf.Clamp01(HydrologyContinuityWeight + falloff * 0.2f);
+                            float targetHydro = (hydrologyMask[x, z] * 0.9f + interiorHydro * (0.75f + continuity * 0.25f) + alongFlowHydro * (0.55f + flowPersistence * 0.25f)) / (2.2f + continuity * 0.25f + flowPersistence * 0.25f);
+                            float targetFlow = (flowAccumulation[x, z] * (0.85f + flowPersistence * 0.2f) + interiorFlow * (0.6f + flowPersistence * 0.3f) + alongFlow * (0.65f + continuity * 0.2f)) / (2.1f + flowPersistence * 0.5f + continuity * 0.2f);
+                            float blend = CustomMathf.Clamp01(stabilityWeight * falloff * (0.6f + flowPersistence * 0.35f));
+
+                            hydroBuffer[x, z] = CustomMathf.Clamp01(hydrologyMask[x, z] * (1f - blend) + targetHydro * blend);
+                            flowBuffer[x, z] = CustomMathf.Max(0f, flowAccumulation[x, z] * (1f - blend * 0.55f) + targetFlow * (blend * 0.55f));
+                        }
+                    }
+
+                    Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
+                    Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
                 }
             }
         }

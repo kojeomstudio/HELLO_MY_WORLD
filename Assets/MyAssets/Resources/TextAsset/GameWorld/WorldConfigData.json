@@ -29,6 +29,8 @@
   "HydrologyEdgeTangentWeight": 0.45,
   "HydrologyEdgeFlowLockWeight": 0.38,
   "HydrologyEdgeBlendRadius": 3,
+  "HydrologyEdgeStabilityIterations": 1,
+  "HydrologyEdgeStabilityWeight": 0.32,
   "HydrologyEdgeVarianceClamp": 0.32,
   "HydrologyFlowPersistence": 0.68,
   "HydrologySeamRelaxIterations": 2,

@@ -63,6 +63,7 @@ public static class ProtocolValidator
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ValidateWorldControlDescriptors();
+        ValidateServerStatusDescriptors();
         ValidateEntityDescriptors();
         ValidateEnumBindings();
         ProtoDiagnostics.AssertRegistryClean();
@@ -105,6 +106,29 @@ public static class ProtocolValidator
 
         var unloadAck = RequireDescriptor(nameof(ChunkUnloadAck));
         EnsureFields(unloadAck, "chunk_x", "chunk_z", "accepted", "remaining_chunks", "note");
+    }
+
+    private static void ValidateServerStatusDescriptors()
+    {
+        var status = RequireDescriptor(nameof(ServerStatusResponse));
+        EnsureFields(
+            status,
+            "server_version",
+            "protocol_version",
+            "online_players",
+            "max_players",
+            "server_tps",
+            "server_uptime",
+            "motd",
+            "world_info",
+            "container_hash_mismatches",
+            "total_tracked_chunks",
+            "active_chunk_residency_players",
+            "peak_chunks_per_player",
+            "busiest_chunk_player",
+            "total_deaths",
+            "total_respawns",
+            "deaths_last_ten_minutes");
     }
 
     private static void ValidateEntityDescriptors()

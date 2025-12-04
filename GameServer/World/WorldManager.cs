@@ -2382,6 +2382,7 @@ namespace GameServerApp.World
                 var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
                 var flowAccumulation = BuildFlowAccumulation(surfaceCache);
                 BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+                EnforceHydrologyEdgeConsistency(hydrologyMask, flowAccumulation);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
                 NormalizeHydrologyPressure(hydrologyMask, flowAccumulation);
@@ -2934,6 +2935,41 @@ namespace GameServerApp.World
             }
 
             return (hydroSum / count, flowSum / count);
+        }
+
+        private void EnforceHydrologyEdgeConsistency(double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            var interior = ComputeInteriorHydrologyAverages(hydrologyMask, flowAccumulation, edgeRadius);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(
+                        Math.Min(x, z),
+                        Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0);
+                    double targetHydro = ClampEdgeVariance(hydrologyMask[x, z], interior.hydro, _hydrologyEdgeVarianceClamp);
+                    double targetFlow = ClampEdgeVariance(flowAccumulation[x, z], interior.flow, _hydrologyEdgeVarianceClamp * 1.25, 0.05);
+                    double blend = Math.Clamp(0.35 + falloff * (0.35 + _hydrologyFlowPersistence * 0.1), 0.0, 1.0);
+
+                    hydrologyMask[x, z] = Math.Clamp(hydrologyMask[x, z] * (1.0 - blend) + targetHydro * blend, 0.0, 1.0);
+                    flowAccumulation[x, z] = Math.Max(0.0, flowAccumulation[x, z] * (1.0 - blend) + targetFlow * blend);
+                }
+            }
         }
 
         private static double ClampEdgeVariance(double value, double anchor, double clampFraction, double absoluteFloor = 0.02)

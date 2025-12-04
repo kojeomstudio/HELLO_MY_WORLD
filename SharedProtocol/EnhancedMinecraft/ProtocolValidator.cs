@@ -93,7 +93,7 @@ public static class ProtocolValidator
         var weather = RequireDescriptor(nameof(WeatherInfo));
         EnsureFields(weather, "weather_type", "duration_ticks", "intensity", "thundering");
         var weatherUpdate = RequireDescriptor(nameof(WeatherUpdateBroadcast));
-        EnsureFields(weatherUpdate, "weather");
+        EnsureFields(weatherUpdate, "weather", "change_timestamp");
 
         var worldBorder = RequireDescriptor(nameof(WorldBorder));
         EnsureFields(worldBorder, "center", "diameter", "target_diameter", "time_to_target", "warning_distance", "warning_time", "damage_per_block", "damage_buffer");

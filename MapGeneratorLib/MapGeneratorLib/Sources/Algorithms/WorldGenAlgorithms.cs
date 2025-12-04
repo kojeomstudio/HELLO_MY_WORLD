@@ -104,7 +104,7 @@ namespace MapGenLib
     public class WorldGenAlgorithms
     {
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
-        private const int GlobalRiverWaterLevel = 62;
+        public static int GlobalRiverWaterLevel = 62;
         public static int HydrologySmoothIterations = 3;
         public static float HydrologySmoothBlend = 0.68f;
         public static int CaveStabilitySmoothIterations = 2;
@@ -120,6 +120,8 @@ namespace MapGenLib
         public static int HydrologyEdgeStabilityIterations = 1;
         public static float HydrologyEdgeStabilityWeight = 0.32f;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
+        public static float HydrologyWaterTableClampWeight = 0.42f;
+        public static int HydrologyWaterTableClampRange = 18;
         public static float HydrologyFlowPersistence = 0.68f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
@@ -1471,6 +1473,45 @@ namespace MapGenLib
             }
         }
 
+        private static void ClampHydrologyToWaterTable(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)
+        {
+            if (HydrologyWaterTableClampWeight <= 0f || HydrologyWaterTableClampRange <= 0 || hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            float weight = CustomMathf.Clamp01(HydrologyWaterTableClampWeight);
+            float invRange = 1f / CustomMathf.Max(1f, (float)HydrologyWaterTableClampRange);
+            float flowBlendScale = 0.65f;
+
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    float delta = CustomMathf.Abs(GlobalRiverWaterLevel - surface);
+                    float proximity = 1f - CustomMathf.Clamp01(delta * invRange);
+                    if (proximity <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float valleyBias = CustomMathf.Clamp((GlobalRiverWaterLevel - surface) / CustomMathf.Max(1f, HydrologyShorePush * 1.15f), -1f, 1f);
+                    float targetHydro = CustomMathf.Clamp01(hydrologyMask[x, z] + 0.25f * proximity + CustomMathf.Max(0f, valleyBias) * 0.18f);
+                    float targetFlow = CustomMathf.Clamp01(flowAccumulation[x, z] + 0.35f * proximity);
+                    float blend = weight * proximity;
+
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(hydrologyMask[x, z] * (1f - blend) + targetHydro * blend);
+                    flowAccumulation[x, z] = CustomMathf.Max(0f, flowAccumulation[x, z] * (1f - blend * flowBlendScale) + targetFlow * (blend * flowBlendScale));
+                }
+            }
+        }
+
         private static float[,] BuildRiparianSaturationMap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
         {
             float[,] riparian = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
@@ -2803,6 +2844,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -3633,6 +3675,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             SmoothHydrologyFields(caveHydrologyMask, caveFlowAccumulation);
             NormalizeHydrologyRange(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            ClampHydrologyToWaterTable(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             RelaxHydrologySeams(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             AddHydrologySupportColumns(subWorldBlockData, subWorldSize, caveStabilityField, caveHydrologyMask, caveFlowAccumulation);
@@ -3655,6 +3698,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -6141,6 +6185,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);

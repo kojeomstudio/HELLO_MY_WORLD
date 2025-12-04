@@ -24,11 +24,11 @@ public class WorldAreaManager : MonoBehaviour
     public bool bInitFinish { get; private set; }
 
     public async void Init()
-    {
-        //
-        Instance = this;
-        //
-        bInitFinish = false;
+        {
+            //
+            Instance = this;
+            //
+            bInitFinish = false;
         List<WorldAreaGenerateParam> worldAreaGenParamGroup = new List<WorldAreaGenerateParam>();
         foreach (var worldAreaData in WorldMapDataFile.Instance.MapData.WorldAreaDatas)
         {
@@ -46,6 +46,7 @@ public class WorldAreaManager : MonoBehaviour
         }
 
         var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+        WorldGenAlgorithms.GlobalRiverWaterLevel = Mathf.Max(0, tunedWorldConfig.GlobalWaterLevel);
         WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, tunedWorldConfig.HydrologySmoothIterations);
         WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySmoothBlend);
         WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(tunedWorldConfig.HydrologyShorePush, 0.1f, 64f);
@@ -59,6 +60,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyEdgeStabilityIterations = Mathf.Max(0, tunedWorldConfig.HydrologyEdgeStabilityIterations);
         WorldGenAlgorithms.HydrologyEdgeStabilityWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeStabilityWeight);
         WorldGenAlgorithms.HydrologyEdgeVarianceClamp = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeVarianceClamp);
+        WorldGenAlgorithms.HydrologyWaterTableClampWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyWaterTableClampWeight);
+        WorldGenAlgorithms.HydrologyWaterTableClampRange = Mathf.Max(1, tunedWorldConfig.HydrologyWaterTableClampRange);
         WorldGenAlgorithms.HydrologyFlowPersistence = Mathf.Clamp01(tunedWorldConfig.HydrologyFlowPersistence);
         WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(tunedWorldConfig.HydrologyWarpFrequency, 0.0001f, 0.01f);
         WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(tunedWorldConfig.HydrologyWarpAmplitude, 0f, 48f);

@@ -2610,10 +2610,13 @@ namespace GameServerApp.World
             return mask;
         }
 
-        private static double[,] BuildFlowAccumulation(int[,] surfaceCache)
+        private double[,] BuildFlowAccumulation(int[,] surfaceCache)
         {
             int width = surfaceCache.GetLength(0);
             int depth = surfaceCache.GetLength(1);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius * 2);
+            double waterRange = Math.Max(1.0, _hydrologyWaterTableClampRange);
+            double flowMemory = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
             var raw = new double[width, depth];
 
             for (int x = 0; x < width; x++)
@@ -2627,6 +2630,9 @@ namespace GameServerApp.World
                     }
 
                     double contribution = 0.0;
+                    double slopeSum = 0.0;
+                    int slopeSamples = 0;
+
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         for (int dz = -1; dz <= 1; dz++)
@@ -2655,17 +2661,30 @@ namespace GameServerApp.World
                                 continue;
                             }
 
+                            double slopeNorm = Math.Clamp(delta / (_hydrologySlopePenalty * 1.5), 0.0, 1.0);
                             double weight = 1.0 + Math.Min(6, delta) * 0.15;
+                            double continuityWeight = 1.0 + (1.0 - slopeNorm) * 0.25 + flowMemory * 0.1;
                             if (dx != 0 && dz != 0)
                             {
                                 weight *= 0.65;
                             }
 
-                            contribution += weight;
+                            contribution += weight * continuityWeight;
+                            slopeSum += delta;
+                            slopeSamples++;
                         }
                     }
 
-                    raw[x, z] = contribution;
+                    double avgSlope = slopeSamples > 0 ? slopeSum / slopeSamples : 0.0;
+                    double slopeFactor = Math.Clamp(avgSlope / Math.Max(1.0, _hydrologySlopePenalty * 1.25), 0.0, 1.0);
+                    double slopeAttenuation = 1.0 - slopeFactor * 0.45;
+                    double altitudeBias = Math.Clamp(1.0 - Math.Abs(GlobalWaterLevel - surface) / (waterRange * 1.35), 0.3, 1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    double edgeBoost = (1.0 - Math.Clamp(edgeDistance / (double)edgeRadius, 0.0, 1.0)) * (0.35 + flowMemory * 0.25);
+                    double flowSeed = Math.Max(0.0, contribution * altitudeBias * slopeAttenuation);
+                    flowSeed = flowSeed * (0.9 + flowMemory * 0.1) + edgeBoost * altitudeBias;
+
+                    raw[x, z] = flowSeed;
                 }
             }
 
@@ -2675,7 +2694,8 @@ namespace GameServerApp.World
                 for (int z = 0; z < depth; z++)
                 {
                     double total = raw[x, z];
-                    int samples = 1;
+                    double weightSum = 1.0;
+                    int surface = surfaceCache[x, z];
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         for (int dz = -1; dz <= 1; dz++)
@@ -2692,12 +2712,17 @@ namespace GameServerApp.World
                                 continue;
                             }
 
-                            total += raw[nx, nz] * 0.5;
-                            samples++;
+                            double neighborSlope = Math.Abs(surfaceCache[nx, nz] - surface);
+                            double slopePenalty = Math.Clamp(neighborSlope / Math.Max(1.0, _hydrologySlopePenalty * 1.2), 0.0, 1.0);
+                            double smoothingWeight = (dx != 0 && dz != 0 ? 0.35 : 1.0) * (1.0 - slopePenalty * 0.55);
+                            smoothingWeight *= 0.85 + flowMemory * 0.25;
+
+                            total += raw[nx, nz] * smoothingWeight;
+                            weightSum += smoothingWeight;
                         }
                     }
 
-                    smoothed[x, z] = samples > 0 ? total / samples : raw[x, z];
+                    smoothed[x, z] = weightSum > 0.0 ? total / weightSum : raw[x, z];
                 }
             }
 

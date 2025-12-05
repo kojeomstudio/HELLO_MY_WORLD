@@ -182,6 +182,7 @@ Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Gam
 - `ProtoFingerprint.AssertDescriptorFingerprint()` runs inside `ProtocolValidator.ValidateEnhancedContracts()` on the server and `GameNetworkManager` on the Unity client. If the generated DTOs drift from the `.proto` sources those entry points throw and instruct you to rerun `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`.
 - `ProtoDiagnostics.AssertRegistryClean()` now executes alongside the fingerprint check so missing registrations or orphaned descriptors fail fast during startup instead of emitting only warnings.
 - `ProtocolRegistry.ValidateBindings()` instantiates every EnhancedMinecraft prototype at bootstrap and compares the generated descriptor names with the registry metadata. This guarantees the server-side `SharedProtocol` bindings and Unity's Google.Protobuf DTOs point at the same generated classes before chunk payloads or gameplay messages are dispatched.
+- `ProtocolValidator` guards the EnhancedMinecraft registry/descriptor set (chunk/time/weather/entity/block/action/world control) so stale or mismatched generated DTOs are caught before gameplay or HUD traffic is processed; rerun `protoc` + rebuild `SharedProtocol` when `.proto` files change.
 
 ## Server Compatibility Changes
 

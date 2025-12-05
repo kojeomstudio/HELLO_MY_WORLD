@@ -700,6 +700,11 @@ namespace MapGenLib
 
         private static float[,] BuildFlowAccumulation(int[,] surfaceCache, SubWorldSize subWorldSize)
         {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius * 2);
+            float waterRange = CustomMathf.Max(1f, HydrologyWaterTableClampRange);
+            float flowMemory = CustomMathf.Clamp01(HydrologyFlowPersistence);
             float[,] rawAccumulation = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
@@ -713,6 +718,8 @@ namespace MapGenLib
                     }
 
                     float contribution = 0f;
+                    float slopeSum = 0f;
+                    int slopeSamples = 0;
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         for (int dz = -1; dz <= 1; dz++)
@@ -741,17 +748,30 @@ namespace MapGenLib
                                 continue;
                             }
 
+                            float slopeNorm = CustomMathf.Clamp01(heightDelta / (HydrologySlopePenalty * 1.5f));
                             float weight = 1f + CustomMathf.Min(6f, heightDelta) * 0.15f;
+                            float continuityWeight = 1f + (1f - slopeNorm) * 0.25f + flowMemory * 0.1f;
                             if (dx != 0 && dz != 0)
                             {
                                 weight *= 0.65f;
                             }
 
-                            contribution += weight;
+                            contribution += weight * continuityWeight;
+                            slopeSum += heightDelta;
+                            slopeSamples++;
                         }
                     }
 
-                    rawAccumulation[x, z] = contribution;
+                    float avgSlope = slopeSamples > 0 ? slopeSum / slopeSamples : 0f;
+                    float slopeFactor = CustomMathf.Clamp01(avgSlope / CustomMathf.Max(1f, HydrologySlopePenalty * 1.25f));
+                    float slopeAttenuation = 1f - slopeFactor * 0.45f;
+                    float altitudeBias = CustomMathf.Clamp(1f - CustomMathf.Abs(GlobalRiverWaterLevel - surface) / (waterRange * 1.35f), 0.3f, 1f);
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                    float edgeBoost = (1f - CustomMathf.Clamp01(edgeDistance / (edgeRadius * 1f))) * (0.35f + flowMemory * 0.25f);
+                    float flowSeed = CustomMathf.Max(0f, contribution * altitudeBias * slopeAttenuation);
+                    flowSeed = flowSeed * (0.9f + 0.1f * flowMemory) + edgeBoost * altitudeBias;
+
+                    rawAccumulation[x, z] = flowSeed;
                 }
             }
 
@@ -761,7 +781,8 @@ namespace MapGenLib
                 for (int z = 0; z < subWorldSize.SizeZ; z++)
                 {
                     float total = rawAccumulation[x, z];
-                    int samples = 1;
+                    float weightSum = 1f;
+                    int surface = surfaceCache[x, z];
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         for (int dz = -1; dz <= 1; dz++)
@@ -778,12 +799,17 @@ namespace MapGenLib
                                 continue;
                             }
 
-                            total += rawAccumulation[nx, nz] * 0.5f;
-                            samples++;
+                            float neighborSlope = CustomMathf.Abs(surfaceCache[nx, nz] - surface);
+                            float slopePenalty = CustomMathf.Clamp01(neighborSlope / CustomMathf.Max(1f, HydrologySlopePenalty * 1.2f));
+                            float smoothingWeight = (dx != 0 && dz != 0 ? 0.35f : 1f) * (1f - slopePenalty * 0.55f);
+                            smoothingWeight *= 0.85f + flowMemory * 0.25f;
+
+                            total += rawAccumulation[nx, nz] * smoothingWeight;
+                            weightSum += smoothingWeight;
                         }
                     }
 
-                    smoothed[x, z] = samples > 0 ? total / samples : rawAccumulation[x, z];
+                    smoothed[x, z] = weightSum > 0f ? total / weightSum : rawAccumulation[x, z];
                 }
             }
 

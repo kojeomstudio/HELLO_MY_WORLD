@@ -122,6 +122,7 @@ namespace MapGenLib
         public static float HydrologyEdgeVarianceClamp = 0.32f;
         public static float HydrologyWaterTableClampWeight = 0.42f;
         public static int HydrologyWaterTableClampRange = 18;
+        public static float HydrologyWaterTableSlopeWeight = 0.55f;
         public static float HydrologyFlowPersistence = 0.68f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
@@ -1483,6 +1484,7 @@ namespace MapGenLib
             float weight = CustomMathf.Clamp01(HydrologyWaterTableClampWeight);
             float invRange = 1f / CustomMathf.Max(1f, (float)HydrologyWaterTableClampRange);
             float flowBlendScale = 0.65f;
+            float slopeWeight = CustomMathf.Clamp01(HydrologyWaterTableSlopeWeight);
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
             {
@@ -1501,15 +1503,43 @@ namespace MapGenLib
                         continue;
                     }
 
+                    float slopeFactor = ComputeWaterTableSlopeFactor(subWorldSize, surfaceCache, x, z);
+                    float slopeAttenuation = CustomMathf.Clamp(1f - slopeFactor * slopeWeight, 0.25f, 1f);
+                    float blend = weight * proximity * slopeAttenuation;
+                    if (blend <= 0f)
+                    {
+                        continue;
+                    }
+
                     float valleyBias = CustomMathf.Clamp((GlobalRiverWaterLevel - surface) / CustomMathf.Max(1f, HydrologyShorePush * 1.15f), -1f, 1f);
-                    float targetHydro = CustomMathf.Clamp01(hydrologyMask[x, z] + 0.25f * proximity + CustomMathf.Max(0f, valleyBias) * 0.18f);
-                    float targetFlow = CustomMathf.Clamp01(flowAccumulation[x, z] + 0.35f * proximity);
-                    float blend = weight * proximity;
+                    float hydroBoost = CustomMathf.Max(0.05f, 0.25f - slopeFactor * slopeWeight * 0.12f);
+                    float targetHydro = CustomMathf.Clamp01(
+                        hydrologyMask[x, z]
+                        + hydroBoost * proximity
+                        + CustomMathf.Max(0f, valleyBias) * (0.18f * slopeAttenuation));
+
+                    float flowBoost = CustomMathf.Max(0.05f, 0.35f - slopeFactor * slopeWeight * 0.2f);
+                    float targetFlow = CustomMathf.Clamp01(flowAccumulation[x, z] + flowBoost * proximity);
+                    float flowBlend = flowBlendScale * (0.55f + slopeAttenuation * 0.45f);
 
                     hydrologyMask[x, z] = CustomMathf.Clamp01(hydrologyMask[x, z] * (1f - blend) + targetHydro * blend);
-                    flowAccumulation[x, z] = CustomMathf.Max(0f, flowAccumulation[x, z] * (1f - blend * flowBlendScale) + targetFlow * (blend * flowBlendScale));
+                    flowAccumulation[x, z] = CustomMathf.Max(0f, flowAccumulation[x, z] * (1f - blend * flowBlend) + targetFlow * (blend * flowBlend));
                 }
             }
+        }
+
+        private static float ComputeWaterTableSlopeFactor(SubWorldSize subWorldSize, int[,] surfaceCache, int x, int z)
+        {
+            int leftIndex = CustomMathf.Max(0, x - 1);
+            int rightIndex = CustomMathf.Min(subWorldSize.SizeX - 1, x + 1);
+            int backIndex = CustomMathf.Max(0, z - 1);
+            int forwardIndex = CustomMathf.Min(subWorldSize.SizeZ - 1, z + 1);
+
+            float gradientX = CustomMathf.Abs(surfaceCache[rightIndex, z] - surfaceCache[leftIndex, z]) * 0.5f;
+            float gradientZ = CustomMathf.Abs(surfaceCache[x, forwardIndex] - surfaceCache[x, backIndex]) * 0.5f;
+            float slope = CustomMathf.Sqrt(gradientX * gradientX + gradientZ * gradientZ);
+
+            return CustomMathf.Clamp01(slope / CustomMathf.Max(1f, HydrologyShorePush * 0.9f));
         }
 
         private static float[,] BuildRiparianSaturationMap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)

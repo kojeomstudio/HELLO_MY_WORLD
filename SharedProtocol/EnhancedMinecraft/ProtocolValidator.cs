@@ -62,6 +62,7 @@ public static class ProtocolValidator
         ValidateParserBindings();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
+        ValidateActionDescriptors();
         ValidateWorldControlDescriptors();
         ValidateServerStatusDescriptors();
         ValidateEntityDescriptors();
@@ -83,6 +84,18 @@ public static class ProtocolValidator
 
         var response = RequireDescriptor(nameof(ChunkLoadResponse));
         EnsureFields(response, "chunks", "total_requested", "total_sent");
+    }
+
+    private static void ValidateActionDescriptors()
+    {
+        var actionRequest = RequireDescriptor(nameof(PlayerActionRequest));
+        EnsureFields(actionRequest, "action", "target_position", "face", "cursor_position", "used_item", "sequence", "action_data");
+
+        var actionResponse = RequireDescriptor(nameof(PlayerActionResponse));
+        EnsureFields(actionResponse, "success", "message", "sequence", "result");
+
+        var actionResult = RequireDescriptor(nameof(ActionResult));
+        EnsureFields(actionResult, "updated_items", "applied_effects", "health_change", "hunger_change", "experience_change", "particle_effect", "sound_effect");
     }
 
     private static void ValidateWorldControlDescriptors()

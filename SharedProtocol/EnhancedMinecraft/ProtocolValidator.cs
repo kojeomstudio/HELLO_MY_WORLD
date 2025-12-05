@@ -71,6 +71,18 @@ public static class ProtocolValidator
         ProtocolRegistry.ValidateBindings();
     }
 
+    /// <summary>
+    /// Targeted chunk contract validation for handlers that need to fail fast on stale protobuf bindings.
+    /// </summary>
+    public static void ValidateChunkContracts()
+    {
+        ProtoFingerprint.AssertDescriptorFingerprint();
+        ValidateRegistryDescriptors();
+        ValidateRegistryPrototypes();
+        ValidateChunkDescriptor();
+        ValidateChunkRequestAndResponseDescriptors();
+    }
+
     private static void ValidateChunkDescriptor()
     {
         var descriptor = RequireDescriptor(nameof(ChunkData));

@@ -74,9 +74,11 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.RiverIntensitySmoothBlend);
         WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(tunedWorldConfig.RiverFlowAlignmentWeight, 0f, 2f);
         WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(tunedWorldConfig.RiverGradientPenalty);
+        WorldGenAlgorithms.RiverHeadwaterStabilityWeight = Mathf.Clamp01(tunedWorldConfig.RiverHeadwaterStabilityWeight);
         WorldGenAlgorithms.RiverReliefPenaltyWeight = Mathf.Clamp01(tunedWorldConfig.RiverReliefPenaltyWeight);
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);
+        WorldGenAlgorithms.LakeInflowBlendWeight = Mathf.Clamp01(tunedWorldConfig.LakeInflowBlendWeight);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
         WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(tunedWorldConfig.LakeShorelineBlend);
         WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(tunedWorldConfig.RiverProximitySuppression);
@@ -91,6 +93,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveRoughnessWeight = Mathf.Clamp01(tunedWorldConfig.RoughnessStabilityWeight);
         WorldGenAlgorithms.CaveDepthWeight = Mathf.Clamp(1f - caveWeightTotal, 0.05f, 0.45f);
         WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(tunedWorldConfig.RiverSuppressionWeight);
+        WorldGenAlgorithms.CaveMoistureRetentionWeight = Mathf.Clamp01(tunedWorldConfig.MoistureRetentionWeight);
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.

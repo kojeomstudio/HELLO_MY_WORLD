@@ -58,10 +58,13 @@ namespace GameServerApp.World
         private readonly double _caveRiverSuppressionWeight;
         private readonly double _riverFlowAlignmentWeight;
         private readonly double _riverGradientPenalty;
+        private readonly double _riverHeadwaterStabilityWeight;
         private readonly double _riverReliefPenaltyWeight;
         private readonly double _caveSupportHydrationBias;
         private readonly double _caveSupportFlowBias;
         private readonly double _lakeRiverProximitySuppression;
+        private readonly double _lakeInflowBlendWeight;
+        private readonly double _caveMoistureRetentionWeight;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -211,13 +214,16 @@ namespace GameServerApp.World
             _caveRiverSuppressionWeight = Math.Clamp(_worldGenConfig.Caves.RiverSuppressionWeight, 0.0, 1.0);
             _riverFlowAlignmentWeight = Math.Clamp(_worldGenConfig.Water.RiverFlowAlignmentWeight, 0.0, 2.0);
             _riverGradientPenalty = Math.Clamp(_worldGenConfig.Water.RiverGradientPenalty, 0.0, 1.0);
+            _riverHeadwaterStabilityWeight = Math.Clamp(_worldGenConfig.Water.RiverHeadwaterStabilityWeight, 0.0, 1.0);
             _riverReliefPenaltyWeight = Math.Clamp(_worldGenConfig.Water.RiverReliefPenaltyWeight, 0.0, 1.0);
             _caveSupportHydrationBias = Math.Clamp(_worldGenConfig.Caves.SupportHydrationBias, 0.0, 1.0);
             _caveSupportFlowBias = Math.Clamp(_worldGenConfig.Caves.SupportFlowBias, 0.0, 1.0);
             _lakeRiverProximitySuppression = Math.Clamp(_worldGenConfig.Lakes.RiverProximitySuppression, 0.0, 1.0);
+            _lakeInflowBlendWeight = Math.Clamp(_worldGenConfig.Water.LakeInflowBlendWeight, 0.0, 1.0);
+            _caveMoistureRetentionWeight = Math.Clamp(_worldGenConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));
@@ -742,13 +748,14 @@ namespace GameServerApp.World
                     double waterTableBias = Math.Clamp((GlobalWaterLevel - surface) / 48.0, 0.0, 1.0);
                     double moisturePenalty = Math.Clamp(hydrology * 0.35 + flow * 0.22, 0.0, 0.75);
                     double roughnessBlend = (roughness * 0.7 + warp * 0.3) * _caveRoughnessWeight;
+                    double moistureRetention = 1.0 - Math.Clamp(hydrology * 0.55 + flow * 0.35, 0.0, 1.0) * _caveMoistureRetentionWeight;
                     double saturation = hydrology * _caveHydrologyWeight
                         + flow * _caveFlowWeight
                         + (1.0 - depthFactor) * _caveDepthWeight
                         + roughnessBlend;
                     double suppression = 1.0 - _caveRiverSuppressionWeight * (1.0 - riverPressure);
                     double supportBoost = 1.0 + waterTableBias * 0.35;
-                    double stabilityValue = saturation * supportBoost * suppression;
+                    double stabilityValue = saturation * supportBoost * suppression * Math.Clamp(moistureRetention, 0.25, 1.15);
                     stabilityValue *= 1.0 - moisturePenalty * 0.35;
                     stability[x, z] = Math.Clamp(stabilityValue, 0.0, 1.0);
                 }
@@ -3560,6 +3567,7 @@ namespace GameServerApp.World
                     {
                         double hydrology = hydrologyMask[x, z];
                         double flow = flowAccumulation[x, z];
+                        double headwater = Math.Clamp(1.0 - Math.Clamp(flow * 0.5, 0.0, 1.0), 0.0, 1.0);
                         var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
                         Vector2 flowDir = gradient.LengthSquared() > 1e-5f ? Vector2.Normalize(-gradient) : Vector2.Zero;
                         double weightedSum = riverIntensity[x, z];
@@ -3597,14 +3605,15 @@ namespace GameServerApp.World
                                 double flowWeight = 1.0 + _riverFlowAlignmentWeight * (Math.Min(flow + neighborFlow, 2.5) * 0.45 + alignment * 1.1);
                                 double hydrologyDelta = Math.Abs(hydrology - neighborHydrology);
                                 double gradientWeight = Math.Clamp(1.0 - _riverGradientPenalty * hydrologyDelta, 0.15, 1.0);
-                                double finalWeight = Math.Clamp(baseWeight * flowWeight * gradientWeight, 0.35, 3.5);
+                                double stabilityWeight = 1.0 + _riverHeadwaterStabilityWeight * headwater * (1.0 - hydrology * 0.5);
+                                double finalWeight = Math.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight, 0.35, 3.5);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }
                         }
 
                         double average = weightTotal > 0.0 ? weightedSum / weightTotal : riverIntensity[x, z];
-                        double blend = Math.Clamp(baseBlend + hydrology * 0.2 + flow * 0.12 + maxAlignment * 0.2, 0.0, 0.95);
+                        double blend = Math.Clamp(baseBlend + hydrology * 0.2 + flow * 0.12 + maxAlignment * 0.2 + headwater * _riverHeadwaterStabilityWeight * 0.35, 0.0, 0.95);
                         scratch[x, z] = riverIntensity[x, z] * (1.0 - blend) + average * blend;
                     }
                 }
@@ -4453,6 +4462,8 @@ namespace GameServerApp.World
                     double score = intensity - hydrologyMask[x, z] * 0.02 - catchmentBias * 0.015;
                     double relief = ComputeLocalRelief(surfaceCache, x, z, 2);
                     score += Math.Clamp(relief / 10.0, 0.0, 1.0) * 0.01;
+                    double inflowFavor = Math.Clamp(catchment * 0.12 + hydrologyMask[x, z] * 0.15, 0.0, 1.0);
+                    score -= inflowFavor * _lakeInflowBlendWeight * 0.04;
 
                     if (score < bestScore)
                     {

@@ -37,7 +37,8 @@ Current feature split and rollout order across server and Unity client. Updated 
 3) Utility/tooling: keep configs, generated protobufs, and data tables in lockstep; add metrics/recordings around world map control, hydrology seam stability, and proto registry health.
 
 ## Current iteration scope
-- [x] Water-table-aware flow accumulation seeds hydrology masks with altitude + slope + edge persistence weighting in `WorldManager.BuildFlowAccumulation` and `MapGeneratorLib.BuildFlowAccumulation`, reducing cliff flooding and seam jitter before rivers/lakes/caves consume the masks.
-- [x] ProtocolValidator coverage rechecked for action/world/time/weather/status descriptors (including `WeatherUpdateBroadcast.change_timestamp`); regenerated protobuf bindings remain required before network traffic.
-- [x] Configs kept in sync: `config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, `WorldConfigFile`, and `WorldGenerationConfig` cover hydrology/river/cave knobs including the flow persistence/edge radius/water-table clamp settings used by the new accumulation pass.
+- [x] Headwater-aware river intensity smoothing reduces noise at low-flow sources using `RiverHeadwaterStabilityWeight` (server + MapGeneratorLib), keeping braided headwaters stable across chunk seams.
+- [x] Lakes prefer inflow-aligned outlets via `LakeInflowBlendWeight`, improving river/lake stitching; caves dampen over-carving in saturated columns via `MoistureRetentionWeight`.
+- [x] Chunk handlers call `ProtoRuntime.EnsureInitialized()` + `ProtocolValidator.ValidateChunkContracts()` so EnhancedMinecraft payload parsing fails fast if generated DTOs drift.
+- [x] Config parity: new knobs mirrored across `config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, `WorldGenerationConfig`, and `WorldConfigFile`; see `docs/minecraft_feature_core_content_util_2025-12-19.md`.
 - Next: surface a hydrology seam debug overlay in Unity and biome-tune tangent/flow-lock weights based on seam QA captures.

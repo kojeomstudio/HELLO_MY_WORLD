@@ -57,6 +57,8 @@ namespace GameServerApp.Handlers
             _worldSettings = worldSettings;
             _metrics = metrics;
             _chunkResidencyTimeout = TimeSpan.FromMinutes(Math.Max(1, _worldSettings.ChunkUnloadTimeoutMinutes));
+            ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateChunkContracts();
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkDataRequest);
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkDataResponse);
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkUnloadNotification);

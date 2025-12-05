@@ -138,6 +138,7 @@ namespace MapGenLib
         public static float RiverIntensitySmoothBlend = 0.58f;
         public static float RiverFlowAlignmentWeight = 0.28f;
         public static float RiverGradientPenalty = 0.42f;
+        public static float RiverHeadwaterStabilityWeight = 0.35f;
         public static float RiverReliefPenaltyWeight = 0.25f;
         public static float CaveSupportDensity = 0.6f;
         public static float CaveHydrologyWeight = 0.45f;
@@ -147,7 +148,9 @@ namespace MapGenLib
         public static float CaveRiverSuppressionWeight = 0.35f;
         public static float CaveSupportHydrationBias = 0.42f;
         public static float CaveSupportFlowBias = 0.20f;
+        public static float CaveMoistureRetentionWeight = 0.35f;
         public static float LakeRiverProximitySuppression = 0.35f;
+        public static float LakeInflowBlendWeight = 0.42f;
 
         public struct TerrainValue
         {
@@ -1714,6 +1717,7 @@ namespace MapGenLib
                     {
                         float hydrology = hydrologyMask[x, z];
                         float flow = flowAccumulation[x, z];
+                        float headwater = CustomMathf.Clamp01(1f - CustomMathf.Clamp(flow * 0.5f, 0f, 1f));
                         var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
                         CustomVector2 flowDir = gradient.sqrMagnitude > CustomVector2.kEpsilon ? gradient * -1f : CustomVector2.zero;
                         if (flowDir.sqrMagnitude > CustomVector2.kEpsilon)
@@ -1755,14 +1759,15 @@ namespace MapGenLib
                                 float flowWeight = 1f + RiverFlowAlignmentWeight * (CustomMathf.Min(flow + neighborFlow, 2.5f) * 0.45f + alignment * 1.1f);
                                 float hydrologyDelta = CustomMathf.Abs(hydrology - neighborHydrology);
                                 float gradientWeight = CustomMathf.Clamp(1f - RiverGradientPenalty * hydrologyDelta, 0.15f, 1f);
-                                float finalWeight = CustomMathf.Clamp(baseWeight * flowWeight * gradientWeight, 0.35f, 3.5f);
+                                float stabilityWeight = 1f + RiverHeadwaterStabilityWeight * headwater * (1f - hydrology * 0.5f);
+                                float finalWeight = CustomMathf.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight, 0.35f, 3.5f);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }
                         }
 
                         float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
-                        float blend = CustomMathf.Clamp(baseBlend + hydrology * 0.2f + flow * 0.12f + maxAlignment * 0.2f, 0f, 0.95f);
+                        float blend = CustomMathf.Clamp(baseBlend + hydrology * 0.2f + flow * 0.12f + maxAlignment * 0.2f + headwater * RiverHeadwaterStabilityWeight * 0.35f, 0f, 0.95f);
                         scratch[x, z] = riverIntensity[x, z] * (1f - blend) + average * blend;
                     }
                 }
@@ -3462,6 +3467,8 @@ namespace MapGenLib
                     float candidateScore = adjustedIntensity - hydrology * 0.02f - catchmentBias * 0.015f;
                     float relief = ComputeLocalRelief(surfaceCache, subWorldSize, x, z, 2);
                     candidateScore += CustomMathf.Clamp01(relief / 10f) * 0.01f;
+                    float inflowFavor = CustomMathf.Clamp01(catchment * 0.12f + hydrology * 0.15f);
+                    candidateScore -= inflowFavor * CustomMathf.Clamp01(LakeInflowBlendWeight) * 0.04f;
 
                     if (candidateScore < bestScore)
                     {
@@ -3782,10 +3789,11 @@ namespace MapGenLib
                     float waterTableBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / 48f);
                     float moisturePenalty = CustomMathf.Clamp01(hydrology * 0.35f + flow * 0.22f);
                     float roughnessBlend = (roughness * 0.7f + warp * 0.3f) * CaveRoughnessWeight;
+                    float moistureRetention = 1f - CustomMathf.Clamp01(hydrology * 0.55f + flow * 0.35f) * CustomMathf.Clamp01(CaveMoistureRetentionWeight);
                     float saturation = hydrology * CaveHydrologyWeight + flow * CaveFlowWeight + (1f - depthFactor) * CaveDepthWeight + roughnessBlend;
                     float suppression = 1f - CaveRiverSuppressionWeight * (1f - riverPressure);
                     float supportBoost = 1f + waterTableBias * 0.35f;
-                    float stability = saturation * supportBoost * suppression;
+                    float stability = saturation * supportBoost * suppression * CustomMathf.Clamp(moistureRetention, 0.25f, 1.15f);
                     stability *= 1f - moisturePenalty * 0.35f;
                     field[x, z] = CustomMathf.Clamp01(stability);
                 }

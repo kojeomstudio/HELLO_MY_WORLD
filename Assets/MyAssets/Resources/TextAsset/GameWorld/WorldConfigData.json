@@ -42,6 +42,7 @@
   "HydrologyWarpAmplitude": 9.0,
   "RiverFlowAlignmentWeight": 0.28,
   "RiverGradientPenalty": 0.42,
+  "RiverHeadwaterStabilityWeight": 0.35,
   "RiverReliefPenaltyWeight": 0.25,
   "RiverNoiseScale": 0.015,
   "RiverDepth": 6,
@@ -49,6 +50,7 @@
   "RiverIntensitySmoothBlend": 0.58,
   "RiverBankErosionWeight": 0.18,
   "LakeRimErosionWeight": 0.3,
+  "LakeInflowBlendWeight": 0.42,
   "RiverProximitySuppression": 0.35,
   "CaveStabilitySmoothIterations": 1,
   "CaveStabilitySmoothBlend": 0.55,
@@ -58,5 +60,6 @@
   "HydrologyStabilityWeight": 0.45,
   "FlowStabilityWeight": 0.25,
   "RoughnessStabilityWeight": 0.1,
-  "RiverSuppressionWeight": 0.35
+  "RiverSuppressionWeight": 0.35,
+  "MoistureRetentionWeight": 0.35
 }

@@ -58,6 +58,7 @@ namespace GameServerApp.World
         private readonly double _caveDepthWeight;
         private readonly double _caveRiverSuppressionWeight;
         private readonly double _riverFlowAlignmentWeight;
+        private readonly double _riverAnisotropyWeight;
         private readonly double _riverGradientPenalty;
         private readonly double _riverHeadwaterStabilityWeight;
         private readonly double _riverReliefPenaltyWeight;
@@ -216,6 +217,7 @@ namespace GameServerApp.World
             _caveDepthWeight = Math.Clamp(1.0 - caveWeightTotal, 0.05, 0.45);
             _caveRiverSuppressionWeight = Math.Clamp(_worldGenConfig.Caves.RiverSuppressionWeight, 0.0, 1.0);
             _riverFlowAlignmentWeight = Math.Clamp(_worldGenConfig.Water.RiverFlowAlignmentWeight, 0.0, 2.0);
+            _riverAnisotropyWeight = Math.Clamp(_worldGenConfig.Water.RiverAnisotropyWeight, 0.0, 2.0);
             _riverGradientPenalty = Math.Clamp(_worldGenConfig.Water.RiverGradientPenalty, 0.0, 1.0);
             _riverHeadwaterStabilityWeight = Math.Clamp(_worldGenConfig.Water.RiverHeadwaterStabilityWeight, 0.0, 1.0);
             _riverReliefPenaltyWeight = Math.Clamp(_worldGenConfig.Water.RiverReliefPenaltyWeight, 0.0, 1.0);
@@ -3656,7 +3658,10 @@ namespace GameServerApp.World
                                 double hydrologyDelta = Math.Abs(hydrology - neighborHydrology);
                                 double gradientWeight = Math.Clamp(1.0 - _riverGradientPenalty * hydrologyDelta, 0.15, 1.0);
                                 double stabilityWeight = 1.0 + _riverHeadwaterStabilityWeight * headwater * (1.0 - hydrology * 0.5);
-                                double finalWeight = Math.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight, 0.35, 3.5);
+                                double perpendicular = flowDir == Vector2.Zero ? 0.0 : Math.Abs(Vector2.Dot(new Vector2(-flowDir.Y, flowDir.X), neighborDir));
+                                double anisotropy = 1.0 + _riverAnisotropyWeight * (alignment - perpendicular * 0.65);
+                                anisotropy = Math.Clamp(anisotropy, 0.35, 1.75);
+                                double finalWeight = Math.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight * anisotropy, 0.35, 3.5);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }

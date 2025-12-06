@@ -44,6 +44,7 @@
   "RiverFlowAlignmentWeight": 0.28,
   "RiverGradientPenalty": 0.42,
   "RiverHeadwaterStabilityWeight": 0.35,
+  "RiverAnisotropyWeight": 0.32,
   "RiverReliefPenaltyWeight": 0.25,
   "RiverNoiseScale": 0.015,
   "RiverDepth": 6,

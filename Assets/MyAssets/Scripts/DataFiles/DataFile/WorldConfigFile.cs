@@ -48,6 +48,7 @@ public struct WorldConfig
     public float RiverFlowAlignmentWeight;
     public float RiverGradientPenalty;
     public float RiverHeadwaterStabilityWeight;
+    public float RiverAnisotropyWeight;
     public float RiverReliefPenaltyWeight;
     public float RiverBankErosionWeight;
     public float LakeRimErosionWeight;
@@ -154,6 +155,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RiverFlowAlignmentWeight = ParseFloat(data, "RiverFlowAlignmentWeight", 0.28f);
                 Config.RiverGradientPenalty = ParseFloat(data, "RiverGradientPenalty", 0.42f);
                 Config.RiverHeadwaterStabilityWeight = ParseFloat(data, "RiverHeadwaterStabilityWeight", 0.35f);
+                Config.RiverAnisotropyWeight = ParseFloat(data, "RiverAnisotropyWeight", 0.32f);
                 Config.RiverReliefPenaltyWeight = ParseFloat(data, "RiverReliefPenaltyWeight", 0.25f);
                 Config.RiverBankErosionWeight = ParseFloat(data, "RiverBankErosionWeight", 0.18f);
                 Config.LakeRimErosionWeight = ParseFloat(data, "LakeRimErosionWeight", 0.3f);

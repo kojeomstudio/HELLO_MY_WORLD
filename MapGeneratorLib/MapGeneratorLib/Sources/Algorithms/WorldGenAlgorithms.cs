@@ -140,6 +140,7 @@ namespace MapGenLib
         public static float RiverFlowAlignmentWeight = 0.28f;
         public static float RiverGradientPenalty = 0.42f;
         public static float RiverHeadwaterStabilityWeight = 0.35f;
+        public static float RiverAnisotropyWeight = 0.32f;
         public static float RiverReliefPenaltyWeight = 0.25f;
         public static float CaveSupportDensity = 0.6f;
         public static float CaveHydrologyWeight = 0.45f;
@@ -1784,7 +1785,10 @@ namespace MapGenLib
                                 float hydrologyDelta = CustomMathf.Abs(hydrology - neighborHydrology);
                                 float gradientWeight = CustomMathf.Clamp(1f - RiverGradientPenalty * hydrologyDelta, 0.15f, 1f);
                                 float stabilityWeight = 1f + RiverHeadwaterStabilityWeight * headwater * (1f - hydrology * 0.5f);
-                                float finalWeight = CustomMathf.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight, 0.35f, 3.5f);
+                                float perpendicular = flowDir.sqrMagnitude <= CustomVector2.kEpsilon ? 0f : CustomMathf.Abs(CustomVector2.Dot(new CustomVector2(-flowDir.y, flowDir.x), neighborDir));
+                                float anisotropy = 1f + RiverAnisotropyWeight * (alignment - perpendicular * 0.65f);
+                                anisotropy = CustomMathf.Clamp(anisotropy, 0.35f, 1.75f);
+                                float finalWeight = CustomMathf.Clamp(baseWeight * flowWeight * gradientWeight * stabilityWeight * anisotropy, 0.35f, 3.5f);
                                 weightedSum += riverIntensity[nx, nz] * finalWeight;
                                 weightTotal += finalWeight;
                             }

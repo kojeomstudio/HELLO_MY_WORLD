@@ -76,6 +76,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(tunedWorldConfig.RiverFlowAlignmentWeight, 0f, 2f);
         WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(tunedWorldConfig.RiverGradientPenalty);
         WorldGenAlgorithms.RiverHeadwaterStabilityWeight = Mathf.Clamp01(tunedWorldConfig.RiverHeadwaterStabilityWeight);
+        WorldGenAlgorithms.RiverAnisotropyWeight = Mathf.Clamp(tunedWorldConfig.RiverAnisotropyWeight, 0f, 2f);
         WorldGenAlgorithms.RiverReliefPenaltyWeight = Mathf.Clamp01(tunedWorldConfig.RiverReliefPenaltyWeight);
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);

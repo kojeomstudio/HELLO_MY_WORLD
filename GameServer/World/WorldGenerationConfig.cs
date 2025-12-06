@@ -97,6 +97,7 @@ namespace GameServerApp.World
         public double RiverFlowAlignmentWeight { get; set; } = 0.28;
         public double RiverGradientPenalty { get; set; } = 0.42;
         public double RiverHeadwaterStabilityWeight { get; set; } = 0.35;
+        public double RiverAnisotropyWeight { get; set; } = 0.32;
         public double LakeInflowBlendWeight { get; set; } = 0.42;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;

@@ -841,7 +841,59 @@ namespace MapGenLib
                 }
             }
 
-            return gradient;
+            // Stabilize gradient so client previews match server river/lake/cave carving across chunk seams.
+            var smoothed = new CustomVector2[width, depth];
+            float baseBlend = CustomMathf.Clamp01(0.25f + HydrologyGradientWeight * 0.35f);
+            float flowMemory = CustomMathf.Clamp01(HydrologyFlowPersistence);
+            float blendScale = CustomMathf.Clamp01(baseBlend + flowMemory * 0.2f);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    CustomVector2 raw = gradient[x, z];
+                    CustomVector2 accum = raw;
+                    float weight = 1f;
+                    float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
+                    float hydrologyBias = CustomMathf.Clamp(0.35f + hydrology * 0.45f + flowMemory * 0.25f, 0.35f, 0.95f);
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            CustomVector2 neighbor = gradient[nx, nz];
+                            float alignment = 0.5f;
+                            if (raw.sqrMagnitude > CustomVector2.kEpsilon && neighbor.sqrMagnitude > CustomVector2.kEpsilon)
+                            {
+                                CustomVector2 rawDir = raw.normalized;
+                                CustomVector2 neighborDir = neighbor.normalized;
+                                alignment = (CustomVector2.Dot(rawDir, neighborDir) + 1f) * 0.5f;
+                            }
+
+                            float w = (0.35f + hydrologyBias * 0.65f) * (0.65f + alignment * 0.35f);
+                            accum += neighbor * w;
+                            weight += w;
+                        }
+                    }
+
+                    CustomVector2 averaged = weight > 0f ? accum / weight : raw;
+                    smoothed[x, z] = raw * (1f - blendScale) + averaged * blendScale;
+                }
+            }
+
+            return smoothed;
         }
 
         private static void StabilizeHydrologyGradients(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)

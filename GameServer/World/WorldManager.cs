@@ -2765,7 +2765,7 @@ namespace GameServerApp.World
             return smoothed;
         }
 
-        private static Vector2[,] BuildHydrologyGradient(double[,] hydrologyMask)
+        private Vector2[,] BuildHydrologyGradient(double[,] hydrologyMask)
         {
             int width = hydrologyMask.GetLength(0);
             int depth = hydrologyMask.GetLength(1);
@@ -2785,7 +2785,60 @@ namespace GameServerApp.World
                 }
             }
 
-            return gradient;
+            // Gradient jitter at chunk edges leads to diverging river/lake channels between server and client.
+            // Apply a short, flow-aware smoothing pass so caves/rivers/lakes see a stable downhill vector.
+            var smoothed = new Vector2[width, depth];
+            float baseBlend = (float)Math.Clamp(0.25 + _hydrologyGradientWeight * 0.35, 0.05, 0.85);
+            float flowMemory = (float)Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+            float blendScale = Math.Clamp(baseBlend + flowMemory * 0.2f, 0.05f, 0.95f);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    Vector2 raw = gradient[x, z];
+                    Vector2 accum = raw;
+                    float weight = 1.0f;
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    float hydrologyBias = (float)Math.Clamp(0.35 + hydrology * 0.45 + flowMemory * 0.25, 0.35, 0.95);
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            Vector2 neighbor = gradient[nx, nz];
+                            float alignment = 0.5f;
+                            if (raw.LengthSquared() > 1e-6f && neighbor.LengthSquared() > 1e-6f)
+                            {
+                                Vector2 rawDir = Vector2.Normalize(raw);
+                                Vector2 neighborDir = Vector2.Normalize(neighbor);
+                                alignment = (Vector2.Dot(rawDir, neighborDir) + 1.0f) * 0.5f;
+                            }
+
+                            float w = (0.35f + hydrologyBias * 0.65f) * (0.65f + alignment * 0.35f);
+                            accum += neighbor * w;
+                            weight += w;
+                        }
+                    }
+
+                    Vector2 averaged = weight > 0.0f ? accum / weight : raw;
+                    smoothed[x, z] = Vector2.Lerp(raw, averaged, blendScale);
+                }
+            }
+
+            return smoothed;
         }
 
         private void StabilizeHydrologyGradients(double[,] hydrologyMask, double[,] flowAccumulation, int[,] surfaceCache)

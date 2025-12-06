@@ -1,6 +1,6 @@
-## Minecraft core/content/util rollout (latest – 2026-01-05)
-- Hydrology-gradient smoothing now aligns downhill vectors for caves, rivers, and lakes across chunk seams in both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`). River/lake channels stay coherent between streamed chunks and client meshes.
-- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See the dated snapshot in `docs/minecraft_feature_core_content_util_2026-01-05.md` for archival copy.
+## Minecraft core/content/util rollout (2026-01-05)
+- New hydrology-gradient smoothing aligns downhill vectors for caves, rivers, and lakes across chunk seams in both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`). This reduces river/lake divergence and keeps world map control consistent between streamed chunks and client meshes.
+- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep.
 
 ### Core (authority, world map control, protocol)
 - World map control & chunk streaming — Server: `GameServer/World/WorldManager.cs`, `World/Generation/*`, `SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs`; Client: `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs`; Data: `config/world.json`, `Assets/.../WorldConfigData.json`; Proto: `ChunkLoadRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdateBroadcast`, `WeatherUpdateBroadcast`.

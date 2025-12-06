@@ -86,6 +86,7 @@ namespace GameServerApp.World
         public int HydrologyWaterTableClampRange { get; set; } = 18;
         public double HydrologyWaterTableSlopeWeight { get; set; } = 0.55;
         public double HydrologyFlowPersistence { get; set; } = 0.68;
+        public double HydrologyGradientWeight { get; set; } = 0.35;
         public int HydrologySeamRelaxIterations { get; set; } = 2;
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;
         public double RiverBankErosionWeight { get; set; } = 0.18;

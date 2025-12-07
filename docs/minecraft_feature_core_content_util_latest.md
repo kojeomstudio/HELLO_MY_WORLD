@@ -1,6 +1,6 @@
 ## Minecraft core/content/util rollout (latest – 2026-01-05)
-- Hydrology-gradient smoothing now aligns downhill vectors for caves, rivers, and lakes across chunk seams in both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`). River/lake channels stay coherent between streamed chunks and client meshes.
-- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See the dated snapshot in `docs/minecraft_feature_core_content_util_2026-01-05.md` for archival copy.
+- Hydrology gradients now blend downhill masks with terrain slope + flow accumulation and clamp vector magnitude to stabilise chunk seams in both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`). Rivers/lakes/caves stay coherent between streamed chunks and client meshes.
+- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See the dated snapshot in `docs/minecraft_feature_core_content_util_2026-01-07.md` for archival copy.
 
 ### Core (authority, world map control, protocol)
 - World map control & chunk streaming — Server: `GameServer/World/WorldManager.cs`, `World/Generation/*`, `SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs`; Client: `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs`; Data: `config/world.json`, `Assets/.../WorldConfigData.json`; Proto: `ChunkLoadRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdateBroadcast`, `WeatherUpdateBroadcast`.
@@ -10,7 +10,7 @@
 - Room/instance routing — `SessionManager.cs` / `RoomManager` handle per-room chunk routing; client room UI in `Assets/MyAssets/Scripts/Network`; Proto: `RoomEnter/Leave/List`.
 
 ### Content (terrain/worldgen, gameplay, entities)
-- Terrain & hydrology (caves/rivers/lakes) — Shared hydrology/flow/erosion caches drive carving in `WorldManager` with the new flow-aware hydrology-gradient smoother; MapGeneratorLib mirrors the same smoothing so Unity previews match streamed chunks. Config knobs: `Water.*`, `Caves.*`, `Lakes.*` in JSON.
+- Terrain & hydrology (caves/rivers/lakes) — Shared hydrology/flow/erosion caches drive carving in `WorldManager` with slope-aware, clamped hydrology gradients; MapGeneratorLib mirrors the same smoothing so Unity previews match streamed chunks. Config knobs: `Water.*`, `Caves.*`, `Lakes.*` in JSON (incl. `HydrologyGradientSlopeWeight`, `HydrologyGradientClamp`).
 - Biomes/weather/sky — Biome tagging + weather scheduler (`WorldTimeSystem`, `WeatherSystem`); client sky/weather FX; Proto: `WorldInfo`, `WeatherChange`.
 - Structures & loot — `DungeonGenerationStage` + container handlers on server; client container UI; Proto: `ContainerOpen/Update`, `EntitySpawn/Despawn`, item drops.
 - Entities/combat — Spawn/update/despawn + combat resolution in handlers/systems; client render/prediction; Proto: `EntitySpawn/Update/Despawn`, `PlayerAttack`, `Health/Hunger` broadcasts.

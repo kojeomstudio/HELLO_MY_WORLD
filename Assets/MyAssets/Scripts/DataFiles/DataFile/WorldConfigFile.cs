@@ -41,6 +41,8 @@ public struct WorldConfig
     public float HydrologyWaterTableSlopeWeight;
     public float HydrologyFlowPersistence;
     public float HydrologyGradientWeight;
+    public float HydrologyGradientSlopeWeight;
+    public float HydrologyGradientClamp;
     public int HydrologySeamRelaxIterations;
     public float HydrologySeamRelaxBlend;
     public float HydrologyWarpFrequency;
@@ -144,6 +146,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyWaterTableSlopeWeight = ParseFloat(data, "HydrologyWaterTableSlopeWeight", 0.55f);
                 Config.HydrologyFlowPersistence = ParseFloat(data, "HydrologyFlowPersistence", 0.68f);
                 Config.HydrologyGradientWeight = ParseFloat(data, "HydrologyGradientWeight", 0.35f);
+                Config.HydrologyGradientSlopeWeight = ParseFloat(data, "HydrologyGradientSlopeWeight", 0.42f);
+                Config.HydrologyGradientClamp = ParseFloat(data, "HydrologyGradientClamp", 1.65f);
                 Config.HydrologySeamRelaxIterations = ParseInt(data, "HydrologySeamRelaxIterations", 2);
                 Config.HydrologySeamRelaxBlend = ParseFloat(data, "HydrologySeamRelaxBlend", 0.5f);
                 Config.HydrologyWarpFrequency = ParseFloat(data, "HydrologyWarpFrequency", 0.0009f);

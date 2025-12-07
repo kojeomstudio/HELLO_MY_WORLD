@@ -12,6 +12,7 @@ namespace Minecraft.Core
         static EnhancedChunkPayloadBridge()
         {
             ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateChunkContracts();
         }
 
         public static EnhancedChunkMetadata Decode(ChunkDataResponseMessage response, Action<string>? logWarning = null)

@@ -37,6 +37,8 @@
   "HydrologyWaterTableSlopeWeight": 0.55,
   "HydrologyFlowPersistence": 0.68,
   "HydrologyGradientWeight": 0.35,
+  "HydrologyGradientSlopeWeight": 0.42,
+  "HydrologyGradientClamp": 1.65,
   "HydrologySeamRelaxIterations": 2,
   "HydrologySeamRelaxBlend": 0.5,
   "HydrologyWarpFrequency": 0.0009,

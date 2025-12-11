@@ -46,6 +46,10 @@ public static class ProtocolValidator
         MinecraftMessageType.ContainerUpdate
     };
 
+    internal static IReadOnlyCollection<MinecraftMessageType> GetOptionalMessages() => OptionalMessages;
+
+    internal static bool IsOptionalMessage(MinecraftMessageType messageType) => OptionalMessages.Contains(messageType);
+
     public static void ValidateEnhancedContracts()
     {
         ProtoFingerprint.AssertDescriptorFingerprint();

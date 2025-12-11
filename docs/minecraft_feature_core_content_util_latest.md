@@ -1,6 +1,6 @@
-## Minecraft core/content/util rollout (latest – 2026-01-05)
-- Hydrology gradients now blend downhill masks with terrain slope + flow accumulation and clamp vector magnitude to stabilise chunk seams in both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`). Rivers/lakes/caves stay coherent between streamed chunks and client meshes.
-- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See the dated snapshot in `docs/minecraft_feature_core_content_util_2026-01-07.md` for archival copy.
+## Minecraft core/content/util rollout (latest – 2026-01-09)
+- Edge-feather hydrology smoothing (edge blend/variance knobs) now runs before rivers/lakes/caves on both the dedicated server (`GameServer/World/WorldManager.cs`) and Unity preview library (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), with flow-variance river width modulation and gradient-aligned lake orientation/perturbation shared across both codebases.
+- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See the dated snapshot in `docs/minecraft_feature_core_content_util_2026-01-09.md` for archival copy.
 
 ### Core (authority, world map control, protocol)
 - World map control & chunk streaming — Server: `GameServer/World/WorldManager.cs`, `World/Generation/*`, `SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs`; Client: `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs`; Data: `config/world.json`, `Assets/.../WorldConfigData.json`; Proto: `ChunkLoadRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdateBroadcast`, `WeatherUpdateBroadcast`.

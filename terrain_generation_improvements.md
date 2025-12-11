@@ -88,6 +88,9 @@
 - Flow-aware river width modulation now runs before smoothing in both `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs` and `GameServer/World/WorldManager.cs`, blending flow/hydrology with edge variance clamps to avoid seam spikes.
 - Lake basins align their major axis to local hydrology gradients (`LakeInflowBlendWeight`) and apply anisotropy scaling, improving river-fed shorelines across server/client generators.
 - Noise-based caves reduce thresholds near chunk edges using `HydrologyEdgeVarianceClamp` and moisture retention weights so cave corridors stitch cleanly between neighboring chunks.
+- Added an edge-feather hydrology pass (driven by `HydrologyEdgeBlendRadius`, `HydrologyEdgeVarianceClamp`, and `HydrologyEdgeStabilityWeight`) ahead of river/lake/cave stages in both `WorldManager` and `MapGeneratorLib` to smooth chunk seams.
+- River width modulation now factors local flow variance and hydrology gradient magnitude, producing more organic channel tapering while preserving headwater narrowing across client/server generators.
+- Lake orientation and rim perturbation now use hydrology gradient variance, so inflow-aligned ellipses pick up subtle warping and shoreline noise shared between the server and Unity previews.
 
 ## Configuration Enhancements
 

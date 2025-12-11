@@ -23,6 +23,7 @@ public static class ProtoDiagnostics
         IReadOnlyList<(MinecraftMessageType MessageType, string PrototypeName)> RegisteredMessages,
         IReadOnlyList<MinecraftMessageType> MissingRegistrations,
         IReadOnlyList<MinecraftMessageType> UnregisteredMessageTypes,
+        IReadOnlyList<MinecraftMessageType> OptionalUnregistered,
         IReadOnlyList<string> UnboundDescriptors,
         IReadOnlyList<string> OrphanedDescriptors);
 
@@ -59,7 +60,12 @@ public static class ProtoDiagnostics
             .ToArray();
 
         var allMessageTypes = Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>();
+        var optionalMessages = ProtocolValidator.GetOptionalMessages().ToArray();
         var unregistered = allMessageTypes
+            .Where(type => !ProtocolRegistry.IsRegistered(type) && !ProtocolValidator.IsOptionalMessage(type))
+            .ToArray();
+
+        var optionalUnregistered = optionalMessages
             .Where(type => !ProtocolRegistry.IsRegistered(type))
             .ToArray();
 
@@ -75,6 +81,7 @@ public static class ProtoDiagnostics
             registeredMessages,
             missing,
             unregistered,
+            optionalUnregistered,
             unbound,
             orphaned);
     }
@@ -95,6 +102,12 @@ public static class ProtoDiagnostics
             throw new InvalidOperationException(
                 "[Proto] Enum values missing ProtocolRegistry bindings: " +
                 string.Join(", ", report.UnregisteredMessageTypes));
+        }
+
+        if (report.OptionalUnregistered.Count > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
+                              string.Join(", ", report.OptionalUnregistered));
         }
 
         if (report.UnboundDescriptors.Count > 0)
@@ -153,6 +166,12 @@ public static class ProtoDiagnostics
         {
             Console.WriteLine("[Proto][WARN] Enum values missing ProtocolRegistry bindings: " +
                               string.Join(", ", report.UnregisteredMessageTypes));
+        }
+
+        if (report.OptionalUnregistered.Count > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
+                              string.Join(", ", report.OptionalUnregistered));
         }
     }
 }

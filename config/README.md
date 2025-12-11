@@ -15,6 +15,13 @@
 | `gameplay.json` | 게임플레이 규칙 및 메카닉 (GameplayConfig) | GameServer, Unity Client (공통) |
 | `server.json` | 서버 운영 설정 예시 | **사용되지 않음** (예시만) |
 
+### Data-driven gameplay configs
+- client_config.json — client defaults (network/graphics/ui) to mirror inside Unity resources.
+- hunger_config.json — hunger/food system tuning plus status effects.
+- items.json / item_categories.json — item definitions and category metadata for inventory/crafting UI.
+- items_config.json — feature toggles for the item system (durability, enchanting, trading, stacking).
+- recipes.json — crafting recipes that map inputs to outputs; keep in sync with server crafting rules.
+
 ## 실제 프로덕션 설정 파일
 
 **중요**: 실제 게임 서버는 이 폴더의 파일들을 사용하지 **않습니다**!

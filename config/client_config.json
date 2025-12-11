@@ -1,0 +1,157 @@
+{
+  "client": {
+    "network": {
+      "connectionTimeoutMs": 10000,
+      "reconnectAttempts": 3,
+      "reconnectDelayMs": 5000,
+      "maxPacketSize": 1048576,
+      "compressionEnabled": true,
+      "compressionThreshold": 1024
+    },
+    "graphics": {
+      "renderDistance": 8,
+      "maxRenderDistance": 16,
+      "fov": 75,
+      "maxFov": 110,
+      "brightness": 0.7,
+      "gamma": 1.0,
+      "vsyncEnabled": true,
+      "maxFps": 60,
+      "antiAliasing": 2,
+      "anisotropicFiltering": true,
+      "textureQuality": "high",
+      "shadowQuality": "medium",
+      "particleQuality": "high",
+      "waterQuality": "high"
+    },
+    "audio": {
+      "masterVolume": 0.8,
+      "musicVolume": 0.7,
+      "soundVolume": 0.8,
+      "ambientVolume": 0.6,
+      "voiceChatVolume": 0.9,
+      "maxSoundDistance": 32,
+      "dopplerEnabled": true,
+      "reverbEnabled": true,
+      "audioDevice": "default"
+    },
+    "controls": {
+      "mouseSensitivity": 1.0,
+      "invertMouseY": false,
+      "smoothMouse": true,
+      "mouseSmoothing": 0.5,
+      "keyBindings": {
+        "forward": "W",
+        "backward": "S",
+        "left": "A",
+        "right": "D",
+        "jump": "Space",
+        "sneak": "LeftShift",
+        "sprint": "LeftControl",
+        "inventory": "E",
+        "drop": "Q",
+        "use": "RightClick",
+        "attack": "LeftClick",
+        "chat": "T",
+        "pause": "Escape",
+        "screenshot": "F2"
+      }
+    },
+    "ui": {
+      "showCoordinates": true,
+      "showFps": true,
+      "showPing": true,
+      "showCrosshair": true,
+      "showHotbar": true,
+      "showInventory": true,
+      "showChatHistory": true,
+      "maxChatHistory": 100,
+      "fontSize": 14,
+      "uiScale": 1.0,
+      "language": "en",
+      "theme": "default",
+      "minimapEnabled": true,
+      "minimapSize": 128,
+      "minimapOpacity": 0.8
+    },
+    "gameplay": {
+      "difficulty": "normal",
+      "gamemode": "survival",
+      "allowCheats": false,
+      "allowFlight": false,
+      "allowTeleportation": false,
+      "keepInventoryOnDeath": false,
+      "naturalRegeneration": true,
+      "pvpEnabled": true,
+      "fireSpread": true,
+      "mobSpawning": true,
+      "daylightCycle": true,
+      "weatherCycle": true
+    },
+    "world": {
+      "seed": "",
+      "worldType": "default",
+      "generateStructures": true,
+      "generateVillages": true,
+      "generateTemples": true,
+      "generateMineshafts": true,
+      "generateStrongholds": true,
+      "generateMonuments": true,
+      "generateOceanMonuments": true,
+      "generateWoodlandMansions": true,
+      "generateJungleTemples": true,
+      "generateIgloos": true,
+      "generateWitchHuts": true,
+      "generateOceanRuins": true,
+      "generateShipwrecks": true,
+      "generatePillagerOutposts": true,
+      "generateNetherFortresses": true,
+      "generateBastions": true,
+      "generateRuinedPortals": true,
+      "generateEndCities": true,
+      "generateEndGateways": true
+    },
+    "performance": {
+      "chunkLoadingThreads": 2,
+      "maxLoadedChunks": 1024,
+      "chunkUnloadDelayMs": 30000,
+      "garbageCollectionIntervalMs": 60000,
+      "memoryLimitMB": 1024,
+      "enableProfiling": false,
+      "logPerformanceMetrics": true
+    },
+    "debug": {
+      "enabled": false,
+      "showCollisionBoxes": false,
+      "showChunkBorders": false,
+      "showLightLevels": false,
+      "showBiomeBorders": false,
+      "logNetworkPackets": false,
+      "logPerformanceMetrics": false,
+      "debugRendering": false,
+      "debugPhysics": false,
+      "debugAI": false,
+      "debugWorldGen": false
+    }
+  },
+  "server": {
+    "defaultAddress": "localhost",
+    "defaultPort": 9000,
+    "maxConnections": 100,
+    "heartbeatIntervalMs": 30000,
+    "timeoutMs": 30000,
+    "retryAttempts": 3,
+    "retryDelayMs": 5000
+  },
+  "compatibility": {
+    "minimumProtocolVersion": "1.0.0",
+    "currentProtocolVersion": "1.0.0",
+    "supportedVersions": [
+      "1.0.0"
+    ],
+    "enableVersionCheck": true,
+    "allowIncompatibleVersions": false
+  },
+  "version": "1.0.0",
+  "lastModified": "2025-12-09T10:20:00Z"
+}

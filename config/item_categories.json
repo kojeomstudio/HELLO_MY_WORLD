@@ -1,0 +1,300 @@
+{
+  "categories": [
+    {
+      "categoryId": "food",
+      "displayName": "Food",
+      "description": "Edible items that restore hunger and provide nutrition.",
+      "icon": "food_icon.png",
+      "sortOrder": 10,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "drink",
+      "displayName": "Drinks",
+      "description": "Beverages that restore thirst and hydration.",
+      "icon": "drink_icon.png",
+      "sortOrder": 20,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "tool",
+      "displayName": "Tools",
+      "description": "Items used for gathering resources and building.",
+      "icon": "tool_icon.png",
+      "sortOrder": 30,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "weapon",
+      "displayName": "Weapons",
+      "description": "Items used for combat and defense.",
+      "icon": "weapon_icon.png",
+      "sortOrder": 40,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "armor",
+      "displayName": "Armor",
+      "description": "Protective equipment worn for defense.",
+      "icon": "armor_icon.png",
+      "sortOrder": 50,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "block",
+      "displayName": "Blocks",
+      "description": "Building blocks and construction materials.",
+      "icon": "block_icon.png",
+      "sortOrder": 60,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "material",
+      "displayName": "Materials",
+      "description": "Raw materials and crafting components.",
+      "icon": "material_icon.png",
+      "sortOrder": 70,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "decoration",
+      "displayName": "Decoration",
+      "description": "Items used for aesthetic purposes and home decoration.",
+      "icon": "decoration_icon.png",
+      "sortOrder": 80,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "storage",
+      "displayName": "Storage",
+      "description": "Containers and items for storing goods.",
+      "icon": "storage_icon.png",
+      "sortOrder": 90,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "basic",
+      "displayName": "Basic",
+      "description": "Essential items for beginners.",
+      "icon": "basic_icon.png",
+      "sortOrder": 5,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "smelting",
+      "displayName": "Smelting",
+      "description": "Items created through smelting processes.",
+      "icon": "smelting_icon.png",
+      "sortOrder": 15,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "cooking",
+      "displayName": "Cooking",
+      "description": "Food items created through cooking.",
+      "icon": "cooking_icon.png",
+      "sortOrder": 12,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "mining_tools",
+      "displayName": "Mining Tools",
+      "description": "Tools specifically designed for mining operations.",
+      "icon": "mining_tools_icon.png",
+      "sortOrder": 32,
+      "parentCategoryId": "tool"
+    },
+    {
+      "categoryId": "wood_tools",
+      "displayName": "Wood Tools",
+      "description": "Basic tools made from wood.",
+      "icon": "wood_tools_icon.png",
+      "sortOrder": 31,
+      "parentCategoryId": "tool"
+    },
+    {
+      "categoryId": "stone_tools",
+      "displayName": "Stone Tools",
+      "description": "Tools made from stone for improved durability.",
+      "icon": "stone_tools_icon.png",
+      "sortOrder": 32,
+      "parentCategoryId": "tool"
+    },
+    {
+      "categoryId": "iron_tools",
+      "displayName": "Iron Tools",
+      "description": "Durable tools made from iron.",
+      "icon": "iron_tools_icon.png",
+      "sortOrder": 33,
+      "parentCategoryId": "tool"
+    },
+    {
+      "categoryId": "diamond_tools",
+      "displayName": "Diamond Tools",
+      "description": "Premium tools made from diamond with maximum efficiency.",
+      "icon": "diamond_tools_icon.png",
+      "sortOrder": 34,
+      "parentCategoryId": "tool"
+    },
+    {
+      "categoryId": "melee_weapons",
+      "displayName": "Melee Weapons",
+      "description": "Close combat weapons.",
+      "icon": "melee_weapons_icon.png",
+      "sortOrder": 41,
+      "parentCategoryId": "weapon"
+    },
+    {
+      "categoryId": "ranged_weapons",
+      "displayName": "Ranged Weapons",
+      "description": "Weapons for long-range combat.",
+      "icon": "ranged_weapons_icon.png",
+      "sortOrder": 42,
+      "parentCategoryId": "weapon"
+    },
+    {
+      "categoryId": "head_armor",
+      "displayName": "Head Armor",
+      "description": "Protective headgear.",
+      "icon": "head_armor_icon.png",
+      "sortOrder": 51,
+      "parentCategoryId": "armor"
+    },
+    {
+      "categoryId": "chest_armor",
+      "displayName": "Chest Armor",
+      "description": "Protective chest plates and torso armor.",
+      "icon": "chest_armor_icon.png",
+      "sortOrder": 52,
+      "parentCategoryId": "armor"
+    },
+    {
+      "categoryId": "leg_armor",
+      "displayName": "Leg Armor",
+      "description": "Protective leggings and leg armor.",
+      "icon": "leg_armor_icon.png",
+      "sortOrder": 53,
+      "parentCategoryId": "armor"
+    },
+    {
+      "categoryId": "foot_armor",
+      "displayName": "Foot Armor",
+      "description": "Protective boots and foot armor.",
+      "icon": "foot_armor_icon.png",
+      "sortOrder": 54,
+      "parentCategoryId": "armor"
+    },
+    {
+      "categoryId": "natural_blocks",
+      "displayName": "Natural Blocks",
+      "description": "Blocks found naturally in the world.",
+      "icon": "natural_blocks_icon.png",
+      "sortOrder": 61,
+      "parentCategoryId": "block"
+    },
+    {
+      "categoryId": "crafted_blocks",
+      "displayName": "Crafted Blocks",
+      "description": "Blocks created through crafting.",
+      "icon": "crafted_blocks_icon.png",
+      "sortOrder": 62,
+      "parentCategoryId": "block"
+    },
+    {
+      "categoryId": "building_blocks",
+      "displayName": "Building Blocks",
+      "description": "Blocks primarily used for construction.",
+      "icon": "building_blocks_icon.png",
+      "sortOrder": 63,
+      "parentCategoryId": "block"
+    },
+    {
+      "categoryId": "ores",
+      "displayName": "Ores",
+      "description": "Mineral ores that can be smelted into metals.",
+      "icon": "ores_icon.png",
+      "sortOrder": 71,
+      "parentCategoryId": "material"
+    },
+    {
+      "categoryId": "metals",
+      "displayName": "Metals",
+      "description": "Refined metal materials.",
+      "icon": "metals_icon.png",
+      "sortOrder": 72,
+      "parentCategoryId": "material"
+    },
+    {
+      "categoryId": "gems",
+      "displayName": "Gems",
+      "description": "Precious and semi-precious gemstones.",
+      "icon": "gems_icon.png",
+      "sortOrder": 73,
+      "parentCategoryId": "material"
+    },
+    {
+      "categoryId": "organic_materials",
+      "displayName": "Organic Materials",
+      "description": "Natural materials from plants and animals.",
+      "icon": "organic_materials_icon.png",
+      "sortOrder": 74,
+      "parentCategoryId": "material"
+    },
+    {
+      "categoryId": "furniture",
+      "displayName": "Furniture",
+      "description": "Decorative furniture items.",
+      "icon": "furniture_icon.png",
+      "sortOrder": 81,
+      "parentCategoryId": "decoration"
+    },
+    {
+      "categoryId": "lighting",
+      "displayName": "Lighting",
+      "description": "Items that provide light.",
+      "icon": "lighting_icon.png",
+      "sortOrder": 82,
+      "parentCategoryId": "decoration"
+    },
+    {
+      "categoryId": "containers",
+      "displayName": "Containers",
+      "description": "Storage containers of various sizes.",
+      "icon": "containers_icon.png",
+      "sortOrder": 91,
+      "parentCategoryId": "storage"
+    },
+    {
+      "categoryId": "redstone",
+      "displayName": "Redstone",
+      "description": "Items related to redstone circuitry and mechanisms.",
+      "icon": "redstone_icon.png",
+      "sortOrder": 100,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "transportation",
+      "displayName": "Transportation",
+      "description": "Items used for transportation and travel.",
+      "icon": "transportation_icon.png",
+      "sortOrder": 110,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "magic",
+      "displayName": "Magic",
+      "description": "Magical items and artifacts.",
+      "icon": "magic_icon.png",
+      "sortOrder": 120,
+      "parentCategoryId": ""
+    },
+    {
+      "categoryId": "miscellaneous",
+      "displayName": "Miscellaneous",
+      "description": "Items that don't fit into other categories.",
+      "icon": "miscellaneous_icon.png",
+      "sortOrder": 999,
+      "parentCategoryId": ""
+    }
+  ]
+}

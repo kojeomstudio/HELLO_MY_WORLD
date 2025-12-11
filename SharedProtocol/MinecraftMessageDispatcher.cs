@@ -122,6 +122,17 @@ namespace SharedProtocol
             return missing;
         }
 
+        public void AssertHandlerCoverage()
+        {
+            var missing = GetUnboundProtocolMessages();
+            if (missing.Count > 0)
+            {
+                string missingList = string.Join(", ", missing);
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft protobuf handlers missing: {missingList}. Regenerate protobuf assets and wire handlers via RegisterHandler.");
+            }
+        }
+
         /// <summary>
         /// 등록된 핸들러 수
         /// </summary>

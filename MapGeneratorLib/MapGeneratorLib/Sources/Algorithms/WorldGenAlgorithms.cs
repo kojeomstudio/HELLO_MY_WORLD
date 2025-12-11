@@ -2053,6 +2053,7 @@ namespace MapGenLib
             }
 
             NormalizeRiverIntensity(riverIntensity, hydrologyMask, flowAccumulation, hydrologyGradient, channelThreshold, bankThreshold);
+            ApplyRiverWidthModulation(riverIntensity, flowAccumulation, hydrologyMask, channelThreshold, bankThreshold);
             SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask, flowAccumulation);
 
             StitchTributaryChannels(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
@@ -2109,6 +2110,51 @@ namespace MapGenLib
                     }
 
                     riverIntensity[x, z] = CustomMathf.Clamp(stabilized, 0f, clamp);
+                }
+            }
+        }
+
+        private static void ApplyRiverWidthModulation(
+            float[,] riverIntensity,
+            float[,] flowAccumulation,
+            float[,] hydrologyMask,
+            float channelThreshold,
+            float bankThreshold)
+        {
+            int width = riverIntensity.GetLength(0);
+            int depth = riverIntensity.GetLength(1);
+            float edgeClamp = CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float intensity = riverIntensity[x, z];
+                    if (intensity <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float flow = CustomMathf.Clamp01(flowAccumulation[x, z] / 8f);
+                    float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
+                    float headwater = 1f - CustomMathf.Clamp01(flow * 0.65f);
+                    float widthScale = 1f + flow * 0.25f + hydrology * 0.1f - headwater * RiverHeadwaterStabilityWeight * 0.2f;
+                    widthScale = CustomMathf.Clamp(widthScale, 0.65f, 1.6f);
+
+                    float edgeDistance = CustomMathf.Min(CustomMathf.Min(x, width - 1 - x), CustomMathf.Min(z, depth - 1 - z));
+                    float seamBlend = CustomMathf.Clamp01(1f - edgeDistance / 6f);
+                    float seamClamp = 1f - seamBlend * edgeClamp * 0.35f;
+
+                    float scaled = intensity * widthScale * seamClamp;
+                    scaled = CustomMathf.Clamp(scaled, 0f, bankThreshold * 1.4f);
+
+                    if (intensity < channelThreshold)
+                    {
+                        float taper = CustomMathf.Clamp01(1f - headwater * 0.35f);
+                        scaled *= taper;
+                    }
+
+                    riverIntensity[x, z] = scaled;
                 }
             }
         }
@@ -3030,6 +3076,7 @@ namespace MapGenLib
             }
 
             NormalizeRiverIntensity(riverIntensity, hydrologyMask, flowAccumulation, hydrologyGradient, channelThreshold, bankThreshold);
+            ApplyRiverWidthModulation(riverIntensity, flowAccumulation, hydrologyMask, channelThreshold, bankThreshold);
             SmoothRiverIntensity(riverIntensity, erosionRiskField, hydrologyMask, flowAccumulation);
             return riverIntensity;
         }
@@ -3101,10 +3148,17 @@ namespace MapGenLib
                     continue;
                 }
 
+                CustomVector2 inflowDir = hydrologyGradient[centerX, centerZ];
+                float inflowBlend = CustomMathf.Clamp01(LakeInflowBlendWeight);
+                float inflowStrength = CustomMathf.Clamp(inflowDir.magnitude, 0f, 1.5f);
+
                 int radiusX = Utilitys.RandomInteger(4, 7) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(riparian * 2f) + CustomMathf.RoundToInt(flow * 1.5f);
                 int radiusZ = Utilitys.RandomInteger(3, 6) + CustomMathf.RoundToInt(hydrology * 1.5f) + CustomMathf.RoundToInt(candidateScore * 2.5f) + CustomMathf.RoundToInt(riparian * 1.5f) + CustomMathf.RoundToInt(flow * 1.25f);
-                radiusX = CustomMathf.RoundToInt(radiusX * (0.8f + erosionPenalty * 0.45f));
-                radiusZ = CustomMathf.RoundToInt(radiusZ * (0.82f + erosionPenalty * 0.4f));
+                float anisotropy = CustomMathf.Clamp01(hydrologyCoherence * 0.45f + flow * 0.35f + gradientStrength * 0.25f + inflowStrength * 0.25f);
+                float majorScale = 1f + anisotropy * 0.25f;
+                float minorScale = 1f - anisotropy * 0.15f;
+                radiusX = CustomMathf.RoundToInt(radiusX * (0.8f + erosionPenalty * 0.45f) * majorScale);
+                radiusZ = CustomMathf.RoundToInt(radiusZ * (0.82f + erosionPenalty * 0.4f) * minorScale);
                 radiusX = CustomMathf.Clamp(radiusX, 4, 9);
                 radiusZ = CustomMathf.Clamp(radiusZ, 3, 8);
                 int maxDepth = Utilitys.RandomInteger(3, 5) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(flow * 1.5f);
@@ -3127,6 +3181,15 @@ namespace MapGenLib
                 }
 
                 float rotation = Noise.GetNoise(centerX * 0.12f, 0, centerZ * 0.12f) * CustomMathf.PI;
+                if (inflowBlend > 0f && inflowDir.sqrMagnitude > CustomVector2.kEpsilon)
+                {
+                    CustomVector2 noiseDir = new CustomVector2(CustomMathf.Cos(rotation), CustomMathf.Sin(rotation));
+                    CustomVector2 blendedDir = CustomVector2.Lerp(noiseDir, inflowDir.normalized, inflowBlend);
+                    if (blendedDir.sqrMagnitude > CustomVector2.kEpsilon)
+                    {
+                        rotation = CustomMathf.Atan2(blendedDir.y, blendedDir.x);
+                    }
+                }
                 relief = ComputeLocalRelief(surfaceCache, subWorldSize, centerX, centerZ, CustomMathf.Max(radiusX, radiusZ) + 4);
                 basinStability = 1f - CustomMathf.Clamp01(relief / 12f);
                 basinStability = CustomMathf.Clamp01(CustomMathf.Lerp(basinStability, basinStability + candidateScore * 0.25f, 0.5f));
@@ -6440,6 +6503,9 @@ namespace MapGenLib
                     CustomVector2 gradient = hydrologyGradient[x, z];
                     float gradientStrength = CustomMathf.Clamp(gradient.magnitude, 0f, 1.75f);
                     float gradientBias = gradientStrength * CustomMathf.Clamp01(HydrologyGradientWeight);
+                    float edgeDistance = CustomMathf.Min(CustomMathf.Min(x, subWorldSize.SizeX - 1 - x), CustomMathf.Min(z, subWorldSize.SizeZ - 1 - z));
+                    float seamRelax = CustomMathf.Clamp01(1f - edgeDistance / 6f) * CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
+                    float moistureRetention = CustomMathf.Clamp01(1f - hydrology);
 
                     for (int y = 6; y < maxY; y++)
                     {
@@ -6456,6 +6522,7 @@ namespace MapGenLib
                         density += flowNoise * 0.18f;
                         density -= CustomMathf.Clamp01(erosionRisk * 1.15f) * 0.06f;
                         density -= gradientBias * 0.06f;
+                        density -= seamRelax * 0.01f;
 
                         float verticalFade = CustomMathf.Clamp01((y - 16f) / 150f);
                         density -= verticalFade * 0.5f;
@@ -6481,6 +6548,8 @@ namespace MapGenLib
                         threshold -= gradientBias * 0.05f;
                         threshold -= flow * 0.02f;
                         threshold += (0.5f - hydrology) * 0.02f;
+                        threshold -= seamRelax * 0.03f;
+                        threshold += moistureRetention * CaveMoistureRetentionWeight * 0.01f;
 
                         if (density < threshold)
                         {

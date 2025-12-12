@@ -16,6 +16,7 @@ namespace GameServerApp
             // Display server architecture information
             DisplayServerInfo();
             ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateEnhancedContracts();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))

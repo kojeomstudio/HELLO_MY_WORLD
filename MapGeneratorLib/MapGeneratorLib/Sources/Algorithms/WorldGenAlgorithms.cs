@@ -949,6 +949,10 @@ namespace MapGenLib
             int depth = subWorldSize.SizeZ;
             float[,] hydrologyBuffer = new float[width, depth];
             float[,] flowBuffer = new float[width, depth];
+            float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
+            float gradientWeight = CustomMathf.Clamp(HydrologyGradientWeight, 0f, 1.5f);
+            float gradientSlopeWeight = CustomMathf.Clamp01(HydrologyGradientSlopeWeight);
+            float gradientClamp = CustomMathf.Max(0.0001f, HydrologyGradientClamp);
 
             for (int x = 0; x < width; x++)
             {
@@ -959,6 +963,14 @@ namespace MapGenLib
                     float blendedHydrology = hydrology;
                     float blendedFlow = flow;
                     float weight = 1f;
+                    float gradX = hydrologyMask[Math.Min(width - 1, x + 1), z] - hydrologyMask[Math.Max(0, x - 1), z];
+                    float gradZ = hydrologyMask[x, Math.Min(depth - 1, z + 1)] - hydrologyMask[x, Math.Max(0, z - 1)];
+                    float gradientMagnitude = CustomMathf.Sqrt(gradX * gradX + gradZ * gradZ);
+                    float clampedGradient = CustomMathf.Min(gradientMagnitude, gradientClamp);
+                    float gradientNormalized = CustomMathf.Clamp01(clampedGradient / gradientClamp);
+                    CustomVector2 gradientDir = gradientMagnitude > CustomVector2.kEpsilon ? new CustomVector2(gradX, gradZ).normalized : CustomVector2.zero;
+                    float gradientAnisotropy = 1f + clampedGradient * gradientWeight * 0.35f;
+                    float gradientDamping = CustomMathf.Clamp(1f - gradientNormalized * (0.3f + gradientSlopeWeight * 0.25f), 0.55f, 1f);
 
                     int surface = surfaceCache[x, z];
                     float shoreBias = CustomMathf.Clamp01((GlobalRiverWaterLevel - surface) / CustomMathf.Max(0.001f, HydrologyShorePush));
@@ -982,7 +994,19 @@ namespace MapGenLib
 
                             int neighborSurface = surfaceCache[sampleX, sampleZ];
                             float slopePenalty = CustomMathf.Clamp01(CustomMathf.Abs(surface - neighborSurface) / CustomMathf.Max(0.001f, HydrologySlopePenalty));
-                            float smoothingWeight = 1f - slopePenalty * 0.45f;
+                            float smoothingWeight = (1f - slopePenalty * 0.45f) * (0.85f + flowPersistence * 0.15f);
+
+                            if (gradientDir.sqrMagnitude > CustomVector2.kEpsilon)
+                            {
+                                var neighborDir = new CustomVector2(dx, dz);
+                                if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
+                                {
+                                    neighborDir.Normalize();
+                                    float alignment = CustomMathf.Max(0f, CustomVector2.Dot(gradientDir, neighborDir));
+                                    float alignedWeight = 0.65f + alignment * 0.35f;
+                                    smoothingWeight *= alignedWeight * gradientAnisotropy;
+                                }
+                            }
 
                             blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
                             blendedFlow += flowAccumulation[sampleX, sampleZ] * smoothingWeight;
@@ -990,9 +1014,11 @@ namespace MapGenLib
                         }
                     }
 
-                    float hydrologyBlend = CustomMathf.Clamp01(0.35f + shoreBias * HydrologyFlowGain);
-                    hydrologyBlend = CustomMathf.Clamp01(hydrologyBlend + HydrologyFlowPersistence * 0.1f);
-                    float flowBlend = CustomMathf.Clamp01(0.25f + shoreBias * HydrologyFlowGain * 0.65f + HydrologyFlowPersistence * 0.15f);
+                    float hydrologyBlendBase = CustomMathf.Clamp01(0.35f + shoreBias * HydrologyFlowGain + flowPersistence * 0.1f);
+                    float flowBlendBase = CustomMathf.Clamp01(0.25f + shoreBias * HydrologyFlowGain * 0.65f + flowPersistence * 0.15f);
+                    float gradientBlend = gradientNormalized * (0.2f + flowPersistence * 0.15f);
+                    float hydrologyBlend = CustomMathf.Clamp01(hydrologyBlendBase * gradientDamping + gradientBlend * 0.5f);
+                    float flowBlend = CustomMathf.Clamp01(flowBlendBase * gradientDamping + gradientBlend);
                     hydrologyBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, blendedHydrology / weight, hydrologyBlend));
                     flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, blendedFlow / weight, flowBlend));
                 }

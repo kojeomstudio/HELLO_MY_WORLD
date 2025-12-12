@@ -2959,6 +2959,10 @@ namespace GameServerApp.World
             int depth = hydrologyMask.GetLength(1);
             var hydrologyBuffer = new double[width, depth];
             var flowBuffer = new double[width, depth];
+            double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+            double gradientWeight = Math.Clamp(_hydrologyGradientWeight, 0.0, 1.5);
+            double gradientSlopeWeight = Math.Clamp(_hydrologyGradientSlopeWeight, 0.0, 1.0);
+            double gradientClamp = Math.Max(1e-4, _hydrologyGradientClamp);
 
             for (int x = 0; x < width; x++)
             {
@@ -2969,6 +2973,16 @@ namespace GameServerApp.World
                     double blendedHydrology = hydrology;
                     double blendedFlow = flow;
                     double weight = 1.0;
+                    double gradX = hydrologyMask[Math.Min(width - 1, x + 1), z] - hydrologyMask[Math.Max(0, x - 1), z];
+                    double gradZ = hydrologyMask[x, Math.Min(depth - 1, z + 1)] - hydrologyMask[x, Math.Max(0, z - 1)];
+                    double gradientMagnitude = Math.Sqrt(gradX * gradX + gradZ * gradZ);
+                    double clampedGradient = Math.Min(gradientMagnitude, gradientClamp);
+                    double gradientNormalized = Math.Clamp(clampedGradient / gradientClamp, 0.0, 1.0);
+                    Vector2 gradientDir = gradientMagnitude > 1e-6
+                        ? Vector2.Normalize(new Vector2((float)gradX, (float)gradZ))
+                        : Vector2.Zero;
+                    double gradientAnisotropy = 1.0 + clampedGradient * gradientWeight * 0.35;
+                    double gradientDamping = Math.Clamp(1.0 - gradientNormalized * (0.3 + gradientSlopeWeight * 0.25), 0.55, 1.0);
 
                     int surface = surfaceCache[x, z];
                     double shoreBias = Math.Clamp((GlobalWaterLevel - surface) / _hydrologyShorePush, 0.0, 1.0);
@@ -2992,7 +3006,19 @@ namespace GameServerApp.World
 
                             int neighborSurface = surfaceCache[sampleX, sampleZ];
                             double slopePenalty = Math.Clamp(Math.Abs(surface - neighborSurface) / _hydrologySlopePenalty, 0.0, 1.0);
-                            double smoothingWeight = 1.0 - slopePenalty * 0.45;
+                            double smoothingWeight = (1.0 - slopePenalty * 0.45) * (0.85 + flowPersistence * 0.15);
+
+                            if (gradientDir.LengthSquared() > 1e-5f)
+                            {
+                                var neighborDir = new Vector2(offsetX, offsetZ);
+                                if (neighborDir.LengthSquared() > 1e-5f)
+                                {
+                                    neighborDir = Vector2.Normalize(neighborDir);
+                                    double alignment = Math.Max(0.0, Vector2.Dot(gradientDir, neighborDir));
+                                    double alignedWeight = 0.65 + alignment * 0.35;
+                                    smoothingWeight *= alignedWeight * gradientAnisotropy;
+                                }
+                            }
 
                             blendedHydrology += hydrologyMask[sampleX, sampleZ] * smoothingWeight;
                             blendedFlow += flowAccumulation[sampleX, sampleZ] * smoothingWeight;
@@ -3000,8 +3026,11 @@ namespace GameServerApp.World
                         }
                     }
 
-                    double hydrologyBlend = Math.Clamp(0.35 + shoreBias * _hydrologyFlowGain + _hydrologyFlowPersistence * 0.1, 0.0, 1.0);
-                    double flowBlend = Math.Clamp(0.25 + shoreBias * _hydrologyFlowGain * 0.65 + _hydrologyFlowPersistence * 0.15, 0.0, 1.0);
+                    double hydrologyBlendBase = Math.Clamp(0.35 + shoreBias * _hydrologyFlowGain + flowPersistence * 0.1, 0.0, 1.0);
+                    double flowBlendBase = Math.Clamp(0.25 + shoreBias * _hydrologyFlowGain * 0.65 + flowPersistence * 0.15, 0.0, 1.0);
+                    double gradientBlend = gradientNormalized * (0.2 + flowPersistence * 0.15);
+                    double hydrologyBlend = Math.Clamp(hydrologyBlendBase * gradientDamping + gradientBlend * 0.5, 0.0, 1.0);
+                    double flowBlend = Math.Clamp(flowBlendBase * gradientDamping + gradientBlend, 0.0, 1.0);
                     hydrologyBuffer[x, z] = Math.Clamp(hydrology + (blendedHydrology / weight - hydrology) * hydrologyBlend, 0.0, 1.0);
                     flowBuffer[x, z] = Math.Max(0.0, flow + (blendedFlow / weight - flow) * flowBlend);
                 }

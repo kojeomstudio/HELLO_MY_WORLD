@@ -46,6 +46,7 @@ namespace GameServerApp
         public GameServer(int port = 9000, string databaseFile = "minecraft_game.db", ServerConfig? config = null)
         {
             ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateEnhancedContracts();
             _config = config ?? ServerConfig.LoadFromFile();
 
             var resolvedPort = config?.Network.Port ?? port;

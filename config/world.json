@@ -45,6 +45,8 @@
     "HydrologyGradientWeight": 0.35,
     "HydrologyGradientSlopeWeight": 0.42,
     "HydrologyGradientClamp": 1.65,
+    "HydrologyGradientStabilityIterations": 1,
+    "HydrologyGradientStabilityBlend": 0.45,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,
     "RiverReliefPenaltyWeight": 0.25,

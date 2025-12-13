@@ -12,6 +12,10 @@ namespace GameServerApp.World
     public sealed class WorldGenerationConfig
     {
         public string SourcePath { get; set; } = "config/world.json";
+        public int ChunkSize { get; set; } = 16;
+        public int RenderDistance { get; set; } = 10;
+        public int SimulationDistance { get; set; } = 8;
+        public int WorldHeight { get; set; } = 256;
         public WaterConfig Water { get; set; } = new();
         public CaveConfig Caves { get; set; } = new();
         public LakeConfig Lakes { get; set; } = new();
@@ -57,6 +61,10 @@ namespace GameServerApp.World
             Water ??= new WaterConfig();
             Caves ??= new CaveConfig();
             Lakes ??= new LakeConfig();
+            ChunkSize = Math.Max(ChunkSize, 1);
+            RenderDistance = Math.Max(RenderDistance, 1);
+            SimulationDistance = Math.Max(SimulationDistance, 1);
+            WorldHeight = Math.Max(WorldHeight, 1);
         }
     }
 
@@ -89,6 +97,8 @@ namespace GameServerApp.World
         public double HydrologyGradientWeight { get; set; } = 0.35;
         public double HydrologyGradientSlopeWeight { get; set; } = 0.42;
         public double HydrologyGradientClamp { get; set; } = 1.65;
+        public int HydrologyGradientStabilityIterations { get; set; } = 1;
+        public double HydrologyGradientStabilityBlend { get; set; } = 0.45;
         public int HydrologySeamRelaxIterations { get; set; } = 2;
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;
         public double RiverBankErosionWeight { get; set; } = 0.18;

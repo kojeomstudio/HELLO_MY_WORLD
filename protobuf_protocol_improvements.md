@@ -29,6 +29,7 @@ Client Side:
 - Server boot now invokes `ProtocolValidator.ValidateEnhancedContracts()` from both `Program.Main` and `GameServer` construction so stale generated protobuf references (wrong namespaces, missing parsers, or handler gaps) fail fast before any EnhancedMinecraft handlers register.
 - Added `MinecraftMessageDispatcher.AssertHandlerCoverage()` and wired it into `GameServer/RegisterMinecraftHandlers` so the server throws during startup if any `ProtocolRegistry` entry lacks a handler, catching stale `using` bindings before packets flow.
 - `ProtoDiagnostics` now treats optional `MinecraftMessageType` values as informational; required bindings still fail fast via `ProtocolValidator.ValidateEnhancedContracts()`, but optional enum gaps no longer block startup while still being logged for follow-up.
+- Startup now emits a registry/descriptor coverage summary via `ProtoDiagnostics.LogSummary()` so handler bring-up can confirm the generated assemblies and using directives match the currently loaded protobuf descriptors.
 
 ## Proposed Improvements
 

@@ -17,6 +17,7 @@ namespace GameServerApp
             DisplayServerInfo();
             ProtoRuntime.EnsureInitialized();
             ProtocolValidator.ValidateEnhancedContracts();
+            ProtoDiagnostics.LogSummary();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))

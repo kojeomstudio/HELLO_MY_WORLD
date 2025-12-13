@@ -5,6 +5,7 @@ This backlog groups every required Minecraft capability for both server and clie
 ## Server
 ### Core
 - [ ] World generation parity: terrain + caves + rivers/lakes stay identical between `GameServer/World/WorldManager.cs` and `MapGeneratorLib` (noise fields, hydrology seams, gradients).
+- [x] Hydrology gradient stability pass shared across server and Unity map previews to align cave/river/lake downhill vectors at chunk seams.
 - [ ] Chunk lifecycle: multi-threaded generation, caching/compression, priority streaming, chunk unload acknowledgements.
 - [ ] Session/auth pipeline with rate limiting, anti-cheat hooks, and reconnect-safe state.
 - [ ] Protocol validation: protobuf fingerprint/descriptor/registry coverage, handler coverage, and framed packet guard rails.
@@ -28,7 +29,7 @@ This backlog groups every required Minecraft capability for both server and clie
 - [ ] Chunk request/unload pipeline with graceful fallback on packet loss and residency tracking.
 - [ ] Prediction/interpolation for movement with reconciliation on server corrections.
 - [ ] Protobuf gate before entering play mode (fingerprint/registry guard) and handler coverage checks.
-- [ ] World map controls + hydrology/cave tuning preview sourced from `WorldConfigData.json`.
+- [x] World map controls + hydrology/cave tuning preview sourced from `WorldConfigData.json` (render/simulation distance + gradient stability mirrored from server).
 
 ### Content
 - [ ] UI for health/hunger/experience synced to server ticks.

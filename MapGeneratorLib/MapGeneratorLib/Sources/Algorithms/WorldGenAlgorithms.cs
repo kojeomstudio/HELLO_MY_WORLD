@@ -127,6 +127,8 @@ namespace MapGenLib
         public static float HydrologyGradientWeight = 0.35f;
         public static float HydrologyGradientSlopeWeight = 0.42f;
         public static float HydrologyGradientClamp = 1.65f;
+        public static int HydrologyGradientStabilityIterations = 1;
+        public static float HydrologyGradientStabilityBlend = 0.45f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
         public static int HydrologySeamRelaxIterations = 2;
@@ -940,7 +942,60 @@ namespace MapGenLib
                 }
             }
 
+            ApplyHydrologyGradientStability(smoothed, maxMagnitude);
             return smoothed;
+        }
+
+        private static void ApplyHydrologyGradientStability(CustomVector2[,] gradient, float maxMagnitude)
+        {
+            if (HydrologyGradientStabilityIterations <= 0 || HydrologyGradientStabilityBlend <= 0f || gradient == null)
+            {
+                return;
+            }
+
+            int width = gradient.GetLength(0);
+            int depth = gradient.GetLength(1);
+            var buffer = new CustomVector2[width, depth];
+            float blend = CustomMathf.Clamp01(HydrologyGradientStabilityBlend);
+
+            for (int iteration = 0; iteration < HydrologyGradientStabilityIterations; iteration++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        CustomVector2 accum = gradient[x, z];
+                        float weight = 1f;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                                {
+                                    continue;
+                                }
+
+                                float neighborWeight = dx != 0 && dz != 0 ? 0.35f : 1f;
+                                accum += gradient[nx, nz] * neighborWeight;
+                                weight += neighborWeight;
+                            }
+                        }
+
+                        CustomVector2 averaged = weight > 0f ? accum / weight : gradient[x, z];
+                        buffer[x, z] = CustomVector2.ClampMagnitude(CustomVector2.Lerp(gradient[x, z], averaged, blend), maxMagnitude);
+                    }
+                }
+
+                Array.Copy(buffer, gradient, gradient.Length);
+            }
         }
 
         private static void StabilizeHydrologyGradients(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)

@@ -20,6 +20,7 @@ public class WorldAreaManager : MonoBehaviour
         public List<SubWorldData> SubWorldDatas;
     }
     public Dictionary<string, WorldArea> WorldAreas { get; private set; } = new Dictionary<string, WorldArea>();
+    public WorldMapControlProfile MapControlProfile { get; private set; }
     public static WorldAreaManager Instance { get; private set; }
     public bool bInitFinish { get; private set; }
 
@@ -46,6 +47,7 @@ public class WorldAreaManager : MonoBehaviour
         }
 
         var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+        MapControlProfile = new WorldMapControlProfile(tunedWorldConfig);
         WorldGenAlgorithms.GlobalRiverWaterLevel = Mathf.Max(0, tunedWorldConfig.GlobalWaterLevel);
         WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, tunedWorldConfig.HydrologySmoothIterations);
         WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(tunedWorldConfig.HydrologySmoothBlend);
@@ -67,6 +69,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyGradientWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyGradientWeight);
         WorldGenAlgorithms.HydrologyGradientSlopeWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyGradientSlopeWeight);
         WorldGenAlgorithms.HydrologyGradientClamp = Mathf.Clamp(tunedWorldConfig.HydrologyGradientClamp, 0.1f, 3.5f);
+        WorldGenAlgorithms.HydrologyGradientStabilityIterations = Mathf.Max(0, tunedWorldConfig.HydrologyGradientStabilityIterations);
+        WorldGenAlgorithms.HydrologyGradientStabilityBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyGradientStabilityBlend);
         WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(tunedWorldConfig.HydrologyWarpFrequency, 0.0001f, 0.01f);
         WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(tunedWorldConfig.HydrologyWarpAmplitude, 0f, 48f);
         WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, tunedWorldConfig.HydrologySeamRelaxIterations);

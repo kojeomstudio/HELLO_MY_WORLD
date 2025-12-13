@@ -12,6 +12,8 @@ public struct WorldConfig
     public int SubWorldSizeY;
     public int SubWorldSizeZ;
     public int ChunkSize;
+    public int RenderDistance;
+    public int SimulationDistance;
     public float ChunkLoadIntervalSeconds;
     public WorldEnviromentsConfig EnviromentsConfig;
     public int GlobalWaterLevel;
@@ -43,6 +45,8 @@ public struct WorldConfig
     public float HydrologyGradientWeight;
     public float HydrologyGradientSlopeWeight;
     public float HydrologyGradientClamp;
+    public int HydrologyGradientStabilityIterations;
+    public float HydrologyGradientStabilityBlend;
     public int HydrologySeamRelaxIterations;
     public float HydrologySeamRelaxBlend;
     public float HydrologyWarpFrequency;
@@ -116,6 +120,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.SubWorldSizeZ = ParseInt(data, "SubWorldSizeZ", 32);
                 Config.OneTileUnit = ParseFloat(data, "OneTileUnit", 0.0625f);
                 Config.ChunkSize = ParseInt(data, "ChunkSize", 8);
+                Config.RenderDistance = ParseInt(data, "RenderDistance", 10);
+                Config.SimulationDistance = ParseInt(data, "SimulationDistance", 8);
                 Config.SubWorld_Count_X_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_X_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Y_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Y_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Z_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Z_Axis_Per_WorldArea", 32);
@@ -148,6 +154,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyGradientWeight = ParseFloat(data, "HydrologyGradientWeight", 0.35f);
                 Config.HydrologyGradientSlopeWeight = ParseFloat(data, "HydrologyGradientSlopeWeight", 0.42f);
                 Config.HydrologyGradientClamp = ParseFloat(data, "HydrologyGradientClamp", 1.65f);
+                Config.HydrologyGradientStabilityIterations = ParseInt(data, "HydrologyGradientStabilityIterations", 1);
+                Config.HydrologyGradientStabilityBlend = ParseFloat(data, "HydrologyGradientStabilityBlend", 0.45f);
                 Config.HydrologySeamRelaxIterations = ParseInt(data, "HydrologySeamRelaxIterations", 2);
                 Config.HydrologySeamRelaxBlend = ParseFloat(data, "HydrologySeamRelaxBlend", 0.5f);
                 Config.HydrologyWarpFrequency = ParseFloat(data, "HydrologyWarpFrequency", 0.0009f);

@@ -85,6 +85,8 @@
 4. **Phase 4**: Integration improvements between all systems
 
 ## Latest Applied Changes (2026-01)
+- Hydrology gradients now include a configurable stability pass (`HydrologyGradientStabilityIterations` / `HydrologyGradientStabilityBlend`) shared by `GameServer/World/WorldManager.cs` and `MapGeneratorLib/.../WorldGenAlgorithms.cs`, reducing downhill vector jitter for caves, rivers, and lakes while keeping Unity previews in lockstep with streamed chunks.
+- Map control profiles now capture chunk size, render/simulation distance, and hydrology stability parameters from `config/world.json` and `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, giving both server and client a single source for world-map tuning.
 - Hydrology gradient stabilization now applies anisotropic, downhill/flow-aligned weighting inside `StabilizeHydrologyGradients` for both `GameServer/World/WorldManager.cs` and `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`, reducing chunk-seam drift for rivers, lakes, and cave moisture masks while keeping Unity previews aligned with the streamed server terrain.
 - Flow-aware river width modulation now runs before smoothing in both `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs` and `GameServer/World/WorldManager.cs`, blending flow/hydrology with edge variance clamps to avoid seam spikes.
 - Lake basins align their major axis to local hydrology gradients (`LakeInflowBlendWeight`) and apply anisotropy scaling, improving river-fed shorelines across server/client generators.

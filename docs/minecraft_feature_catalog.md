@@ -1,29 +1,18 @@
-# Minecraft Feature Catalog (Core / Content / Util)
+# Minecraft Feature Catalog (Core / Content / Utility)
 
-## Core Features
-- Server: connection/auth handshake, session lifecycle, and protocol routing via `SharedProtocol` + `GameServer/Handlers` with protobuf messages.
-- Server: chunk streaming and world generation orchestration (`MapGeneratorLib` worldgen, `SessionManager` dispatch, time/weather ticks).
-- Client: network bootstrap and reconnect, chunk request/ack pipeline (`Assets/MyAssets/Scripts/Network/*`), chunk mesh rebuild safety.
-- Client: render/collision core (chunk meshing, block update propagation), input-to-action plumbing for block break/place.
-- Shared: deterministic config + seed handling (`server-config.json`, world seed plumbed to client for preview/minimap).
+Use this list to keep Minecraft-style features aligned between the authoritative server and the Unity client. Items are grouped into Core (stability/compatibility), Content (gameplay loops), and Utility (operability/tooling). File references show the primary implementation points.
 
-## Content Features
-- Blocks/biomes: data-driven block catalog (durability, drop tables, textures) and biome palettes; extend JSON tables instead of code constants.
-- Waterforms: rivers/lakes shoreline blending, cave water pockets, and erosion-aware banks (see `WorldGenAlgorithms`).
-- Structures: dungeons, villages/outposts, and surface points of interest; spawn tables stored in JSON for server + client previews.
-- Entities: passive/hostile mob definitions, spawning rules, AI state replicated via protobuf, client-side animation hooks.
-- Items/Crafting: item stats, recipes, and tool efficiencies configured in JSON; UI panels aligned with server validation.
-- UI/UX: HUD widgets for health/hunger/position/chunk, debug overlays for perf/worldgen seeds.
+## Server
+- Core: ✅ Hydrology gradient stability + seam smoothing for rivers/lakes/caves (`GameServer/World/WorldManager.cs`, `MapGeneratorLib/.../WorldGenAlgorithms.cs`); ✅ Enhanced protobuf registry validation + startup summary (`SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`, `ProtoDiagnostics.LogSummary()` in `GameServer/Program.cs`); ☐ Chunk lifecycle prioritisation + unload acks; ☐ Session/auth hardening with reconnect-safe state; ☐ Protocol coverage tests for every handler.
+- Content: ✅ Health/hunger loop; ☐ Inventory/equipment/crafting driven by `config/items.json` / `config/recipes.json`; ☐ Combat tuning + reconciliation; ☐ Weather/day-night/environment feedback tied to time/weather broadcasts; ☐ Entity AI/spawn/sync loops.
+- Utility: ✅ Data-driven worldgen (`config/world.json`) mirrored into Unity; ✅ World map control profile for render/simulation distances and hydrology tuning (`GameServer/World/WorldMapControlProfile.cs`); ☐ Config hot-reload + schema validation; ☐ Metrics/telemetry and backup/export tooling.
 
-## Util / Tooling
-- Configuration: keep runtime knobs in JSON (`config/`, `server-config.json`); split client/server files when helpful for maintenance.
-- Protocol pipeline: `.proto` sources in `proto/` regenerate to `Assets/Generated/Protobuf/`; keep `SharedProtocol` validators in sync.
-- Diagnostics: lightweight tracing (worldgen timings, chunk send/recv), crash repro captures, and replay-friendly logs.
-- Build/Test: scripted `dotnet build SharedProtocol` + `dotnet build GameServer` and Unity CI hooks; smoke `--selftest` target for end-to-end checks.
-- Developer utilities: editor tools under `CustomToolSet/`, map visualizers, and data pack hot-reload helpers.
+## Client
+- Core: ✅ World map control profile sourced from `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json` (render/sim distance + hydrology stability); ☐ Chunk request/unload resilience and residency tracking; ☐ Movement prediction/interpolation with reconciliation; ☐ Protobuf gate/fingerprint check before entering play.
+- Content: ☐ Health/hunger/experience UI bound to server ticks; ☐ Inventory/equipment/crafting UI fed by JSON data; ☐ Combat feedback (hit-stop/VFX/SFX); ☐ Weather + day/night visuals matched to time/weather updates; ☐ Entity rendering/interactions via spawn/update/despawn protobufs.
+- Utility: ✅ Config mirroring from `config/` into Unity resources; ☐ Diagnostics overlays (chunk timings, hydrology/cave/ribbon visualisers); ☐ Logging/trace export for repros with capture toggles.
 
-## Suggested Implementation Order
-1) Lock Core networking + worldgen loop (seed/config handling, chunk lifecycle, protobuf handler wiring).  
-2) Stand up Content slices iteratively (blocks/biomes → waterforms/structures → entities/items), keeping data in JSON.  
-3) Layer Util/diagnostics (protocol regeneration scripts, config validators, replay/log capture) to keep releases stable.  
-4) Validate each milestone with `dotnet build`, `dotnet run --project GameServer -- --selftest`, and client smoke through Unity.  
+## Data & Config Sources
+- `config/world.json` (server) ↔ `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json` (client) hold hydrology gradient stability, render/simulation distance, chunk size, and water level used by map control.
+- Protobuf contracts: `proto/*.proto` → regenerate `SharedProtocol` + `Assets/Generated/Protobuf` together; keep `ProtocolRegistry` bindings updated.
+- Environment/gameplay configs: `config/server.json`, `config/gameplay.json`, `config/items.json`, `config/recipes.json`, `config/item_categories.json` power both server systems and Unity UI.

@@ -113,11 +113,14 @@ namespace GameServerApp.World
         public double LakeInflowBlendWeight { get; set; } = 0.42;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
+        public bool UseImprovedRivers { get; set; } = true;
+        public bool UseImprovedLakes { get; set; } = true;
     }
 
     public sealed class CaveConfig
     {
         public bool EnableCaves { get; set; } = true;
+        public bool UseImprovedCaves { get; set; } = true;
         public double HorizontalFrequency { get; set; } = 0.0026;
         public double VerticalFrequency { get; set; } = 0.018;
         public double Threshold { get; set; } = 0.42;

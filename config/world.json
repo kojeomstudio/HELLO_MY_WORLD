@@ -65,10 +65,13 @@
     "RiverIntensitySmoothBlend": 0.58,
     "EnableOceans": true,
     "EnableRivers": true,
-    "EnableLakes": true
+    "EnableLakes": true,
+    "UseImprovedRivers": true,
+    "UseImprovedLakes": true
   },
   "Caves": {
     "EnableCaves": true,
+    "UseImprovedCaves": true,
     "CaveDensity": 0.3,
     "CaveNoiseScale": 0.05,
     "Threshold": 0.45,

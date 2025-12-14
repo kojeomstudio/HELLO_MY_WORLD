@@ -8,7 +8,7 @@ using System.Numerics;
 
 namespace GameServerApp.World
 {
-    public class WorldManager
+    public partial class WorldManager
     {
         private readonly DatabaseHelper _database;
         private readonly ConcurrentDictionary<string, LoadedChunk> _loadedChunks = new();
@@ -20,6 +20,9 @@ namespace GameServerApp.World
         private readonly bool _enableCaves;
         private readonly bool _enableRivers;
         private readonly bool _enableLakes;
+        private readonly bool _useImprovedCaves;
+        private readonly bool _useImprovedRivers;
+        private readonly bool _useImprovedLakes;
         private readonly TerrainGenerationPipeline _terrainPipeline;
         private readonly WorldMapControlProfile _mapControlProfile;
         private readonly int _hydrologySmoothIterations;
@@ -175,6 +178,9 @@ namespace GameServerApp.World
             _enableCaves = _worldSettings.EnableCaves && _worldGenConfig.Caves.EnableCaves;
             _enableRivers = _worldSettings.EnableRivers && _worldGenConfig.Water.EnableRivers;
             _enableLakes = _worldSettings.EnableLakes && _worldGenConfig.Water.EnableLakes;
+            _useImprovedCaves = _enableCaves && _worldGenConfig.Caves.UseImprovedCaves;
+            _useImprovedRivers = _enableRivers && _worldGenConfig.Water.UseImprovedRivers;
+            _useImprovedLakes = _enableLakes && _worldGenConfig.Water.UseImprovedLakes;
 
             GlobalWaterLevel = _worldGenConfig.Water.GlobalWaterLevel;
             RiverCenterThreshold = _worldGenConfig.Water.RiverCenterThreshold;
@@ -251,7 +257,10 @@ namespace GameServerApp.World
                 HydrologySeamRelaxIterations = _hydrologySeamRelaxIterations,
                 EnableRivers = _enableRivers,
                 EnableLakes = _enableLakes,
-                EnableCaves = _enableCaves
+                EnableCaves = _enableCaves,
+                UseImprovedCaves = _useImprovedCaves,
+                UseImprovedRivers = _useImprovedRivers,
+                UseImprovedLakes = _useImprovedLakes
             };
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
@@ -7475,7 +7484,16 @@ namespace GameServerApp.World
             private readonly WorldManager _owner;
             public CaveGenerationStage(WorldManager owner) => _owner = owner;
             public string Name => "caves";
-            public void Execute(TerrainGenerationContext context) => _owner.GenerateCavesInternal(context);
+            public void Execute(TerrainGenerationContext context)
+            {
+                if (_owner._useImprovedCaves)
+                {
+                    _owner.GenerateImprovedCavesInternal(context);
+                    return;
+                }
+
+                _owner.GenerateCavesInternal(context);
+            }
         }
 
         private sealed class DungeonGenerationStage : ITerrainGenerationStage
@@ -7491,7 +7509,16 @@ namespace GameServerApp.World
             private readonly WorldManager _owner;
             public RiverGenerationStage(WorldManager owner) => _owner = owner;
             public string Name => "rivers";
-            public void Execute(TerrainGenerationContext context) => _owner.GenerateRiversInternal(context);
+            public void Execute(TerrainGenerationContext context)
+            {
+                if (_owner._useImprovedRivers)
+                {
+                    _owner.GenerateImprovedRiversInternal(context);
+                    return;
+                }
+
+                _owner.GenerateRiversInternal(context);
+            }
         }
 
         private sealed class LakeGenerationStage : ITerrainGenerationStage
@@ -7499,7 +7526,16 @@ namespace GameServerApp.World
             private readonly WorldManager _owner;
             public LakeGenerationStage(WorldManager owner) => _owner = owner;
             public string Name => "lakes";
-            public void Execute(TerrainGenerationContext context) => _owner.GenerateLakesInternal(context);
+            public void Execute(TerrainGenerationContext context)
+            {
+                if (_owner._useImprovedLakes)
+                {
+                    _owner.GenerateImprovedLakesInternal(context);
+                    return;
+                }
+
+                _owner.GenerateLakesInternal(context);
+            }
         }
 
         private sealed class VegetationGenerationStage : ITerrainGenerationStage

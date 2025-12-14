@@ -18,5 +18,8 @@ namespace GameServerApp.World
         public bool EnableRivers { get; init; }
         public bool EnableLakes { get; init; }
         public bool EnableCaves { get; init; }
+        public bool UseImprovedCaves { get; init; }
+        public bool UseImprovedRivers { get; init; }
+        public bool UseImprovedLakes { get; init; }
     }
 }

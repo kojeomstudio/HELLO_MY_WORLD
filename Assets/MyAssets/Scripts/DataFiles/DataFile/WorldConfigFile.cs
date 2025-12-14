@@ -22,6 +22,9 @@ public struct WorldConfig
     public bool EnableRivers;
     public bool EnableLakes;
     public bool EnableCaves;
+    public bool UseImprovedRivers;
+    public bool UseImprovedLakes;
+    public bool UseImprovedCaves;
     public int LakeMinDepth;
     public int LakeMaxDepth;
     public int LakeMaxRadius;
@@ -131,6 +134,9 @@ public class WorldConfigFile : BaseDataFile
                 Config.EnableRivers = ParseBool(data, "EnableRivers", true);
                 Config.EnableLakes = ParseBool(data, "EnableLakes", true);
                 Config.EnableCaves = ParseBool(data, "EnableCaves", true);
+                Config.UseImprovedRivers = ParseBool(data, "UseImprovedRivers", Config.EnableRivers);
+                Config.UseImprovedLakes = ParseBool(data, "UseImprovedLakes", Config.EnableLakes);
+                Config.UseImprovedCaves = ParseBool(data, "UseImprovedCaves", Config.EnableCaves);
                 Config.LakeMinDepth = ParseInt(data, "LakeMinDepth", 3);
                 Config.LakeMaxDepth = ParseInt(data, "LakeMaxDepth", 9);
                 Config.LakeMaxRadius = ParseInt(data, "LakeMaxRadius", 9);

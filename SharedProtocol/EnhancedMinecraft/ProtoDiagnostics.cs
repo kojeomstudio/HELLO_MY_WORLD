@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
+using SharedProtocol;
 
 namespace SharedProtocol.EnhancedMinecraft;
 
@@ -173,5 +174,23 @@ public static class ProtoDiagnostics
             Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
                               string.Join(", ", report.OptionalUnregistered));
         }
+    }
+
+    public static void LogHandlerCoverage(MinecraftMessageDispatcher dispatcher)
+    {
+        if (dispatcher == null)
+        {
+            Console.WriteLine("[Proto][WARN] Minecraft dispatcher is null; skipping handler coverage report.");
+            return;
+        }
+
+        var missing = dispatcher.GetUnboundProtocolMessages();
+        if (missing.Count > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Missing EnhancedMinecraft handlers: " + string.Join(", ", missing));
+            return;
+        }
+
+        Console.WriteLine("[Proto] EnhancedMinecraft handlers cover all registered messages.");
     }
 }

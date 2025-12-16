@@ -13,6 +13,7 @@ namespace GameServerApp.World
         public int GlobalWaterLevel { get; init; }
         public int HydrologyGradientStabilityIterations { get; init; }
         public double HydrologyGradientStabilityBlend { get; init; }
+        public double HydrologyCurvatureWeight { get; init; }
         public int HydrologyEdgeBlendRadius { get; init; }
         public int HydrologySeamRelaxIterations { get; init; }
         public bool EnableRivers { get; init; }
@@ -21,5 +22,6 @@ namespace GameServerApp.World
         public bool UseImprovedCaves { get; init; }
         public bool UseImprovedRivers { get; init; }
         public bool UseImprovedLakes { get; init; }
+        public int LakeBasinSmoothIterations { get; init; }
     }
 }

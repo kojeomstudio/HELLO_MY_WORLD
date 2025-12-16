@@ -8,6 +8,8 @@ public sealed class WorldMapControlProfile
     public int GlobalWaterLevel { get; }
     public int HydrologyGradientStabilityIterations { get; }
     public float HydrologyGradientStabilityBlend { get; }
+    public float HydrologyCurvatureWeight { get; }
+    public int LakeBasinSmoothIterations { get; }
 
     public WorldMapControlProfile(WorldConfig config)
     {
@@ -17,5 +19,7 @@ public sealed class WorldMapControlProfile
         GlobalWaterLevel = config.GlobalWaterLevel;
         HydrologyGradientStabilityIterations = Mathf.Max(0, config.HydrologyGradientStabilityIterations);
         HydrologyGradientStabilityBlend = Mathf.Clamp01(config.HydrologyGradientStabilityBlend);
+        HydrologyCurvatureWeight = Mathf.Clamp(config.HydrologyCurvatureWeight, 0f, 1.5f);
+        LakeBasinSmoothIterations = Mathf.Max(0, config.LakeBasinSmoothIterations);
     }
 }

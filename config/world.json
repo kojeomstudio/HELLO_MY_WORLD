@@ -47,6 +47,7 @@
     "HydrologyGradientClamp": 1.65,
     "HydrologyGradientStabilityIterations": 1,
     "HydrologyGradientStabilityBlend": 0.45,
+    "HydrologyCurvatureWeight": 0.32,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,
     "RiverReliefPenaltyWeight": 0.25,
@@ -63,6 +64,7 @@
     "RiverDepth": 6,
     "RiverIntensitySmoothIterations": 3,
     "RiverIntensitySmoothBlend": 0.58,
+    "RiverConfluenceBoost": 0.35,
     "EnableOceans": true,
     "EnableRivers": true,
     "EnableLakes": true,
@@ -148,6 +150,7 @@
     "MinDepth": 3,
     "MaxDepth": 9,
     "MaxRadius": 9,
+    "LakeBasinSmoothIterations": 2,
     "SpawnWeightBias": 0.3,
     "ShorelineBlend": 0.66,
     "RiverProximitySuppression": 0.35

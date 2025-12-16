@@ -71,6 +71,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyGradientClamp = Mathf.Clamp(tunedWorldConfig.HydrologyGradientClamp, 0.1f, 3.5f);
         WorldGenAlgorithms.HydrologyGradientStabilityIterations = Mathf.Max(0, tunedWorldConfig.HydrologyGradientStabilityIterations);
         WorldGenAlgorithms.HydrologyGradientStabilityBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyGradientStabilityBlend);
+        WorldGenAlgorithms.HydrologyCurvatureWeight = Mathf.Clamp(tunedWorldConfig.HydrologyCurvatureWeight, 0f, 1.5f);
         WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(tunedWorldConfig.HydrologyWarpFrequency, 0.0001f, 0.01f);
         WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(tunedWorldConfig.HydrologyWarpAmplitude, 0f, 48f);
         WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, tunedWorldConfig.HydrologySeamRelaxIterations);
@@ -79,6 +80,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiverDepth = Mathf.Max(2, tunedWorldConfig.RiverDepth);
         WorldGenAlgorithms.RiverIntensitySmoothIterations = Mathf.Max(1, tunedWorldConfig.RiverIntensitySmoothIterations);
         WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.RiverIntensitySmoothBlend);
+        WorldGenAlgorithms.RiverConfluenceBoost = Mathf.Clamp(tunedWorldConfig.RiverConfluenceBoost, 0f, 2f);
         WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(tunedWorldConfig.RiverFlowAlignmentWeight, 0f, 2f);
         WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(tunedWorldConfig.RiverGradientPenalty);
         WorldGenAlgorithms.RiverHeadwaterStabilityWeight = Mathf.Clamp01(tunedWorldConfig.RiverHeadwaterStabilityWeight);
@@ -89,6 +91,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.LakeInflowBlendWeight = Mathf.Clamp01(tunedWorldConfig.LakeInflowBlendWeight);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
         WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(tunedWorldConfig.LakeShorelineBlend);
+        WorldGenAlgorithms.LakeBasinSmoothIterations = Mathf.Max(0, tunedWorldConfig.LakeBasinSmoothIterations);
         WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(tunedWorldConfig.RiverProximitySuppression);
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, tunedWorldConfig.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(tunedWorldConfig.CaveStabilitySmoothBlend);

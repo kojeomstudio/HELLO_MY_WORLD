@@ -30,6 +30,7 @@ Client Side:
 - Added `MinecraftMessageDispatcher.AssertHandlerCoverage()` and wired it into `GameServer/RegisterMinecraftHandlers` so the server throws during startup if any `ProtocolRegistry` entry lacks a handler, catching stale `using` bindings before packets flow.
 - `ProtoDiagnostics` now treats optional `MinecraftMessageType` values as informational; required bindings still fail fast via `ProtocolValidator.ValidateEnhancedContracts()`, but optional enum gaps no longer block startup while still being logged for follow-up.
 - Startup now emits a registry/descriptor coverage summary via `ProtoDiagnostics.LogSummary()` so handler bring-up can confirm the generated assemblies and using directives match the currently loaded protobuf descriptors.
+- `ProtoDiagnostics.LogHandlerCoverage()` now reports EnhancedMinecraft handler gaps at startup (hooked in `GameServer.RegisterMinecraftHandlers`), ensuring generated DTOs registered in `ProtocolRegistry` are actually bound to runtime handlers.
 
 ## Proposed Improvements
 

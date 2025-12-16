@@ -199,6 +199,7 @@ namespace GameServerApp
 
             _minecraftDispatcher.AssertHandlerCoverage();
             Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");
+            ProtoDiagnostics.LogHandlerCoverage(_minecraftDispatcher);
         }
 
         public async Task StartAsync()

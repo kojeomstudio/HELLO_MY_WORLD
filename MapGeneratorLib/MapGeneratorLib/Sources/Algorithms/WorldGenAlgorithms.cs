@@ -129,6 +129,7 @@ namespace MapGenLib
         public static float HydrologyGradientClamp = 1.65f;
         public static int HydrologyGradientStabilityIterations = 1;
         public static float HydrologyGradientStabilityBlend = 0.45f;
+        public static float HydrologyCurvatureWeight = 0.32f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
         public static int HydrologySeamRelaxIterations = 2;
@@ -137,10 +138,12 @@ namespace MapGenLib
         public static float LakeRimErosionWeight = 0.30f;
         public static float LakeSpawnWeightBias = 0.3f;
         public static float LakeShorelineBlend = 0.66f;
+        public static int LakeBasinSmoothIterations = 2;
         public static float RiverNoiseScale = 0.015f;
         public static int RiverDepth = 6;
         public static int RiverIntensitySmoothIterations = 3;
         public static float RiverIntensitySmoothBlend = 0.58f;
+        public static float RiverConfluenceBoost = 0.35f;
         public static float RiverFlowAlignmentWeight = 0.28f;
         public static float RiverGradientPenalty = 0.42f;
         public static float RiverHeadwaterStabilityWeight = 0.35f;
@@ -825,13 +828,71 @@ namespace MapGenLib
             return smoothed;
         }
 
-        private static CustomVector2[,] BuildHydrologyGradient(float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)
+        private static float[,] BuildHydrologyCurvatureField(float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            var curvature = new float[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float center = hydrologyMask[x, z];
+                    float variance = 0f;
+                    float neighborSum = 0f;
+                    int count = 0;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            float delta = hydrologyMask[nx, nz] - center;
+                            variance += delta * delta;
+                            neighborSum += hydrologyMask[nx, nz];
+                            count++;
+                        }
+                    }
+
+                    float sigma = count > 0 ? CustomMathf.Sqrt(variance / count) : 0f;
+                    float neighborMean = count > 0 ? neighborSum / count : center;
+                    float meanDrift = CustomMathf.Abs(neighborMean - center);
+                    float flow = CustomMathf.Clamp(flowAccumulation[x, z] / 10f, 0f, 1f);
+                    float curvatureScore = (sigma * 0.7f + meanDrift * 0.45f) * (0.9f + flow * 0.45f);
+                    curvature[x, z] = CustomMathf.Clamp(curvatureScore, 0f, 1.4f);
+                }
+            }
+
+            int smoothIterations = CustomMathf.Clamp(LakeBasinSmoothIterations, 0, 6);
+            if (smoothIterations > 0)
+            {
+                SmoothScalarField(curvature, CustomMathf.Max(1, smoothIterations), CustomMathf.Clamp(HydrologySmoothBlend + 0.1f, 0f, 0.95f));
+            }
+
+            return curvature;
+        }
+
+        private static CustomVector2[,] BuildHydrologyGradient(float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache, float[,] hydrologyCurvature = null)
         {
             int width = hydrologyMask.GetLength(0);
             int depth = hydrologyMask.GetLength(1);
             var gradient = new CustomVector2[width, depth];
             float slopeWeight = CustomMathf.Clamp01(HydrologyGradientSlopeWeight);
             float maxMagnitude = CustomMathf.Clamp(HydrologyGradientClamp, 0.1f, 3.5f);
+            float curvatureWeight = CustomMathf.Clamp(HydrologyCurvatureWeight, 0f, 1.5f);
+            var curvatureField = hydrologyCurvature ?? BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
 
             CustomVector2 ComputeSlopeDirection(int sx, int sz)
             {
@@ -864,6 +925,10 @@ namespace MapGenLib
                     float gx = hydrologyMask[right, z] - hydrologyMask[left, z];
                     float gz = hydrologyMask[x, forward] - hydrologyMask[x, back];
                     CustomVector2 downhill = new CustomVector2(gx * 0.5f, gz * 0.5f);
+                    float curvature = CustomMathf.Clamp(curvatureField[x, z], 0f, 1.2f);
+                    float curvatureBias = CustomMathf.Clamp(curvature * curvatureWeight, 0f, 1.2f);
+                    float curvatureDamping = CustomMathf.Clamp(1f - curvatureBias * 0.35f, 0.4f, 1.05f);
+                    downhill *= curvatureDamping;
 
                     CustomVector2 slopeDir = ComputeSlopeDirection(x, z);
                     float flowStrength = CustomMathf.Clamp(flowAccumulation[x, z] / 12f, 0f, 1f);
@@ -904,7 +969,9 @@ namespace MapGenLib
                     float weight = 1f;
                     float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
                     float flowStrength = CustomMathf.Clamp(flowAccumulation[x, z] / 12f, 0f, 1f);
-                    float hydrologyBias = CustomMathf.Clamp(0.35f + hydrology * 0.45f + flowMemory * 0.25f + slopeWeight * 0.15f + flowStrength * 0.15f, 0.35f, 0.98f);
+                    float curvature = CustomMathf.Clamp(curvatureField[x, z], 0f, 1.2f);
+                    float curvatureBias = CustomMathf.Clamp(curvature * curvatureWeight, 0f, 1.2f);
+                    float hydrologyBias = CustomMathf.Clamp(0.35f + hydrology * 0.45f + flowMemory * 0.25f + slopeWeight * 0.15f + flowStrength * 0.15f + curvatureBias * 0.2f, 0.35f, 0.98f);
 
                     for (int dx = -1; dx <= 1; dx++)
                     {
@@ -932,6 +999,7 @@ namespace MapGenLib
                             }
 
                             float w = (0.35f + hydrologyBias * 0.65f) * (0.65f + alignment * 0.35f);
+                            w *= 1f + curvatureBias * 0.35f;
                             accum += neighbor * w;
                             weight += w;
                         }
@@ -943,6 +1011,7 @@ namespace MapGenLib
             }
 
             ApplyHydrologyGradientStability(smoothed, maxMagnitude);
+            ApplyHydrologyCurvatureRelaxation(smoothed, curvatureField, flowAccumulation, maxMagnitude);
             return smoothed;
         }
 
@@ -996,6 +1065,74 @@ namespace MapGenLib
 
                 Array.Copy(buffer, gradient, gradient.Length);
             }
+        }
+
+        private static void ApplyHydrologyCurvatureRelaxation(CustomVector2[,] gradient, float[,] curvatureField, float[,] flowAccumulation, float maxMagnitude)
+        {
+            if (gradient == null || curvatureField == null || HydrologyCurvatureWeight <= 0f)
+            {
+                return;
+            }
+
+            int width = gradient.GetLength(0);
+            int depth = gradient.GetLength(1);
+            var buffer = new CustomVector2[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    CustomVector2 raw = gradient[x, z];
+                    float curvature = CustomMathf.Clamp(curvatureField[x, z], 0f, 1.2f);
+                    float curvatureBias = CustomMathf.Clamp(curvature * HydrologyCurvatureWeight, 0f, 1.2f);
+                    if (curvatureBias <= 0f)
+                    {
+                        buffer[x, z] = raw;
+                        continue;
+                    }
+
+                    float flow = CustomMathf.Clamp(flowAccumulation[x, z] / 10f, 0f, 1f);
+                    float blend = CustomMathf.Clamp(curvatureBias * (0.35f + flow * 0.45f), 0f, 0.8f);
+                    CustomVector2 accum = raw;
+                    float weight = 1f;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            CustomVector2 neighbor = gradient[nx, nz];
+                            float alignment = 0.5f;
+                            if (raw.sqrMagnitude > CustomVector2.kEpsilon && neighbor.sqrMagnitude > CustomVector2.kEpsilon)
+                            {
+                                CustomVector2 rawDir = raw.normalized;
+                                CustomVector2 neighborDir = neighbor.normalized;
+                                alignment = (CustomVector2.Dot(rawDir, neighborDir) + 1f) * 0.5f;
+                            }
+
+                            float w = (0.6f + alignment * 0.4f) * (1f + curvatureBias * 0.35f) * (0.85f + flow * 0.25f);
+                            accum += neighbor * w;
+                            weight += w;
+                        }
+                    }
+
+                    CustomVector2 averaged = weight > 0f ? accum / weight : raw;
+                    buffer[x, z] = CustomVector2.ClampMagnitude(CustomVector2.Lerp(raw, averaged, blend), maxMagnitude);
+                }
+            }
+
+            Array.Copy(buffer, gradient, gradient.Length);
         }
 
         private static void StabilizeHydrologyGradients(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)
@@ -2131,6 +2268,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
             CustomVector2[,] hydrologyGradient = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache);
+            float[,] hydrologyCurvature = BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float riverBankErosionWeight = CustomMathf.Clamp01(RiverBankErosionWeight);
@@ -2152,13 +2290,15 @@ namespace MapGenLib
                     CustomVector2 gradient = hydrologyGradient[x, z];
                     float gradientStrength = CustomMathf.Clamp(gradient.magnitude, 0f, 1.75f);
                     float gradientBias = gradientStrength * CustomMathf.Clamp01(HydrologyGradientWeight);
+                    float curvature = hydrologyCurvature[x, z];
+                    float curvatureBias = CustomMathf.Clamp(curvature * HydrologyCurvatureWeight, 0f, 1.2f);
                     float erosionRisk = erosionRiskField[x, z];
                     float channelPressure = ComputeChannelPressure(catchmentStrength, hydrology);
-                    channelPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f + erosionRisk * riverBankErosionWeight + gradientBias * 0.2f);
+                    channelPressure = CustomMathf.Clamp01(channelPressure + riparian * 0.2f + erosionRisk * riverBankErosionWeight + gradientBias * 0.2f + curvatureBias * RiverConfluenceBoost);
                     float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.0125f - erosionRisk * 0.01f;
                     adjustedMask = CustomMathf.Max(0f, adjustedMask);
                     adjustedMask *= ComputeRiverReliefScale(surfaceCache, subWorldSize, x, z);
-                    adjustedMask *= 1f + gradientBias * 0.1f;
+                    adjustedMask *= 1f + gradientBias * 0.1f + curvatureBias * 0.1f;
                     riverIntensity[x, z] = CustomMathf.Max(0f, adjustedMask * (1f - riparian * 0.2f));
 
                     if (adjustedMask >= bankThreshold)
@@ -2190,7 +2330,7 @@ namespace MapGenLib
                     else
                     {
                         float bankStrength = CustomMathf.Clamp01(1.0f - (adjustedMask - channelThreshold) / (bankThreshold - channelThreshold));
-                        bankStrength *= 0.85f + channelPressure * 0.35f + riparian * 0.35f + erosionRisk * riverBankErosionWeight;
+                        bankStrength *= 0.85f + channelPressure * 0.35f + riparian * 0.35f + erosionRisk * riverBankErosionWeight + curvatureBias * 0.25f;
                         bankStrength = CustomMathf.Clamp(bankStrength, 0f, 1.25f);
                         FeatherRiverBank(subWorldBlockData, subWorldSize, surfaceCache, x, z, bankStrength, riverSurface, flowDir);
                     }
@@ -3317,7 +3457,12 @@ namespace MapGenLib
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
+            int basinSmoothIterations = CustomMathf.Max(1, LakeBasinSmoothIterations);
+            float basinBlend = CustomMathf.Clamp(HydrologySmoothBlend + 0.08f, 0f, 0.95f);
+            SmoothScalarField(hydrologyMask, basinSmoothIterations, basinBlend);
+            SmoothScalarField(flowAccumulation, basinSmoothIterations, CustomMathf.Clamp(basinBlend + 0.02f, 0f, 0.95f));
             CustomVector2[,] hydrologyGradient = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache);
+            float[,] hydrologyCurvature = BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, erosionRiskField);
@@ -3339,6 +3484,8 @@ namespace MapGenLib
                 float hydrology = hydrologyMask[centerX, centerZ];
                 float riparian = riparianSaturation[centerX, centerZ];
                 float flow = CustomMathf.Clamp01(flowAccumulation[centerX, centerZ] / 12f);
+                float curvature = hydrologyCurvature[centerX, centerZ];
+                float curvatureBias = CustomMathf.Clamp(curvature * HydrologyCurvatureWeight, 0f, 1.2f);
                 float candidateScore = lakeCandidateHeatmap[centerX, centerZ];
                 float relief = ComputeLocalRelief(surfaceCache, subWorldSize, centerX, centerZ, 6);
                 float basinStability = 1f - CustomMathf.Clamp01(relief / 10f);
@@ -3352,7 +3499,7 @@ namespace MapGenLib
                 float hydrologyCoherence = CustomMathf.Clamp01((hydrology + riparian) * 0.5f + flow * 0.35f);
                 float erosionPenalty = CustomMathf.Clamp(1f - erosionRisk * 0.65f, 0.25f, 1f);
                 float spawnWeight = CustomMathf.Clamp((ridgeNoise - 0.35f) * 1.4f + hydrology * 0.9f + candidateScore * 0.85f, 0f, 1.2f);
-                spawnWeight = CustomMathf.Clamp(spawnWeight + riparian * 0.25f + flow * 0.2f + hydrologyCoherence * 0.2f + gradientBias * 0.12f + gradientVarianceWeight * 0.08f + lakeSpawnBias, 0f, 1.35f);
+                spawnWeight = CustomMathf.Clamp(spawnWeight + riparian * 0.25f + flow * 0.2f + hydrologyCoherence * 0.2f + gradientBias * 0.12f + gradientVarianceWeight * 0.08f + curvatureBias * 0.2f + lakeSpawnBias, 0f, 1.35f);
                 float riverPressure = SampleRiverIntensity(riverIntensityPreview, centerX, centerZ, 2);
                 if (LakeRiverProximitySuppression > 0f && riverPressure > 0f)
                 {
@@ -3382,12 +3529,12 @@ namespace MapGenLib
                 float anisotropy = CustomMathf.Clamp01(hydrologyCoherence * 0.45f + flow * 0.35f + gradientStrength * 0.25f + inflowStrength * 0.25f + gradientVarianceWeight * 0.18f);
                 float majorScale = 1f + anisotropy * 0.25f;
                 float minorScale = 1f - anisotropy * 0.15f;
-                radiusX = CustomMathf.RoundToInt(radiusX * (0.8f + erosionPenalty * 0.45f) * majorScale);
-                radiusZ = CustomMathf.RoundToInt(radiusZ * (0.82f + erosionPenalty * 0.4f) * minorScale);
+                radiusX = CustomMathf.RoundToInt(radiusX * (0.8f + erosionPenalty * 0.45f) * majorScale * (1f + curvatureBias * 0.15f));
+                radiusZ = CustomMathf.RoundToInt(radiusZ * (0.82f + erosionPenalty * 0.4f) * minorScale * (1f + curvatureBias * 0.12f));
                 radiusX = CustomMathf.Clamp(radiusX, 4, 9);
                 radiusZ = CustomMathf.Clamp(radiusZ, 3, 8);
                 int maxDepth = Utilitys.RandomInteger(3, 5) + CustomMathf.RoundToInt(hydrology * 2f) + CustomMathf.RoundToInt(candidateScore * 3f) + CustomMathf.RoundToInt(flow * 1.5f);
-                maxDepth = CustomMathf.RoundToInt(maxDepth * (0.75f + erosionPenalty * 0.35f));
+                maxDepth = CustomMathf.RoundToInt(maxDepth * (0.75f + erosionPenalty * 0.35f + curvatureBias * 0.25f));
                 maxDepth = CustomMathf.Clamp(maxDepth, 3, 8);
 
                 int waterSurface = CustomMathf.Clamp(
@@ -3397,7 +3544,8 @@ namespace MapGenLib
                     CustomMathf.RoundToInt((candidateScore - 0.5f) * 2f) +
                     CustomMathf.RoundToInt((riparian - 0.5f) * 3f) +
                     CustomMathf.RoundToInt((0.5f - erosionRisk) * 2f) +
-                    CustomMathf.RoundToInt((flow - 0.5f) * 2f),
+                    CustomMathf.RoundToInt((flow - 0.5f) * 2f) +
+                    CustomMathf.RoundToInt((curvatureBias - 0.5f) * 2f),
                     45,
                     CustomMathf.Min(subWorldSize.SizeY - 3, GlobalRiverWaterLevel + 2));
                 if (surface < waterSurface - 4 || surface > waterSurface + 8)
@@ -4174,6 +4322,7 @@ namespace MapGenLib
             RelaxHydrologySeams(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             FeatherHydrologyEdges(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            float[,] caveCurvature = BuildHydrologyCurvatureField(caveHydrologyMask, caveFlowAccumulation);
             AddHydrologySupportColumns(subWorldBlockData, subWorldSize, caveStabilityField, caveHydrologyMask, caveFlowAccumulation);
             AddCaveShelfBands(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
             AddCaveVentilationShafts(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
@@ -4182,6 +4331,7 @@ namespace MapGenLib
             ApplyCaveHydrologyErosion(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             AddCaveDripstoneClusters(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveStabilityField);
             StabilizeMoistCaveCeilings(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
+            StabilizeCaveEntrances(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation, caveCurvature);
             IntegrateKarstSinkholes(subWorldBlockData, subWorldSize);
         }
 
@@ -4240,6 +4390,41 @@ namespace MapGenLib
 
             FeatherScalarFieldEdges(field);
             return field;
+        }
+
+        private static void StabilizeCaveEntrances(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation, float[,] hydrologyCurvature)
+        {
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface < 4)
+                    {
+                        continue;
+                    }
+
+                    float curvature = hydrologyCurvature[x, z];
+                    float moisture = CustomMathf.Clamp01(hydrologyMask[x, z] + flowAccumulation[x, z] * CaveMoistureRetentionWeight + curvature * HydrologyCurvatureWeight * 0.35f);
+                    int taperDepth = CustomMathf.Max(2, CustomMathf.RoundToInt(3 + curvature * HydrologyCurvatureWeight * 2f));
+                    int startY = CustomMathf.Max(1, surface - taperDepth);
+                    bool patched = false;
+
+                    for (int y = surface; y >= startY; y--)
+                    {
+                        if (subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)(moisture > 0.65f ? BlockTileType.STONE_BIG : BlockTileType.STONE_SMALL);
+                            patched = true;
+                        }
+                    }
+
+                    if (patched && surface + 1 < subWorldSize.SizeY)
+                    {
+                        subWorldBlockData[x, surface + 1, z].CurrentType = (byte)BlockTileType.EMPTY;
+                    }
+                }
+            }
         }
 
         private static void FeatherScalarFieldEdges(float[,] field)

@@ -28,6 +28,7 @@ public struct WorldConfig
     public int LakeMinDepth;
     public int LakeMaxDepth;
     public int LakeMaxRadius;
+    public int LakeBasinSmoothIterations;
     public int HydrologySmoothIterations;
     public float HydrologySmoothBlend;
     public float HydrologyShorePush;
@@ -50,6 +51,7 @@ public struct WorldConfig
     public float HydrologyGradientClamp;
     public int HydrologyGradientStabilityIterations;
     public float HydrologyGradientStabilityBlend;
+    public float HydrologyCurvatureWeight;
     public int HydrologySeamRelaxIterations;
     public float HydrologySeamRelaxBlend;
     public float HydrologyWarpFrequency;
@@ -69,6 +71,7 @@ public struct WorldConfig
     public int RiverDepth;
     public int RiverIntensitySmoothIterations;
     public float RiverIntensitySmoothBlend;
+    public float RiverConfluenceBoost;
     public int CaveStabilitySmoothIterations;
     public float CaveStabilitySmoothBlend;
     public float CaveSupportDensity;
@@ -140,6 +143,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.LakeMinDepth = ParseInt(data, "LakeMinDepth", 3);
                 Config.LakeMaxDepth = ParseInt(data, "LakeMaxDepth", 9);
                 Config.LakeMaxRadius = ParseInt(data, "LakeMaxRadius", 9);
+                Config.LakeBasinSmoothIterations = ParseInt(data, "LakeBasinSmoothIterations", 2);
                 Config.HydrologySmoothIterations = ParseInt(data, "HydrologySmoothIterations", 2);
                 Config.HydrologySmoothBlend = ParseFloat(data, "HydrologySmoothBlend", 0.6f);
                 Config.HydrologyShorePush = ParseFloat(data, "HydrologyShorePush", 5.0f);
@@ -162,6 +166,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyGradientClamp = ParseFloat(data, "HydrologyGradientClamp", 1.65f);
                 Config.HydrologyGradientStabilityIterations = ParseInt(data, "HydrologyGradientStabilityIterations", 1);
                 Config.HydrologyGradientStabilityBlend = ParseFloat(data, "HydrologyGradientStabilityBlend", 0.45f);
+                Config.HydrologyCurvatureWeight = ParseFloat(data, "HydrologyCurvatureWeight", 0.32f);
                 Config.HydrologySeamRelaxIterations = ParseInt(data, "HydrologySeamRelaxIterations", 2);
                 Config.HydrologySeamRelaxBlend = ParseFloat(data, "HydrologySeamRelaxBlend", 0.5f);
                 Config.HydrologyWarpFrequency = ParseFloat(data, "HydrologyWarpFrequency", 0.0009f);
@@ -170,6 +175,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RiverDepth = ParseInt(data, "RiverDepth", 6);
                 Config.RiverIntensitySmoothIterations = ParseInt(data, "RiverIntensitySmoothIterations", 3);
                 Config.RiverIntensitySmoothBlend = ParseFloat(data, "RiverIntensitySmoothBlend", 0.58f);
+                Config.RiverConfluenceBoost = ParseFloat(data, "RiverConfluenceBoost", 0.35f);
                 Config.RiverFlowAlignmentWeight = ParseFloat(data, "RiverFlowAlignmentWeight", 0.28f);
                 Config.RiverGradientPenalty = ParseFloat(data, "RiverGradientPenalty", 0.42f);
                 Config.RiverHeadwaterStabilityWeight = ParseFloat(data, "RiverHeadwaterStabilityWeight", 0.35f);

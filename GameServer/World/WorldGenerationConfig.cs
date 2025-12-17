@@ -123,6 +123,16 @@ namespace GameServerApp.World
     {
         public bool EnableCaves { get; set; } = true;
         public bool UseImprovedCaves { get; set; } = true;
+        public bool UseRegionalMainCaves { get; set; } = true;
+        public int RegionalMainCaveRegionSizeChunks { get; set; } = 4;
+        public int RegionalMainCaveWormCountMin { get; set; } = 4;
+        public int RegionalMainCaveWormCountMax { get; set; } = 9;
+        public int RegionalMainCaveStepsMin { get; set; } = 180;
+        public int RegionalMainCaveStepsMax { get; set; } = 320;
+        public int RegionalMainCaveMinY { get; set; } = 14;
+        public int RegionalMainCaveMaxY { get; set; } = 72;
+        public double RegionalMainCaveRadiusMin { get; set; } = 1.8;
+        public double RegionalMainCaveRadiusMax { get; set; } = 3.2;
         public double HorizontalFrequency { get; set; } = 0.0026;
         public double VerticalFrequency { get; set; } = 0.018;
         public double Threshold { get; set; } = 0.42;

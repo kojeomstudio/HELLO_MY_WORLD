@@ -17,7 +17,7 @@ namespace GameServerApp.Handlers
     /// 마인크래프트 청크 데이터 요청을 처리하는 핸들러
     /// 클라이언트의 시야 거리에 따른 청크 로딩 및 언로딩을 관리합니다.
     /// </summary>
-    public class MinecraftChunkHandler : IMessageHandler, IMinecraftMessageHandler<ChunkUnloadNotificationMessage>
+    public class MinecraftChunkHandler : IMessageHandler, IMinecraftMessageHandler<EnhancedMinecraftProtocol.ChunkUnloadNotification>
     {
         private sealed record PlayerChunkResidency(int ChunkX, int ChunkZ, DateTime LastServedUtc);
 
@@ -101,6 +101,54 @@ namespace GameServerApp.Handlers
             }
         }
 
+        private static bool TryParseEnhancedChunkUnloadNotification(byte[] messageData, out EnhancedMinecraftProtocol.ChunkUnloadNotification? notification)
+        {
+            try
+            {
+                notification = EnhancedMinecraftProtocol.ChunkUnloadNotification.Parser.ParseFrom(messageData);
+                if (notification == null)
+                {
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(notification.PlayerId) && notification.ChunkX == 0 && notification.ChunkZ == 0 && notification.TimestampMs == 0)
+                {
+                    notification = null;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                notification = null;
+                return false;
+            }
+        }
+
+        private static EnhancedMinecraftProtocol.ChunkUnloadNotification ConvertLegacyUnloadNotification(ChunkUnloadNotificationMessage legacy, Session session)
+        {
+            var playerId = !string.IsNullOrWhiteSpace(legacy.PlayerId)
+                ? legacy.PlayerId
+                : (session.UserName ?? string.Empty);
+
+            return new EnhancedMinecraftProtocol.ChunkUnloadNotification
+            {
+                PlayerId = playerId,
+                ChunkX = legacy.ChunkX,
+                ChunkZ = legacy.ChunkZ,
+                Reason = legacy.Reason switch
+                {
+                    ChunkUnloadReason.Manual => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadManual,
+                    ChunkUnloadReason.WorldTransfer => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadWorldTransfer,
+                    ChunkUnloadReason.Shutdown => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadShutdown,
+                    _ => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadViewDistance
+                },
+                ViewDistance = legacy.ViewDistance,
+                TimestampMs = legacy.TimestampMs
+            };
+        }
+
         private async Task HandleEnhancedChunkRequestAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadRequest request)
         {
             var playerId = session.UserName ?? string.Empty;
@@ -110,17 +158,14 @@ namespace GameServerApp.Handlers
                 if (request.ChunkPositions.Count > 0)
                 {
                     var first = request.ChunkPositions[0];
-                    await SendErrorResponse(session, first.X, first.Z, "플레이어 상태를 찾을 수 없습니다.");
+                    await SendEnhancedChunkLoadErrorAsync(session, first.X, first.Z, Math.Max(1, request.ChunkPositions.Count));
                 }
                 return;
             }
 
-            var totalRequested = Math.Max(1, request.ChunkPositions.Count);
             var requestedViewDistance = request.ViewDistance > 0 ? request.ViewDistance : _worldSettings.ChunkLoadRadius;
-            foreach (var position in request.ChunkPositions)
-            {
-                await HandleSingleChunkAsync(session, playerId, playerState, position.X, position.Z, requestedViewDistance, totalRequested);
-            }
+            var totalRequested = Math.Max(1, request.ChunkPositions.Count);
+            await SendEnhancedChunkLoadResponsesAsync(session, playerId, playerState, request.ChunkPositions, requestedViewDistance, totalRequested);
         }
 
         private async Task HandleLegacyChunkRequestAsync(Session session, ChunkDataRequestMessage chunkRequest)
@@ -135,6 +180,159 @@ namespace GameServerApp.Handlers
 
             var viewDistance = chunkRequest.ViewDistance > 0 ? chunkRequest.ViewDistance : _worldSettings.ChunkLoadRadius;
             await HandleSingleChunkAsync(session, playerId, playerState, chunkRequest.ChunkX, chunkRequest.ChunkZ, viewDistance, totalRequested: 1);
+        }
+
+        private const int EnhancedChunkResponseMaxBytes = 900 * 1024;
+
+        private async Task SendEnhancedChunkLoadErrorAsync(Session session, int chunkX, int chunkZ, int totalRequested)
+        {
+            var response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+            {
+                TotalRequested = totalRequested,
+                TotalSent = 1
+            };
+
+            response.Chunks.Add(ChunkPayloadBuilder.BuildChunkData(
+                chunkX,
+                chunkZ,
+                ReadOnlySpan<byte>.Empty,
+                ReadOnlySpan<byte>.Empty,
+                generationTimestamp: 0));
+
+            await SendEnhancedChunkLoadResponseAsync(session, response);
+        }
+
+        private async Task SendEnhancedChunkLoadResponsesAsync(
+            Session session,
+            string playerId,
+            PlayerState playerState,
+            IEnumerable<EnhancedMinecraftProtocol.Vector3Int> chunkPositions,
+            int requestedViewDistance,
+            int totalRequested)
+        {
+            var response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+            {
+                TotalRequested = totalRequested
+            };
+
+            foreach (var position in chunkPositions)
+            {
+                int chunkX = position.X;
+                int chunkZ = position.Z;
+
+                var chunkData = await BuildEnhancedChunkDataAsync(playerId, playerState, chunkX, chunkZ, requestedViewDistance);
+                response.Chunks.Add(chunkData);
+                response.TotalSent = response.Chunks.Count;
+
+                if (response.Chunks.Count > 1 && response.CalculateSize() >= EnhancedChunkResponseMaxBytes)
+                {
+                    var lastIndex = response.Chunks.Count - 1;
+                    var lastChunk = response.Chunks[lastIndex];
+                    response.Chunks.RemoveAt(lastIndex);
+                    response.TotalSent = response.Chunks.Count;
+
+                    await SendEnhancedChunkLoadResponseAsync(session, response);
+
+                    response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+                    {
+                        TotalRequested = totalRequested
+                    };
+
+                    response.Chunks.Add(lastChunk);
+                    response.TotalSent = 1;
+                }
+            }
+
+            if (response.Chunks.Count > 0)
+            {
+                await SendEnhancedChunkLoadResponseAsync(session, response);
+            }
+        }
+
+        private async Task<EnhancedMinecraftProtocol.ChunkData> BuildEnhancedChunkDataAsync(
+            string playerId,
+            PlayerState playerState,
+            int chunkX,
+            int chunkZ,
+            int requestedViewDistance)
+        {
+            var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
+            var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
+            var distance = Math.Max(Math.Abs(chunkX - playerChunkX), Math.Abs(chunkZ - playerChunkZ));
+
+            if (distance > requestedViewDistance)
+            {
+                return ChunkPayloadBuilder.BuildChunkData(
+                    chunkX,
+                    chunkZ,
+                    ReadOnlySpan<byte>.Empty,
+                    ReadOnlySpan<byte>.Empty,
+                    generationTimestamp: 0);
+            }
+
+            var chunkResult = await LoadOrGenerateChunkPayload(chunkX, chunkZ);
+            if (chunkResult == null)
+            {
+                return ChunkPayloadBuilder.BuildChunkData(
+                    chunkX,
+                    chunkZ,
+                    ReadOnlySpan<byte>.Empty,
+                    ReadOnlySpan<byte>.Empty,
+                    generationTimestamp: 0);
+            }
+
+            var (compressedBlockData, biomeBytes, _, _) = chunkResult.Value;
+            var generationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var chunkData = ChunkPayloadBuilder.BuildChunkData(
+                chunkX,
+                chunkZ,
+                compressedBlockData,
+                biomeBytes,
+                generationTimestamp);
+
+            var entities = await _worldManager.GetEntitiesInChunk(chunkX, chunkZ);
+            foreach (var entity in entities)
+            {
+                chunkData.Entities.Add(ConvertToEnhancedEntityData(entity));
+            }
+
+            await UpdatePlayerLoadedChunks(playerId, chunkX, chunkZ, requestedViewDistance);
+            return chunkData;
+        }
+
+        private static EnhancedMinecraftProtocol.EntityData ConvertToEnhancedEntityData(Models.Entity entity)
+        {
+            return new EnhancedMinecraftProtocol.EntityData
+            {
+                EntityId = entity.Id ?? string.Empty,
+                EntityType = (EnhancedMinecraftProtocol.EntityType)entity.Type,
+                Position = new EnhancedMinecraftProtocol.Vector3
+                {
+                    X = entity.X,
+                    Y = entity.Y,
+                    Z = entity.Z
+                },
+                Rotation = new EnhancedMinecraftProtocol.Vector3
+                {
+                    X = entity.RotationX,
+                    Y = entity.RotationY,
+                    Z = entity.RotationZ
+                },
+                Velocity = new EnhancedMinecraftProtocol.Vector3
+                {
+                    X = entity.VelocityX,
+                    Y = entity.VelocityY,
+                    Z = entity.VelocityZ
+                },
+                Health = entity.Health,
+                MaxHealth = entity.MaxHealth,
+                CustomData = entity.Data ?? string.Empty
+            };
+        }
+
+        private static async Task SendEnhancedChunkLoadResponseAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadResponse response)
+        {
+            await session.SendAsync((int)MinecraftMessageType.ChunkDataResponse, response.ToByteArray());
         }
 
         private async Task<bool> HandleSingleChunkAsync(Session session, string playerId, PlayerState playerState, int chunkX, int chunkZ, int viewDistance, int totalRequested)
@@ -196,16 +394,24 @@ namespace GameServerApp.Handlers
             Console.WriteLine($"청크 [{chunkX}, {chunkZ}] 데이터를 플레이어 {playerId}에게 전송 완료");
             return true;
         }
+
         async Task IMinecraftMessageHandler.HandleAsync(Session session, byte[] messageData)
         {
+            if (TryParseEnhancedChunkUnloadNotification(messageData, out var enhancedNotification))
+            {
+                await HandleChunkUnloadAsync(session, enhancedNotification!, useEnhancedAck: true);
+                return;
+            }
+
             using var stream = new MemoryStream(messageData);
-            var message = ProtoBuf.Serializer.Deserialize<ChunkUnloadNotificationMessage>(stream);
-            await HandleAsync(session, message);
+            var legacyNotification = ProtoBuf.Serializer.Deserialize<ChunkUnloadNotificationMessage>(stream);
+            var converted = ConvertLegacyUnloadNotification(legacyNotification, session);
+            await HandleChunkUnloadAsync(session, converted, useEnhancedAck: false);
         }
 
-        public Task HandleAsync(Session session, ChunkUnloadNotificationMessage message)
+        public Task HandleAsync(Session session, EnhancedMinecraftProtocol.ChunkUnloadNotification message)
         {
-            return HandleChunkUnloadAsync(session, message);
+            return HandleChunkUnloadAsync(session, message, useEnhancedAck: true);
         }
 
         /// <summary>
@@ -415,7 +621,7 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 플레이어의 로드된 청크 목록 업데이트
         /// </summary>
-        private async Task HandleChunkUnloadAsync(Session session, ChunkUnloadNotificationMessage message)
+        private async Task HandleChunkUnloadAsync(Session session, EnhancedMinecraftProtocol.ChunkUnloadNotification message, bool useEnhancedAck)
         {
             var playerId = session.UserName;
             if (string.IsNullOrWhiteSpace(playerId))
@@ -425,15 +631,14 @@ namespace GameServerApp.Handlers
 
             if (string.IsNullOrWhiteSpace(playerId))
             {
-                var ack = new ChunkUnloadAcknowledgeMessage
-                {
-                    ChunkX = message.ChunkX,
-                    ChunkZ = message.ChunkZ,
-                    Accepted = false,
-                    RemainingChunks = 0,
-                    Note = "Unauthenticated session"
-                };
-                await SendChunkUnloadAckAsync(session, ack);
+                await SendChunkUnloadAckAsync(
+                    session,
+                    message.ChunkX,
+                    message.ChunkZ,
+                    accepted: false,
+                    remainingChunks: 0,
+                    note: "Unauthenticated session",
+                    useEnhancedAck);
                 return;
             }
 
@@ -444,15 +649,14 @@ namespace GameServerApp.Handlers
 
             if (!_playerLoadedChunks.TryGetValue(playerId, out var chunkSet))
             {
-                var ack = new ChunkUnloadAcknowledgeMessage
-                {
-                    ChunkX = message.ChunkX,
-                    ChunkZ = message.ChunkZ,
-                    Accepted = false,
-                    RemainingChunks = 0,
-                    Note = "Chunk residency not tracked"
-                };
-                await SendChunkUnloadAckAsync(session, ack);
+                await SendChunkUnloadAckAsync(
+                    session,
+                    message.ChunkX,
+                    message.ChunkZ,
+                    accepted: false,
+                    remainingChunks: 0,
+                    note: "Chunk residency not tracked",
+                    useEnhancedAck);
                 return;
             }
 
@@ -470,16 +674,15 @@ namespace GameServerApp.Handlers
 
             var remaining = chunkSet.Count;
 
-            var ackMessage = new ChunkUnloadAcknowledgeMessage
-            {
-                ChunkX = message.ChunkX,
-                ChunkZ = message.ChunkZ,
-                Accepted = removed,
-                RemainingChunks = remaining,
-                Note = removed ? message.Reason.ToString() : "Chunk residency not found"
-            };
-
-            await SendChunkUnloadAckAsync(session, ackMessage);
+            var note = removed ? $"ENH:{message.Reason}" : "Chunk residency not found";
+            await SendChunkUnloadAckAsync(
+                session,
+                message.ChunkX,
+                message.ChunkZ,
+                accepted: removed,
+                remainingChunks: remaining,
+                note: note,
+                useEnhancedAck);
 
             if (removed)
             {
@@ -491,10 +694,41 @@ namespace GameServerApp.Handlers
             }
         }
 
-        private async Task SendChunkUnloadAckAsync(Session session, ChunkUnloadAcknowledgeMessage ack)
+        private async Task SendChunkUnloadAckAsync(
+            Session session,
+            int chunkX,
+            int chunkZ,
+            bool accepted,
+            int remainingChunks,
+            string note,
+            bool useEnhancedAck)
         {
+            if (useEnhancedAck)
+            {
+                var ack = new EnhancedMinecraftProtocol.ChunkUnloadAck
+                {
+                    ChunkX = chunkX,
+                    ChunkZ = chunkZ,
+                    Accepted = accepted,
+                    RemainingChunks = remainingChunks,
+                    Note = note ?? string.Empty
+                };
+
+                await session.SendAsync((int)MinecraftMessageType.ChunkUnloadAcknowledge, ack.ToByteArray());
+                return;
+            }
+
+            var legacyAck = new ChunkUnloadAcknowledgeMessage
+            {
+                ChunkX = chunkX,
+                ChunkZ = chunkZ,
+                Accepted = accepted,
+                RemainingChunks = remainingChunks,
+                Note = note ?? string.Empty
+            };
+
             using var stream = new MemoryStream();
-            ProtoBuf.Serializer.Serialize(stream, ack);
+            ProtoBuf.Serializer.Serialize(stream, legacyAck);
             await session.SendAsync((int)MinecraftMessageType.ChunkUnloadAcknowledge, stream.ToArray());
         }
 

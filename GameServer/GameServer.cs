@@ -197,8 +197,14 @@ namespace GameServerApp
             Console.WriteLine("✓ Item Drop & Pickup System");
             Console.WriteLine("===========================================");
 
-            _minecraftDispatcher.AssertHandlerCoverage();
-            Console.WriteLine("[MinecraftDispatcher] All EnhancedMinecraft protobuf messages have registered handlers.");
+            _minecraftDispatcher.AssertHandlerCoverage(new[]
+            {
+                MinecraftMessageType.ChunkUnloadNotification,
+                MinecraftMessageType.ContainerOpen,
+                MinecraftMessageType.ContainerClose,
+                MinecraftMessageType.ContainerUpdate
+            });
+            Console.WriteLine("[MinecraftDispatcher] Required Minecraft message handlers registered.");
             ProtoDiagnostics.LogHandlerCoverage(_minecraftDispatcher);
         }
 

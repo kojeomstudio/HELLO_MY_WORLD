@@ -26,6 +26,7 @@ namespace Minecraft.World
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _chunkData = new();
         private Dictionary<Vector2Int, GameObject> _chunkObjects = new();
         private Dictionary<Vector2Int, ChunkRenderer> _chunkRenderers = new();
+        private Core.MinecraftGameClient _gameClient;
         
         private Vector2Int _playerChunkPos;
         private Queue<Vector2Int> _chunksToLoad = new();
@@ -44,6 +45,7 @@ namespace Minecraft.World
         private void Start()
         {
             InitializeBlockTypes();
+            _gameClient = FindObjectOfType<Core.MinecraftGameClient>();
             InvokeRepeating(nameof(ProcessChunkUpdates), 0f, chunkUpdateInterval);
         }
         
@@ -160,10 +162,14 @@ namespace Minecraft.World
         
         private void RequestChunkFromServer(Vector2Int chunkPos)
         {
-            var gameClient = FindObjectOfType<Core.MinecraftGameClient>();
-            if (gameClient != null)
+            if (_gameClient == null)
             {
-                gameClient.RequestChunk(chunkPos.x, chunkPos.y);
+                _gameClient = FindObjectOfType<Core.MinecraftGameClient>();
+            }
+
+            if (_gameClient != null)
+            {
+                _gameClient.RequestChunk(chunkPos.x, chunkPos.y);
             }
         }
         

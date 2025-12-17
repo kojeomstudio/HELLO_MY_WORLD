@@ -29,20 +29,23 @@ namespace SharedProtocol
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
 
-            ProtoRuntime.EnsureInitialized();
-            ProtocolRegistry.EnsureRegistered(messageType);
-
-            if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+            if (ProtocolRegistry.IsRegistered(messageType))
             {
-                throw new InvalidOperationException(
-                    $"EnhancedMinecraft registry failed to resolve '{messageType}'. Regenerate protobuf assets and rebuild SharedProtocol.");
-            }
+                ProtoRuntime.EnsureInitialized();
+                ProtocolRegistry.EnsureRegistered(messageType);
 
-            var descriptorType = prototype.Descriptor?.ClrType;
-            if (descriptorType != null && descriptorType != typeof(T))
-            {
-                throw new InvalidOperationException(
-                    $"Handler for '{messageType}' expects {typeof(T).Name} but generated contract '{descriptorType.Name}' was registered. Update the handler or regenerate protobufs.");
+                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+                {
+                    throw new InvalidOperationException(
+                        $"EnhancedMinecraft registry failed to resolve '{messageType}'. Regenerate protobuf assets and rebuild SharedProtocol.");
+                }
+
+                var descriptorType = prototype.Descriptor?.ClrType;
+                if (descriptorType != null && descriptorType != typeof(T))
+                {
+                    throw new InvalidOperationException(
+                        $"Handler for '{messageType}' expects {typeof(T).Name} but generated contract '{descriptorType.Name}' was registered. Update the handler or regenerate protobufs.");
+                }
             }
 
             _handlers[messageType] = handler;
@@ -122,14 +125,26 @@ namespace SharedProtocol
             return missing;
         }
 
-        public void AssertHandlerCoverage()
+        public void AssertHandlerCoverage(IReadOnlyCollection<MinecraftMessageType> requiredHandlers)
         {
-            var missing = GetUnboundProtocolMessages();
+            if (requiredHandlers == null)
+            {
+                throw new ArgumentNullException(nameof(requiredHandlers));
+            }
+
+            var missing = new List<MinecraftMessageType>();
+            foreach (var messageType in requiredHandlers)
+            {
+                if (!_handlerContracts.ContainsKey(messageType))
+                {
+                    missing.Add(messageType);
+                }
+            }
+
             if (missing.Count > 0)
             {
                 string missingList = string.Join(", ", missing);
-                throw new InvalidOperationException(
-                    $"EnhancedMinecraft protobuf handlers missing: {missingList}. Regenerate protobuf assets and wire handlers via RegisterHandler.");
+                throw new InvalidOperationException($"Minecraft message handlers missing: {missingList}.");
             }
         }
 

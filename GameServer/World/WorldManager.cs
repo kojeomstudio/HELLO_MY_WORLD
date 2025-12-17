@@ -102,6 +102,7 @@ namespace GameServerApp.World
         private static double NoiseCaveLavaThreshold = 0.28;
         private static double NoiseCaveWaterThreshold = 0.34;
         private const int SaltCaveMain = 0x6CA5E001;
+        private const int SaltCaveRegionalMain = 0x6CA5E021;
         private const int SaltCaveHydro = 0x6CA5E00B;
         private const int SaltCaveDrip = 0x6CA5E00D;
         private const int SaltCaveKarst = 0x6CA5E00F;
@@ -746,7 +747,7 @@ namespace GameServerApp.World
             var caveStabilityField = BuildCaveStabilityField(context, surfaceCache, hydrologyMask, flowAccumulation, hydrologyGradient);
             SmoothScalarField(caveStabilityField, _caveStabilitySmoothIterations, _caveStabilitySmoothBlend);
 
-            GenerateMainCaveSystem(chunk, rand, caveStabilityField);
+              GenerateMainCaveSystem(context, chunk, rand, caveStabilityField);
 
             // 소형 동굴방 추가
             GenerateSmallCaveRooms(chunk, rand);
@@ -1784,11 +1785,17 @@ namespace GameServerApp.World
         /// <summary>
         /// 메인 동굴 시스템 생성
         /// </summary>
-        private void GenerateMainCaveSystem(ChunkData chunk, Random rand, double[,] caveStabilityField)
+        private void GenerateMainCaveSystem(TerrainGenerationContext context, ChunkData chunk, Random rand, double[,] caveStabilityField)
         {
             int wormCount = 1 + rand.Next(3); // 1~3개의 메인 웜
             double radiusNoiseSeed = rand.NextDouble() * 1000.0;
             double directionalNoiseSeed = rand.NextDouble() * 500.0;
+
+            if (_worldGenConfig.Caves.UseRegionalMainCaves)
+            {
+                GenerateRegionalMainCaves(context, chunk, caveStabilityField);
+                return;
+            }
 
             for (int w = 0; w < wormCount; w++)
             {
@@ -1854,6 +1861,131 @@ namespace GameServerApp.World
         /// <summary>
         /// 소형 동굴방들 생성
         /// </summary>
+        private static int FloorDiv(int value, int divisor)
+        {
+            if (divisor <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(divisor), "Divisor must be positive.");
+            }
+
+            int quotient = value / divisor;
+            int remainder = value % divisor;
+            if (remainder != 0 && value < 0)
+            {
+                quotient--;
+            }
+
+            return quotient;
+        }
+
+        private void GenerateRegionalMainCaves(TerrainGenerationContext context, ChunkData chunk, double[,] caveStabilityField)
+        {
+            int regionSizeChunks = Math.Clamp(_worldGenConfig.Caves.RegionalMainCaveRegionSizeChunks, 1, 16);
+            int regionX = FloorDiv(context.ChunkX, regionSizeChunks);
+            int regionZ = FloorDiv(context.ChunkZ, regionSizeChunks);
+
+            int regionOriginChunkX = regionX * regionSizeChunks;
+            int regionOriginChunkZ = regionZ * regionSizeChunks;
+            int regionOriginWorldX = regionOriginChunkX * 16;
+            int regionOriginWorldZ = regionOriginChunkZ * 16;
+            int regionWorldSize = regionSizeChunks * 16;
+
+            int wormCountMin = Math.Max(0, _worldGenConfig.Caves.RegionalMainCaveWormCountMin);
+            int wormCountMax = Math.Max(wormCountMin, _worldGenConfig.Caves.RegionalMainCaveWormCountMax);
+            int stepsMin = Math.Max(16, _worldGenConfig.Caves.RegionalMainCaveStepsMin);
+            int stepsMax = Math.Max(stepsMin, _worldGenConfig.Caves.RegionalMainCaveStepsMax);
+            int minY = Math.Clamp(_worldGenConfig.Caves.RegionalMainCaveMinY, 5, 220);
+            int maxY = Math.Clamp(_worldGenConfig.Caves.RegionalMainCaveMaxY, minY + 1, 240);
+            double radiusMin = Math.Clamp(_worldGenConfig.Caves.RegionalMainCaveRadiusMin, 0.9, 12.0);
+            double radiusMax = Math.Clamp(_worldGenConfig.Caves.RegionalMainCaveRadiusMax, radiusMin, 18.0);
+
+            var rand = GetChunkRandom(regionX, regionZ, SaltCaveRegionalMain);
+            int wormCount = wormCountMax == wormCountMin ? wormCountMin : rand.Next(wormCountMin, wormCountMax + 1);
+
+            int chunkOriginWorldX = context.ChunkX * 16;
+            int chunkOriginWorldZ = context.ChunkZ * 16;
+
+            double radiusNoiseSeed = rand.NextDouble() * 1000.0;
+            double directionalNoiseSeed = rand.NextDouble() * 500.0;
+
+            for (int w = 0; w < wormCount; w++)
+            {
+                double worldX = regionOriginWorldX + rand.NextDouble() * regionWorldSize;
+                double worldZ = regionOriginWorldZ + rand.NextDouble() * regionWorldSize;
+                double y = rand.Next(minY, maxY);
+                int steps = stepsMax == stepsMin ? stepsMin : rand.Next(stepsMin, stepsMax + 1);
+                double yaw = rand.NextDouble() * Math.PI * 2.0;
+                double pitch = (rand.NextDouble() - 0.5) * 0.35;
+                double baseRadius = radiusMin + rand.NextDouble() * Math.Max(0.0, radiusMax - radiusMin);
+
+                for (int s = 0; s < steps; s++)
+                {
+                    if (worldX < regionOriginWorldX ||
+                        worldX >= regionOriginWorldX + regionWorldSize ||
+                        worldZ < regionOriginWorldZ ||
+                        worldZ >= regionOriginWorldZ + regionWorldSize)
+                    {
+                        break;
+                    }
+
+                    double localX = worldX - chunkOriginWorldX;
+                    double localZ = worldZ - chunkOriginWorldZ;
+                    double sampleX = Math.Clamp(localX, 0.0, 15.0);
+                    double sampleZ = Math.Clamp(localZ, 0.0, 15.0);
+                    double stability = SampleField(caveStabilityField, sampleX, sampleZ);
+
+                    double radiusNoise = SimplexNoise.Generate(
+                        worldX + radiusNoiseSeed,
+                        worldZ + radiusNoiseSeed,
+                        0.12,
+                        2,
+                        1.0,
+                        0.55,
+                        55127);
+                    double radiusTurbulence = Math.Sin(s * 0.1) * 0.75 + radiusNoise * 0.6;
+                    double pressureBias = 0.65 + (1.0 - stability) * 0.45;
+                    double currentRadius = (baseRadius + radiusTurbulence) * pressureBias;
+                    if (stability > 0.75)
+                    {
+                        currentRadius *= 1.05 + stability * 0.2;
+                    }
+                    currentRadius = Math.Clamp(currentRadius, 1.4, baseRadius + 2.4);
+
+                    int r = (int)Math.Ceiling(currentRadius);
+                    if (localX >= -r && localX <= 15 + r && localZ >= -r && localZ <= 15 + r)
+                    {
+                        int cx = (int)Math.Round(localX);
+                        int cy = (int)Math.Round(y);
+                        int cz = (int)Math.Round(localZ);
+                        CarveSphere(chunk, cx, cy, cz, currentRadius);
+                    }
+
+                    double speed = 0.8 + rand.NextDouble() * 0.4;
+                    worldX += Math.Cos(yaw) * speed;
+                    worldZ += Math.Sin(yaw) * speed;
+                    y += Math.Sin(pitch) * 0.28;
+
+                    double directionalNoise = SimplexNoise.Generate(
+                        worldX + directionalNoiseSeed,
+                        y + directionalNoiseSeed,
+                        0.05,
+                        2,
+                        1.0,
+                        0.5,
+                        91357);
+                    double turnBias = 0.7 - stability * 0.35;
+                    yaw += (rand.NextDouble() - 0.5) * 0.3 * turnBias + directionalNoise * 0.35;
+                    pitch += (rand.NextDouble() - 0.5) * 0.12 + directionalNoise * 0.16;
+                    pitch = Math.Clamp(pitch, -0.65, 0.65);
+
+                    if (y < 5 || y > 110)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
         private void GenerateSmallCaveRooms(ChunkData chunk, Random rand)
         {
             int roomCount = rand.Next(2, 6); // 2~5개의 소형 방

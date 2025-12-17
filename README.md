@@ -15,7 +15,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 
 ## Repository Structure
 - `Assets/` – Unity game content and scripts. `MyAssets/Scripts` includes modules for AI, GameWorld, Network, Player, UI, pathfinding, and more.
-- `SharedProtocol/` – ProtoBuf-based message definitions and networking helpers shared between client and server.
+- `SharedProtocol/` – Shared networking contracts/utilities (legacy `protobuf-net` + Google.Protobuf `EnhancedMinecraftProtocol`).
 - `GameServer/` – TCP server using `SharedProtocol`, `SessionManager`, and SQLite persistence.
 - `KojeomNetWorkSpace/` – legacy `KojeomNet` network library and test clients.
 - `MapGeneratorLib/` – standalone library for procedural map generation.
@@ -23,12 +23,13 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Documents/` – design documents and guides (`Project_PDD.md`).
 - `Packages/` – Unity package manifest listing engine dependencies.
 - `proto/` – Protobuf IDL files compiled into C# under `Assets/Generated/Protobuf`.
-- `docs/` – networking overview, protocol notes, and the Minecraft feature workplan (`docs/minecraft_feature_plan.md`, `docs/minecraft_feature_client_server_sequence.md`).
-- `Config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
+- `docs/` – networking overview, protocol notes, and the Minecraft feature workplan (`docs/minecraft_features_comprehensive_list.md`).
+- `scripts/` – protobuf generation/verification + shared config sync helpers.
+- `config/`, `ProjectSettings/`, `UserSettings/` – engine configuration files.
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- 2025-12-17: Chunk streaming now uses Google.Protobuf `EnhancedMinecraftProtocol.ChunkLoadRequest/ChunkLoadResponse` end-to-end (batched positions, multi-chunk responses), with `ChunkUnloadNotification/ChunkUnloadAck` for residency cleanup. Main cave worms are generated on a configurable region grid (`RegionalMainCave*` in `config/world.json`) to improve cross-chunk cave connectivity.
+- 2025-12-17: Server now dual-supports legacy vs Google.Protobuf EnhancedMinecraftProtocol packets per-session (auto-detected via chunk/action handlers) and applies improved cave/river/lake worldgen stages based on `config/world.json`. Added `scripts/generate_proto.ps1` and `scripts/sync_world_config.ps1` with docs under `docs/`.
 - 2025-12-16: Added curvature-weighted hydrology gradients and confluence-aware river bank widening across `GameServer/World/WorldManager.cs` and `MapGeneratorLib/.../WorldGenAlgorithms.cs`, plus lake basin smoothing driven by new JSON knobs (`HydrologyCurvatureWeight`, `RiverConfluenceBoost`, `LakeBasinSmoothIterations`). `ProtoDiagnostics.LogHandlerCoverage()` now reports handler gaps during startup, and docs were refreshed (`docs/minecraft_feature_core_content_util_2025-12-16.md`, `terrain_generation_improvements.md`, `protobuf_protocol_improvements.md`).
 - 2025-12-14: Added opt-in improved cave/river/lake passes with hydrology-aware shoreline and bank stabilization; world map control now exposes improved flags to clients and JSON configs are synchronized. Updated the feature catalog and protocol validation notes to keep protobuf references verified.
 - 2026-01-14: Added a configurable hydrology gradient stability pass (iterations/blend) to both `GameServer/World/WorldManager.cs` and `MapGeneratorLib/.../WorldGenAlgorithms.cs`, reducing river/lake/cave downhill jitter and keeping Unity previews aligned. Introduced data-driven world map control profiles (chunk size, render/simulation distance, hydrology stability) from `config/world.json` and mirrored into Unity `WorldConfigData.json`, and server startup now emits a protobuf registry summary via `ProtoDiagnostics.LogSummary()`. Docs refreshed in `terrain_generation_improvements.md`, `protobuf_protocol_improvements.md`, and `docs/minecraft_feature_catalog.md`.
@@ -141,7 +142,10 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - Container messages now carry `container_type` and `snapshot_hash` fields so clients can validate diffs and request full resyncs on hash mismatches.
 - Chunk streaming uses Google.Protobuf `EnhancedMinecraftProtocol.ChunkLoadRequest/ChunkLoadResponse` on the wire (batched chunk positions + multi-chunk responses). Legacy `ChunkDataResponseMessage` still exists for backwards compatibility, including the optional `EnhancedPayload` bridge.
 - Chunk unload flow uses Google.Protobuf `EnhancedMinecraftProtocol.ChunkUnloadNotification/ChunkUnloadAck` (the server still accepts legacy `ChunkUnloadNotificationMessage` and may respond with legacy `ChunkUnloadAcknowledgeMessage` when required).
-- After changing `.proto` definitions run `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto` to regenerate Unity-side contract classes.
+- After changing `.proto` definitions regenerate Unity-side contract classes:
+  - Preferred (no system `protoc` install): `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate_proto.ps1`
+  - Then validate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - If you already have `protoc` installed: `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`
 - `SharedProtocol.EnhancedMinecraft.ChunkPayloadBuilder` now executes `ProtocolValidator.ValidateEnhancedContracts()` on first use; run `dotnet build SharedProtocol/SharedProtocol.csproj` after regenerating protobufs so descriptor mismatches fail fast.
 
 ## Time & Weather Systems
@@ -166,4 +170,4 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - 2025-11-10 hydrology refresh: karst sinkholes + aquifer vents, sub-chunk tributary stitching, and clay/sand shoreline terraces now keep `MapGeneratorLib` and `GameServer.WorldManager` outputs visually identical, which simplifies authoring chunk previews inside the Unity tools.
 
 ## Known Issues
-- The `GameServer` project is currently failing to build due to a number of pre-existing errors. These issues were discovered during recent feature work and appear to be unrelated to the changes made. A fix is in progress, but the current commit contains these build errors.
+- Protobuf validation may emit `[Proto][WARN]` for helper/nested messages that are not network-level packets; startup still fails fast for missing network packet bindings.

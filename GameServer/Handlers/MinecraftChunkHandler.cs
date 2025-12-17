@@ -206,7 +206,7 @@ namespace GameServerApp.Handlers
             Session session,
             string playerId,
             PlayerState playerState,
-            IEnumerable<EnhancedMinecraftProtocol.Vector3Int> chunkPositions,
+            IEnumerable<MinecraftGame.Common.Vector3Int> chunkPositions,
             int requestedViewDistance,
             int totalRequested)
         {
@@ -306,19 +306,19 @@ namespace GameServerApp.Handlers
             {
                 EntityId = entity.Id ?? string.Empty,
                 EntityType = (EnhancedMinecraftProtocol.EntityType)entity.Type,
-                Position = new EnhancedMinecraftProtocol.Vector3
+                Position = new MinecraftGame.Common.Vector3
                 {
                     X = entity.X,
                     Y = entity.Y,
                     Z = entity.Z
                 },
-                Rotation = new EnhancedMinecraftProtocol.Vector3
+                Rotation = new MinecraftGame.Common.Vector3
                 {
                     X = entity.RotationX,
                     Y = entity.RotationY,
                     Z = entity.RotationZ
                 },
-                Velocity = new EnhancedMinecraftProtocol.Vector3
+                Velocity = new MinecraftGame.Common.Vector3
                 {
                     X = entity.VelocityX,
                     Y = entity.VelocityY,
@@ -326,7 +326,8 @@ namespace GameServerApp.Handlers
                 },
                 Health = entity.Health,
                 MaxHealth = entity.MaxHealth,
-                CustomData = entity.Data ?? string.Empty
+                CustomData = entity.Data ?? string.Empty,
+                Metadata = new EnhancedMinecraftProtocol.EntityMetadata()
             };
         }
 
@@ -399,6 +400,7 @@ namespace GameServerApp.Handlers
         {
             if (TryParseEnhancedChunkUnloadNotification(messageData, out var enhancedNotification))
             {
+                session.UseEnhancedMinecraftProtocol = true;
                 await HandleChunkUnloadAsync(session, enhancedNotification!, useEnhancedAck: true);
                 return;
             }
@@ -423,6 +425,7 @@ namespace GameServerApp.Handlers
             {
                 if (TryParseEnhancedChunkLoadRequest(messageData, out var enhancedRequest))
                 {
+                    session.UseEnhancedMinecraftProtocol = true;
                     await HandleEnhancedChunkRequestAsync(session, enhancedRequest!);
                     return;
                 }

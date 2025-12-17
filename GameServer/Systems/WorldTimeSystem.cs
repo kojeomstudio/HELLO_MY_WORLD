@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using ProtoBuf;
 using SharedProtocol;
+using Google.Protobuf;
+using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Systems
 {
@@ -78,11 +80,18 @@ namespace GameServerApp.Systems
                     currentDayTime = _dayTime;
                 }
 
-                await _sessions.BroadcastMinecraftAsync(MinecraftMessageType.TimeUpdate, new TimeUpdateMessage
-                {
-                    WorldTime = currentWorldTime,
-                    DayTime = currentDayTime
-                });
+                await _sessions.BroadcastMinecraftDualAsync(
+                    MinecraftMessageType.TimeUpdate,
+                    new TimeUpdateMessage
+                    {
+                        WorldTime = currentWorldTime,
+                        DayTime = currentDayTime
+                    },
+                    new Enhanced.TimeUpdateBroadcast
+                    {
+                        WorldTime = currentWorldTime,
+                        DayTime = currentDayTime
+                    });
             }
             catch (Exception ex)
             {
@@ -93,7 +102,11 @@ namespace GameServerApp.Systems
         private Task BroadcastSnapshotAsync()
         {
             var snapshot = CreateSnapshot();
-            return _sessions.BroadcastMinecraftAsync(MinecraftMessageType.TimeUpdate, snapshot);
+            return _sessions.BroadcastMinecraftDualAsync(MinecraftMessageType.TimeUpdate, snapshot, new Enhanced.TimeUpdateBroadcast
+            {
+                WorldTime = snapshot.WorldTime,
+                DayTime = snapshot.DayTime
+            });
         }
 
         private TimeUpdateMessage CreateSnapshot()
@@ -118,8 +131,20 @@ namespace GameServerApp.Systems
             try
             {
                 var snapshot = CreateSnapshot();
-                var payload = Serialize(snapshot);
-                await session.SendAsync((int)MinecraftMessageType.TimeUpdate, payload);
+                if (session.UseEnhancedMinecraftProtocol)
+                {
+                    var enhancedSnapshot = new Enhanced.TimeUpdateBroadcast
+                    {
+                        WorldTime = snapshot.WorldTime,
+                        DayTime = snapshot.DayTime
+                    };
+                    await session.SendAsync((int)MinecraftMessageType.TimeUpdate, enhancedSnapshot.ToByteArray());
+                }
+                else
+                {
+                    var payload = Serialize(snapshot);
+                    await session.SendAsync((int)MinecraftMessageType.TimeUpdate, payload);
+                }
             }
             catch (Exception ex)
             {

@@ -4,6 +4,7 @@ using GameServerApp;
 using GameServerApp.Database;
 using GameServerApp.Models;
 using GameServerApp.World.Generation;
+using GameServerApp.World.Generation.Stages;
 using System.Numerics;
 
 namespace GameServerApp.World
@@ -287,19 +288,25 @@ namespace GameServerApp.World
 
             if (_enableCaves)
             {
-                pipeline.AddStage(new CaveGenerationStage(this));
+                pipeline.AddStage(_useImprovedCaves
+                    ? new ImprovedCaveGenerationStage(this)
+                    : new CaveGenerationStage(this));
             }
 
             pipeline.AddStage(new DungeonGenerationStage(this));
 
             if (_enableRivers)
             {
-                pipeline.AddStage(new RiverGenerationStage(this));
+                pipeline.AddStage(_useImprovedRivers
+                    ? new ImprovedRiverGenerationStage(this)
+                    : new RiverGenerationStage(this));
             }
 
             if (_enableLakes)
             {
-                pipeline.AddStage(new LakeGenerationStage(this));
+                pipeline.AddStage(_useImprovedLakes
+                    ? new ImprovedLakeGenerationStage(this)
+                    : new LakeGenerationStage(this));
             }
 
             if (_worldSettings.EnableVegetationGeneration)

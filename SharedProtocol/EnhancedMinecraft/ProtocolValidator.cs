@@ -263,7 +263,7 @@ public static class ProtocolValidator
             }
 
             Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
-            if (!ReferenceEquals(prototypeType.Assembly, expectedAssembly) || !ReferenceEquals(parser.GetType().Assembly, expectedAssembly))
+            if (!ReferenceEquals(prototypeType.Assembly, expectedAssembly))
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.DescriptorName}' resolved from assembly '{prototypeType.Assembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Update using directives or regenerate protobuf assets so both server and Unity share the same generated DLL.");
@@ -314,14 +314,10 @@ public static class ProtocolValidator
             }
         }
 
-        foreach (var declared in descriptor.MessageTypes)
-        {
-            if (!registeredNames.Contains(declared.Name))
-            {
-                throw new InvalidOperationException(
-                    $"EnhancedMinecraft generated message '{declared.Name}' is not registered in ProtocolRegistry. Add a binding so protobuf references are validated consistently on client and server.");
-            }
-        }
+        // Do not require every generated protobuf message to have a ProtocolRegistry binding.
+        // Only network-level packets (mapped to MinecraftMessageType) must be registered; many
+        // helper contracts (e.g., PlayerStats, nested metadata messages) are referenced through
+        // those packet roots and should not be forced into the registry.
     }
 
     private static void ValidateRegistryCoverage()

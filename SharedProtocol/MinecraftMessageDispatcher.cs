@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 
 using SharedProtocol.EnhancedMinecraft;
+using Google.Protobuf;
 
 namespace SharedProtocol
 {
@@ -180,7 +182,17 @@ namespace SharedProtocol
             try
             {
                 // ProtoBuf를 사용한 역직렬화
-                var message = ProtoBuf.Serializer.Deserialize<T>(new MemoryStream(messageData));
+                if (typeof(IMessage).IsAssignableFrom(typeof(T)))
+                {
+                    ProtoRuntime.EnsureInitialized();
+
+                    var parsed = ParseGoogleProtobufMessage(messageData);
+                    await HandleAsync(session, (T)parsed);
+                    return;
+                }
+
+                using var stream = new MemoryStream(messageData);
+                var message = ProtoBuf.Serializer.Deserialize<T>(stream);
                 await HandleAsync(session, message);
             }
             catch (Exception ex)
@@ -188,6 +200,20 @@ namespace SharedProtocol
                 Console.WriteLine($"Error deserializing message of type {typeof(T).Name}: {ex.Message}");
                 throw;
             }
+        }
+
+        private static object ParseGoogleProtobufMessage(byte[] messageData)
+        {
+            if (messageData == null) throw new ArgumentNullException(nameof(messageData));
+
+            PropertyInfo? parserProperty = typeof(T).GetProperty("Parser", BindingFlags.Public | BindingFlags.Static);
+            if (parserProperty?.GetValue(null) is not MessageParser parser)
+            {
+                throw new InvalidOperationException(
+                    $"Google.Protobuf parser not found for {typeof(T).FullName}. Ensure generated protobuf assets are referenced and up to date.");
+            }
+
+            return parser.ParseFrom(messageData);
         }
 
         public abstract Task HandleAsync(Session session, T message);

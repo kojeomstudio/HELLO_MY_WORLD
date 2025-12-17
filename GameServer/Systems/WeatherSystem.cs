@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using ProtoBuf;
 using SharedProtocol;
+using Google.Protobuf;
+using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Systems
 {
@@ -75,7 +77,10 @@ namespace GameServerApp.Systems
 
                 if (message != null)
                 {
-                    await _sessions.BroadcastMinecraftAsync(MinecraftMessageType.WeatherChange, message);
+                    await _sessions.BroadcastMinecraftDualAsync(
+                        MinecraftMessageType.WeatherChange,
+                        message,
+                        BuildEnhancedWeatherBroadcast(message));
                 }
             }
             catch (Exception ex)
@@ -87,7 +92,7 @@ namespace GameServerApp.Systems
         private Task BroadcastSnapshotAsync()
         {
             var snapshot = CreateSnapshot();
-            return _sessions.BroadcastMinecraftAsync(MinecraftMessageType.WeatherChange, snapshot);
+            return _sessions.BroadcastMinecraftDualAsync(MinecraftMessageType.WeatherChange, snapshot, BuildEnhancedWeatherBroadcast(snapshot));
         }
 
         private WeatherChangeMessage CreateSnapshot()
@@ -118,13 +123,48 @@ namespace GameServerApp.Systems
             try
             {
                 var snapshot = CreateSnapshot();
-                var payload = Serialize(snapshot);
-                await session.SendAsync((int)MinecraftMessageType.WeatherChange, payload);
+                if (session.UseEnhancedMinecraftProtocol)
+                {
+                    var enhancedSnapshot = BuildEnhancedWeatherBroadcast(snapshot);
+                    await session.SendAsync((int)MinecraftMessageType.WeatherChange, enhancedSnapshot.ToByteArray());
+                }
+                else
+                {
+                    var payload = Serialize(snapshot);
+                    await session.SendAsync((int)MinecraftMessageType.WeatherChange, payload);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"WeatherSystem snapshot error: {ex.Message}");
             }
+        }
+
+        private static Enhanced.WeatherUpdateBroadcast BuildEnhancedWeatherBroadcast(WeatherChangeMessage legacy)
+        {
+            if (legacy == null) throw new ArgumentNullException(nameof(legacy));
+
+            var weatherType = legacy.WeatherType switch
+            {
+                WeatherType.Rain => Enhanced.WeatherType.WeatherRain,
+                WeatherType.Thunderstorm => Enhanced.WeatherType.WeatherStorm,
+                WeatherType.Snow => Enhanced.WeatherType.WeatherSnow,
+                _ => Enhanced.WeatherType.WeatherClear
+            };
+
+            var weatherInfo = new Enhanced.WeatherInfo
+            {
+                WeatherType = weatherType,
+                DurationTicks = Math.Max(0, legacy.Duration) * 20,
+                Intensity = legacy.Intensity,
+                Thundering = legacy.WeatherType == WeatherType.Thunderstorm
+            };
+
+            return new Enhanced.WeatherUpdateBroadcast
+            {
+                Weather = weatherInfo,
+                ChangeTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
         }
 
         private WeatherType DetermineNextWeather(WeatherType previous)

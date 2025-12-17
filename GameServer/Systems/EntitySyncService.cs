@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using ProtoBuf;
 using SharedProtocol;
+using Google.Protobuf;
+using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Systems
 {
@@ -57,15 +59,22 @@ namespace GameServerApp.Systems
 
             if (otherSessions.Count > 0)
             {
-                var newEntityPayload = Serialize(new EntitySpawnMessage
+                var legacySpawnPayload = Serialize(new EntitySpawnMessage
                 {
                     Entity = BuildEntityInfo(playerState),
                     SpawnReason = SpawnReason.Natural
                 });
 
+                var enhancedSpawnPayload = new Enhanced.EntitySpawnBroadcast
+                {
+                    Entity = BuildEnhancedEntityData(playerState),
+                    SpawnReason = Enhanced.SpawnReason.SpawnNatural
+                }.ToByteArray();
+
                 foreach (var session in otherSessions)
                 {
-                    broadcastTasks.Add(session.SendAsync((int)MinecraftMessageType.EntitySpawn, newEntityPayload));
+                    var payload = session.UseEnhancedMinecraftProtocol ? enhancedSpawnPayload : legacySpawnPayload;
+                    broadcastTasks.Add(session.SendAsync((int)MinecraftMessageType.EntitySpawn, payload));
                 }
             }
 
@@ -81,13 +90,21 @@ namespace GameServerApp.Systems
                 var otherInfo = BuildEntityInfo(otherState);
                 _positionSamples[otherName] = new PositionSample(ToDoubleVector(otherState.Position), now);
 
-                var payload = Serialize(new EntitySpawnMessage
+                var legacyPayload = Serialize(new EntitySpawnMessage
                 {
                     Entity = otherInfo,
                     SpawnReason = SpawnReason.Natural
                 });
 
-                broadcastTasks.Add(newSession.SendAsync((int)MinecraftMessageType.EntitySpawn, payload));
+                var enhancedPayload = new Enhanced.EntitySpawnBroadcast
+                {
+                    Entity = BuildEnhancedEntityData(otherState),
+                    SpawnReason = Enhanced.SpawnReason.SpawnNatural
+                }.ToByteArray();
+
+                broadcastTasks.Add(newSession.SendAsync(
+                    (int)MinecraftMessageType.EntitySpawn,
+                    newSession.UseEnhancedMinecraftProtocol ? enhancedPayload : legacyPayload));
             }
 
             if (broadcastTasks.Count > 0)
@@ -183,11 +200,17 @@ namespace GameServerApp.Systems
 
             _positionSamples.TryRemove(userName, out _);
 
-            var payload = Serialize(new EntityDespawnMessage
+            var legacyPayload = Serialize(new EntityDespawnMessage
             {
                 EntityId = userName,
                 Reason = DespawnReason.Logout
             });
+
+            var enhancedPayload = new Enhanced.EntityDespawnBroadcast
+            {
+                EntityId = userName,
+                Reason = Enhanced.DespawnReason.DespawnNatural
+            }.ToByteArray();
 
             var sendTasks = new List<Task>();
             foreach (var session in _sessions.GetSessionsSnapshot())
@@ -198,6 +221,7 @@ namespace GameServerApp.Systems
                     continue;
                 }
 
+                var payload = session.UseEnhancedMinecraftProtocol ? enhancedPayload : legacyPayload;
                 sendTasks.Add(session.SendAsync((int)MinecraftMessageType.EntityDespawn, payload));
             }
 
@@ -219,6 +243,21 @@ namespace GameServerApp.Systems
                 Health = state.Health,
                 MaxHealth = 100f,
                 CustomData = string.Empty
+            };
+        }
+
+        private static Enhanced.EntityData BuildEnhancedEntityData(PlayerState state)
+        {
+            return new Enhanced.EntityData
+            {
+                EntityId = state.UserName,
+                EntityType = Enhanced.EntityType.Player,
+                Position = new MinecraftGame.Common.Vector3 { X = state.Position.X, Y = state.Position.Y, Z = state.Position.Z },
+                Rotation = new MinecraftGame.Common.Vector3 { X = state.RotationX, Y = state.RotationY, Z = 0d },
+                Velocity = new MinecraftGame.Common.Vector3 { X = 0d, Y = 0d, Z = 0d },
+                Health = state.Health,
+                MaxHealth = 100f,
+                Metadata = new Enhanced.EntityMetadata()
             };
         }
 

@@ -57,7 +57,9 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 await SendFailureResponse(session, "블록 Y 좌표가 허용 범위를 벗어났습니다.");
                 return;
             }
-            if (!Enum.IsDefined(typeof(BlockType), message.BlockType))
+            if (message.BlockType < 0 ||
+                message.BlockType > ushort.MaxValue ||
+                !Enum.IsDefined(typeof(BlockType), (ushort)message.BlockType))
             {
                 await SendFailureResponse(session, "알 수 없는 블록 타입입니다.");
                 return;

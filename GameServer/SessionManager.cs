@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.IO;
 using ProtoBuf;
+using Google.Protobuf;
 using SharedProtocol;
 using GameServerApp.Models;
 using GameServerApp.Rooms;
@@ -211,6 +212,75 @@ public class SessionManager
         }
 
         await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Broadcasts both legacy (protobuf-net) and EnhancedMinecraft (Google.Protobuf) payloads, selecting per-session based on <see cref="Session.UseEnhancedMinecraftProtocol"/>.
+    /// </summary>
+    public async Task BroadcastMinecraftDualAsync<TLegacy, TEnhanced>(MinecraftMessageType messageType, TLegacy legacyMessage, TEnhanced enhancedMessage)
+        where TLegacy : class
+        where TEnhanced : IMessage
+    {
+        if (legacyMessage == null) throw new ArgumentNullException(nameof(legacyMessage));
+        if (enhancedMessage == null) throw new ArgumentNullException(nameof(enhancedMessage));
+
+        using var legacyStream = new MemoryStream();
+        Serializer.Serialize(legacyStream, legacyMessage);
+        var legacyPayload = legacyStream.ToArray();
+        var enhancedPayload = enhancedMessage.ToByteArray();
+
+        var tasks = new List<Task>(_sessions.Count);
+        foreach (var session in _sessions.Values)
+        {
+            var payload = session.UseEnhancedMinecraftProtocol ? enhancedPayload : legacyPayload;
+            tasks.Add(session.SendAsync((int)messageType, payload));
+        }
+
+        await Task.WhenAll(tasks);
+    }
+
+    public async Task BroadcastMinecraftToAreaDualAsync<TLegacy, TEnhanced>(int worldId, int chunkX, int chunkZ, MinecraftMessageType messageType, TLegacy legacyMessage, TEnhanced enhancedMessage, params string[]? excludeUserNames)
+        where TLegacy : class
+        where TEnhanced : IMessage
+    {
+        if (legacyMessage == null) throw new ArgumentNullException(nameof(legacyMessage));
+        if (enhancedMessage == null) throw new ArgumentNullException(nameof(enhancedMessage));
+
+        HashSet<string>? excludes = null;
+        if (excludeUserNames != null && excludeUserNames.Length > 0)
+        {
+            excludes = new HashSet<string>(excludeUserNames, StringComparer.OrdinalIgnoreCase);
+        }
+
+        using var legacyStream = new MemoryStream();
+        Serializer.Serialize(legacyStream, legacyMessage);
+        var legacyPayload = legacyStream.ToArray();
+        var enhancedPayload = enhancedMessage.ToByteArray();
+
+        var playersInArea = GetPlayersInChunk(worldId, chunkX, chunkZ);
+        var tasks = new List<Task>();
+
+        foreach (var playerName in playersInArea)
+        {
+            if (excludes != null && excludes.Contains(playerName))
+            {
+                continue;
+            }
+
+            var session = GetSession(playerName);
+            if (session == null)
+            {
+                continue;
+            }
+
+            var payload = session.UseEnhancedMinecraftProtocol ? enhancedPayload : legacyPayload;
+            tasks.Add(session.SendAsync((int)messageType, payload));
+        }
+
+        if (tasks.Count > 0)
+        {
+            await Task.WhenAll(tasks);
+        }
     }
 
     public async Task BroadcastToAllAsync<T>(MessageType messageType, T message) where T : class

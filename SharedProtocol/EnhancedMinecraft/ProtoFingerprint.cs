@@ -17,7 +17,7 @@ public static class ProtoFingerprint
     /// SHA-256 fingerprint of the generated EnhancedMinecraft descriptor. Update this
     /// constant whenever the proto assets are regenerated.
     /// </summary>
-    public const string DescriptorFingerprint = "79842CF452BEF34C3C21DA9C822B874DD172E26A47C6CB26DEDBC6FE6372B8E7";
+    public const string DescriptorFingerprint = "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4";
 
     public static void AssertDescriptorFingerprint()
     {

@@ -79,6 +79,8 @@ public class Session
     /// </summary>
     public PlayerInfo? PlayerInfo { get; set; }
 
+    public bool UseEnhancedMinecraftProtocol { get; set; }
+
     public Session(TcpClient client)
     {
         _client = client;

@@ -15,8 +15,8 @@ import "common.proto";
 message PlayerInfo {
   string player_id = 1;
   string username = 2;
-  MinecraftGame.Common.Vector3position = 3;
-  MinecraftGame.Common.Vector3rotation = 4;
+  MinecraftGame.Common.Vector3 position = 3;
+  MinecraftGame.Common.Vector3 rotation = 4;
   int32 level = 5;
   int64 experience = 6;
   float experience_progress = 7;  // 0.0 - 1.0
@@ -142,7 +142,7 @@ message BlockPlaceRequest {
   int32 block_id = 2;
   int32 block_metadata = 3;        // 방향, 상태 등
   int32 face = 4;                  // 배치할 면 (0-5)
-  MinecraftGame.Common.Vector3cursor_position = 5;     // 블록 내 세밀한 위치
+  MinecraftGame.Common.Vector3 cursor_position = 5;     // 블록 내 세밀한 위치
   ItemStack used_item = 6;
 }
 
@@ -255,9 +255,9 @@ enum TileEntityType {
 message EntityData {
   string entity_id = 1;
   EntityType entity_type = 2;
-  MinecraftGame.Common.Vector3position = 3;
-  MinecraftGame.Common.Vector3rotation = 4;
-  MinecraftGame.Common.Vector3velocity = 5;
+  MinecraftGame.Common.Vector3 position = 3;
+  MinecraftGame.Common.Vector3 rotation = 4;
+  MinecraftGame.Common.Vector3 velocity = 5;
   float health = 6;
   float max_health = 7;
   string custom_data = 8;
@@ -340,7 +340,7 @@ message PlayerActionRequest {
   PlayerAction action = 1;
   MinecraftGame.Common.Vector3Int target_position = 2;
   int32 face = 3;
-  MinecraftGame.Common.Vector3cursor_position = 4;
+  MinecraftGame.Common.Vector3 cursor_position = 4;
   ItemStack used_item = 5;
   int32 sequence = 6;
   ActionData action_data = 7;      // 액션별 추가 데이터
@@ -451,8 +451,8 @@ message CombatEvent {
   DamageType damage_type = 3;
   float damage_amount = 4;
   float final_damage = 5;          // 방어구, 저항 효과 적용 후
-  MinecraftGame.Common.Vector3damage_source_pos = 6;
-  MinecraftGame.Common.Vector3knockback_velocity = 7;
+  MinecraftGame.Common.Vector3 damage_source_pos = 6;
+  MinecraftGame.Common.Vector3 knockback_velocity = 7;
   ItemStack weapon_used = 8;
   bool is_critical = 9;
   bool is_blocked = 10;            // 방패로 막았는지
@@ -483,7 +483,7 @@ message DeathEvent {
   string player_id = 1;
   DamageType death_cause = 2;
   string killer_id = 3;           // null이면 환경사망
-  MinecraftGame.Common.Vector3death_position = 4;
+  MinecraftGame.Common.Vector3 death_position = 4;
   repeated ItemStack dropped_items = 5;
   int32 experience_dropped = 6;
   string death_message = 7;
@@ -503,7 +503,7 @@ message ExperienceUpdateBroadcast {
 message ExperienceOrbSpawnBroadcast {
   EntityData orb_entity = 1;
   int32 experience_value = 2;
-  MinecraftGame.Common.Vector3target_position = 3;     // 플레이어 위치 (이동 대상)
+  MinecraftGame.Common.Vector3 target_position = 3;     // 플레이어 위치 (이동 대상)
 }
 
 message EnchantingRequest {
@@ -552,8 +552,8 @@ message EffectUpdateBroadcast {
 
 message ParticleEffect {
   ParticleType particle_type = 1;
-  MinecraftGame.Common.Vector3position = 2;
-  MinecraftGame.Common.Vector3velocity = 3;
+  MinecraftGame.Common.Vector3 position = 2;
+  MinecraftGame.Common.Vector3 velocity = 3;
   int32 count = 4;
   float spread = 5;
   string particle_data = 6;        // 파티클별 추가 데이터 (JSON)
@@ -580,7 +580,7 @@ enum ParticleType {
 
 message SoundEffect {
   SoundType sound_type = 1;
-  MinecraftGame.Common.Vector3position = 2;
+  MinecraftGame.Common.Vector3 position = 2;
   float volume = 3;
   float pitch = 4;
   SoundCategory category = 5;
@@ -709,7 +709,7 @@ message WorldInfo {
   int64 world_time = 6;            // 게임 틱
   int64 day_time = 7;              // 하루 내 시간 (0-24000)
   WeatherInfo weather = 8;
-  MinecraftGame.Common.Vector3spawn_point = 9;
+  MinecraftGame.Common.Vector3 spawn_point = 9;
   WorldDifficulty difficulty = 10;
   WorldBorder world_border = 11;
 }
@@ -745,7 +745,7 @@ enum WeatherType {
 }
 
 message WorldBorder {
-  MinecraftGame.Common.Vector3center = 1;
+  MinecraftGame.Common.Vector3 center = 1;
   double diameter = 2;
   double target_diameter = 3;
   int64 time_to_target = 4;

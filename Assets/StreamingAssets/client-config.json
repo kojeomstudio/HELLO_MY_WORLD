@@ -1,0 +1,243 @@
+{
+  "Client": {
+    "Version": "1.0.0",
+    "GameTitle": "Enhanced Minecraft",
+    "LogFilePath": "logs/client.log",
+    "LogLevel": "Info",
+    "EnableDebugMode": false,
+    "EnableProfiler": false
+  },
+  "Network": {
+    "ServerAddress": "127.0.0.1",
+    "ServerPort": 8080,
+    "ConnectionTimeout": 10000,
+    "ReconnectDelay": 5000,
+    "MaxReconnectAttempts": 3,
+    "HeartbeatInterval": 30000,
+    "NetworkTickRate": 20,
+    "EnableCompression": true,
+    "EnableEncryption": false,
+    "MaxPacketSize": 65536
+  },
+  "World": {
+    "WorldName": "PlayerWorld",
+    "Seed": 0,
+    "GameMode": "survival",
+    "WorldHeight": 256,
+    "ChunkSize": 16,
+    "RenderDistance": 10,
+    "SimulationDistance": 8,
+    "MaxLoadedChunks": 1000,
+    "ChunkUpdateInterval": 0.1,
+    "EnableChunkCaching": true,
+    "ChunkCacheSize": 100,
+    "AutoSaveInterval": 300
+  },
+  "Graphics": {
+    "RenderScale": 1.0,
+    "ShadowQuality": "Medium",
+    "ViewDistance": 10,
+    "ParticleQuality": "Medium",
+    "TerrainQuality": "High",
+    "WaterQuality": "High",
+    "FoliageQuality": "Medium",
+    "EnableVSync": true,
+    "TargetFrameRate": 60,
+    "MaxFrameRate": 120,
+    "EnableAntiAliasing": true,
+    "AntiAliasingQuality": 4
+  },
+  "Audio": {
+    "MasterVolume": 1.0,
+    "MusicVolume": 0.8,
+    "SFXVolume": 0.9,
+    "AmbientVolume": 0.7,
+    "EnableAudio": true,
+    "AudioDevice": "Default"
+  },
+  "Input": {
+    "MouseSensitivity": 1.0,
+    "InvertMouseY": false,
+    "EnableAutoJump": false,
+    "KeyBindings": {
+      "MoveForward": "W",
+      "MoveBackward": "S",
+      "MoveLeft": "A",
+      "MoveRight": "D",
+      "Jump": "Space",
+      "Sprint": "LeftShift",
+      "Sneak": "LeftControl",
+      "Inventory": "E",
+      "Chat": "T",
+      "Attack": "Mouse0",
+      "Use": "Mouse1",
+      "Drop": "Q",
+      "Pause": "Escape"
+    }
+  },
+  "UI": {
+    "UIScale": 1.0,
+    "ShowFPS": false,
+    "ShowCoordinates": true,
+    "ShowDebugInfo": false,
+    "ChatHistorySize": 100,
+    "EnableTooltips": true,
+    "TooltipDelay": 0.5,
+    "FontScale": 1.0,
+    "EnableNotifications": true,
+    "NotificationDuration": 3.0
+  },
+  "Player": {
+    "DefaultSpawnPoint": {
+      "X": 0,
+      "Y": 64,
+      "Z": 0
+    },
+    "ReachDistance": 5.0,
+    "BreakSpeed": 1.0,
+    "CreativeFlight": true,
+    "AutoRespawn": true,
+    "KeepInventoryOnDeath": false
+  },
+  "Performance": {
+    "EnableMultithreading": true,
+    "WorkerThreadCount": 0,
+    "GarbageCollectionMode": "Incremental",
+    "EnableObjectPooling": true,
+    "PoolInitialSize": 100,
+    "PoolMaxSize": 1000,
+    "EnableLOD": true,
+    "LODDistance": 50,
+    "EnableOcclusionCulling": true
+  },
+  "Debug": {
+    "EnableDebugLogs": false,
+    "EnableNetworkLogs": false,
+    "EnableChunkDebug": false,
+    "EnablePerformanceMetrics": false,
+    "LogToFile": true,
+    "MaxLogFileSize": 10485760,
+    "MaxLogFiles": 5
+  }
+}  "Client": {
+    "Version": "1.0.0",
+    "GameTitle": "Enhanced Minecraft",
+    "LogFilePath": "logs/client.log",
+    "LogLevel": "Info",
+    "EnableDebugMode": false,
+    "EnableProfiler": false
+  },
+  "Network": {
+    "ServerAddress": "127.0.0.1",
+    "ServerPort": 8080,
+    "ConnectionTimeout": 10000,
+    "ReconnectDelay": 5000,
+    "MaxReconnectAttempts": 3,
+    "HeartbeatInterval": 30000,
+    "NetworkTickRate": 20,
+    "EnableCompression": true,
+    "EnableEncryption": false,
+    "MaxPacketSize": 65536
+  },
+  "World": {
+    "WorldName": "PlayerWorld",
+    "Seed": 0,
+    "GameMode": "survival",
+    "WorldHeight": 256,
+    "ChunkSize": 16,
+    "RenderDistance": 10,
+    "SimulationDistance": 8,
+    "MaxLoadedChunks": 1000,
+    "ChunkUpdateInterval": 0.1,
+    "EnableChunkCaching": true,
+    "ChunkCacheSize": 100,
+    "AutoSaveInterval": 300
+  },
+  "Graphics": {
+    "RenderScale": 1.0,
+    "ShadowQuality": "Medium",
+    "ViewDistance": 10,
+    "ParticleQuality": "Medium",
+    "TerrainQuality": "High",
+    "WaterQuality": "High",
+    "FoliageQuality": "Medium",
+    "EnableVSync": true,
+    "TargetFrameRate": 60,
+    "MaxFrameRate": 120,
+    "EnableAntiAliasing": true,
+    "AntiAliasingQuality": 4
+  },
+  "Audio": {
+    "MasterVolume": 1.0,
+    "MusicVolume": 0.8,
+    "SFXVolume": 0.9,
+    "AmbientVolume": 0.7,
+    "EnableAudio": true,
+    "AudioDevice": "Default"
+  },
+  "Input": {
+    "MouseSensitivity": 1.0,
+    "InvertMouseY": false,
+    "EnableAutoJump": false,
+    "KeyBindings": {
+      "MoveForward": "W",
+      "MoveBackward": "S",
+      "MoveLeft": "A",
+      "MoveRight": "D",
+      "Jump": "Space",
+      "Sprint": "LeftShift",
+      "Sneak": "LeftControl",
+      "Inventory": "E",
+      "Chat": "T",
+      "Attack": "Mouse0",
+      "Use": "Mouse1",
+      "Drop": "Q",
+      "Pause": "Escape"
+    }
+  },
+  "UI": {
+    "UIScale": 1.0,
+    "ShowFPS": false,
+    "ShowCoordinates": true,
+    "ShowDebugInfo": false,
+    "ChatHistorySize": 100,
+    "EnableTooltips": true,
+    "TooltipDelay": 0.5,
+    "FontScale": 1.0,
+    "EnableNotifications": true,
+    "NotificationDuration": 3.0
+  },
+  "Player": {
+    "DefaultSpawnPoint": {
+      "X": 0,
+      "Y": 64,
+      "Z": 0
+    },
+    "ReachDistance": 5.0,
+    "BreakSpeed": 1.0,
+    "CreativeFlight": true,
+    "AutoRespawn": true,
+    "KeepInventoryOnDeath": false
+  },
+  "Performance": {
+    "EnableMultithreading": true,
+    "WorkerThreadCount": 0,
+    "GarbageCollectionMode": "Incremental",
+    "EnableObjectPooling": true,
+    "PoolInitialSize": 100,
+    "PoolMaxSize": 1000,
+    "EnableLOD": true,
+    "LODDistance": 50,
+    "EnableOcclusionCulling": true
+  },
+  "Debug": {
+    "EnableDebugLogs": false,
+    "EnableNetworkLogs": false,
+    "EnableChunkDebug": false,
+    "EnablePerformanceMetrics": false,
+    "LogToFile": true,
+    "MaxLogFileSize": 10485760,
+    "MaxLogFiles": 5
+  }
+}
+}

@@ -1,56 +1,662 @@
-# Minecraft Feature Backlog (Core / Content / Utility)
+# 마인크래프트 기능 구현 계획
 
-This backlog groups every required Minecraft capability for both server and client. Items are classified as **Core** (blocking stability/compatibility), **Content** (gameplay loops), or **Utility** (operability, tooling, data/diagnostics). Keep server and client in lock-step and mirror JSON config between `config/` and Unity `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`.
+## 개요
+이 문서는 마인크래프트 기반 게임에 필요한 모든 기능을 코어, 콘텐츠, 유틸리티 카테고리로 분류하여 체계적으로 정리한 구현 계획입니다.
 
-## Server
-### Core
-- [ ] World generation parity: terrain + caves + rivers/lakes stay identical between `GameServer/World/WorldManager.cs` and `MapGeneratorLib` (noise fields, hydrology seams, gradients).
-- [x] Hydrology gradient stability pass shared across server and Unity map previews to align cave/river/lake downhill vectors at chunk seams.
-- [ ] Chunk lifecycle: multi-threaded generation, caching/compression, priority streaming, chunk unload acknowledgements.
-- [ ] Session/auth pipeline with rate limiting, anti-cheat hooks, and reconnect-safe state.
-- [ ] Protocol validation: protobuf fingerprint/descriptor/registry coverage, handler coverage, and framed packet guard rails.
-- [ ] Persistence/backups: player/world state snapshots, recovery hooks, and data-driven world seeds.
+## 카테고리별 기능 목록
 
-### Content
-- [x] Health & hunger (server-authoritative).
-- [ ] Inventory/equipment + crafting recipes driven by `config/items.json`, `config/recipes.json`, and `config/item_categories.json`.
-- [ ] Combat tuning (weapons/armor/PvP rules) with tick reconciliation.
-- [ ] Environment loops: day/night, weather, temperature/seasonal modifiers, surface hydrology feedback.
-- [ ] Entities & AI: spawning, behaviours, persistence, sync.
+### 1. 코어 (Core) 기능
 
-### Utility
-- [x] JSON config loading (`server-config.json`, `config/world.json`, and other data files in `config/`).
-- [ ] Hot-reloadable configs + schema validation.
-- [ ] Metrics/telemetry (TPS, chunk counts, protocol health) and operational tooling (backups, protocol diagnostics export).
-- [ ] Data-driven world/ore tuning with documented defaults.
+#### 1.1 월드 생성 및 관리
+- **지형 생성 알고리즘**
+  - 기초 지형 생성 (바이옴, 고도)
+  - 동굴 생성 시스템 (개선된 노이즈 기반)
+  - 강 생성 시스템 (유체 역학 기반)
+  - 호수 생성 시스템 (유역 기반)
+  - 광물 분포 시스템
+  - 구조물 생성 (마을, 던전 등)
 
-## Client
-### Core
-- [ ] Chunk request/unload pipeline with graceful fallback on packet loss and residency tracking.
-- [ ] Prediction/interpolation for movement with reconciliation on server corrections.
-- [ ] Protobuf gate before entering play mode (fingerprint/registry guard) and handler coverage checks.
-- [x] World map controls + hydrology/cave tuning preview sourced from `WorldConfigData.json` (render/simulation distance + gradient stability mirrored from server).
+- **청크 관리 시스템**
+  - 청크 로딩/언로딩
+  - 청크 캐싱 최적화
+  - 청크 네트워크 동기화
+  - 청크 데이터 직렬화
 
-### Content
-- [ ] UI for health/hunger/experience synced to server ticks.
-- [ ] Inventory/equipment/crafting UI backed by JSON data (`config/items.json`, `config/recipes.json`).
-- [ ] Combat feedback (damage numbers, hit-stop, VFX/SFX hooks).
-- [ ] Weather + day/night visuals aligned to `TimeUpdate` / `WeatherChange`.
-- [ ] Entity rendering/interactions tied to `EntitySpawn/Update/Despawn` protobuf updates.
+- **월드 시드 및 설정**
+  - 결정론적 월드 생성
+  - 월드 설정 관리 (JSON 기반)
+  - 바이옴 분포 제어
 
-### Utility
-- [ ] Config mirroring of server JSON into Unity resources for offline previews.
-- [ ] Diagnostics overlays: chunk network timings, protobuf handler coverage, hydrology/cave/ribbon visualizers.
-- [ ] Logging/trace export for client-server repros (chunk payload hashes, handler timings), plus capture toggles.
+#### 1.2 블록 시스템
+- **블록 타입 정의**
+  - 기본 블록 (흙, 돌, 나무 등)
+  - 광물 블록
+  - 유체 블록 (물, 용암)
+  - 식물 블록
+  - 가구 블록
 
-## Cross-Cutting Data
-- Config and data remain JSON-first (worldgen, recipes, items, category tags, runtime settings).
-- proto/*.proto is the single source of truth; regenerate `Assets/Generated/Protobuf` after edits and build `SharedProtocol` to sync descriptors.
-- Keep `server-config.json` as the entry for environment variables and split configs only when maintainability improves clarity.
+- **블록 상태 시스템**
+  - 블록 방향 (회전)
+  - 블록 상태 (켜짐/꺼짐, 열림/닫힘)
+  - 블록 변형 (부서진 상태 등)
 
-## Execution Order (recommended)
-1) Stabilize **Core** worldgen + protocol guards (hydrology gradients/seams, protobuf coverage).  
-2) Ship movement/chunk/Core networking, then health/hunger UI sync.  
-3) Layer Content loops (inventory/crafting/combat/weather) backed by JSON data.  
-4) Add Utility telemetry, config hot-reload, and diagnostics overlays.  
-5) Continuously mirror server/client configs and regenerate protobuf assets when `.proto` changes.
+- **블록 상호작용**
+  - 블록 파괴/설치
+  - 블록 업데이트 (레드스톤, 물리)
+  - 블록 드롭 시스템
+
+#### 1.3 엔티티 시스템
+- **플레이어 엔티티**
+  - 플레이어 상태 (체력, 배고픔, 경험치)
+  - 플레이어 인벤토리
+  - 플레이어 이동 및 물리
+
+- **몹 엔티티**
+  - 몹 스폰 시스템
+  - 몹 AI 및 행동
+  - 몹 드롭 시스템
+  - 몹 상태 (건강, 분노 등)
+
+- **아이템 엔티티**
+  - 아이템 드롭
+  - 아이템 수집
+  - 아이템 물리
+
+#### 1.4 인벤토리 시스템
+- **플레이어 인벤토리**
+  - 핫바 (9칸)
+  - 인벤토리 (27칸)
+  - 장비 슬롯 (무기, 갑옷)
+  - 크래프트 슬롯
+
+- **컨테이너 시스템**
+  - 상자 인벤토리
+  - 용광로 인벤토리
+  - 제작대 인벤토리
+
+- **아이템 스택 시스템**
+  - 스택 크기 관리
+  - 아이템 분리/병합
+  - 아이템 소모
+
+#### 1.5 크래프팅 시스템
+- **기본 크래프팅**
+  - 3x3 그리드 크래프팅
+  - 레시피 데이터베이스
+  - 크래프팅 결과 계산
+
+- **특수 크래프팅**
+  - 용광로 제련
+  - 양조 제작
+  - 모루 수리
+
+- **레시피 관리**
+  - 레시피 잠금/해제
+  - 커스텀 레시피
+
+#### 1.6 네트워크 통신
+- **프로토콜 버퍼 패킷**
+  - 패킷 직렬화/역직렬화
+  - 패킷 핸들러
+  - 패킷 우선순위
+
+- **클라이언트-서버 동기화**
+  - 월드 상태 동기화
+  - 엔티티 상태 동기화
+  - 플레이어 액션 동기화
+
+- **네트워크 최적화**
+  - 패킷 압축
+  - 증분 업데이트
+  - 네트워크 예측
+
+### 2. 콘텐츠 (Content) 기능
+
+#### 2.1 바이옴 시스템
+- **기본 바이옴**
+  - 평원
+  - 숲
+  - 사막
+  - 타이가
+  - 산지
+  - 늪지
+
+- **특수 바이옴**
+  - 정글
+  - 툰드라
+  - 사바나
+  - 강/해안
+  - 바다
+
+- **바이옴 특징**
+  - 바이옴별 식생
+  - 바이옴별 몹 스폰
+  - 바이옴별 날씨 효과
+
+#### 2.2 광물 및 자원
+- **일반 광물**
+  - 석탄
+  - 철
+  - 금
+  - 다이아몬드
+
+- **희귀 광물**
+  - 레드스톤
+  - 청금석
+  - 에메랄드
+
+- **광물 분포**
+  - 깊이별 분포
+  - 광맥 크기 변화
+  - 광물 풍부도
+
+#### 2.3 식물 및 농업
+- **자연 식물**
+  - 나무 종류 (오크, 자작나무, 가문비나무)
+  - 꽃 및 풀
+  - 덩굴 식물
+
+- **농작물**
+  - 밀
+  - 당근
+  - 감자
+  - 수박
+
+- **농업 시스템**
+  - 작물 성장 단계
+  - 물 및 비료 요구사항
+  - 수확 시스템
+
+#### 2.4 건축 블록
+- **기본 건축 블록**
+  - 나무 판자
+  - 석재 블록
+  - 벽돌
+  - 유리
+
+- **장식 블록**
+  - 울타리
+  - 계단
+  - 반 블록
+  - 문
+
+- **조명 블록**
+  - 횃불
+  - 잭오랜턴
+  - 레드스톤 램프
+
+#### 2.5 도구 및 장비
+- **기본 도구**
+  - 곡괭이 (나무, 돌, 철, 금, 다이아몬드)
+  - 도끼
+  - 삽
+  - 곡간
+
+- **무기**
+  - 검
+  - 활
+  - 삼지창
+
+- **갑옷**
+  - 가죽 갑옷
+  - 철 갑옷
+  - 금 갑옷
+  - 다이아몬드 갑옷
+
+#### 2.6 레드스톤 시스템
+- **기본 레드스톤**
+  - 레드스톤 와이어
+  - 레드스톤 횃불
+  - 레버
+  - 버튼
+
+- **레드스톤 회로**
+  - NOT, AND, OR 게이트
+  - 펄스 생성기
+  - 카운터
+
+- **레드스톤 기계**
+  - 피스톤
+  - 디스펜서
+  - 발사기
+
+#### 2.7 마법 시스템
+- **마법 부여**
+  - 마법 부여대
+  - 마법 레벨
+  - 경험치 시스템
+
+- **마법 효과**
+  - 힘, 신속, 방어력
+  - 불꽃 사격, 사격 보호
+  - 행운, 효율
+
+- **물약 제작**
+  - 양조대
+  - 기초 물약
+  - 증류 물약
+
+### 3. 유틸리티 (Utilities) 기능
+
+#### 3.1 설정 관리
+- **서버 설정**
+  - 월드 생성 설정 (JSON)
+  - 게임 규칙 설정
+  - 플레이어 권한 설정
+
+- **클라이언트 설정**
+  - 그래픽 설정
+  - 오디오 설정
+  - 입력 설정
+  - UI 설정
+
+#### 3.2 데이터 관리
+- **데이터 드리븐 시스템**
+  - 블록 데이터 (JSON)
+  - 아이템 데이터 (JSON)
+  - 레시피 데이터 (JSON)
+  - 바이옴 데이터 (JSON)
+
+- **데이터 직렬화**
+  - 저장/로드 시스템
+  - 데이터 마이그레이션
+  - 데이터 백업
+
+#### 3.3 로깅 및 디버깅
+- **로깅 시스템**
+  - 서버 로그
+  - 클라이언트 로그
+  - 성능 로그
+
+- **디버깅 도구**
+  - 월드 분석기
+  - 네트워크 모니터
+  - 성능 프로파일러
+
+#### 3.4 최적화
+- **성능 최적화**
+  - 렌더링 최적화
+  - 메모리 관리
+  - CPU 최적화
+
+- **네트워크 최적화**
+  - 패킷 압축
+  - 대역폭 관리
+  - 지연 보상
+
+#### 3.5 보안
+- **안티 치트**
+  - 움직임 검증
+  - 블록 상호작용 검증
+  - 변조 탐지
+
+- **데이터 보호**
+  - 플레이어 데이터 암호화
+  - 서버 데이터 무결성
+  - 접근 제어
+
+## 구현 우선순위
+
+### 1단계: 기본 코어 기능
+1. 월드 생성 (기초 지형)
+2. 청크 관리 시스템
+3. 기본 블록 시스템
+4. 플레이어 엔티티
+5. 기본 네트워크 통신
+
+### 2단계: 기본 콘텐츠
+1. 기본 바이옴
+2. 기본 광물
+3. 기본 도구 및 장비
+4. 기본 크래프팅 시스템
+5. 인벤토리 시스템
+
+### 3단계: 고급 기능
+1. 개선된 지형 생성 (동굴, 강, 호수)
+2. 레드스톤 시스템
+3. 마법 시스템
+4. 고급 몹 AI
+5. 구조물 생성
+
+### 4단계: 유틸리티 및 최적화
+1. 데이터 드리븐 시스템 완성
+2. 성능 최적화
+3. 보안 시스템
+4. 디버깅 도구
+5. 문서화
+
+## 기술 요구사항
+
+### 데이터 형식
+- 모든 게임 데이터는 JSON 형식으로 관리
+- 설정 파일은 JSON 형식으로 외부화
+- 데이터 스키마 버전 관리
+
+### 네트워크 프로토콜
+- 프로토콜 버퍼 사용
+- 패킷 버전 호환성
+- 효율적인 직렬화
+
+### 아키텍처
+- 모듈형 설계
+- 의존성 주입
+- 단위 테스트 가능성
+
+이 구현 계획은 마인크래프트 기반 게임의 모든 핵심 기능을 체계적으로 정리한 것으로, 각 기능의 구현 순서와 우선순위를 명확히 하여 개발 과정을 효율적으로 만들 수 있습니다.
+  - 몹 상태 (건강, 분노 등)
+
+- **아이템 엔티티**
+  - 아이템 드롭
+  - 아이템 수집
+  - 아이템 물리
+
+#### 1.4 인벤토리 시스템
+- **플레이어 인벤토리**
+  - 핫바 (9칸)
+  - 인벤토리 (27칸)
+  - 장비 슬롯 (무기, 갑옷)
+  - 크래프트 슬롯
+
+- **컨테이너 시스템**
+  - 상자 인벤토리
+  - 용광로 인벤토리
+  - 제작대 인벤토리
+
+- **아이템 스택 시스템**
+  - 스택 크기 관리
+  - 아이템 분리/병합
+  - 아이템 소모
+
+#### 1.5 크래프팅 시스템
+- **기본 크래프팅**
+  - 3x3 그리드 크래프팅
+  - 레시피 데이터베이스
+  - 크래프팅 결과 계산
+
+- **특수 크래프팅**
+  - 용광로 제련
+  - 양조 제작
+  - 모루 수리
+
+- **레시피 관리**
+  - 레시피 잠금/해제
+  - 커스텀 레시피
+
+#### 1.6 네트워크 통신
+- **프로토콜 버퍼 패킷**
+  - 패킷 직렬화/역직렬화
+  - 패킷 핸들러
+  - 패킷 우선순위
+
+- **클라이언트-서버 동기화**
+  - 월드 상태 동기화
+  - 엔티티 상태 동기화
+  - 플레이어 액션 동기화
+
+- **네트워크 최적화**
+  - 패킷 압축
+  - 증분 업데이트
+  - 네트워크 예측
+
+### 2. 콘텐츠 (Content) 기능
+
+#### 2.1 바이옴 시스템
+- **기본 바이옴**
+  - 평원
+  - 숲
+  - 사막
+  - 타이가
+  - 산지
+  - 늪지
+
+- **특수 바이옴**
+  - 정글
+  - 툰드라
+  - 사바나
+  - 강/해안
+  - 바다
+
+- **바이옴 특징**
+  - 바이옴별 식생
+  - 바이옴별 몹 스폰
+  - 바이옴별 날씨 효과
+
+#### 2.2 광물 및 자원
+- **일반 광물**
+  - 석탄
+  - 철
+  - 금
+  - 다이아몬드
+
+- **희귀 광물**
+  - 레드스톤
+  - 청금석
+  - 에메랄드
+
+- **광물 분포**
+  - 깊이별 분포
+  - 광맥 크기 변화
+  - 광물 풍부도
+
+#### 2.3 식물 및 농업
+- **자연 식물**
+  - 나무 종류 (오크, 자작나무, 가문비나무)
+  - 꽃 및 풀
+  - 덩굴 식물
+
+- **농작물**
+  - 밀
+  - 당근
+  - 감자
+  - 수박
+
+- **농업 시스템**
+  - 작물 성장 단계
+  - 물 및 비료 요구사항
+  - 수확 시스템
+
+#### 2.4 건축 블록
+- **기본 건축 블록**
+  - 나무 판자
+  - 석재 블록
+  - 벽돌
+  - 유리
+
+- **장식 블록**
+  - 울타리
+  - 계단
+  - 반 블록
+  - 문
+
+- **조명 블록**
+  - 횃불
+  - 잭오랜턴
+  - 레드스톤 램프
+
+#### 2.5 도구 및 장비
+- **기본 도구**
+  - 곡괭이 (나무, 돌, 철, 금, 다이아몬드)
+  - 도끼
+  - 삽
+  - 곡간
+
+- **무기**
+  - 검
+  - 활
+  - 삼지창
+
+- **갑옷**
+  - 가죽 갑옷
+  - 철 갑옷
+  - 금 갑옷
+  - 다이아몬드 갑옷
+
+#### 2.6 레드스톤 시스템
+- **기본 레드스톤**
+  - 레드스톤 와이어
+  - 레드스톤 횃불
+  - 레버
+  - 버튼
+
+- **레드스톤 회로**
+  - NOT, AND, OR 게이트
+  - 펄스 생성기
+  - 카운터
+
+- **레드스톤 기계**
+  - 피스톤
+  - 디스펜서
+  - 발사기
+
+#### 2.7 마법 시스템
+- **마법 부여**
+  - 마법 부여대
+  - 마법 레벨
+  - 경험치 시스템
+
+- **마법 효과**
+  - 힘, 신속, 방어력
+  - 불꽃 사격, 사격 보호
+  - 행운, 효율
+
+- **물약 제작**
+  - 양조대
+  - 기초 물약
+  - 증류 물약
+
+### 3. 유틸리티 (Utilities) 기능
+
+#### 3.1 설정 관리
+- **서버 설정**
+  - 월드 생성 설정 (JSON)
+  - 게임 규칙 설정
+  - 플레이어 권한 설정
+
+- **클라이언트 설정**
+  - 그래픽 설정
+  - 오디오 설정
+  - 입력 설정
+  - UI 설정
+
+#### 3.2 데이터 관리
+- **데이터 드리븐 시스템**
+  - 블록 데이터 (JSON)
+  - 아이템 데이터 (JSON)
+  - 레시피 데이터 (JSON)
+  - 바이옴 데이터 (JSON)
+
+- **데이터 직렬화**
+  - 저장/로드 시스템
+  - 데이터 마이그레이션
+  - 데이터 백업
+
+#### 3.3 로깅 및 디버깅
+- **로깅 시스템**
+  - 서버 로그
+  - 클라이언트 로그
+  - 성능 로그
+
+- **디버깅 도구**
+  - 월드 분석기
+  - 네트워크 모니터
+  - 성능 프로파일러
+
+#### 3.4 최적화
+- **성능 최적화**
+  - 렌더링 최적화
+  - 메모리 관리
+  - CPU 최적화
+
+- **네트워크 최적화**
+  - 패킷 압축
+  - 대역폭 관리
+  - 지연 보상
+
+#### 3.5 보안
+- **안티 치트**
+  - 움직임 검증
+  - 블록 상호작용 검증
+  - 변조 탐지
+
+- **데이터 보호**
+  - 플레이어 데이터 암호화
+  - 서버 데이터 무결성
+  - 접근 제어
+
+## 구현 우선순위
+
+### 1단계: 기본 코어 기능
+1. 월드 생성 (기초 지형)
+2. 청크 관리 시스템
+3. 기본 블록 시스템
+4. 플레이어 엔티티
+5. 기본 네트워크 통신
+
+### 2단계: 기본 콘텐츠
+1. 기본 바이옴
+2. 기본 광물
+3. 기본 도구 및 장비
+4. 기본 크래프팅 시스템
+5. 인벤토리 시스템
+
+### 3단계: 고급 기능
+1. 개선된 지형 생성 (동굴, 강, 호수)
+2. 레드스톤 시스템
+3. 마법 시스템
+4. 고급 몹 AI
+5. 구조물 생성
+
+### 4단계: 유틸리티 및 최적화
+1. 데이터 드리븐 시스템 완성
+2. 성능 최적화
+3. 보안 시스템
+4. 디버깅 도구
+5. 문서화
+
+## 기술 요구사항
+
+### 데이터 형식
+- 모든 게임 데이터는 JSON 형식으로 관리
+- 설정 파일은 JSON 형식으로 외부화
+- 데이터 스키마 버전 관리
+
+### 네트워크 프로토콜
+- 프로토콜 버퍼 사용
+- 패킷 버전 호환성
+- 효율적인 직렬화
+
+### 아키텍처
+- 모듈형 설계
+- 의존성 주입
+- 단위 테스트 가능성
+
+이 구현 계획은 마인크래프트 기반 게임의 모든 핵심 기능을 체계적으로 정리한 것으로, 각 기능의 구현 순서와 우선순위를 명확히 하여 개발 과정을 효율적으로 만들 수 있습니다.
+이 구현 계획은 마인크래프트 기반 게임의 모든 핵심 기능을 체계적으로 정리한 것으로, 각 기능의 구현 순서와 우선순위를 명확히 하여 개발 과정을 효율적으로 만들 수 있습니다.
+- JSON 기반 게임 데이터
+- Protocol Buffers 기반 네트워크 프로토콜
+
+## 검토 항목
+
+### 코드 품질
+- [ ] 모든 using 문이 실제 파일/클래스를 참조하는지 확인
+- [ ] 코드 스타일 가이드라인 준수
+- [ ] 예외 처리 완성
+- [ ] 메모리 누수 방지
+
+### 성능
+- [ ] 프레임률 60FPS 유지
+- [ ] 메모리 사용량 최적화
+- [ ] 네트워크 대역폭 최적화
+
+### 테스트
+- [ ] 단위 테스트 작성
+- [ ] 통합 테스트 작성
+- [ ] 스트레스 테스트 수행
+- [ ] 네트워크 테스트 수행
+
+## 변경 이력
+
+| 버전 | 날짜 | 변경 내용 |
+|-------|--------|----------|
+| 1.0 | 2024-12-17 | 초기 문서 작성 |
+| 1.0 | 2024-12-17 | 초기 문서 작성 |

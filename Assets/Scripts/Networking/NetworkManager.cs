@@ -306,18 +306,22 @@ namespace Networking
             {
                 var pos = broadcast.BlockPosition;
                 Debug.Log($"Block changed by {broadcast.PlayerId}: ({pos.X}, {pos.Y}, {pos.Z}) -> Type {broadcast.BlockType}");
-                // Apply to local world using ModifyWorldManager
+                
+                // Apply to local world using ChunkManager
                 try
                 {
-                    var modifyMgr = GameObject.FindObjectOfType<ModifyWorldManager>();
-                    if (modifyMgr != null)
+                    var chunkManager = FindObjectOfType<ChunkManager>();
+                    if (chunkManager != null)
                     {
-                        modifyMgr.ModifySpecificSubWorld(
-                            broadcast.AreaId,
-                            broadcast.SubworldId,
-                            pos.X, pos.Y, pos.Z,
-                            (byte)broadcast.BlockType
-                        );
+                        // Convert world coordinates to chunk coordinates
+                        int chunkX = Mathf.FloorToInt(pos.X / 16f);
+                        int chunkZ = Mathf.FloorToInt(pos.Z / 16f);
+                        int blockX = Mathf.FloorToInt(pos.X) % 16;
+                        int blockY = Mathf.FloorToInt(pos.Y);
+                        int blockZ = Mathf.FloorToInt(pos.Z) % 16;
+                        
+                        // Apply block change to the chunk
+                        chunkManager.SetBlock(chunkX, chunkZ, blockX, blockY, blockZ, (byte)broadcast.BlockType);
                     }
                 }
                 catch (System.Exception ex)
@@ -369,3 +373,7 @@ namespace Networking
         }
     }
 }
+        }
+    }
+}
+

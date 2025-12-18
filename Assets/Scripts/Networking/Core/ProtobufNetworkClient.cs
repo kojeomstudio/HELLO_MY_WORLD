@@ -71,6 +71,13 @@ namespace Networking.Core
             _messageDispatcher.RegisterHandler<WorldBlockChangeBroadcast>(OnBlockChangeBroadcast);
             _messageDispatcher.RegisterHandler<PingResponse>(OnPingResponse);
             
+            // Register enhanced protocol handlers
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntitySpawnNotification>(OnEntitySpawnNotification);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityDespawnNotification>(OnEntityDespawnNotification);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityStateUpdate>(OnEntityStateUpdate);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WorldTimeUpdate>(OnWorldTimeUpdate);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WeatherChangeNotification>(OnWeatherChangeNotification);
+            
             _isInitialized = true;
             Debug.Log("ProtobufNetworkClient initialized");
         }
@@ -450,7 +457,36 @@ namespace Networking.Core
             LoginResponseReceived?.Invoke(response);
         }
 
-        // Placeholder handlers for future messages (Move/Chat/Block/Ping) will be implemented when .proto is ready.
+        // Enhanced protocol handlers
+        private void OnEntitySpawnNotification(EnhancedMinecraftProtocol.EntitySpawnNotification notification)
+        {
+            Debug.Log($"Entity spawned: {notification.EntityType} at ({notification.Position.X}, {notification.Position.Y}, {notification.Position.Z})");
+            // TODO: Implement entity spawn handling
+        }
+
+        private void OnEntityDespawnNotification(EnhancedMinecraftProtocol.EntityDespawnNotification notification)
+        {
+            Debug.Log($"Entity despawned: {notification.EntityId}");
+            // TODO: Implement entity despawn handling
+        }
+
+        private void OnEntityStateUpdate(EnhancedMinecraftProtocol.EntityStateUpdate update)
+        {
+            Debug.Log($"Entity state update: {update.EntityId}");
+            // TODO: Implement entity state update handling
+        }
+
+        private void OnWorldTimeUpdate(EnhancedMinecraftProtocol.WorldTimeUpdate timeUpdate)
+        {
+            Debug.Log($"World time updated: {timeUpdate.WorldTime}");
+            // TODO: Implement world time handling
+        }
+
+        private void OnWeatherChangeNotification(EnhancedMinecraftProtocol.WeatherChangeNotification weatherUpdate)
+        {
+            Debug.Log($"Weather changed: {weatherUpdate.WeatherType}");
+            // TODO: Implement weather change handling
+        }
 
         private void OnConnectionStatusChanged(bool isConnected)
         {
@@ -539,3 +575,53 @@ public enum ClientMessageType
     CommandResponse = 121,
     CommandBroadcast = 122,
 }
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
+}
+
+    WorldBlockChangeBroadcast = 22,
+
+    // 채팅 관련
+    ChatRequest = 30,
+    ChatResponse = 31,
+    ChatMessage = 32,
+
+    // 서버 상태/진단
+    PingRequest = 40,
+    PingResponse = 41,
+    ServerStatusRequest = 42,
+    ServerStatusResponse = 43,
+
+    // 플레이어 정보 업데이트
+    PlayerInfoUpdate = 50,
+
+    // AI 시스템 (Server-Authoritative)
+    AIStateSyncBroadcast = 100,
+    AIAttackEventBroadcast = 101,
+    AIDeathEventBroadcast = 102,
+    AISpawnRequest = 103,
+    AISpawnResponse = 104,
+    AIDebugInfoRequest = 105,
+    AIDebugInfoResponse = 106,
+
+    // 전투 시스템 (PvP/PvE)
+    PlayerAttackRequest = 110,
+    PlayerAttackResponse = 111,
+    PlayerAttackBroadcast = 112,
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
+}
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
+}
+
+

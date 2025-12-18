@@ -68,6 +68,8 @@ Set-IfPresent $unity "HydrologyEdgeBlendRadius" $server.Water.HydrologyEdgeBlend
 Set-IfPresent $unity "HydrologyEdgeStabilityIterations" $server.Water.HydrologyEdgeStabilityIterations
 Set-IfPresent $unity "HydrologyEdgeStabilityWeight" $server.Water.HydrologyEdgeStabilityWeight
 Set-IfPresent $unity "HydrologyEdgeVarianceClamp" $server.Water.HydrologyEdgeVarianceClamp
+Set-IfPresent $unity "HydrologyVarianceBlend" $server.Water.HydrologyVarianceBlend
+Set-IfPresent $unity "HydrologyVarianceClamp" $server.Water.HydrologyVarianceClamp
 Set-IfPresent $unity "HydrologyWaterTableClampWeight" $server.Water.HydrologyWaterTableClampWeight
 Set-IfPresent $unity "HydrologyWaterTableClampRange" $server.Water.HydrologyWaterTableClampRange
 Set-IfPresent $unity "HydrologyWaterTableSlopeWeight" $server.Water.HydrologyWaterTableSlopeWeight

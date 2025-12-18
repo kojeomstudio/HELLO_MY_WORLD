@@ -48,6 +48,8 @@
   "HydrologyEdgeStabilityIterations": 1,
   "HydrologyEdgeStabilityWeight": 0.32,
   "HydrologyEdgeVarianceClamp": 0.32,
+  "HydrologyVarianceBlend": 0.55,
+  "HydrologyVarianceClamp": 0.65,
   "HydrologyWaterTableClampWeight": 0.42,
   "HydrologyWaterTableClampRange": 18,
   "HydrologyWaterTableSlopeWeight": 0.55,

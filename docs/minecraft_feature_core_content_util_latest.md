@@ -1,7 +1,7 @@
-## Minecraft core/content/util rollout (latest 2025-12-16)
-- Hydrology curvature smoothing and confluence-aware rivers now run on both the dedicated server (`GameServer/World/WorldManager.cs`, `GameServer/World/Generation/ImprovedWorldGeneration.cs`) and Unity previews (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), controlled by JSON knobs (`HydrologyCurvatureWeight`, `RiverConfluenceBoost`, `LakeBasinSmoothIterations`).
-- Config knobs remain JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and flow through `WorldGenerationConfig`/`WorldConfigFile` so server and client stay in lockstep. See `docs/minecraft_feature_core_content_util_2025-12-16.md` for this snapshot.
-- Proto diagnostics now emit handler coverage via `ProtoDiagnostics.LogHandlerCoverage`, keeping generated EnhancedMinecraft DTOs and registered handlers aligned at startup.
+## Minecraft core/content/util rollout (latest 2025-12-18b)
+- Hydrology variance smoothing now runs ahead of the cave/river/lake passes on both server (`GameServer/World/WorldManager.cs`) and Unity previews (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), driven by new JSON knobs to clamp flow spikes before carving.
+- Map-control profile stays JSON-first (`config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) and now carries the variance blend/clamp settings so chunk-edge hydrology stability stays aligned between server streaming and Unity previews. See `docs/minecraft_feature_core_content_util_2025-12-18b.md` for the detailed split.
+- Proto diagnostics continue to guard EnhancedMinecraft descriptor/handler coverage at startup via `ProtocolValidator` + `ProtoDiagnostics` to catch stale generated DTOs early.
 
 ### Core (authority, world map control, protocol)
 - World map control & chunk streaming ??Server: `GameServer/World/WorldManager.cs`, `World/Generation/*`, `SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs`; Client: `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `SubWorld.cs`; Data: `config/world.json`, `Assets/.../WorldConfigData.json`; Proto: `ChunkLoadRequest/Response`, `ChunkUnloadNotification/Ack`, `WorldInfo`, `TimeUpdateBroadcast`, `WeatherUpdateBroadcast`.

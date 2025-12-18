@@ -63,6 +63,7 @@ public static class ProtocolValidator
         ValidateRegistryDescriptors();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
+        ValidateRegistryBindingNames();
         ValidateParserBindings();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
@@ -83,6 +84,7 @@ public static class ProtocolValidator
         ProtoFingerprint.AssertDescriptorFingerprint();
         ValidateRegistryDescriptors();
         ValidateRegistryPrototypes();
+        ValidateRegistryBindingNames();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
     }
@@ -331,6 +333,36 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft message '{messageType}' is registered without a descriptor binding. Ensure generated protobuf classes are referenced and ProtocolRegistry bindings include both parser and descriptor entries.");
+            }
+        }
+    }
+
+    private static void ValidateRegistryBindingNames()
+    {
+        var duplicateDescriptors = ProtocolRegistry.RegisteredDescriptors
+            .GroupBy(binding => binding.DescriptorName, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+
+        if (duplicateDescriptors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft registry maps multiple message types to the same descriptor: {string.Join(", ", duplicateDescriptors)}. Update ProtocolRegistry so each packet targets a unique generated contract.");
+        }
+
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(binding.MessageType, out IMessage? prototype))
+            {
+                continue;
+            }
+
+            string descriptorName = prototype.Descriptor?.Name ?? string.Empty;
+            if (!string.Equals(binding.DescriptorName, descriptorName, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft registry binding for '{binding.MessageType}' expected descriptor '{binding.DescriptorName}', resolved '{descriptorName}'. Regenerate protobuf assets or update using directives so generated contracts stay aligned.");
             }
         }
     }

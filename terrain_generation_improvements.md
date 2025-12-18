@@ -1,9 +1,9 @@
 # Terrain Generation Improvements Analysis
 
-## Latest update (2025-12-16)
-- Added curvature-weighted hydrology gradients in both server (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`) so caves, rivers, and lakes share smoother downhill vectors across chunk seams.
-- River banks now respect confluence pressure (`RiverConfluenceBoost`) when widening channels and layering rim materials, keeping braided sections and deltas consistent between server chunks and Unity previews.
-- Lake spawning and wetland reinforcement use basin smoothing (`LakeBasinSmoothIterations`) plus hydrology curvature to size basins, lift water levels, and seed saturated shorelines evenly on server and client.
+## Latest update (2025-12-18)
+- Added a variance-aware hydrology smoothing pass to clamp flow spikes before gradient stabilization in both server (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), keeping caves/rivers/lakes aligned across chunk seams and reducing flooded artifacts.
+- World map control/profile now carries the variance blend/clamp knobs from JSON (`config/world.json`, `Assets/.../WorldConfigData.json`) so streamed chunks and Unity previews use identical hydrology stability at the edges.
+- River and lake shaping reuse the stabilized hydrology/flow fields for bank depth and shoreline smoothing, improving basin coherence before erosion and wetland passes run.
 
 ## Current Implementation Analysis
 

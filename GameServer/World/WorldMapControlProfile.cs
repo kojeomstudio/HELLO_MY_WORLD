@@ -15,6 +15,8 @@ namespace GameServerApp.World
         public double HydrologyGradientStabilityBlend { get; init; }
         public double HydrologyCurvatureWeight { get; init; }
         public int HydrologyEdgeBlendRadius { get; init; }
+        public double HydrologyVarianceBlend { get; init; }
+        public double HydrologyVarianceClamp { get; init; }
         public int HydrologySeamRelaxIterations { get; init; }
         public bool EnableRivers { get; init; }
         public bool EnableLakes { get; init; }

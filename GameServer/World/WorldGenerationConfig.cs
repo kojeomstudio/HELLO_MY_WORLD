@@ -90,6 +90,8 @@ namespace GameServerApp.World
         public int HydrologyEdgeStabilityIterations { get; set; } = 1;
         public double HydrologyEdgeStabilityWeight { get; set; } = 0.32;
         public double HydrologyEdgeVarianceClamp { get; set; } = 0.32;
+        public double HydrologyVarianceBlend { get; set; } = 0.55;
+        public double HydrologyVarianceClamp { get; set; } = 0.65;
         public double HydrologyWaterTableClampWeight { get; set; } = 0.42;
         public int HydrologyWaterTableClampRange { get; set; } = 18;
         public double HydrologyWaterTableSlopeWeight { get; set; } = 0.55;

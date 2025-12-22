@@ -13,6 +13,9 @@ public sealed class WorldMapControlProfile
     public int HydrologySeamRelaxIterations { get; }
     public float HydrologyVarianceBlend { get; }
     public float HydrologyVarianceClamp { get; }
+    public float HydrologyEdgeFluxBlend { get; }
+    public float RiverEdgeFeather { get; }
+    public float CaveEdgeSealStrength { get; }
     public int LakeBasinSmoothIterations { get; }
     public bool EnableRivers { get; }
     public bool EnableLakes { get; }
@@ -34,6 +37,9 @@ public sealed class WorldMapControlProfile
         HydrologySeamRelaxIterations = Mathf.Max(0, config.HydrologySeamRelaxIterations);
         HydrologyVarianceBlend = Mathf.Clamp01(config.HydrologyVarianceBlend);
         HydrologyVarianceClamp = Mathf.Clamp(config.HydrologyVarianceClamp, 0f, 1.25f);
+        HydrologyEdgeFluxBlend = Mathf.Clamp01(config.HydrologyEdgeFluxBlend);
+        RiverEdgeFeather = Mathf.Clamp01(config.RiverEdgeFeather);
+        CaveEdgeSealStrength = Mathf.Clamp01(config.EdgeSealStrength);
         LakeBasinSmoothIterations = Mathf.Max(0, config.LakeBasinSmoothIterations);
         EnableRivers = config.EnableRivers;
         EnableLakes = config.EnableLakes;

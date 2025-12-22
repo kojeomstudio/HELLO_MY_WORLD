@@ -204,6 +204,7 @@ public static class ProtocolValidator
     private static void ValidateRegistryPrototypes()
     {
         string expectedNamespace = typeof(ChunkLoadResponse).Namespace ?? string.Empty;
+        var prototypeTypes = new Dictionary<Type, MinecraftMessageType>();
 
         foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
         {
@@ -220,7 +221,16 @@ public static class ProtocolValidator
                     $"EnhancedMinecraft contract '{messageType}' is missing descriptor metadata. Ensure generated protobuf assemblies are referenced and up to date.");
             }
 
-            string prototypeNamespace = descriptor.ClrType?.Namespace ?? prototype.GetType().Namespace ?? string.Empty;
+            Type prototypeType = prototype.GetType();
+            if (prototypeTypes.TryGetValue(prototypeType, out var existingBinding) && existingBinding != messageType)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contracts '{existingBinding}' and '{messageType}' are bound to the same CLR type '{prototypeType.FullName}'. Regenerate protobuf assets so each message uses its own generated class and using directive.");
+            }
+
+            prototypeTypes[prototypeType] = messageType;
+
+            string prototypeNamespace = descriptor.ClrType?.Namespace ?? prototypeType.Namespace ?? string.Empty;
             if (!string.Equals(prototypeNamespace, expectedNamespace, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
@@ -228,7 +238,7 @@ public static class ProtocolValidator
             }
 
             Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
-            Assembly prototypeAssembly = prototype.GetType().Assembly;
+            Assembly prototypeAssembly = prototypeType.Assembly;
             Assembly descriptorAssembly = descriptor.ClrType?.Assembly ?? prototypeAssembly;
 
             if (!ReferenceEquals(prototypeAssembly, expectedAssembly) || !ReferenceEquals(descriptorAssembly, expectedAssembly))

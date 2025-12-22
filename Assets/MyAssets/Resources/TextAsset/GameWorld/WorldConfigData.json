@@ -48,6 +48,7 @@
   "HydrologyEdgeStabilityIterations": 1,
   "HydrologyEdgeStabilityWeight": 0.32,
   "HydrologyEdgeVarianceClamp": 0.32,
+  "HydrologyEdgeFluxBlend": 0.55,
   "HydrologyVarianceBlend": 0.55,
   "HydrologyVarianceClamp": 0.65,
   "HydrologyWaterTableClampWeight": 0.42,
@@ -74,6 +75,7 @@
   "RiverIntensitySmoothIterations": 3,
   "RiverIntensitySmoothBlend": 0.58,
   "RiverConfluenceBoost": 0.35,
+  "RiverEdgeFeather": 0.45,
   "RiverBankErosionWeight": 0.18,
   "LakeRimErosionWeight": 0.3,
   "LakeInflowBlendWeight": 0.42,
@@ -87,5 +89,6 @@
   "FlowStabilityWeight": 0.25,
   "RoughnessStabilityWeight": 0.1,
   "RiverSuppressionWeight": 0.35,
-  "MoistureRetentionWeight": 0.35
+  "MoistureRetentionWeight": 0.35,
+  "EdgeSealStrength": 0.45
 }

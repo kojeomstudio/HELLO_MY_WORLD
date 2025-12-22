@@ -27,6 +27,7 @@ namespace GameServerApp.World
             GenerateCavesInternal(context);
 
             StabilizeCaveEntrances(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, hydrologyField.HydrologyCurvature);
+            SealChunkEdgeCaves(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
         }
 
         public void GenerateImprovedRiversInternal(TerrainGenerationContext context)
@@ -107,6 +108,66 @@ namespace GameServerApp.World
                     if (patched && surface + 1 < 256)
                     {
                         chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+                    }
+                }
+            }
+        }
+
+        private void SealChunkEdgeCaves(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (_caveEdgeSealStrength <= 0.0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double sealBase = Math.Clamp(_caveEdgeSealStrength, 0.0, 1.0);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(15 - x, 15 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 6)
+                    {
+                        continue;
+                    }
+
+                    if (!TryFindCaveSpan(chunk, surface, x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    int cavityHeight = top - bottom;
+                    if (cavityHeight < 4)
+                    {
+                        continue;
+                    }
+
+                    double wetness = Math.Clamp(hydrologyMask[x, z] + flowAccumulation[x, z] * 0.15, 0.0, 1.0);
+                    double edgeBlend = Math.Clamp(sealBase * (1.0 - edgeDistance / (double)radius) * (0.85 + wetness * 0.35), 0.0, 1.0);
+                    int sealThickness = Math.Clamp((int)Math.Round(1 + cavityHeight * (0.15 + wetness * 0.2)), 1, Math.Min(3, cavityHeight - 1));
+                    int sealStart = Math.Max(bottom + cavityHeight - sealThickness, bottom + 1);
+                    var fillBlock = wetness > 0.6 ? BlockType.Cobblestone : BlockType.Stone;
+
+                    for (int y = top; y >= sealStart; y--)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air || block == BlockType.Water)
+                        {
+                            double selector = SampleDeterministicNoise(x * 41 + z * 17, y * 13 + surface, 0x6CA5E0FF);
+                            if (selector <= edgeBlend)
+                            {
+                                chunk.SetBlock(x, y, z, fillBlock);
+                                surfaceCache[x, z] = Math.Max(surfaceCache[x, z], y);
+                            }
+                        }
                     }
                 }
             }

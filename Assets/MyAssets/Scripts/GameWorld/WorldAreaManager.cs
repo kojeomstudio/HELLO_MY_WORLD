@@ -62,6 +62,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyEdgeStabilityIterations = Mathf.Max(0, tunedWorldConfig.HydrologyEdgeStabilityIterations);
         WorldGenAlgorithms.HydrologyEdgeStabilityWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeStabilityWeight);
         WorldGenAlgorithms.HydrologyEdgeVarianceClamp = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeVarianceClamp);
+        WorldGenAlgorithms.HydrologyEdgeFluxBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyEdgeFluxBlend);
         WorldGenAlgorithms.HydrologyVarianceBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyVarianceBlend);
         WorldGenAlgorithms.HydrologyVarianceClamp = Mathf.Clamp(tunedWorldConfig.HydrologyVarianceClamp, 0f, 1.25f);
         WorldGenAlgorithms.HydrologyWaterTableClampWeight = Mathf.Clamp01(tunedWorldConfig.HydrologyWaterTableClampWeight);
@@ -91,6 +92,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(tunedWorldConfig.RiverBankErosionWeight);
         WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(tunedWorldConfig.LakeRimErosionWeight);
         WorldGenAlgorithms.LakeInflowBlendWeight = Mathf.Clamp01(tunedWorldConfig.LakeInflowBlendWeight);
+        WorldGenAlgorithms.RiverEdgeFeather = Mathf.Clamp01(tunedWorldConfig.RiverEdgeFeather);
         WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(tunedWorldConfig.LakeSpawnWeightBias, 0f, 1.3f);
         WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(tunedWorldConfig.LakeShorelineBlend);
         WorldGenAlgorithms.LakeBasinSmoothIterations = Mathf.Max(0, tunedWorldConfig.LakeBasinSmoothIterations);
@@ -107,6 +109,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveDepthWeight = Mathf.Clamp(1f - caveWeightTotal, 0.05f, 0.45f);
         WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(tunedWorldConfig.RiverSuppressionWeight);
         WorldGenAlgorithms.CaveMoistureRetentionWeight = Mathf.Clamp01(tunedWorldConfig.MoistureRetentionWeight);
+        WorldGenAlgorithms.CaveEdgeSealStrength = Mathf.Clamp01(tunedWorldConfig.EdgeSealStrength);
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.

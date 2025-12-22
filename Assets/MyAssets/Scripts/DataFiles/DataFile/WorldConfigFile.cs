@@ -42,6 +42,7 @@ public struct WorldConfig
     public int HydrologyEdgeStabilityIterations;
     public float HydrologyEdgeStabilityWeight;
     public float HydrologyEdgeVarianceClamp;
+    public float HydrologyEdgeFluxBlend;
     public float HydrologyVarianceBlend;
     public float HydrologyVarianceClamp;
     public float HydrologyWaterTableClampWeight;
@@ -74,6 +75,7 @@ public struct WorldConfig
     public int RiverIntensitySmoothIterations;
     public float RiverIntensitySmoothBlend;
     public float RiverConfluenceBoost;
+    public float RiverEdgeFeather;
     public int CaveStabilitySmoothIterations;
     public float CaveStabilitySmoothBlend;
     public float CaveSupportDensity;
@@ -84,6 +86,7 @@ public struct WorldConfig
     public float RoughnessStabilityWeight;
     public float RiverSuppressionWeight;
     public float MoistureRetentionWeight;
+    public float EdgeSealStrength;
 }
 
 /// <summary>
@@ -159,6 +162,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyEdgeStabilityIterations = ParseInt(data, "HydrologyEdgeStabilityIterations", 1);
                 Config.HydrologyEdgeStabilityWeight = ParseFloat(data, "HydrologyEdgeStabilityWeight", 0.32f);
                 Config.HydrologyEdgeVarianceClamp = ParseFloat(data, "HydrologyEdgeVarianceClamp", 0.32f);
+                Config.HydrologyEdgeFluxBlend = ParseFloat(data, "HydrologyEdgeFluxBlend", 0.55f);
                 Config.HydrologyVarianceBlend = ParseFloat(data, "HydrologyVarianceBlend", 0.55f);
                 Config.HydrologyVarianceClamp = ParseFloat(data, "HydrologyVarianceClamp", 0.65f);
                 Config.HydrologyWaterTableClampWeight = ParseFloat(data, "HydrologyWaterTableClampWeight", 0.42f);
@@ -188,6 +192,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RiverBankErosionWeight = ParseFloat(data, "RiverBankErosionWeight", 0.18f);
                 Config.LakeRimErosionWeight = ParseFloat(data, "LakeRimErosionWeight", 0.3f);
                 Config.LakeInflowBlendWeight = ParseFloat(data, "LakeInflowBlendWeight", 0.42f);
+                Config.RiverEdgeFeather = ParseFloat(data, "RiverEdgeFeather", 0.45f);
                 Config.LakeSpawnWeightBias = ParseFloat(data, "LakeSpawnWeightBias", 0.3f);
                 Config.LakeShorelineBlend = ParseFloat(data, "LakeShorelineBlend", 0.66f);
                 Config.RiverProximitySuppression = ParseFloat(data, "RiverProximitySuppression", 0.35f);
@@ -201,6 +206,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RoughnessStabilityWeight = ParseFloat(data, "RoughnessStabilityWeight", 0.1f);
                 Config.RiverSuppressionWeight = ParseFloat(data, "RiverSuppressionWeight", 0.35f);
                 Config.MoistureRetentionWeight = ParseFloat(data, "MoistureRetentionWeight", 0.35f);
+                Config.EdgeSealStrength = ParseFloat(data, "EdgeSealStrength", 0.45f);
                 break;
             case JSONObject.Type.ARRAY:
                 break;

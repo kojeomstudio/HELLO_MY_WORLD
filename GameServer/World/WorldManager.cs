@@ -39,6 +39,7 @@ namespace GameServerApp.World
         private readonly int _hydrologyEdgeStabilityIterations;
         private readonly double _hydrologyEdgeStabilityWeight;
         private readonly double _hydrologyEdgeVarianceClamp;
+        private readonly double _hydrologyEdgeFluxBlend;
         private readonly double _hydrologyVarianceBlend;
         private readonly double _hydrologyVarianceClamp;
         private readonly double _hydrologyWaterTableClampWeight;
@@ -60,6 +61,7 @@ namespace GameServerApp.World
         private readonly int _riverIntensitySmoothIterations;
         private readonly double _riverIntensitySmoothBlend;
         private readonly double _riverConfluenceBoost;
+        private readonly double _riverEdgeFeather;
         private readonly int _caveStabilitySmoothIterations;
         private readonly double _caveStabilitySmoothBlend;
         private readonly double _caveSupportDensity;
@@ -81,6 +83,7 @@ namespace GameServerApp.World
         private readonly int _lakeBasinSmoothIterations;
         private readonly double _lakeInflowBlendWeight;
         private readonly double _caveMoistureRetentionWeight;
+        private readonly double _caveEdgeSealStrength;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -211,6 +214,7 @@ namespace GameServerApp.World
             _hydrologyEdgeStabilityIterations = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeStabilityIterations, 0, 4);
             _hydrologyEdgeStabilityWeight = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeStabilityWeight, 0.0, 1.0);
             _hydrologyEdgeVarianceClamp = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeVarianceClamp, 0.0, 1.0);
+            _hydrologyEdgeFluxBlend = Math.Clamp(_worldGenConfig.Water.HydrologyEdgeFluxBlend, 0.0, 1.0);
             _hydrologyVarianceBlend = Math.Clamp(_worldGenConfig.Water.HydrologyVarianceBlend, 0.0, 1.0);
             _hydrologyVarianceClamp = Math.Clamp(_worldGenConfig.Water.HydrologyVarianceClamp, 0.0, 1.25);
             _hydrologyWaterTableClampWeight = Math.Clamp(_worldGenConfig.Water.HydrologyWaterTableClampWeight, 0.0, 1.0);
@@ -232,6 +236,7 @@ namespace GameServerApp.World
             _riverIntensitySmoothIterations = Math.Clamp(_worldGenConfig.Water.RiverIntensitySmoothIterations, 1, 6);
             _riverIntensitySmoothBlend = Math.Clamp(_worldGenConfig.Water.RiverIntensitySmoothBlend, 0.0, 1.0);
             _riverConfluenceBoost = Math.Clamp(_worldGenConfig.Water.RiverConfluenceBoost, 0.0, 2.0);
+            _riverEdgeFeather = Math.Clamp(_worldGenConfig.Water.RiverEdgeFeather, 0.0, 1.0);
             _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
             _caveSupportDensity = Math.Clamp(_worldGenConfig.Caves.SupportDensity, 0.0, 1.0);
@@ -254,6 +259,7 @@ namespace GameServerApp.World
             _lakeBasinSmoothIterations = Math.Clamp(_worldGenConfig.Lakes.LakeBasinSmoothIterations, 0, 6);
             _lakeInflowBlendWeight = Math.Clamp(_worldGenConfig.Water.LakeInflowBlendWeight, 0.0, 1.0);
             _caveMoistureRetentionWeight = Math.Clamp(_worldGenConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
+            _caveEdgeSealStrength = Math.Clamp(_worldGenConfig.Caves.EdgeSealStrength, 0.0, 1.0);
 
             int chunkSize = Math.Max(1, _worldGenConfig.ChunkSize);
             int renderDistance = Math.Max(_worldGenConfig.RenderDistance, Math.Max(1, _worldSettings.ChunkLoadRadius));
@@ -271,6 +277,9 @@ namespace GameServerApp.World
                 HydrologyVarianceBlend = _hydrologyVarianceBlend,
                 HydrologyVarianceClamp = _hydrologyVarianceClamp,
                 HydrologySeamRelaxIterations = _hydrologySeamRelaxIterations,
+                HydrologyEdgeFluxBlend = _hydrologyEdgeFluxBlend,
+                RiverEdgeFeather = _riverEdgeFeather,
+                CaveEdgeSealStrength = _caveEdgeSealStrength,
                 EnableRivers = _enableRivers,
                 EnableLakes = _enableLakes,
                 EnableCaves = _enableCaves,
@@ -2716,6 +2725,7 @@ namespace GameServerApp.World
                 EnforceHydrologyEdgeConsistency(hydrologyMask, flowAccumulation);
                 StabilizeHydrologyVariance(hydrologyMask, flowAccumulation, surfaceCache);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
+                ProjectHydrologyEdgeFlux(context, surfaceCache, hydrologyMask, flowAccumulation);
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
                 NormalizeHydrologyPressure(hydrologyMask, flowAccumulation);
                 ClampHydrologyToWaterTable(surfaceCache, hydrologyMask, flowAccumulation);
@@ -2743,6 +2753,7 @@ namespace GameServerApp.World
             if (!cache.IsInitialized)
             {
                 PopulateRiverFieldCache(cache, context);
+                FeatherRiverEdgeIntensity(context, cache);
                 cache.IsInitialized = true;
             }
 
@@ -2766,6 +2777,40 @@ namespace GameServerApp.World
                 }
             }
 
+        }
+
+        private void FeatherRiverEdgeIntensity(TerrainGenerationContext context, RiverFieldCache cache)
+        {
+            if (_riverEdgeFeather <= 0.0)
+            {
+                return;
+            }
+
+            double blendBase = Math.Clamp(_riverEdgeFeather, 0.0, 1.0);
+            int radius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            int originX = context.ChunkX * 16;
+            int originZ = context.ChunkZ * 16;
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(15 - x, 15 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    int step = Math.Max(1, radius - edgeDistance);
+                    int outwardX = x < 8 ? -step : step;
+                    int outwardZ = z < 8 ? -step : step;
+                    double riverSample = Math.Abs(SampleRiverField(originX + x + outwardX, originZ + z + outwardZ));
+                    double riverPressure = Math.Clamp(1.0 - riverSample / Math.Max(RiverBankThreshold, 1e-5), 0.0, 1.0);
+                    double blend = Math.Clamp(blendBase * (1.0 - edgeDistance / (double)radius), 0.0, 1.0);
+                    double projected = Math.Clamp(cache.Intensity[x, z] * 0.65 + riverPressure * 0.35, 0.0, 1.25);
+                    cache.Intensity[x, z] = cache.Intensity[x, z] * (1.0 - blend) + projected * blend;
+                }
+            }
         }
 
         private int[,] BuildSurfaceCache(ChunkData chunk)
@@ -3508,6 +3553,60 @@ namespace GameServerApp.World
                 {
                     hydrologyMask[x, z] = hydrologyBuffer[x, z];
                     flowAccumulation[x, z] = flowBuffer[x, z];
+                }
+            }
+        }
+
+        private void ProjectHydrologyEdgeFlux(TerrainGenerationContext context, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (_hydrologyEdgeFluxBlend <= 0.0)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int radius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double blendBase = Math.Clamp(_hydrologyEdgeFluxBlend, 0.0, 1.0);
+            int originX = context.ChunkX * 16;
+            int originZ = context.ChunkZ * 16;
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    Vector2 slopeDir = ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                    double slopeMagnitude = slopeDir.Length();
+                    double slopeWeight = Math.Clamp(slopeMagnitude * (_hydrologyGradientWeight * 0.6 + 0.2), 0.0, 1.0);
+
+                    int outwardX = x < width / 2 ? -1 : 1;
+                    int outwardZ = z < depth / 2 ? -1 : 1;
+                    int sampleStep = Math.Max(1, radius - edgeDistance);
+                    int sampleWorldX = originX + x + (Math.Abs(slopeDir.X) > 1e-4f ? Math.Sign(slopeDir.X) : outwardX) * sampleStep;
+                    int sampleWorldZ = originZ + z + (Math.Abs(slopeDir.Y) > 1e-4f ? Math.Sign(slopeDir.Y) : outwardZ) * sampleStep;
+
+                    double riverIntensity = Math.Abs(SampleRiverField(sampleWorldX, sampleWorldZ));
+                    double riverPressure = Math.Clamp(1.0 - riverIntensity / Math.Max(RiverBankThreshold, 1e-5), 0.0, 1.0);
+                    double wetness = hydrologyMask[x, z] + flowAccumulation[x, z] * 0.1;
+                    double projection = Math.Clamp(wetness + riverPressure * (0.35 + slopeWeight * 0.25), 0.0, 1.25);
+                    double edgeBlend = Math.Clamp(blendBase * (1.0 - edgeDistance / (double)radius) * (0.85 + slopeWeight * 0.35), 0.0, 1.0);
+
+                    hydrologyMask[x, z] = hydrologyMask[x, z] * (1.0 - edgeBlend) + projection * edgeBlend;
+
+                    double projectedFlow = flowAccumulation[x, z] * (1.0 + riverPressure * 0.35 + slopeWeight * 0.2);
+                    flowAccumulation[x, z] = flowAccumulation[x, z] * (1.0 - edgeBlend * 0.5) + projectedFlow * (edgeBlend * 0.5);
                 }
             }
         }

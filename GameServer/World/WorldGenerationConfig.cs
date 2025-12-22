@@ -90,6 +90,7 @@ namespace GameServerApp.World
         public int HydrologyEdgeStabilityIterations { get; set; } = 1;
         public double HydrologyEdgeStabilityWeight { get; set; } = 0.32;
         public double HydrologyEdgeVarianceClamp { get; set; } = 0.32;
+        public double HydrologyEdgeFluxBlend { get; set; } = 0.55;
         public double HydrologyVarianceBlend { get; set; } = 0.55;
         public double HydrologyVarianceClamp { get; set; } = 0.65;
         public double HydrologyWaterTableClampWeight { get; set; } = 0.42;
@@ -115,6 +116,7 @@ namespace GameServerApp.World
         public double RiverAnisotropyWeight { get; set; } = 0.32;
         public double LakeInflowBlendWeight { get; set; } = 0.42;
         public double RiverConfluenceBoost { get; set; } = 0.35;
+        public double RiverEdgeFeather { get; set; } = 0.45;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
         public bool UseImprovedRivers { get; set; } = true;
@@ -167,6 +169,7 @@ namespace GameServerApp.World
         public double SupportHydrationBias { get; set; } = 0.42;
         public double SupportFlowBias { get; set; } = 0.20;
         public double MoistureRetentionWeight { get; set; } = 0.35;
+        public double EdgeSealStrength { get; set; } = 0.45;
     }
 
     public sealed class LakeConfig

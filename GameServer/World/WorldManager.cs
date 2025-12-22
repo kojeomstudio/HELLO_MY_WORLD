@@ -2112,6 +2112,9 @@ namespace GameServerApp.World
                     double edgeDistance = Math.Min(Math.Min(x, 15 - x), Math.Min(z, 15 - z));
                     double seamRelax = Math.Clamp(1.0 - edgeDistance / 6.0, 0.0, 1.0) * _hydrologyEdgeVarianceClamp;
                     double moistureRetention = Math.Clamp(1.0 - hydrology, 0.0, 1.0);
+                    double riverPressureRaw = Math.Abs(SampleRiverField(worldX, worldZ));
+                    double riverPressure = Math.Clamp(riverPressureRaw / Math.Max(RiverBankThreshold, 1e-5), 0.0, 1.25);
+                    double riparianSuppression = riverPressure * _caveRiverSuppressionWeight;
 
                     var warp = SimplexNoise.DomainWarp(worldX, worldZ, 0.00095, 0.0015, 22.0, 14.0, 53117);
                     double warpedX = worldX + warp.dx;
@@ -2139,6 +2142,7 @@ namespace GameServerApp.World
                         density -= Math.Clamp(erosionRisk * 1.15, 0.0, 1.0) * 0.06;
                         density -= gradientBias * 0.06;
                         density -= seamRelax * 0.01;
+                        density -= riparianSuppression * 0.03;
 
                         double strata = Math.Sin((warpedX + warpedZ + y * 1.5) * 0.012);
                         density -= Math.Clamp(strata * 0.08, -0.08, 0.08);
@@ -2167,7 +2171,9 @@ namespace GameServerApp.World
                         dynamicThreshold -= flow * 0.02;
                         dynamicThreshold += (0.5 - hydrology) * 0.02;
                         dynamicThreshold -= seamRelax * 0.03;
-                        dynamicThreshold += moistureRetention * _caveMoistureRetentionWeight * 0.01;
+                        dynamicThreshold += riparianSuppression * 0.06;
+                        double adjustedMoistureRetention = moistureRetention * (1.0 - riparianSuppression * 0.35);
+                        dynamicThreshold += adjustedMoistureRetention * _caveMoistureRetentionWeight * 0.01;
 
                         if (density < dynamicThreshold)
                         {
@@ -2184,7 +2190,8 @@ namespace GameServerApp.World
                                                   waterTableProximity * _caveSettings.FloodedCaveProximityToWaterTableWeight +
                                                   erosionRisk * 0.12 +
                                                   gradientBias * 0.12 +
-                                                  flow * 0.08;
+                                                  flow * 0.08 +
+                                                  riparianSuppression * 0.35;
 
                             if (y < GlobalWaterLevel && floodedCheck > _caveSettings.FloodedCaveThreshold)
                             {
@@ -3731,6 +3738,22 @@ namespace GameServerApp.World
                     double targetFlow = ClampEdgeVariance(flowAccumulation[x, z], interior.flow, _hydrologyEdgeVarianceClamp * 1.25, 0.05);
                     double blend = Math.Clamp(0.35 + falloff * (0.35 + _hydrologyFlowPersistence * 0.1), 0.0, 1.0);
 
+                    var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                    double gradientStrength = gradient.Length();
+                    if (gradientStrength > 1e-5)
+                    {
+                        var normalized = Vector2.Normalize(gradient);
+                        int gradStep = Math.Max(1, edgeRadius - edgeDistance + 1);
+                        int gradX = Math.Clamp(x + (int)Math.Round(normalized.X * gradStep), 0, width - 1);
+                        int gradZ = Math.Clamp(z + (int)Math.Round(normalized.Y * gradStep), 0, depth - 1);
+                        double directionalHydro = hydrologyMask[gradX, gradZ];
+                        double directionalFlow = flowAccumulation[gradX, gradZ];
+                        double alignment = Vector2.Dot(normalized, ComputeHydrologyGradientVector(hydrologyMask, gradX, gradZ));
+                        double gradientBlend = Math.Clamp(_hydrologyEdgeFlowLockWeight * Math.Max(0.0, alignment) * (0.5 + flowPersistence * 0.4 + _hydrologyGradientWeight * 0.2), 0.0, 1.0);
+                        targetHydro = targetHydro * (1.0 - gradientBlend) + directionalHydro * gradientBlend;
+                        targetFlow = targetFlow * (1.0 - gradientBlend) + directionalFlow * gradientBlend;
+                    }
+
                     hydrologyMask[x, z] = Math.Clamp(hydrologyMask[x, z] * (1.0 - blend) + targetHydro * blend, 0.0, 1.0);
                     flowAccumulation[x, z] = Math.Max(0.0, flowAccumulation[x, z] * (1.0 - blend) + targetFlow * blend);
                 }
@@ -4384,6 +4407,62 @@ namespace GameServerApp.World
                 }
 
                 Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+            }
+
+            FeatherRiverIntensityEdges(riverIntensity);
+        }
+
+        private void FeatherRiverIntensityEdges(double[,] riverIntensity)
+        {
+            int width = riverIntensity.GetLength(0);
+            int depth = riverIntensity.GetLength(1);
+            int radius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double clampWeight = Math.Clamp(_hydrologyEdgeVarianceClamp, 0.0, 1.0);
+            double stabilityWeight = Math.Clamp(_hydrologyEdgeStabilityWeight, 0.0, 1.0);
+            if (clampWeight <= 0.0)
+            {
+                return;
+            }
+
+            var original = (double[,])riverIntensity.Clone();
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    double sum = 0.0;
+                    int samples = 0;
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int sampleX = x + dx;
+                            int sampleZ = z + dz;
+                            if (sampleX < 0 || sampleX >= width || sampleZ < 0 || sampleZ >= depth)
+                            {
+                                continue;
+                            }
+
+                            sum += original[sampleX, sampleZ];
+                            samples++;
+                        }
+                    }
+
+                    if (samples == 0)
+                    {
+                        continue;
+                    }
+
+                    double average = sum / samples;
+                    double blend = clampWeight * (1.0 - edgeDistance / (double)radius);
+                    blend = Math.Clamp(blend * (0.65 + stabilityWeight * 0.35), 0.0, 1.0);
+                    riverIntensity[x, z] = Math.Max(0.0, original[x, z] * (1.0 - blend) + average * blend);
+                }
             }
         }
 

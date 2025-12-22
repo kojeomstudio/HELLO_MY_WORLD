@@ -149,6 +149,14 @@ namespace GameServerApp.Handlers
             };
         }
 
+        private int ClampViewDistance(int requestedViewDistance)
+        {
+            int resolved = requestedViewDistance > 0 ? requestedViewDistance : _worldSettings.ChunkLoadRadius;
+            int maxAllowed = _worldManager.MapControlProfile?.RenderDistance ?? _worldSettings.ChunkLoadRadius;
+            int minAllowed = 1;
+            return Math.Min(Math.Max(resolved, minAllowed), Math.Max(minAllowed, maxAllowed));
+        }
+
         private async Task HandleEnhancedChunkRequestAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadRequest request)
         {
             var playerId = session.UserName ?? string.Empty;
@@ -163,7 +171,7 @@ namespace GameServerApp.Handlers
                 return;
             }
 
-            var requestedViewDistance = request.ViewDistance > 0 ? request.ViewDistance : _worldSettings.ChunkLoadRadius;
+            var requestedViewDistance = ClampViewDistance(request.ViewDistance);
             var totalRequested = Math.Max(1, request.ChunkPositions.Count);
             await SendEnhancedChunkLoadResponsesAsync(session, playerId, playerState, request.ChunkPositions, requestedViewDistance, totalRequested);
         }
@@ -178,7 +186,7 @@ namespace GameServerApp.Handlers
                 return;
             }
 
-            var viewDistance = chunkRequest.ViewDistance > 0 ? chunkRequest.ViewDistance : _worldSettings.ChunkLoadRadius;
+            var viewDistance = ClampViewDistance(chunkRequest.ViewDistance);
             await HandleSingleChunkAsync(session, playerId, playerState, chunkRequest.ChunkX, chunkRequest.ChunkZ, viewDistance, totalRequested: 1);
         }
 

@@ -1879,6 +1879,28 @@ namespace MapGenLib
                     float targetFlow = ClampEdgeVariance(flowAccumulation[x, z], interiorFlow, HydrologyEdgeVarianceClamp * 1.25f, 0.05f);
                     float blend = CustomMathf.Clamp01(0.35f + falloff * (0.35f + HydrologyFlowPersistence * 0.1f));
 
+                    var gradient = ComputeHydrologyGradientVector(hydrologyMask, x, z);
+                    float gradientStrength = gradient.magnitude;
+                    if (gradientStrength > CustomVector2.kEpsilon)
+                    {
+                        gradient.Normalize();
+                        int gradStep = CustomMathf.Max(1, edgeRadius - edgeDistance + 1);
+                        int gradX = CustomMathf.Clamp(x + CustomMathf.RoundToInt(gradient.x * gradStep), 0, width - 1);
+                        int gradZ = CustomMathf.Clamp(z + CustomMathf.RoundToInt(gradient.y * gradStep), 0, depth - 1);
+                        float directionalHydro = hydrologyMask[gradX, gradZ];
+                        float directionalFlow = flowAccumulation[gradX, gradZ];
+                        var downstream = ComputeHydrologyGradientVector(hydrologyMask, gradX, gradZ);
+                        float alignment = 0f;
+                        if (downstream.sqrMagnitude > CustomVector2.kEpsilon)
+                        {
+                            downstream.Normalize();
+                            alignment = CustomVector2.Dot(gradient, downstream);
+                        }
+                        float gradientBlend = CustomMathf.Clamp01(HydrologyEdgeFlowLockWeight * CustomMathf.Max(0f, alignment) * (0.5f + flowPersistence * 0.4f + HydrologyGradientWeight * 0.2f));
+                        targetHydro = CustomMathf.Lerp(targetHydro, directionalHydro, gradientBlend);
+                        targetFlow = CustomMathf.Lerp(targetFlow, directionalFlow, gradientBlend);
+                    }
+
                     hydrologyMask[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], targetHydro, blend));
                     flowAccumulation[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flowAccumulation[x, z], targetFlow, blend));
                 }
@@ -2262,6 +2284,62 @@ namespace MapGenLib
                 }
 
                 Array.Copy(scratch, riverIntensity, riverIntensity.Length);
+            }
+
+            FeatherRiverIntensityEdges(riverIntensity);
+        }
+
+        private static void FeatherRiverIntensityEdges(float[,] riverIntensity)
+        {
+            int width = riverIntensity.GetLength(0);
+            int depth = riverIntensity.GetLength(1);
+            int radius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float clampWeight = CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
+            float stabilityWeight = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
+            if (clampWeight <= 0f)
+            {
+                return;
+            }
+
+            var original = (float[,])riverIntensity.Clone();
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    float sum = 0f;
+                    int samples = 0;
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int sampleX = x + dx;
+                            int sampleZ = z + dz;
+                            if (sampleX < 0 || sampleX >= width || sampleZ < 0 || sampleZ >= depth)
+                            {
+                                continue;
+                            }
+
+                            sum += original[sampleX, sampleZ];
+                            samples++;
+                        }
+                    }
+
+                    if (samples == 0)
+                    {
+                        continue;
+                    }
+
+                    float average = sum / samples;
+                    float blend = clampWeight * (1f - edgeDistance / (float)radius);
+                    blend = CustomMathf.Clamp01(blend * (0.65f + stabilityWeight * 0.35f));
+                    riverIntensity[x, z] = CustomMathf.Max(0f, original[x, z] * (1f - blend) + average * blend);
+                }
             }
         }
 
@@ -7064,6 +7142,9 @@ namespace MapGenLib
                     float edgeDistance = CustomMathf.Min(CustomMathf.Min(x, subWorldSize.SizeX - 1 - x), CustomMathf.Min(z, subWorldSize.SizeZ - 1 - z));
                     float seamRelax = CustomMathf.Clamp01(1f - edgeDistance / 6f) * CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
                     float moistureRetention = CustomMathf.Clamp01(1f - hydrology);
+                    float riverMask = EvaluateRiverIntensity(x, z, out _);
+                    float riverPressure = CustomMathf.Clamp01(riverMask * 3.5f);
+                    float riparianSuppression = riverPressure * CaveRiverSuppressionWeight;
 
                     for (int y = 6; y < maxY; y++)
                     {
@@ -7081,6 +7162,7 @@ namespace MapGenLib
                         density -= CustomMathf.Clamp01(erosionRisk * 1.15f) * 0.06f;
                         density -= gradientBias * 0.06f;
                         density -= seamRelax * 0.01f;
+                        density -= riparianSuppression * 0.03f;
 
                         float verticalFade = CustomMathf.Clamp01((y - 16f) / 150f);
                         density -= verticalFade * 0.5f;
@@ -7107,7 +7189,9 @@ namespace MapGenLib
                         threshold -= flow * 0.02f;
                         threshold += (0.5f - hydrology) * 0.02f;
                         threshold -= seamRelax * 0.03f;
-                        threshold += moistureRetention * CaveMoistureRetentionWeight * 0.01f;
+                        threshold += riparianSuppression * 0.06f;
+                        float adjustedMoistureRetention = moistureRetention * (1f - riparianSuppression * 0.35f);
+                        threshold += adjustedMoistureRetention * CaveMoistureRetentionWeight * 0.01f;
 
                         if (density < threshold)
                         {
@@ -7117,7 +7201,7 @@ namespace MapGenLib
                                 continue;
                             }
 
-                            float floodedBias = CustomMathf.Clamp01(liquidity * 0.6f + erosionRisk * 0.5f + gradientBias * 0.3f + flow * 0.25f);
+                            float floodedBias = CustomMathf.Clamp01(liquidity * 0.6f + erosionRisk * 0.5f + gradientBias * 0.3f + flow * 0.25f + riparianSuppression * 0.35f);
                             if (density < threshold * (0.45f + floodedBias * 0.25f) && y < 14)
                             {
                                 subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;

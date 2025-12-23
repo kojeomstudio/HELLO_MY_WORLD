@@ -51,6 +51,9 @@ namespace GameServerApp.World
         private readonly double _hydrologyGradientClamp;
         private readonly int _hydrologyGradientStabilityIterations;
         private readonly double _hydrologyGradientStabilityBlend;
+        private readonly int _hydrologyDirectionalIterations;
+        private readonly double _hydrologyDirectionalBlend;
+        private readonly double _hydrologyFlowDivergenceClamp;
         private readonly double _hydrologyCurvatureWeight;
         private readonly int _hydrologySeamRelaxIterations;
         private readonly double _hydrologySeamRelaxBlend;
@@ -226,6 +229,9 @@ namespace GameServerApp.World
             _hydrologyGradientClamp = Math.Clamp(_worldGenConfig.Water.HydrologyGradientClamp, 0.1, 3.5);
             _hydrologyGradientStabilityIterations = Math.Clamp(_worldGenConfig.Water.HydrologyGradientStabilityIterations, 0, 6);
             _hydrologyGradientStabilityBlend = Math.Clamp(_worldGenConfig.Water.HydrologyGradientStabilityBlend, 0.0, 1.0);
+            _hydrologyDirectionalIterations = Math.Clamp(_worldGenConfig.Water.HydrologyDirectionalIterations, 0, 4);
+            _hydrologyDirectionalBlend = Math.Clamp(_worldGenConfig.Water.HydrologyDirectionalBlend, 0.0, 1.0);
+            _hydrologyFlowDivergenceClamp = Math.Clamp(_worldGenConfig.Water.HydrologyFlowDivergenceClamp, 0.0, 1.5);
             _hydrologyCurvatureWeight = Math.Clamp(_worldGenConfig.Water.HydrologyCurvatureWeight, 0.0, 1.5);
             _hydrologySeamRelaxIterations = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxIterations, 0, 4);
             _hydrologySeamRelaxBlend = Math.Clamp(_worldGenConfig.Water.HydrologySeamRelaxBlend, 0.0, 1.0);
@@ -290,7 +296,7 @@ namespace GameServerApp.World
             };
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
-            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
+            Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/dir={_hydrologyDirectionalIterations}/{_hydrologyDirectionalBlend:0.##}/divClamp={_hydrologyFlowDivergenceClamp:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
             Console.WriteLine($"[WorldManager] map control: chunk={_mapControlProfile.ChunkSize}, render={_mapControlProfile.RenderDistance}, sim={_mapControlProfile.SimulationDistance}, water={_mapControlProfile.GlobalWaterLevel}, curv={_mapControlProfile.HydrologyCurvatureWeight:0.##}");
 
             var pipeline = new TerrainGenerationPipeline()
@@ -3544,6 +3550,76 @@ namespace GameServerApp.World
                     double flowBlend = Math.Clamp(flowBlendBase * gradientDamping + gradientBlend, 0.0, 1.0);
                     hydrologyBuffer[x, z] = Math.Clamp(hydrology + (blendedHydrology / weight - hydrology) * hydrologyBlend, 0.0, 1.0);
                     flowBuffer[x, z] = Math.Max(0.0, flow + (blendedFlow / weight - flow) * flowBlend);
+                }
+            }
+
+            if (_hydrologyDirectionalIterations > 0 && _hydrologyDirectionalBlend > 0.0)
+            {
+                var directionalHydro = new double[width, depth];
+                var directionalFlow = new double[width, depth];
+                double directionalBlend = Math.Clamp(_hydrologyDirectionalBlend, 0.0, 1.0);
+                double divergenceClamp = Math.Max(1e-5, _hydrologyFlowDivergenceClamp);
+
+                for (int iteration = 0; iteration < _hydrologyDirectionalIterations; iteration++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int z = 0; z < depth; z++)
+                        {
+                            double hydrology = hydrologyBuffer[x, z];
+                            double flow = flowBuffer[x, z];
+
+                            double gradXDir = hydrologyBuffer[Math.Min(width - 1, x + 1), z] - hydrologyBuffer[Math.Max(0, x - 1), z];
+                            double gradZDir = hydrologyBuffer[x, Math.Min(depth - 1, z + 1)] - hydrologyBuffer[x, Math.Max(0, z - 1)];
+                            var gradient = new Vector2((float)gradXDir, (float)gradZDir);
+
+                            Vector2 primaryDir = gradient.LengthSquared() > 1e-5f
+                                ? Vector2.Normalize(gradient)
+                                : ComputeTerrainSlopeDirection(surfaceCache, x, z);
+                            if (primaryDir.LengthSquared() < 1e-5f)
+                            {
+                                primaryDir = Vector2.UnitX;
+                            }
+
+                            var perpendicular = new Vector2(-primaryDir.Y, primaryDir.X);
+                            if (perpendicular.LengthSquared() < 1e-5f)
+                            {
+                                perpendicular = Vector2.UnitY;
+                            }
+
+                            int mainX = Math.Clamp(x + Math.Sign(primaryDir.X), 0, width - 1);
+                            int mainZ = Math.Clamp(z + Math.Sign(primaryDir.Y), 0, depth - 1);
+                            if (mainX == x && mainZ == z)
+                            {
+                                mainX = Math.Min(width - 1, x + 1);
+                            }
+
+                            int crossX1 = Math.Clamp(x + Math.Sign(perpendicular.X), 0, width - 1);
+                            int crossZ1 = Math.Clamp(z + Math.Sign(perpendicular.Y), 0, depth - 1);
+                            int crossX2 = Math.Clamp(x - Math.Sign(perpendicular.X), 0, width - 1);
+                            int crossZ2 = Math.Clamp(z - Math.Sign(perpendicular.Y), 0, depth - 1);
+
+                            double primaryHydro = hydrologyBuffer[mainX, mainZ];
+                            double primaryFlow = flowBuffer[mainX, mainZ];
+                            double lateralHydro = 0.5 * (hydrologyBuffer[crossX1, crossZ1] + hydrologyBuffer[crossX2, crossZ2]);
+                            double lateralFlow = 0.5 * (flowBuffer[crossX1, crossZ1] + flowBuffer[crossX2, crossZ2]);
+
+                            double gradientStrength = Math.Min(Math.Sqrt(gradXDir * gradXDir + gradZDir * gradZDir), _hydrologyGradientClamp);
+                            double normalizedGradient = Math.Clamp(gradientStrength / Math.Max(1e-4, _hydrologyGradientClamp), 0.0, 1.0);
+                            double anisotropy = Math.Clamp(0.65 + normalizedGradient * 0.25 + Math.Clamp(flow * 0.05, 0.0, 0.2), 0.5, 1.3);
+                            double divergence = Math.Abs(hydrology - primaryHydro) + Math.Abs(hydrology - lateralHydro);
+                            double divergenceWeight = Math.Clamp(1.0 - divergence / divergenceClamp, 0.25, 1.0);
+
+                            double targetHydro = (hydrology + primaryHydro * anisotropy + lateralHydro * (0.85 - normalizedGradient * 0.15)) / (1.0 + anisotropy);
+                            double targetFlow = (flow + primaryFlow * anisotropy + lateralFlow * (0.85 - normalizedGradient * 0.15)) / (1.0 + anisotropy);
+
+                            directionalHydro[x, z] = Math.Clamp(hydrology + (targetHydro - hydrology) * directionalBlend * divergenceWeight, 0.0, 1.0);
+                            directionalFlow[x, z] = Math.Max(0.0, flow + (targetFlow - flow) * directionalBlend * divergenceWeight);
+                        }
+                    }
+
+                    Array.Copy(directionalHydro, hydrologyBuffer, hydrologyBuffer.Length);
+                    Array.Copy(directionalFlow, flowBuffer, flowBuffer.Length);
                 }
             }
 

@@ -74,6 +74,9 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyGradientClamp = Mathf.Clamp(tunedWorldConfig.HydrologyGradientClamp, 0.1f, 3.5f);
         WorldGenAlgorithms.HydrologyGradientStabilityIterations = Mathf.Max(0, tunedWorldConfig.HydrologyGradientStabilityIterations);
         WorldGenAlgorithms.HydrologyGradientStabilityBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyGradientStabilityBlend);
+        WorldGenAlgorithms.HydrologyDirectionalIterations = Mathf.Max(0, tunedWorldConfig.HydrologyDirectionalIterations);
+        WorldGenAlgorithms.HydrologyDirectionalBlend = Mathf.Clamp01(tunedWorldConfig.HydrologyDirectionalBlend);
+        WorldGenAlgorithms.HydrologyFlowDivergenceClamp = Mathf.Clamp(tunedWorldConfig.HydrologyFlowDivergenceClamp, 0f, 1.5f);
         WorldGenAlgorithms.HydrologyCurvatureWeight = Mathf.Clamp(tunedWorldConfig.HydrologyCurvatureWeight, 0f, 1.5f);
         WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(tunedWorldConfig.HydrologyWarpFrequency, 0.0001f, 0.01f);
         WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(tunedWorldConfig.HydrologyWarpAmplitude, 0f, 48f);

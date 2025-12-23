@@ -172,6 +172,9 @@ namespace Minecraft.Core
         public float HydrologyGradientClamp;
         public int HydrologyGradientStabilityIterations;
         public float HydrologyGradientStabilityBlend;
+        public int HydrologyDirectionalIterations;
+        public float HydrologyDirectionalBlend;
+        public float HydrologyFlowDivergenceClamp;
         public float HydrologyCurvatureWeight;
         public int HydrologySeamRelaxIterations;
         public float HydrologySeamRelaxBlend;
@@ -597,6 +600,9 @@ namespace Minecraft.Core
         public float HydrologyGradientClamp;
         public int HydrologyGradientStabilityIterations;
         public float HydrologyGradientStabilityBlend;
+        public int HydrologyDirectionalIterations;
+        public float HydrologyDirectionalBlend;
+        public float HydrologyFlowDivergenceClamp;
         public float HydrologyCurvatureWeight;
         public int HydrologySeamRelaxIterations;
         public float HydrologySeamRelaxBlend;

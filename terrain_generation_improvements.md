@@ -1,6 +1,11 @@
 # Terrain Generation Improvements Analysis
 
-## Latest update (2025-12-18)
+## Latest update (2026-01-22)
+- Added flow-aligned hydrology smoothing with a configurable directional blend/iteration count and divergence clamp, applied inside `StabilizeHydrologyGradients` on both server (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`) so rivers/lakes/caves stabilize along downhill flow instead of collapsing across seams.
+- New JSON knobs (`HydrologyDirectionalIterations`, `HydrologyDirectionalBlend`, `HydrologyFlowDivergenceClamp`) mirror between `config/world.json` and `Assets/.../WorldConfigData.json`, keeping server and client previews in lockstep.
+- Map control now feeds render/simulation distance into chunk residency trimming and the Unity subworld loader radius, reducing over-generation while keeping streamed terrain consistent with the directional hydrology passes.
+
+## Previous update (2025-12-18)
 - Added a variance-aware hydrology smoothing pass to clamp flow spikes before gradient stabilization in both server (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), keeping caves/rivers/lakes aligned across chunk seams and reducing flooded artifacts.
 - World map control/profile now carries the variance blend/clamp knobs from JSON (`config/world.json`, `Assets/.../WorldConfigData.json`) so streamed chunks and Unity previews use identical hydrology stability at the edges.
 - River and lake shaping reuse the stabilized hydrology/flow fields for bank depth and shoreline smoothing, improving basin coherence before erosion and wetland passes run.

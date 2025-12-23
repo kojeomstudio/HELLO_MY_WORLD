@@ -87,6 +87,7 @@ public static class ProtocolValidator
         ValidateRegistryBindingNames();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
+        ValidateChunkUnloadDescriptors();
     }
 
     private static void ValidateChunkDescriptor()
@@ -102,6 +103,15 @@ public static class ProtocolValidator
 
         var response = RequireDescriptor(nameof(ChunkLoadResponse));
         EnsureFields(response, "chunks", "total_requested", "total_sent");
+    }
+
+    private static void ValidateChunkUnloadDescriptors()
+    {
+        var unloadNotification = RequireDescriptor(nameof(ChunkUnloadNotification));
+        EnsureFields(unloadNotification, "player_id", "chunk_x", "chunk_z", "reason", "view_distance", "timestamp_ms");
+
+        var unloadAck = RequireDescriptor(nameof(ChunkUnloadAck));
+        EnsureFields(unloadAck, "chunk_x", "chunk_z", "accepted", "remaining_chunks", "note");
     }
 
     private static void ValidateActionDescriptors()

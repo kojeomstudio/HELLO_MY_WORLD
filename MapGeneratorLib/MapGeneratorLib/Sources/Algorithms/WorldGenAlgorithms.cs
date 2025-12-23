@@ -132,6 +132,9 @@ namespace MapGenLib
         public static float HydrologyGradientClamp = 1.65f;
         public static int HydrologyGradientStabilityIterations = 1;
         public static float HydrologyGradientStabilityBlend = 0.45f;
+        public static int HydrologyDirectionalIterations = 1;
+        public static float HydrologyDirectionalBlend = 0.42f;
+        public static float HydrologyFlowDivergenceClamp = 0.55f;
         public static float HydrologyCurvatureWeight = 0.32f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
@@ -1274,7 +1277,7 @@ namespace MapGenLib
 
                             if (gradientDir.sqrMagnitude > CustomVector2.kEpsilon)
                             {
-                                var neighborDir = new CustomVector2(dx, dz);
+                                var neighborDir = new CustomVector2(offsetX, offsetZ);
                                 if (neighborDir.sqrMagnitude > CustomVector2.kEpsilon)
                                 {
                                     neighborDir.Normalize();
@@ -1297,6 +1300,76 @@ namespace MapGenLib
                     float flowBlend = CustomMathf.Clamp01(flowBlendBase * gradientDamping + gradientBlend);
                     hydrologyBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, blendedHydrology / weight, hydrologyBlend));
                     flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flow, blendedFlow / weight, flowBlend));
+                }
+            }
+
+            if (HydrologyDirectionalIterations > 0 && HydrologyDirectionalBlend > 0f)
+            {
+                var directionalHydro = new float[width, depth];
+                var directionalFlow = new float[width, depth];
+                float directionalBlend = CustomMathf.Clamp01(HydrologyDirectionalBlend);
+                float divergenceClamp = CustomMathf.Max(0.0001f, HydrologyFlowDivergenceClamp);
+
+                for (int iteration = 0; iteration < HydrologyDirectionalIterations; iteration++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int z = 0; z < depth; z++)
+                        {
+                            float hydrology = hydrologyBuffer[x, z];
+                            float flow = flowBuffer[x, z];
+
+                            float gradXDir = hydrologyBuffer[Math.Min(width - 1, x + 1), z] - hydrologyBuffer[Math.Max(0, x - 1), z];
+                            float gradZDir = hydrologyBuffer[x, Math.Min(depth - 1, z + 1)] - hydrologyBuffer[x, Math.Max(0, z - 1)];
+                            var gradient = new CustomVector2(gradXDir, gradZDir);
+
+                            CustomVector2 primaryDir = gradient.sqrMagnitude > CustomVector2.kEpsilon
+                                ? gradient.normalized
+                                : ComputeTerrainSlopeDirection(surfaceCache, subWorldSize, x, z);
+                            if (primaryDir.sqrMagnitude < CustomVector2.kEpsilon)
+                            {
+                                primaryDir = CustomVector2.right;
+                            }
+
+                            CustomVector2 perpendicular = new CustomVector2(-primaryDir.y, primaryDir.x);
+                            if (perpendicular.sqrMagnitude < CustomVector2.kEpsilon)
+                            {
+                                perpendicular = CustomVector2.up;
+                            }
+
+                            int mainX = CustomMathf.Clamp(x + (primaryDir.x > 0.0001f ? 1 : (primaryDir.x < -0.0001f ? -1 : 0)), 0, width - 1);
+                            int mainZ = CustomMathf.Clamp(z + (primaryDir.y > 0.0001f ? 1 : (primaryDir.y < -0.0001f ? -1 : 0)), 0, depth - 1);
+                            if (mainX == x && mainZ == z)
+                            {
+                                mainX = CustomMathf.Min(width - 1, x + 1);
+                            }
+
+                            int crossX1 = CustomMathf.Clamp(x + (perpendicular.x > 0.0001f ? 1 : (perpendicular.x < -0.0001f ? -1 : 0)), 0, width - 1);
+                            int crossZ1 = CustomMathf.Clamp(z + (perpendicular.y > 0.0001f ? 1 : (perpendicular.y < -0.0001f ? -1 : 0)), 0, depth - 1);
+                            int crossX2 = CustomMathf.Clamp(x - (perpendicular.x > 0.0001f ? 1 : (perpendicular.x < -0.0001f ? -1 : 0)), 0, width - 1);
+                            int crossZ2 = CustomMathf.Clamp(z - (perpendicular.y > 0.0001f ? 1 : (perpendicular.y < -0.0001f ? -1 : 0)), 0, depth - 1);
+
+                            float primaryHydro = hydrologyBuffer[mainX, mainZ];
+                            float primaryFlow = flowBuffer[mainX, mainZ];
+                            float lateralHydro = 0.5f * (hydrologyBuffer[crossX1, crossZ1] + hydrologyBuffer[crossX2, crossZ2]);
+                            float lateralFlow = 0.5f * (flowBuffer[crossX1, crossZ1] + flowBuffer[crossX2, crossZ2]);
+
+                            float gradientStrength = CustomMathf.Min(gradient.magnitude, HydrologyGradientClamp);
+                            float normalizedGradient = CustomMathf.Clamp01(gradientStrength / CustomMathf.Max(0.0001f, HydrologyGradientClamp));
+                            float anisotropy = CustomMathf.Clamp(0.65f + normalizedGradient * 0.25f + CustomMathf.Clamp(flow * 0.05f, 0f, 0.2f), 0.5f, 1.3f);
+                            float divergence = CustomMathf.Abs(hydrology - primaryHydro) + CustomMathf.Abs(hydrology - lateralHydro);
+                            float divergenceWeight = CustomMathf.Clamp(1f - divergence / divergenceClamp, 0.25f, 1f);
+
+                            float targetHydro = (hydrology + primaryHydro * anisotropy + lateralHydro * (0.85f - normalizedGradient * 0.15f)) / (1f + anisotropy);
+                            float targetFlow = (flow + primaryFlow * anisotropy + lateralFlow * (0.85f - normalizedGradient * 0.15f)) / (1f + anisotropy);
+
+                            directionalHydro[x, z] = CustomMathf.Clamp01(hydrology + (targetHydro - hydrology) * directionalBlend * divergenceWeight);
+                            directionalFlow[x, z] = CustomMathf.Max(0f, flow + (targetFlow - flow) * directionalBlend * divergenceWeight);
+                        }
+                    }
+
+                    Array.Copy(directionalHydro, hydrologyBuffer, hydrologyBuffer.Length);
+                    Array.Copy(directionalFlow, flowBuffer, flowBuffer.Length);
                 }
             }
 

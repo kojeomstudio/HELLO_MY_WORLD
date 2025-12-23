@@ -102,6 +102,9 @@ namespace GameServerApp.World
         public double HydrologyGradientClamp { get; set; } = 1.65;
         public int HydrologyGradientStabilityIterations { get; set; } = 1;
         public double HydrologyGradientStabilityBlend { get; set; } = 0.45;
+        public int HydrologyDirectionalIterations { get; set; } = 1;
+        public double HydrologyDirectionalBlend { get; set; } = 0.42;
+        public double HydrologyFlowDivergenceClamp { get; set; } = 0.55;
         public double HydrologyCurvatureWeight { get; set; } = 0.32;
         public int HydrologySeamRelaxIterations { get; set; } = 2;
         public double HydrologySeamRelaxBlend { get; set; } = 0.5;

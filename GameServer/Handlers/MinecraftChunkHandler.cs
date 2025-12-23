@@ -63,6 +63,7 @@ namespace GameServerApp.Handlers
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkDataResponse);
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkUnloadNotification);
             ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkUnloadAcknowledge);
+            ProtoDiagnostics.AssertRegistryClean();
         }
 
         public MessageType Type => (MessageType)MinecraftMessageType.ChunkDataRequest;
@@ -793,6 +794,11 @@ namespace GameServerApp.Handlers
 
             var safeViewDistance = Math.Max(1, requestedViewDistance);
             var maxRadius = Math.Min(safeViewDistance, Math.Max(1, _worldSettings.ChunkLoadRadius));
+            if (_worldManager.MapControlProfile != null)
+            {
+                int simDistance = Math.Max(1, _worldManager.MapControlProfile.SimulationDistance);
+                maxRadius = Math.Min(maxRadius, simDistance);
+            }
 
             var playerChunkX = latestChunkX;
             var playerChunkZ = latestChunkZ;

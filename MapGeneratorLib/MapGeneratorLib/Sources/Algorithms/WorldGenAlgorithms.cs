@@ -123,6 +123,8 @@ namespace MapGenLib
         public static float HydrologyEdgeFluxBlend = 0.55f;
         public static float HydrologyVarianceBlend = 0.55f;
         public static float HydrologyVarianceClamp = 0.65f;
+        public static double RiverCenterThreshold = 0.0125;
+        public static double RiverBankThreshold = 0.028;
         public static float HydrologyWaterTableClampWeight = 0.42f;
         public static int HydrologyWaterTableClampRange = 18;
         public static float HydrologyWaterTableSlopeWeight = 0.55f;
@@ -156,6 +158,8 @@ namespace MapGenLib
         public static float RiverAnisotropyWeight = 0.32f;
         public static float RiverReliefPenaltyWeight = 0.25f;
         public static float RiverEdgeFeather = 0.45f;
+        public static int RiverMouthSmoothRadius = 3;
+        public static float RiverDeltaWetlandStrength = 0.45f;
         public static float CaveSupportDensity = 0.6f;
         public static float CaveHydrologyWeight = 0.45f;
         public static float CaveFlowWeight = 0.25f;
@@ -164,10 +168,13 @@ namespace MapGenLib
         public static float CaveRiverSuppressionWeight = 0.35f;
         public static float CaveSupportHydrationBias = 0.42f;
         public static float CaveSupportFlowBias = 0.20f;
+        public static float SupportPillarChance = 0.28f;
         public static float CaveMoistureRetentionWeight = 0.35f;
         public static float LakeRiverProximitySuppression = 0.35f;
         public static float LakeInflowBlendWeight = 0.42f;
         public static float CaveEdgeSealStrength = 0.45f;
+        public static float WetlandSaturationThreshold = 0.55f;
+        public static int OutflowCarveDepth = 2;
 
         public struct TerrainValue
         {

@@ -6,6 +6,8 @@
   "ChunkSize": 16,
   "RenderDistance": 10,
   "SimulationDistance": 8,
+  "MapControlProfilePath": "world-map-control.json",
+  "MapControlProfileVersion": 1,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,
@@ -38,6 +40,9 @@
     "HydrologyEdgeStabilityIterations": 1,
     "HydrologyEdgeStabilityWeight": 0.32,
     "HydrologyEdgeVarianceClamp": 0.32,
+    "HydrologyEdgeFluxBlend": 0.55,
+    "HydrologyVarianceBlend": 0.55,
+    "HydrologyVarianceClamp": 0.65,
     "HydrologyWaterTableClampWeight": 0.42,
     "HydrologyWaterTableClampRange": 18,
     "HydrologyWaterTableSlopeWeight": 0.55,
@@ -47,6 +52,9 @@
     "HydrologyGradientClamp": 1.65,
     "HydrologyGradientStabilityIterations": 1,
     "HydrologyGradientStabilityBlend": 0.45,
+    "HydrologyDirectionalIterations": 1,
+    "HydrologyDirectionalBlend": 0.42,
+    "HydrologyFlowDivergenceClamp": 0.55,
     "HydrologyCurvatureWeight": 0.32,
     "HydrologySeamRelaxIterations": 2,
     "HydrologySeamRelaxBlend": 0.5,
@@ -60,6 +68,9 @@
     "RiverBankErosionWeight": 0.18,
     "LakeRimErosionWeight": 0.3,
     "LakeInflowBlendWeight": 0.42,
+    "RiverEdgeFeather": 0.45,
+    "RiverMouthSmoothRadius": 3,
+    "RiverDeltaWetlandStrength": 0.45,
     "RiverNoiseScale": 0.015,
     "RiverDepth": 6,
     "RiverIntensitySmoothIterations": 3,
@@ -107,7 +118,9 @@
     "FlowStabilityWeight": 0.25,
     "RoughnessStabilityWeight": 0.1,
     "RiverSuppressionWeight": 0.35,
-    "MoistureRetentionWeight": 0.35
+    "MoistureRetentionWeight": 0.35,
+    "EdgeSealStrength": 0.45,
+    "SupportPillarChance": 0.28
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -163,6 +176,8 @@
     "LakeBasinSmoothIterations": 2,
     "SpawnWeightBias": 0.3,
     "ShorelineBlend": 0.66,
-    "RiverProximitySuppression": 0.35
+    "RiverProximitySuppression": 0.35,
+    "WetlandSaturationThreshold": 0.55,
+    "OutflowCarveDepth": 2
   }
 }

@@ -6,6 +6,8 @@
   "ChunkSize": 16,
   "RenderDistance": 10,
   "SimulationDistance": 8,
+  "MapControlProfilePath": "config/world_map_control_profile.json",
+  "MapControlProfileVersion": 1,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,
@@ -67,6 +69,8 @@
     "LakeRimErosionWeight": 0.3,
     "LakeInflowBlendWeight": 0.42,
     "RiverEdgeFeather": 0.45,
+    "RiverMouthSmoothRadius": 3,
+    "RiverDeltaWetlandStrength": 0.45,
     "RiverNoiseScale": 0.015,
     "RiverDepth": 6,
     "RiverIntensitySmoothIterations": 3,
@@ -115,7 +119,8 @@
     "RoughnessStabilityWeight": 0.1,
     "RiverSuppressionWeight": 0.35,
     "MoistureRetentionWeight": 0.35,
-    "EdgeSealStrength": 0.45
+    "EdgeSealStrength": 0.45,
+    "SupportPillarChance": 0.28
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -171,6 +176,8 @@
     "LakeBasinSmoothIterations": 2,
     "SpawnWeightBias": 0.3,
     "ShorelineBlend": 0.66,
-    "RiverProximitySuppression": 0.35
+    "RiverProximitySuppression": 0.35,
+    "WetlandSaturationThreshold": 0.55,
+    "OutflowCarveDepth": 2
   }
 }

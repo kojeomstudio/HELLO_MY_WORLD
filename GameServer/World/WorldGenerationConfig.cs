@@ -12,6 +12,8 @@ namespace GameServerApp.World
     public sealed class WorldGenerationConfig
     {
         public string SourcePath { get; set; } = "config/world.json";
+        public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
+        public int MapControlProfileVersion { get; set; } = 1;
         public int ChunkSize { get; set; } = 16;
         public int RenderDistance { get; set; } = 10;
         public int SimulationDistance { get; set; } = 8;
@@ -65,6 +67,10 @@ namespace GameServerApp.World
             RenderDistance = Math.Max(RenderDistance, 1);
             SimulationDistance = Math.Max(SimulationDistance, 1);
             WorldHeight = Math.Max(WorldHeight, 1);
+            MapControlProfilePath = string.IsNullOrWhiteSpace(MapControlProfilePath)
+                ? "config/world_map_control_profile.json"
+                : MapControlProfilePath;
+            MapControlProfileVersion = Math.Max(1, MapControlProfileVersion);
         }
     }
 
@@ -120,6 +126,8 @@ namespace GameServerApp.World
         public double LakeInflowBlendWeight { get; set; } = 0.42;
         public double RiverConfluenceBoost { get; set; } = 0.35;
         public double RiverEdgeFeather { get; set; } = 0.45;
+        public int RiverMouthSmoothRadius { get; set; } = 3;
+        public double RiverDeltaWetlandStrength { get; set; } = 0.45;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
         public bool UseImprovedRivers { get; set; } = true;
@@ -173,6 +181,7 @@ namespace GameServerApp.World
         public double SupportFlowBias { get; set; } = 0.20;
         public double MoistureRetentionWeight { get; set; } = 0.35;
         public double EdgeSealStrength { get; set; } = 0.45;
+        public double SupportPillarChance { get; set; } = 0.28;
     }
 
     public sealed class LakeConfig
@@ -184,5 +193,7 @@ namespace GameServerApp.World
         public double SpawnWeightBias { get; set; } = 0.3;
         public double ShorelineBlend { get; set; } = 0.66;
         public double RiverProximitySuppression { get; set; } = 0.35;
+        public double WetlandSaturationThreshold { get; set; } = 0.55;
+        public int OutflowCarveDepth { get; set; } = 2;
     }
 }

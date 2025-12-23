@@ -35,6 +35,7 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 ### November 2025 Hydrology Update
 
+- **2026-02-06 river mouths + lake outflows**: River deltas smooth into oceans with `Water.RiverMouthSmoothRadius`/`RiverDeltaWetlandStrength`, lakes grow wetlands/outflow channels using `Lakes.WetlandSaturationThreshold`/`OutflowCarveDepth`, and caves gain support pillars via `Caves.SupportPillarChance`. Map-control profiles now export hashed JSON snapshots for Unity parity.
 - **2026-01-21 seam flux + cave sealing**: Hydrology/flow fields now project river pressure across chunk borders using `Water.HydrologyEdgeFluxBlend` before smoothing, river masks feather chunk seams with `Water.RiverEdgeFeather`, and chunk-edge caves seal damp cavities via `Caves.EdgeSealStrength`. `GameServer/World/WorldManager.cs` and `MapGeneratorLib/.../WorldGenAlgorithms.cs` share the passes so streamed chunks and Unity previews stay aligned.
 - **2026-01-20 edge tension + riparian caves**: Hydrology edge consistency now blends chunk-border samples toward downhill gradients before stabilization, and river intensity gains an edge feather pass so channels stay aligned at seams. Noise caves now read river pressure to damp carving beneath active channels and bias flooded pockets under rivers. Changes land in both `GameServer/World/WorldManager.cs` and `MapGeneratorLib/.../WorldGenAlgorithms.cs` using the existing seam/riparian knobs (`HydrologyEdgeBlendRadius`, `HydrologyEdgeVarianceClamp`, `HydrologyEdgeFlowLockWeight`, `CaveRiverSuppressionWeight`).
 

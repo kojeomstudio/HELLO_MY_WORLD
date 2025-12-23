@@ -14,6 +14,8 @@ public struct WorldConfig
     public int ChunkSize;
     public int RenderDistance;
     public int SimulationDistance;
+    public string MapControlProfilePath;
+    public int MapControlProfileVersion;
     public float ChunkLoadIntervalSeconds;
     public WorldEnviromentsConfig EnviromentsConfig;
     public int GlobalWaterLevel;
@@ -72,6 +74,8 @@ public struct WorldConfig
     public float LakeInflowBlendWeight;
     public float LakeSpawnWeightBias;
     public float LakeShorelineBlend;
+    public float WetlandSaturationThreshold;
+    public int OutflowCarveDepth;
     public float RiverProximitySuppression;
     public float RiverNoiseScale;
     public int RiverDepth;
@@ -79,9 +83,12 @@ public struct WorldConfig
     public float RiverIntensitySmoothBlend;
     public float RiverConfluenceBoost;
     public float RiverEdgeFeather;
+    public int RiverMouthSmoothRadius;
+    public float RiverDeltaWetlandStrength;
     public int CaveStabilitySmoothIterations;
     public float CaveStabilitySmoothBlend;
     public float CaveSupportDensity;
+    public float SupportPillarChance;
     public float SupportHydrationBias;
     public float SupportFlowBias;
     public float HydrologyStabilityWeight;
@@ -136,6 +143,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.ChunkSize = ParseInt(data, "ChunkSize", 8);
                 Config.RenderDistance = ParseInt(data, "RenderDistance", 10);
                 Config.SimulationDistance = ParseInt(data, "SimulationDistance", 8);
+                Config.MapControlProfilePath = data.ContainsKey("MapControlProfilePath") ? data["MapControlProfilePath"] : "world-map-control.json";
+                Config.MapControlProfileVersion = ParseInt(data, "MapControlProfileVersion", 1);
                 Config.SubWorld_Count_X_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_X_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Y_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Y_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Z_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Z_Axis_Per_WorldArea", 32);
@@ -199,12 +208,17 @@ public class WorldConfigFile : BaseDataFile
                 Config.LakeRimErosionWeight = ParseFloat(data, "LakeRimErosionWeight", 0.3f);
                 Config.LakeInflowBlendWeight = ParseFloat(data, "LakeInflowBlendWeight", 0.42f);
                 Config.RiverEdgeFeather = ParseFloat(data, "RiverEdgeFeather", 0.45f);
+                Config.RiverMouthSmoothRadius = ParseInt(data, "RiverMouthSmoothRadius", 3);
+                Config.RiverDeltaWetlandStrength = ParseFloat(data, "RiverDeltaWetlandStrength", 0.45f);
                 Config.LakeSpawnWeightBias = ParseFloat(data, "LakeSpawnWeightBias", 0.3f);
                 Config.LakeShorelineBlend = ParseFloat(data, "LakeShorelineBlend", 0.66f);
+                Config.WetlandSaturationThreshold = ParseFloat(data, "WetlandSaturationThreshold", 0.55f);
+                Config.OutflowCarveDepth = ParseInt(data, "OutflowCarveDepth", 2);
                 Config.RiverProximitySuppression = ParseFloat(data, "RiverProximitySuppression", 0.35f);
                 Config.CaveStabilitySmoothIterations = ParseInt(data, "CaveStabilitySmoothIterations", 1);
                 Config.CaveStabilitySmoothBlend = ParseFloat(data, "CaveStabilitySmoothBlend", 0.55f);
                 Config.CaveSupportDensity = ParseFloat(data, "CaveSupportDensity", 0.6f);
+                Config.SupportPillarChance = ParseFloat(data, "SupportPillarChance", 0.28f);
                 Config.SupportHydrationBias = ParseFloat(data, "SupportHydrationBias", 0.42f);
                 Config.SupportFlowBias = ParseFloat(data, "SupportFlowBias", 0.2f);
                 Config.HydrologyStabilityWeight = ParseFloat(data, "HydrologyStabilityWeight", 0.45f);

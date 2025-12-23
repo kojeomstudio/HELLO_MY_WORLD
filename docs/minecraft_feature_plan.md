@@ -1,18 +1,77 @@
-# Minecraft Feature Plan (Core / Content / Util)
-Project-wide breakdown of Minecraft-style features, grouped by category and scoped to client vs. server. Use this as the sequence for upcoming work; mark items as we implement.
+# Minecraft Feature Breakdown (Core / Content / Utility)
 
-## Client (Unity)
-- Core: chunk streaming & LOD (`Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`, `MapGeneratorLib`); network/session bootstrap (`Assets/MyAssets/Scripts/Network`); protobuf packet handling (`Assets/Generated/Protobuf`).
-- Content: terrain visuals (caves/rivers/lakes) driven by `WorldConfigData.json`; biome decoration/vegetation (`WorldArea`, `Chunk` scripts); UI for inventory/chat/time/weather.
-- Util: data-driven configs (`Assets/MyAssets/Resources/TextAsset/GameWorld/*.json`), debug overlays/logging, editor tooling (`CustomToolSet`), automated hydration of map data assets.
+This file inventories Minecraft-like features for both **server** and **client**, grouped into Core, Content, and Utility. Each item notes current status and the intended rollout order so implementation can proceed sequentially.
 
-## Server (.NET)
-- Core: world auth and chunk lifecycle (`GameServer/World/WorldManager.cs`, `Handlers/`, `SessionManager.cs`); protobuf registry/validation (`SharedProtocol/EnhancedMinecraft`); persistence and session safety (`GameServerApp`).
-- Content: world generation (caves/rivers/lakes/ore/vegetation) using `config/world.json`; time/weather cycles; entity spawn/despawn handling; block change and chunk streaming.
-- Util: config surfaces (`server-config.json`, `config/world.json`), telemetry/metrics hooks, maintenance jobs (backups, chunk save intervals), diagnostics (`docs/`, build logs).
+## Core
 
-## Implementation Order
-1) Core world-map control: keep client/server hydrology, river, lake, and cave generation in lockstep via config-driven knobs. (In progress)
-2) Proto transport hardening: validate enum/registry coverage and keep generated assemblies in sync. (In progress)
-3) Content polish: wetlands, terraces, biome decorations tuned per data files; ensure data-driven JSON stays authoritative.
-4) Utility/ops: metrics, backups, and editor tooling to speed map authoring; keep configs and docs aligned with code.
+**Server**
+- ✅ World seed + chunk streaming
+- ✅ Base terrain heightmap generation
+- ✅ Hydrology masks and river/lake toggles
+- ✅ Basic cave carving (with improved stabilizers)
+- ✅ Protobuf packet framing and dispatcher
+- ✅ Session/auth pipeline
+- ◻ Biome synthesis (temperature/humidity gradient)
+- ◻ Chunk compression for network payloads
+- ◻ Connection rate limiting and reconnect logic
+- ◻ World border enforcement
+- ◻ Server reconciliation for client prediction
+
+**Client**
+- ✅ Chunk mesh generation and rendering
+- ✅ Block placement/break controls
+- ✅ HUD/inventory overlay
+- ✅ Protobuf network client
+- ◻ Frustum/LOD culling
+- ◻ Transparent/animated block rendering
+- ◻ Debug overlays for worldgen fields (hydrology, caves)
+- ◻ Settings/menu shell
+- ◻ Input rebinding and controller profiles
+
+## Content
+
+**Server**
+- ✅ Block crafting/furnace logic
+- ✅ Hunger/health systems
+- ✅ Basic player entity lifecycle
+- ◻ Tool durability + enchanting
+- ◻ Potion brewing
+- ◻ Mob spawning + AI behaviors
+- ◻ Weather + day/night effects
+- ◻ Structure generation (villages/dungeons framework)
+- ◻ Respawn/bed handling
+
+**Client**
+- ✅ Base block textures
+- ✅ Inventory UI wiring
+- ◻ Crafting/furnace/enchanting interfaces
+- ◻ Entity models/animations
+- ◻ Particle and weather visuals
+- ◻ Sky + day/night cycle visuals
+- ◻ Resource/skin pack support
+
+## Utility
+
+**Server**
+- ✅ JSON-driven configs (`config/server.json`, `config/world.json`)
+- ✅ Shared worldgen profile broadcast (map control)
+- ◻ Admin command/permission system
+- ◻ Monitoring + profiling hooks
+- ◻ Backup/restore workflow and data validation
+- ◻ Protocol version negotiation + compatibility gate
+
+**Client**
+- ✅ Octree collision acceleration
+- ◻ Render distance/quality presets
+- ◻ Network quality indicator
+- ◻ Crash/log capture + uploader
+- ◻ Replay/screenshot tools
+
+## Implementation Order (sequential)
+1) **Protocol + Config Hardening**: finalize protobuf usage, validate JSON world/config files, and keep map-control profile in sync.
+2) **Worldgen Enhancements**: refine caves/rivers/lakes with hydrology-aware parameters; expose tunables via JSON and profile.
+3) **Core Performance**: add culling/LOD client-side; add compression/rate-limit server-side.
+4) **Content Layers**: progress enchanting/durability, structure generation, and matching UIs.
+5) **Utility/Operations**: admin commands, monitoring, backup/restore, and quality-of-life client tools.
+
+Status legend: ✅ done, ◻ pending.

@@ -65,9 +65,12 @@ namespace GameServerApp.World
         private readonly double _riverIntensitySmoothBlend;
         private readonly double _riverConfluenceBoost;
         private readonly double _riverEdgeFeather;
+        private readonly int _riverMouthSmoothRadius;
+        private readonly double _riverDeltaWetlandStrength;
         private readonly int _caveStabilitySmoothIterations;
         private readonly double _caveStabilitySmoothBlend;
         private readonly double _caveSupportDensity;
+        private readonly double _supportPillarChance;
         private readonly double _hydrologyWarpFrequency;
         private readonly double _hydrologyWarpAmplitude;
         private readonly double _caveHydrologyWeight;
@@ -85,6 +88,8 @@ namespace GameServerApp.World
         private readonly double _lakeRiverProximitySuppression;
         private readonly int _lakeBasinSmoothIterations;
         private readonly double _lakeInflowBlendWeight;
+        private readonly double _lakeWetlandSaturationThreshold;
+        private readonly int _lakeOutflowCarveDepth;
         private readonly double _caveMoistureRetentionWeight;
         private readonly double _caveEdgeSealStrength;
 
@@ -243,9 +248,12 @@ namespace GameServerApp.World
             _riverIntensitySmoothBlend = Math.Clamp(_worldGenConfig.Water.RiverIntensitySmoothBlend, 0.0, 1.0);
             _riverConfluenceBoost = Math.Clamp(_worldGenConfig.Water.RiverConfluenceBoost, 0.0, 2.0);
             _riverEdgeFeather = Math.Clamp(_worldGenConfig.Water.RiverEdgeFeather, 0.0, 1.0);
+            _riverMouthSmoothRadius = Math.Clamp(_worldGenConfig.Water.RiverMouthSmoothRadius, 1, 8);
+            _riverDeltaWetlandStrength = Math.Clamp(_worldGenConfig.Water.RiverDeltaWetlandStrength, 0.0, 1.0);
             _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
             _caveSupportDensity = Math.Clamp(_worldGenConfig.Caves.SupportDensity, 0.0, 1.0);
+            _supportPillarChance = Math.Clamp(_worldGenConfig.Caves.SupportPillarChance, 0.0, 1.0);
             _hydrologyWarpFrequency = Math.Clamp(_worldGenConfig.Water.HydrologyWarpFrequency, 0.0001, 0.01);
             _hydrologyWarpAmplitude = Math.Clamp(_worldGenConfig.Water.HydrologyWarpAmplitude, 0.0, 48.0);
             _caveHydrologyWeight = Math.Clamp(_worldGenConfig.Caves.HydrologyStabilityWeight, 0.0, 1.0);
@@ -264,40 +272,18 @@ namespace GameServerApp.World
             _lakeRiverProximitySuppression = Math.Clamp(_worldGenConfig.Lakes.RiverProximitySuppression, 0.0, 1.0);
             _lakeBasinSmoothIterations = Math.Clamp(_worldGenConfig.Lakes.LakeBasinSmoothIterations, 0, 6);
             _lakeInflowBlendWeight = Math.Clamp(_worldGenConfig.Water.LakeInflowBlendWeight, 0.0, 1.0);
+            _lakeWetlandSaturationThreshold = Math.Clamp(_worldGenConfig.Lakes.WetlandSaturationThreshold, 0.0, 1.25);
+            _lakeOutflowCarveDepth = Math.Clamp(_worldGenConfig.Lakes.OutflowCarveDepth, 1, 12);
             _caveMoistureRetentionWeight = Math.Clamp(_worldGenConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
             _caveEdgeSealStrength = Math.Clamp(_worldGenConfig.Caves.EdgeSealStrength, 0.0, 1.0);
 
-            int chunkSize = Math.Max(1, _worldGenConfig.ChunkSize);
-            int renderDistance = Math.Max(_worldGenConfig.RenderDistance, Math.Max(1, _worldSettings.ChunkLoadRadius));
-            int simulationDistance = Math.Max(_worldGenConfig.SimulationDistance, Math.Max(1, renderDistance - 2));
-            _mapControlProfile = new WorldMapControlProfile
-            {
-                ChunkSize = chunkSize,
-                RenderDistance = renderDistance,
-                SimulationDistance = simulationDistance,
-                GlobalWaterLevel = GlobalWaterLevel,
-                HydrologyGradientStabilityIterations = _hydrologyGradientStabilityIterations,
-                HydrologyGradientStabilityBlend = _hydrologyGradientStabilityBlend,
-                HydrologyCurvatureWeight = _hydrologyCurvatureWeight,
-                HydrologyEdgeBlendRadius = _hydrologyEdgeBlendRadius,
-                HydrologyVarianceBlend = _hydrologyVarianceBlend,
-                HydrologyVarianceClamp = _hydrologyVarianceClamp,
-                HydrologySeamRelaxIterations = _hydrologySeamRelaxIterations,
-                HydrologyEdgeFluxBlend = _hydrologyEdgeFluxBlend,
-                RiverEdgeFeather = _riverEdgeFeather,
-                CaveEdgeSealStrength = _caveEdgeSealStrength,
-                EnableRivers = _enableRivers,
-                EnableLakes = _enableLakes,
-                EnableCaves = _enableCaves,
-                UseImprovedCaves = _useImprovedCaves,
-                UseImprovedRivers = _useImprovedRivers,
-                UseImprovedLakes = _useImprovedLakes,
-                LakeBasinSmoothIterations = _lakeBasinSmoothIterations
-            };
+            _mapControlProfile = WorldMapControlProfile.Create(_worldGenConfig, _worldSettings);
+            WorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
             Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/dir={_hydrologyDirectionalIterations}/{_hydrologyDirectionalBlend:0.##}/divClamp={_hydrologyFlowDivergenceClamp:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
-            Console.WriteLine($"[WorldManager] map control: chunk={_mapControlProfile.ChunkSize}, render={_mapControlProfile.RenderDistance}, sim={_mapControlProfile.SimulationDistance}, water={_mapControlProfile.GlobalWaterLevel}, curv={_mapControlProfile.HydrologyCurvatureWeight:0.##}");
+            Console.WriteLine($"[WorldManager] map control: chunk={_mapControlProfile.ChunkSize}, render={_mapControlProfile.RenderDistance}, sim={_mapControlProfile.SimulationDistance}, water={_mapControlProfile.GlobalWaterLevel}, curv={_mapControlProfile.HydrologyCurvatureWeight:0.##}, hash={_mapControlProfile.ProfileHash[..Math.Min(12, _mapControlProfile.ProfileHash.Length)]}");
+            Console.WriteLine($"[WorldManager] map control profile written to '{_worldGenConfig.MapControlProfilePath}' (v{_mapControlProfile.Version})");
 
             var pipeline = new TerrainGenerationPipeline()
                 .AddStage(new BaseTerrainStage(this));

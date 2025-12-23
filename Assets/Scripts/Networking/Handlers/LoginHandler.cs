@@ -19,40 +19,17 @@ namespace Networking.Handlers
         public void SendLogin(string user, string password)
         {
             var req = new LoginRequest { Username = user, Password = password };
-            
-            // Proper protobuf serialization
+
             using var memoryStream = new System.IO.MemoryStream();
             req.WriteTo(memoryStream);
             var payload = memoryStream.ToArray();
-            
-            // Add message type header (LoginRequest = 1)
-            var typeBytes = System.BitConverter.GetBytes((int)ClientMessageType.LoginRequest);
-            var framed = new byte[typeBytes.Length + payload.Length];
-            System.Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
-            System.Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
-            
-            _transport.Send(new System.ArraySegment<byte>(framed));
-        }
-    }
-}
-            // Add message type header (LoginRequest = 1)
-            var typeBytes = System.BitConverter.GetBytes((int)ClientMessageType.LoginRequest);
-            var framed = new byte[typeBytes.Length + payload.Length];
-            System.Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
-            System.Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
-            
-            _transport.Send(new System.ArraySegment<byte>(framed));
-        }
-    }
-}
-            // Add message type header (LoginRequest = 1)
-            var typeBytes = System.BitConverter.GetBytes((int)ClientMessageType.LoginRequest);
-            var framed = new byte[typeBytes.Length + payload.Length];
-            System.Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
-            System.Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
-            
-            _transport.Send(new System.ArraySegment<byte>(framed));
-        }
-    }
-}
 
+            var typeBytes = System.BitConverter.GetBytes((int)ClientMessageType.LoginRequest);
+            var framed = new byte[typeBytes.Length + payload.Length];
+            System.Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+            System.Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+            _transport.Send(new System.ArraySegment<byte>(framed));
+        }
+    }
+}

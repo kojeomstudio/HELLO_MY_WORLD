@@ -26,6 +26,7 @@ namespace GameServerApp.World
 
             GenerateCavesInternal(context);
 
+            AddCaveSupportPillars(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
             StabilizeCaveEntrances(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, hydrologyField.HydrologyCurvature);
             SealChunkEdgeCaves(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
         }
@@ -48,6 +49,7 @@ namespace GameServerApp.World
 
             var riverField = GetRiverFieldCache(context);
             EnhanceRiverBanks(chunk, surfaceCache, hydrologyField, riverField.Intensity);
+            SmoothRiverMouths(chunk, surfaceCache, riverField.Intensity, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
         }
 
         public void GenerateImprovedLakesInternal(TerrainGenerationContext context)
@@ -74,6 +76,7 @@ namespace GameServerApp.World
 
             EnhanceLakeShoreline(chunk, surfaceCache, hydrologyField);
             ReinforceLakeWetlands(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, hydrologyField.HydrologyCurvature);
+            CreateLakeOutflowChannels(chunk, surfaceCache, hydrologyField.FlowAccumulation, hydrologyField.HydrologyMask);
         }
 
         private void StabilizeCaveEntrances(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation, double[,]? hydrologyCurvature = null)
@@ -300,6 +303,9 @@ namespace GameServerApp.World
 
         private void ReinforceLakeWetlands(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation, double[,]? hydrologyCurvature = null)
         {
+            double wetlandThreshold = Math.Clamp(_lakeWetlandSaturationThreshold, 0.35, 1.1);
+            int outflowDepth = Math.Max(1, _lakeOutflowCarveDepth);
+
             for (int x = 1; x < 15; x++)
             {
                 for (int z = 1; z < 15; z++)
@@ -309,7 +315,7 @@ namespace GameServerApp.World
                     double curvature = hydrologyCurvature?[x, z] ?? 0.0;
                     double curvatureBoost = Math.Clamp(curvature * _hydrologyCurvatureWeight, 0.0, 1.0);
                     double wetness = hydrology + flow * 0.5 + curvatureBoost * 0.6;
-                    if (wetness < 0.55)
+                    if (wetness < wetlandThreshold)
                     {
                         continue;
                     }
@@ -320,13 +326,165 @@ namespace GameServerApp.World
                         continue;
                     }
 
-                    int wetlandFloor = Math.Max(1, surface - 1 - (int)Math.Round(curvatureBoost * _lakeBasinSmoothIterations * 0.5));
+                    int wetlandFloor = Math.Max(1, surface - outflowDepth - (int)Math.Round(curvatureBoost * _lakeBasinSmoothIterations * 0.25));
                     chunk.SetBlock(x, wetlandFloor, z, hydrology + curvatureBoost > 0.9 ? BlockType.Clay : BlockType.Sand);
                     chunk.SetBlock(x, wetlandFloor + 1, z, BlockType.Water);
                     if (wetlandFloor + 2 < 256)
                     {
                         chunk.SetBlock(x, wetlandFloor + 2, z, BlockType.Air);
                     }
+                }
+            }
+        }
+
+        private void AddCaveSupportPillars(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            double supportChance = Math.Clamp(_supportPillarChance * _caveSupportDensity, 0.0, 1.0);
+            if (supportChance <= 0.01)
+            {
+                return;
+            }
+
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 3)
+                    {
+                        continue;
+                    }
+
+                    if (!TryFindCaveSpan(chunk, surface, x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    double hydrology = hydrologyMask[x, z];
+                    double flow = flowAccumulation[x, z];
+                    double pillarBias = hydrology * _caveSupportHydrationBias + flow * _caveSupportFlowBias;
+                    double roll = SampleDeterministicNoise(x * 131 + z * 37, top * 11 + bottom * 7, SaltCaveHydro);
+                    if (roll > supportChance + pillarBias * 0.5)
+                    {
+                        continue;
+                    }
+
+                    int pillarTop = Math.Max(bottom + 1, top - 1);
+                    var fill = hydrology > 0.65 ? BlockType.Cobblestone : BlockType.Stone;
+                    for (int y = bottom + 1; y <= pillarTop; y++)
+                    {
+                        if (chunk.GetBlock(x, y, z) == BlockType.Air)
+                        {
+                            chunk.SetBlock(x, y, z, fill);
+                            surfaceCache[x, z] = Math.Max(surfaceCache[x, z], y);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SmoothRiverMouths(ChunkData chunk, int[,] surfaceCache, double[,] riverIntensity, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (_riverMouthSmoothRadius <= 0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, _riverMouthSmoothRadius);
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    double intensity = riverIntensity[x, z];
+                    if (intensity < RiverCenterThreshold * 0.45)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0 || surface > GlobalWaterLevel + 6)
+                    {
+                        continue;
+                    }
+
+                    double wetness = Math.Clamp(hydrologyMask[x, z] + flowAccumulation[x, z] * 0.35, 0.0, 1.25);
+                    double blend = Math.Clamp(_riverDeltaWetlandStrength + wetness * 0.25, 0.0, 1.35);
+                    int targetWater = Math.Min(surface, GlobalWaterLevel);
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                            {
+                                continue;
+                            }
+
+                            double distance = Math.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.2)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[nx, nz];
+                            if (neighborSurface <= 0 || neighborSurface > GlobalWaterLevel + 6)
+                            {
+                                continue;
+                            }
+
+                            int carveDepth = Math.Max(1, (int)Math.Round((radius - distance + 1) * blend));
+                            int waterFloor = Math.Max(1, targetWater - carveDepth);
+                            for (int y = targetWater; y >= waterFloor; y--)
+                            {
+                                chunk.SetBlock(nx, y, nz, BlockType.Water);
+                            }
+
+                            var rimMaterial = wetness + blend > 0.9 ? BlockType.Clay : BlockType.Sand;
+                            chunk.SetBlock(nx, waterFloor - 1 >= 0 ? Math.Max(0, waterFloor - 1) : 0, nz, rimMaterial);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CreateLakeOutflowChannels(ChunkData chunk, int[,] surfaceCache, double[,] flowAccumulation, double[,] hydrologyMask)
+        {
+            int carveDepth = Math.Max(1, _lakeOutflowCarveDepth);
+
+            for (int x = 1; x < 15; x++)
+            {
+                for (int z = 1; z < 15; z++)
+                {
+                    int waterSurface = FindTopWaterLevel(chunk, x, z);
+                    if (waterSurface < 1)
+                    {
+                        continue;
+                    }
+
+                    int solidSurface = surfaceCache[x, z];
+                    if (solidSurface < waterSurface || solidSurface > waterSurface + 4)
+                    {
+                        continue;
+                    }
+
+                    double flow = flowAccumulation[x, z];
+                    double hydrology = hydrologyMask[x, z];
+                    double pressure = Math.Clamp(flow * 0.8 + hydrology * 0.4, 0.0, 1.35);
+                    if (pressure < 0.55)
+                    {
+                        continue;
+                    }
+
+                    int targetFloor = Math.Max(1, waterSurface - carveDepth);
+                    for (int y = waterSurface; y >= targetFloor; y--)
+                    {
+                        chunk.SetBlock(x, y, z, BlockType.Water);
+                    }
+
+                    var rimMaterial = pressure > 0.85 ? BlockType.Clay : BlockType.Sand;
+                    chunk.SetBlock(x, targetFloor - 1, z, rimMaterial);
                 }
             }
         }

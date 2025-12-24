@@ -2717,6 +2717,7 @@ namespace GameServerApp.World
                 EnforceHydrologyEdgeConsistency(hydrologyMask, flowAccumulation);
                 StabilizeHydrologyVariance(hydrologyMask, flowAccumulation, surfaceCache);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
+                StabilizeHydrologyWarping(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
                 ProjectHydrologyEdgeFlux(context, surfaceCache, hydrologyMask, flowAccumulation);
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
                 NormalizeHydrologyPressure(hydrologyMask, flowAccumulation);
@@ -3984,6 +3985,82 @@ namespace GameServerApp.World
 
             double clamped = anchor + Math.Sign(delta) * maxDelta;
             return clamped;
+        }
+
+        private void StabilizeHydrologyWarping(int chunkX, int chunkZ, double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (_hydrologyWarpAmplitude <= 0.0 || _hydrologyWarpFrequency <= 0.0)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int worldX = chunkX * 16;
+            int worldZ = chunkZ * 16;
+            double warpScale = Math.Clamp(_hydrologyWarpAmplitude / 48.0, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.02, _hydrologyFlowDivergenceClamp * 0.35);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double warpSample = SimplexNoise.Generate(
+                        worldX + x + 17.25,
+                        worldZ + z - 9.75,
+                        _hydrologyWarpFrequency * 0.9,
+                        2,
+                        1.0,
+                        0.6,
+                        0x5EEDC0DE);
+
+                    double gx = hydrologyMask[Math.Min(width - 1, x + 1), z] - hydrologyMask[Math.Max(0, x - 1), z];
+                    double gz = hydrologyMask[x, Math.Min(depth - 1, z + 1)] - hydrologyMask[x, Math.Max(0, z - 1)];
+                    double gradientMagnitude = Math.Sqrt(gx * gx + gz * gz);
+                    double neighborHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                    double neighborFlow = SampleHydrologyAverage(flowAccumulation, x, z);
+                    double damping = Math.Clamp(
+                        1.0 - Math.Abs(warpSample) * warpScale * 0.65 - gradientMagnitude * _hydrologyCurvatureWeight * 0.15,
+                        0.45,
+                        1.0);
+
+                    hydrologyMask[x, z] = hydrologyMask[x, z] * damping + neighborHydro * (1.0 - damping);
+                    double blendedFlow = flowAccumulation[x, z] * damping + neighborFlow * (1.0 - damping);
+                    double divergence = Math.Abs(blendedFlow - neighborFlow);
+                    if (divergence > divergenceClamp)
+                    {
+                        blendedFlow = neighborFlow + Math.Sign(blendedFlow - neighborFlow) * divergenceClamp;
+                    }
+
+                    flowAccumulation[x, z] = Math.Max(0.0, blendedFlow);
+                }
+            }
+        }
+
+        private static double SampleHydrologyAverage(double[,] field, int x, int z)
+        {
+            int width = field.GetLength(0);
+            int depth = field.GetLength(1);
+            double sum = 0.0;
+            int count = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                    {
+                        continue;
+                    }
+
+                    sum += field[nx, nz];
+                    count++;
+                }
+            }
+
+            return count > 0 ? sum / count : field[x, z];
         }
 
         private void BlendHydrologySeams(int chunkX, int chunkZ, double[,] hydrologyMask, double[,] flowAccumulation)

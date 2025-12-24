@@ -2,6 +2,19 @@
 
 This document provides a complete categorized list of all Minecraft features for the HELLO_MY_WORLD project, organized by Core, Content, and Utility categories with implementation priorities.
 
+## Server/Client Feature Trace (Core/Content/Util)
+
+- **Core (Server):** worldgen (terrain/rivers/lakes/caves), chunk/session sync, protobuf packet registry/dispatch, persistence, security throttles.
+- **Core (Client):** chunk streaming/render, block interaction, input, world-map control profile loader that locks hydrology/range to server hash.
+- **Content:** biome surface blocks, ores/structures, river deltas + lake wetlands, cave props (supports/terraces), weather/time FX, survival HUD.
+- **Utility:** config export/sync scripts, protobuf generation/validation, world-map control JSON in `config/` + `Assets/StreamingAssets/`, automated feature matrix docs.
+
+## Current Sprint Implementation Order
+
+1) Lock client/server hydrology + world-map control via hashed profile (render/sim distance, warp/anisotropy, cave/river/lake weights).  
+2) Improve terrain carving stability: warp-aware hydrology smoothing, anisotropic river banks, river-aware lake outlets, gradient-aware cave supports.  
+3) Re-validate EnhancedMinecraft protobuf bindings and docs; keep JSON configs (`config/`, `Assets/StreamingAssets/`) as the data source.
+
 ## CORE FEATURES
 
 ### Server Core Systems

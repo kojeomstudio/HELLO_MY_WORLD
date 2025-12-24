@@ -62,6 +62,11 @@ public sealed class WorldMapControlProfile
 }
 ```
 
+### Latest Changes (2025-12-24)
+- World map control profile now serializes full hydrology/rivers/lakes/caves knobs (warp frequency/amplitude, edge stability/variance, anisotropy/gradient penalties, lake inflow/outflow, cave support weights) with a single hash used by both server and Unity StreamingAssets.
+- `WorldAreaManager` now applies the hashed profile for all hydrology/river/lake/cave tunables instead of mixing JSON sources, preventing drift when server config is regenerated.
+- Hydrology pipelines on server and MapGeneratorLib gained warp-aware stabilization plus anisotropic river bank/lake outlet shaping and gradient-aware cave supports to keep chunk seams consistent between preview and runtime.
+
 #### Configuration Sub-Classes
 ```csharp
 public sealed class CaveGenerationConfig

@@ -29,34 +29,86 @@ namespace GameServerApp.World
         public double HydrologyVarianceBlend { get; set; }
         public double HydrologyVarianceClamp { get; set; }
         public int HydrologySeamRelaxIterations { get; set; }
+        public double HydrologySeamRelaxBlend { get; set; }
         public double HydrologyEdgeFluxBlend { get; set; }
+        public double HydrologyEdgeVarianceClamp { get; set; }
         public double HydrologySmoothBlend { get; set; }
         public int HydrologySmoothIterations { get; set; }
+        public double HydrologyShorePush { get; set; }
+        public double HydrologySlopePenalty { get; set; }
+        public double HydrologyFlowGain { get; set; }
+        public double HydrologyContinuityWeight { get; set; }
+        public double HydrologyEdgeFlowBias { get; set; }
+        public double HydrologyEdgeTangentWeight { get; set; }
+        public double HydrologyEdgeFlowLockWeight { get; set; }
+        public int HydrologyEdgeStabilityIterations { get; set; }
+        public double HydrologyEdgeStabilityWeight { get; set; }
+        public double HydrologyWaterTableClampWeight { get; set; }
+        public int HydrologyWaterTableClampRange { get; set; }
+        public double HydrologyWaterTableSlopeWeight { get; set; }
+        public double HydrologyFlowPersistence { get; set; }
+        public double HydrologyGradientWeight { get; set; }
+        public double HydrologyGradientSlopeWeight { get; set; }
+        public double HydrologyGradientClamp { get; set; }
+        public int HydrologyDirectionalIterations { get; set; }
+        public double HydrologyDirectionalBlend { get; set; }
+        public double HydrologyFlowDivergenceClamp { get; set; }
+        public double HydrologyWarpFrequency { get; set; }
+        public double HydrologyWarpAmplitude { get; set; }
         public double RiverCenterThreshold { get; set; }
         public double RiverBankThreshold { get; set; }
         public int RiverDepth { get; set; }
+        public double RiverNoiseScale { get; set; }
+        public int RiverIntensitySmoothIterations { get; set; }
+        public double RiverIntensitySmoothBlend { get; set; }
+        public double RiverConfluenceBoost { get; set; }
+        public double RiverFlowAlignmentWeight { get; set; }
+        public double RiverGradientPenalty { get; set; }
+        public double RiverHeadwaterStabilityWeight { get; set; }
+        public double RiverAnisotropyWeight { get; set; }
+        public double RiverReliefPenaltyWeight { get; set; }
         public double RiverEdgeFeather { get; set; }
         public int RiverMouthSmoothRadius { get; set; }
         public double RiverDeltaWetlandStrength { get; set; }
+        public double RiverBankErosionWeight { get; set; }
         public double LakeSpawnWeightBias { get; set; }
         public double LakeShorelineBlend { get; set; }
         public double LakeWetlandSaturationThreshold { get; set; }
         public int LakeOutflowCarveDepth { get; set; }
+        public int LakeBasinSmoothIterations { get; set; }
+        public double LakeRiverProximitySuppression { get; set; }
+        public double LakeInflowBlendWeight { get; set; }
+        public double LakeRimErosionWeight { get; set; }
         public double CaveEdgeSealStrength { get; set; }
         public double SupportPillarChance { get; set; }
+        public int CaveStabilitySmoothIterations { get; set; }
+        public double CaveStabilitySmoothBlend { get; set; }
+        public double CaveSupportDensity { get; set; }
+        public double CaveSupportHydrationBias { get; set; }
+        public double CaveSupportFlowBias { get; set; }
+        public double CaveMoistureRetentionWeight { get; set; }
+        public double CaveHydrologyWeight { get; set; }
+        public double CaveFlowWeight { get; set; }
+        public double CaveRoughnessWeight { get; set; }
+        public double CaveDepthWeight { get; set; }
+        public double CaveRiverSuppressionWeight { get; set; }
         public bool EnableRivers { get; set; }
         public bool EnableLakes { get; set; }
         public bool EnableCaves { get; set; }
         public bool UseImprovedCaves { get; set; }
         public bool UseImprovedRivers { get; set; }
         public bool UseImprovedLakes { get; set; }
-        public int LakeBasinSmoothIterations { get; set; }
 
         public static WorldMapControlProfile Create(WorldGenerationConfig config, WorldSettings worldSettings)
         {
             int chunkSize = Math.Max(1, config.ChunkSize);
             int renderDistance = Math.Max(config.RenderDistance, Math.Max(1, worldSettings.ChunkLoadRadius));
             int simulationDistance = Math.Max(config.SimulationDistance, Math.Max(1, renderDistance - 2));
+            double caveWeightTotal = Math.Clamp(
+                config.Caves.HydrologyStabilityWeight + config.Caves.FlowStabilityWeight + config.Caves.RoughnessStabilityWeight,
+                0.0,
+                1.0);
+            double caveDepthWeight = Math.Clamp(1.0 - caveWeightTotal, 0.05, 0.45);
 
             var profile = new WorldMapControlProfile
             {
@@ -74,28 +126,75 @@ namespace GameServerApp.World
                 HydrologyVarianceBlend = config.Water.HydrologyVarianceBlend,
                 HydrologyVarianceClamp = config.Water.HydrologyVarianceClamp,
                 HydrologySeamRelaxIterations = Math.Max(0, config.Water.HydrologySeamRelaxIterations),
+                HydrologySeamRelaxBlend = config.Water.HydrologySeamRelaxBlend,
                 HydrologyEdgeFluxBlend = config.Water.HydrologyEdgeFluxBlend,
+                HydrologyEdgeVarianceClamp = config.Water.HydrologyEdgeVarianceClamp,
                 HydrologySmoothBlend = config.Water.HydrologySmoothBlend,
                 HydrologySmoothIterations = Math.Max(0, config.Water.HydrologySmoothIterations),
+                HydrologyShorePush = config.Water.HydrologyShorePush,
+                HydrologySlopePenalty = config.Water.HydrologySlopePenalty,
+                HydrologyFlowGain = config.Water.HydrologyFlowGain,
+                HydrologyContinuityWeight = config.Water.HydrologyContinuityWeight,
+                HydrologyEdgeFlowBias = config.Water.HydrologyEdgeFlowBias,
+                HydrologyEdgeTangentWeight = config.Water.HydrologyEdgeTangentWeight,
+                HydrologyEdgeFlowLockWeight = config.Water.HydrologyEdgeFlowLockWeight,
+                HydrologyEdgeStabilityIterations = Math.Max(0, config.Water.HydrologyEdgeStabilityIterations),
+                HydrologyEdgeStabilityWeight = config.Water.HydrologyEdgeStabilityWeight,
+                HydrologyWaterTableClampWeight = config.Water.HydrologyWaterTableClampWeight,
+                HydrologyWaterTableClampRange = Math.Max(1, config.Water.HydrologyWaterTableClampRange),
+                HydrologyWaterTableSlopeWeight = config.Water.HydrologyWaterTableSlopeWeight,
+                HydrologyFlowPersistence = config.Water.HydrologyFlowPersistence,
+                HydrologyGradientWeight = config.Water.HydrologyGradientWeight,
+                HydrologyGradientSlopeWeight = config.Water.HydrologyGradientSlopeWeight,
+                HydrologyGradientClamp = config.Water.HydrologyGradientClamp,
+                HydrologyDirectionalIterations = Math.Max(0, config.Water.HydrologyDirectionalIterations),
+                HydrologyDirectionalBlend = config.Water.HydrologyDirectionalBlend,
+                HydrologyFlowDivergenceClamp = config.Water.HydrologyFlowDivergenceClamp,
+                HydrologyWarpFrequency = config.Water.HydrologyWarpFrequency,
+                HydrologyWarpAmplitude = config.Water.HydrologyWarpAmplitude,
                 RiverCenterThreshold = config.Water.RiverCenterThreshold,
                 RiverBankThreshold = config.Water.RiverBankThreshold,
                 RiverDepth = Math.Max(1, config.Water.RiverDepth),
+                RiverNoiseScale = config.Water.RiverNoiseScale,
+                RiverIntensitySmoothIterations = Math.Max(1, config.Water.RiverIntensitySmoothIterations),
+                RiverIntensitySmoothBlend = config.Water.RiverIntensitySmoothBlend,
+                RiverConfluenceBoost = config.Water.RiverConfluenceBoost,
+                RiverFlowAlignmentWeight = config.Water.RiverFlowAlignmentWeight,
+                RiverGradientPenalty = config.Water.RiverGradientPenalty,
+                RiverHeadwaterStabilityWeight = config.Water.RiverHeadwaterStabilityWeight,
+                RiverAnisotropyWeight = config.Water.RiverAnisotropyWeight,
+                RiverReliefPenaltyWeight = config.Water.RiverReliefPenaltyWeight,
                 RiverEdgeFeather = config.Water.RiverEdgeFeather,
                 RiverMouthSmoothRadius = Math.Max(1, config.Water.RiverMouthSmoothRadius),
                 RiverDeltaWetlandStrength = config.Water.RiverDeltaWetlandStrength,
+                RiverBankErosionWeight = config.Water.RiverBankErosionWeight,
                 LakeSpawnWeightBias = config.Lakes.SpawnWeightBias,
                 LakeShorelineBlend = config.Lakes.ShorelineBlend,
                 LakeWetlandSaturationThreshold = config.Lakes.WetlandSaturationThreshold,
                 LakeOutflowCarveDepth = Math.Max(1, config.Lakes.OutflowCarveDepth),
+                LakeBasinSmoothIterations = Math.Max(0, config.Lakes.LakeBasinSmoothIterations),
+                LakeRiverProximitySuppression = config.Lakes.RiverProximitySuppression,
+                LakeInflowBlendWeight = config.Water.LakeInflowBlendWeight,
+                LakeRimErosionWeight = config.Water.LakeRimErosionWeight,
                 CaveEdgeSealStrength = config.Caves.EdgeSealStrength,
                 SupportPillarChance = config.Caves.SupportPillarChance,
+                CaveStabilitySmoothIterations = Math.Max(0, config.Caves.StabilitySmoothIterations),
+                CaveStabilitySmoothBlend = config.Caves.StabilitySmoothBlend,
+                CaveSupportDensity = config.Caves.SupportDensity,
+                CaveSupportHydrationBias = config.Caves.SupportHydrationBias,
+                CaveSupportFlowBias = config.Caves.SupportFlowBias,
+                CaveMoistureRetentionWeight = config.Caves.MoistureRetentionWeight,
+                CaveHydrologyWeight = config.Caves.HydrologyStabilityWeight,
+                CaveFlowWeight = config.Caves.FlowStabilityWeight,
+                CaveRoughnessWeight = config.Caves.RoughnessStabilityWeight,
+                CaveDepthWeight = caveDepthWeight,
+                CaveRiverSuppressionWeight = config.Caves.RiverSuppressionWeight,
                 EnableRivers = config.Water.EnableRivers,
                 EnableLakes = config.Water.EnableLakes,
                 EnableCaves = config.Caves.EnableCaves,
                 UseImprovedCaves = config.Caves.UseImprovedCaves,
                 UseImprovedRivers = config.Water.UseImprovedRivers,
-                UseImprovedLakes = config.Water.UseImprovedLakes,
-                LakeBasinSmoothIterations = Math.Max(0, config.Lakes.LakeBasinSmoothIterations)
+                UseImprovedLakes = config.Water.UseImprovedLakes
             };
 
             profile.ProfileHash = WorldMapControlProfileUtility.ComputeHash(profile);
@@ -121,28 +220,75 @@ namespace GameServerApp.World
                 .Append(profile.HydrologyVarianceBlend).Append('|')
                 .Append(profile.HydrologyVarianceClamp).Append('|')
                 .Append(profile.HydrologySeamRelaxIterations).Append('|')
+                .Append(profile.HydrologySeamRelaxBlend).Append('|')
                 .Append(profile.HydrologyEdgeFluxBlend).Append('|')
+                .Append(profile.HydrologyEdgeVarianceClamp).Append('|')
                 .Append(profile.HydrologySmoothBlend).Append('|')
                 .Append(profile.HydrologySmoothIterations).Append('|')
+                .Append(profile.HydrologyShorePush).Append('|')
+                .Append(profile.HydrologySlopePenalty).Append('|')
+                .Append(profile.HydrologyFlowGain).Append('|')
+                .Append(profile.HydrologyContinuityWeight).Append('|')
+                .Append(profile.HydrologyEdgeFlowBias).Append('|')
+                .Append(profile.HydrologyEdgeTangentWeight).Append('|')
+                .Append(profile.HydrologyEdgeFlowLockWeight).Append('|')
+                .Append(profile.HydrologyEdgeStabilityIterations).Append('|')
+                .Append(profile.HydrologyEdgeStabilityWeight).Append('|')
+                .Append(profile.HydrologyWaterTableClampWeight).Append('|')
+                .Append(profile.HydrologyWaterTableClampRange).Append('|')
+                .Append(profile.HydrologyWaterTableSlopeWeight).Append('|')
+                .Append(profile.HydrologyFlowPersistence).Append('|')
+                .Append(profile.HydrologyGradientWeight).Append('|')
+                .Append(profile.HydrologyGradientSlopeWeight).Append('|')
+                .Append(profile.HydrologyGradientClamp).Append('|')
+                .Append(profile.HydrologyDirectionalIterations).Append('|')
+                .Append(profile.HydrologyDirectionalBlend).Append('|')
+                .Append(profile.HydrologyFlowDivergenceClamp).Append('|')
+                .Append(profile.HydrologyWarpFrequency).Append('|')
+                .Append(profile.HydrologyWarpAmplitude).Append('|')
                 .Append(profile.RiverCenterThreshold).Append('|')
                 .Append(profile.RiverBankThreshold).Append('|')
                 .Append(profile.RiverDepth).Append('|')
+                .Append(profile.RiverNoiseScale).Append('|')
+                .Append(profile.RiverIntensitySmoothIterations).Append('|')
+                .Append(profile.RiverIntensitySmoothBlend).Append('|')
+                .Append(profile.RiverConfluenceBoost).Append('|')
+                .Append(profile.RiverFlowAlignmentWeight).Append('|')
+                .Append(profile.RiverGradientPenalty).Append('|')
+                .Append(profile.RiverHeadwaterStabilityWeight).Append('|')
+                .Append(profile.RiverAnisotropyWeight).Append('|')
+                .Append(profile.RiverReliefPenaltyWeight).Append('|')
                 .Append(profile.RiverEdgeFeather).Append('|')
                 .Append(profile.RiverMouthSmoothRadius).Append('|')
                 .Append(profile.RiverDeltaWetlandStrength).Append('|')
+                .Append(profile.RiverBankErosionWeight).Append('|')
                 .Append(profile.LakeSpawnWeightBias).Append('|')
                 .Append(profile.LakeShorelineBlend).Append('|')
                 .Append(profile.LakeWetlandSaturationThreshold).Append('|')
                 .Append(profile.LakeOutflowCarveDepth).Append('|')
+                .Append(profile.LakeBasinSmoothIterations).Append('|')
+                .Append(profile.LakeRiverProximitySuppression).Append('|')
+                .Append(profile.LakeInflowBlendWeight).Append('|')
+                .Append(profile.LakeRimErosionWeight).Append('|')
                 .Append(profile.CaveEdgeSealStrength).Append('|')
                 .Append(profile.SupportPillarChance).Append('|')
+                .Append(profile.CaveStabilitySmoothIterations).Append('|')
+                .Append(profile.CaveStabilitySmoothBlend).Append('|')
+                .Append(profile.CaveSupportDensity).Append('|')
+                .Append(profile.CaveSupportHydrationBias).Append('|')
+                .Append(profile.CaveSupportFlowBias).Append('|')
+                .Append(profile.CaveMoistureRetentionWeight).Append('|')
+                .Append(profile.CaveHydrologyWeight).Append('|')
+                .Append(profile.CaveFlowWeight).Append('|')
+                .Append(profile.CaveRoughnessWeight).Append('|')
+                .Append(profile.CaveDepthWeight).Append('|')
+                .Append(profile.CaveRiverSuppressionWeight).Append('|')
                 .Append(profile.EnableRivers).Append('|')
                 .Append(profile.EnableLakes).Append('|')
                 .Append(profile.EnableCaves).Append('|')
                 .Append(profile.UseImprovedCaves).Append('|')
                 .Append(profile.UseImprovedRivers).Append('|')
-                .Append(profile.UseImprovedLakes).Append('|')
-                .Append(profile.LakeBasinSmoothIterations);
+                .Append(profile.UseImprovedLakes);
 
             using var sha = SHA256.Create();
             var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

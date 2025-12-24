@@ -15,14 +15,16 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
     private readonly SessionManager _sessions;
     private readonly WorldManager _worldManager;
     private readonly Rooms.RoomManager _rooms;
+    private readonly WorldSynchronizationManager _worldSync;
 
-    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, Rooms.RoomManager rooms) 
+    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, Rooms.RoomManager rooms, WorldSynchronizationManager worldSync) 
         : base(MessageType.WorldBlockChangeRequest)
     {
         _database = database;
         _sessions = sessions;
         _worldManager = worldManager;
         _rooms = rooms;
+        _worldSync = worldSync;
     }
 
     protected override async Task HandleAsync(Session session, WorldBlockChangeRequest message)
@@ -65,8 +67,16 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 return;
             }
 
-            // 블록 변경 처리 (WorldManager를 통한 실제 월드 데이터 변경)
-            await ProcessBlockChange(session, message);
+            // 블록 변경 처리 (WorldSynchronizationManager를 통한 실시간 월드 동기화)
+            if (_worldSync != null)
+            {
+                await _worldSync.ProcessBlockChangeAsync(message, session);
+                await _worldSync.ProcessWorldChangeQueueAsync();
+            }
+            else
+            {
+                await ProcessBlockChange(session, message);
+            }
 
             // 성공 응답 전송
             var response = new WorldBlockChangeResponse
@@ -77,8 +87,11 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
             };
             await session.SendAsync(MessageType.WorldBlockChangeResponse, response);
 
-            // 다른 플레이어들에게 브로드캐스트
-            await BroadcastBlockChange(session, message);
+            // 다른 플레이어들에게 브로드캐스트 (WorldSynchronizationManager가 큐를 통해 처리)
+            if (_worldSync == null)
+            {
+                await BroadcastBlockChange(session, message);
+            }
 
             Console.WriteLine($"Block changed by {session.UserName}: {message.AreaId}/{message.SubworldId} at ({message.BlockPosition.X}, {message.BlockPosition.Y}, {message.BlockPosition.Z})");
         }

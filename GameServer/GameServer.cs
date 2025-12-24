@@ -26,10 +26,12 @@ namespace GameServerApp
         private readonly ServerMetricsService _metrics;
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
+        private readonly WorldSynchronizationManager _worldSync;
         private readonly ServerAIManager _aiManager;
         private readonly Timer _maintenanceTimer;
         private readonly Timer _aiUpdateTimer;
         private readonly Timer _aiSyncTimer;
+        private readonly Timer _worldSyncTimer;
         private readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _rateCounters = new();
         private readonly ServerConfig _config;
         private readonly WorldTimeSystem _worldTimeSystem;
@@ -61,6 +63,7 @@ namespace GameServerApp
             _rooms = new Rooms.RoomManager(_sessions);
             var worldGenConfig = WorldGenerationConfig.Load(_config.World.WorldConfigPath);
             _worldManager = new WorldManager(_database, _config.World, worldGenConfig);
+            _worldSync = new WorldSynchronizationManager(_worldManager, _sessions, _database, _rooms);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
             _weatherSystem = new WeatherSystem(_sessions, _config.World);
@@ -86,6 +89,8 @@ namespace GameServerApp
             _aiSyncTimer = new Timer(BroadcastAIState, null,
                 TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
 
+            _worldSyncTimer = new Timer(_ => _ = _worldSync.ProcessWorldChangeQueueAsync(), null,
+                TimeSpan.FromMilliseconds(125), TimeSpan.FromMilliseconds(125));
             _gameTimer.Start();
             _lastAIUpdateTime = DateTime.UtcNow;
         }
@@ -138,7 +143,7 @@ namespace GameServerApp
 
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms));
+            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms, _worldSync));
 
             // Game Mechanics & Interactions
             var craftingSystem = new CraftingSystem(inventorySystem);
@@ -245,6 +250,7 @@ namespace GameServerApp
             _maintenanceTimer?.Dispose();
             _aiUpdateTimer?.Dispose();
             _aiSyncTimer?.Dispose();
+            _worldSyncTimer?.Dispose();
             _sessions?.Dispose();
             _gameTimer?.Stop();
             _metrics.MarkServerStopped();

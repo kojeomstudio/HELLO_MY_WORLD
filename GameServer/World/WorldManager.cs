@@ -110,6 +110,8 @@ namespace GameServerApp.World
         private const string TerrainProfilesKey = "terrain.profiles";
         private const string RiverFieldCacheKey = "terrain.riverField";
         private const string HydrologyFieldCacheKey = "terrain.hydrology";
+        private const string RiparianSaturationCacheKey = "terrain.riparianSaturation";
+        private const string RiparianSaturationWithRiverCacheKey = "terrain.riparianSaturation.river";
         private static double NoiseCaveHorizontalFrequency = 0.0026;
         private static double NoiseCaveVerticalFrequency = 0.018;
         private static double NoiseCaveThreshold = 0.42;
@@ -2751,6 +2753,38 @@ namespace GameServerApp.World
             }
 
             return cache;
+        }
+
+        private double[,] GetRiparianSaturation(TerrainGenerationContext context, HydrologyFieldCache hydrologyField, RiverFieldCache? riverField)
+        {
+            string cacheKey = riverField != null ? RiparianSaturationWithRiverCacheKey : RiparianSaturationCacheKey;
+            return context.GetOrAddMetadata(cacheKey, () => BuildRiparianSaturation(hydrologyField, riverField));
+        }
+
+        private double[,] BuildRiparianSaturation(HydrologyFieldCache hydrologyField, RiverFieldCache? riverField)
+        {
+            int width = hydrologyField.HydrologyMask.GetLength(0);
+            int depth = hydrologyField.HydrologyMask.GetLength(1);
+            var riparian = new double[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double hydrology = hydrologyField.HydrologyMask[x, z];
+                    double flow = hydrologyField.FlowAccumulation[x, z];
+                    double gradientMag = hydrologyField.HydrologyGradient?[x, z].Length() ?? 0.0;
+                    double curvature = hydrologyField.HydrologyCurvature?[x, z] ?? 0.0;
+                    double riverPressure = riverField?.Intensity[x, z] ?? 0.0;
+
+                    double wetness = hydrology * 0.55 + flow * 0.25 + gradientMag * 0.1 + Math.Max(0.0, curvature) * _hydrologyCurvatureWeight * 0.1;
+                    double combined = wetness * 0.7 + riverPressure * 0.4;
+                    riparian[x, z] = Math.Clamp(combined, 0.0, 1.4);
+                }
+            }
+
+            SmoothScalarField(riparian, 1, Math.Clamp(_hydrologySmoothBlend + 0.05, 0.0, 0.9));
+            return riparian;
         }
 
         private void PopulateRiverFieldCache(RiverFieldCache cache, TerrainGenerationContext context)

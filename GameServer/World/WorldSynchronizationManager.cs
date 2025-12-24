@@ -25,16 +25,12 @@ namespace GameServerApp.World
         // Chunk update tracking for efficient synchronization
         private readonly ConcurrentDictionary<string, ChunkUpdateTracker> _chunkUpdateTrackers = new();
         
-        // Player position tracking for movement synchronization
-        private readonly ConcurrentDictionary<string, PlayerPositionState> _playerPositions = new();
-        
         // World change queue for batch processing
         private readonly Queue<WorldChangeRecord> _worldChangeQueue = new();
         private readonly object _queueLock = new object();
 
         // Configuration
         private readonly int _syncBatchSize = 50;
-        private readonly int _syncIntervalMs = 100;
         private readonly int _chunkUnloadDelayMs = 30000;
 
         public WorldSynchronizationManager(
@@ -70,40 +66,12 @@ namespace GameServerApp.World
                     Type = WorldChangeType.BlockChange,
                     Data = request,
                     Timestamp = DateTimeOffset.UtcNow,
-                    OriginPlayerId = originSession.UserName
+                    OriginPlayerId = originSession.UserName ?? originSession.SessionToken ?? string.Empty
                 });
             }
 
             // Process the block change immediately for the origin player
             await ProcessImmediateBlockChange(request, originSession);
-        }
-
-        /// <summary>
-        /// Updates player position and broadcasts to nearby players
-        /// </summary>
-        public async Task UpdatePlayerPositionAsync(string playerId, Vector3 position, Vector3 rotation)
-        {
-            var oldState = _playerPositions.GetOrAdd(playerId, _ => new PlayerPositionState());
-            var oldChunkKey = GetChunkKey(
-                (int)oldState.Position.X / 16, 
-                (int)oldState.Position.Z / 16);
-            var newChunkKey = GetChunkKey(
-                (int)position.X / 16, 
-                (int)position.Z / 16);
-
-            // Update player state
-            oldState.Position = position;
-            oldState.Rotation = rotation;
-            oldState.LastUpdate = DateTimeOffset.UtcNow;
-
-            // Handle chunk transitions
-            if (oldChunkKey != newChunkKey)
-            {
-                await HandlePlayerChunkTransition(playerId, oldChunkKey, newChunkKey);
-            }
-
-            // Broadcast to nearby players
-            await BroadcastPlayerPosition(playerId, position, rotation, newChunkKey);
         }
 
         /// <summary>
@@ -127,7 +95,6 @@ namespace GameServerApp.World
             // Group changes by type for efficient processing
             var blockChanges = changesToProcess
                 .Where(c => c.Type == WorldChangeType.BlockChange)
-                .Select(c => (WorldBlockChangeRequest)c.Data)
                 .ToList();
 
             if (blockChanges.Count > 0)
@@ -137,31 +104,6 @@ namespace GameServerApp.World
 
             // Clean up old chunk trackers
             await CleanupOldChunkTrackers();
-        }
-
-        /// <summary>
-        /// Sends initial world data to a newly connected player
-        /// </summary>
-        public async Task SendInitialWorldDataAsync(Session session, Vector3 spawnPosition)
-        {
-            var playerChunkX = (int)spawnPosition.X / 16;
-            var playerChunkZ = (int)spawnPosition.Z / 16;
-            var loadRadius = 8; // Load 8x8 chunks around spawn
-
-            var chunkTasks = new List<Task>();
-            
-            for (int x = playerChunkX - loadRadius; x <= playerChunkX + loadRadius; x++)
-            {
-                for (int z = playerChunkZ - loadRadius; z <= playerChunkZ + loadRadius; z++)
-                {
-                    chunkTasks.Add(SendChunkToPlayer(session, x, z));
-                }
-            }
-
-            await Task.WhenAll(chunkTasks);
-
-            // Send initial player position
-            await UpdatePlayerPositionAsync(session.UserName!, spawnPosition, Vector3.Zero);
         }
 
         private async Task ProcessImmediateBlockChange(WorldBlockChangeRequest request, Session originSession)
@@ -180,124 +122,32 @@ namespace GameServerApp.World
                 blockType, playerId);
         }
 
-        private async Task BroadcastBlockChanges(List<WorldBlockChangeRequest> changes)
+        private async Task BroadcastBlockChanges(IEnumerable<WorldChangeRecord> changes)
         {
-            // Group changes by chunk for efficient broadcasting
-            var chunkGroups = changes.GroupBy(c => $"{c.BlockPosition.X / 16}_{c.BlockPosition.Z / 16}");
-
-            foreach (var group in chunkGroups)
+            foreach (var record in changes)
             {
-                var chunkX = group.First().BlockPosition.X / 16;
-                var chunkZ = group.First().BlockPosition.Z / 16;
-                var roomId = _roomManager.GetRoomIdForChunk(chunkX, chunkZ);
-
-                if (!string.IsNullOrEmpty(roomId))
+                if (record.Data is not WorldBlockChangeRequest request)
                 {
-                    var broadcast = new WorldBlockChangeBatchBroadcast
-                    {
-                        AreaId = "world",
-                        SubworldId = "overworld",
-                        Changes = group.Select(c => new WorldBlockChangeData
-                        {
-                            Position = c.BlockPosition,
-                            BlockType = c.BlockType,
-                            ChunkType = c.ChunkType
-                        }).ToList(),
-                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    };
-
-                    await _roomManager.BroadcastToRoomAsync(roomId, MessageType.WorldBlockChangeBatchBroadcast, broadcast);
+                    continue;
                 }
-            }
-        }
-
-        private async Task BroadcastPlayerPosition(string playerId, Vector3 position, Vector3 rotation, string chunkKey)
-        {
-            var positionUpdate = new PlayerPositionUpdate
-            {
-                PlayerId = playerId,
-                Position = position,
-                Rotation = rotation,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-
-            // Find players in nearby chunks
-            var nearbyChunks = GetNearbyChunkKeys(chunkKey, 2); // 2 chunk radius
-            var nearbyPlayers = _playerPositions
-                .Where(p => nearbyChunks.Contains(GetChunkKey(
-                    (int)p.Value.Position.X / 16, 
-                    (int)p.Value.Position.Z / 16)) && p.Key != playerId)
-                .Select(p => p.Key)
-                .ToList();
-
-            foreach (var nearbyPlayerId in nearbyPlayers)
-            {
-                var session = _sessionManager.GetSession(nearbyPlayerId);
-                if (session != null)
+                var roomId = _roomManager.GetPlayerRoomId(record.OriginPlayerId ?? string.Empty);
+                if (string.IsNullOrEmpty(roomId))
                 {
-                    await session.SendAsync(MessageType.PlayerPositionUpdate, positionUpdate);
+                    continue;
                 }
-            }
-        }
 
-        private async Task HandlePlayerChunkTransition(string playerId, string oldChunkKey, string newChunkKey)
-        {
-            // Unload old chunks
-            var oldNearbyChunks = GetNearbyChunkKeys(oldChunkKey, 8);
-            var newNearbyChunks = GetNearbyChunkKeys(newChunkKey, 8);
-            var chunksToUnload = oldNearbyChunks.Except(newNearbyChunks);
-
-            foreach (var chunkToUnload in chunksToUnload)
-            {
-                var session = _sessionManager.GetSession(playerId);
-                if (session != null)
+                var broadcast = new WorldBlockChangeBroadcast
                 {
-                    var coords = ParseChunkKey(chunkToUnload);
-                    var unloadMessage = new ChunkUnloadMessage
-                    {
-                        ChunkX = coords.x,
-                        ChunkZ = coords.z,
-                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    };
-                    await session.SendAsync(MessageType.ChunkUnload, unloadMessage);
-                }
-            }
+                    AreaId = request.AreaId,
+                    SubworldId = request.SubworldId,
+                    BlockPosition = request.BlockPosition,
+                    BlockType = request.BlockType,
+                    ChunkType = request.ChunkType,
+                    PlayerId = record.OriginPlayerId ?? "Unknown",
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                };
 
-            // Load new chunks
-            var chunksToLoad = newNearbyChunks.Except(oldNearbyChunks);
-            foreach (var chunkToLoad in chunksToLoad)
-            {
-                var coords = ParseChunkKey(chunkToLoad);
-                var session = _sessionManager.GetSession(playerId);
-                if (session != null)
-                {
-                    await SendChunkToPlayer(session, coords.x, coords.z);
-                }
-            }
-        }
-
-        private async Task SendChunkToPlayer(Session session, int chunkX, int chunkZ)
-        {
-            try
-            {
-                var chunkData = await _worldManager.GetChunkAsync(chunkX, chunkZ);
-                if (chunkData != null)
-                {
-                    var chunkMessage = new ChunkDataMessage
-                    {
-                        ChunkX = chunkX,
-                        ChunkZ = chunkZ,
-                        BlockData = chunkData.ToBytes().blockData,
-                        BiomeData = chunkData.ToBytes().biomeData,
-                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    };
-
-                    await session.SendAsync(MessageType.ChunkData, chunkMessage);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending chunk ({chunkX}, {chunkZ}) to player {session.UserName}: {ex.Message}");
+                await _roomManager.BroadcastToRoomAsync(roomId, MessageType.WorldBlockChangeBroadcast, broadcast);
             }
         }
 
@@ -347,7 +197,7 @@ namespace GameServerApp.World
         public int ChunkX { get; }
         public int ChunkZ { get; }
         public DateTimeOffset LastUpdate { get; private set; }
-        private readonly HashSet<Vector3> _changedBlocks = new();
+        private readonly HashSet<Vector3Int> _changedBlocks = new();
 
         public ChunkUpdateTracker(int chunkX, int chunkZ)
         {
@@ -356,7 +206,7 @@ namespace GameServerApp.World
             LastUpdate = DateTimeOffset.UtcNow;
         }
 
-        public void RecordBlockChange(Vector3 position, BlockType blockType)
+        public void RecordBlockChange(Vector3Int position, BlockType blockType)
         {
             _changedBlocks.Add(position);
             LastUpdate = DateTimeOffset.UtcNow;
@@ -364,16 +214,6 @@ namespace GameServerApp.World
 
         public bool HasChanges() => _changedBlocks.Count > 0;
         public void ClearChanges() => _changedBlocks.Clear();
-    }
-
-    /// <summary>
-    /// Tracks player position state for movement synchronization
-    /// </summary>
-    internal class PlayerPositionState
-    {
-        public Vector3 Position { get; set; }
-        public Vector3 Rotation { get; set; }
-        public DateTimeOffset LastUpdate { get; set; }
     }
 
     /// <summary>

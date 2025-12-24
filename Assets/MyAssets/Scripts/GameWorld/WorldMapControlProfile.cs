@@ -196,8 +196,11 @@ public sealed class WorldMapControlProfile
                 var provided = string.IsNullOrWhiteSpace(data.profileHash) ? "(empty)" : data.profileHash;
                 if (!string.Equals(provided, profile.ProfileHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    Debug.LogWarning($"[WorldMapControlProfile] Hash mismatch for '{path}': provided={provided}, computed={profile.ProfileHash}");
+                    Debug.LogWarning($"[WorldMapControlProfile] Hash mismatch for '{path}': provided={provided}, computed={profile.ProfileHash}. Falling back to world config to avoid map-control drift.");
+                    return FromConfig(fallback);
                 }
+
+                Debug.Log($"[WorldMapControlProfile] Loaded '{path}' v{profile.Version} chunk={profile.ChunkSize}, render={profile.RenderDistance}, sim={profile.SimulationDistance}, water={profile.GlobalWaterLevel}, hash={profile.ProfileHash}");
                 return profile;
             }
 

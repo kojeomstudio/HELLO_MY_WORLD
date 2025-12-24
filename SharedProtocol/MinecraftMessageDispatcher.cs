@@ -49,6 +49,11 @@ namespace SharedProtocol
                         $"Handler for '{messageType}' expects {typeof(T).Name} but generated contract '{descriptorType.Name}' was registered. Update the handler or regenerate protobufs.");
                 }
             }
+            else if (!ProtocolValidator.IsOptionalMessage(messageType))
+            {
+                Console.WriteLine(
+                    $"[Proto][WARN] Handler registered for '{messageType}' without an EnhancedMinecraft binding. If this packet should use protobuf, add it to ProtocolRegistry or mark it optional.");
+            }
 
             _handlers[messageType] = handler;
             _handlerContracts[messageType] = typeof(T);

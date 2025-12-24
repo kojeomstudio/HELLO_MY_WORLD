@@ -2719,6 +2719,8 @@ namespace GameServerApp.World
                 EnforceHydrologyEdgeConsistency(hydrologyMask, flowAccumulation);
                 StabilizeHydrologyVariance(hydrologyMask, flowAccumulation, surfaceCache);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
+                var initialCurvature = BuildHydrologyCurvature(hydrologyMask, flowAccumulation);
+                StabilizeHydrologyWithCurvature(hydrologyMask, flowAccumulation, initialCurvature);
                 StabilizeHydrologyWarping(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
                 ProjectHydrologyEdgeFlux(context, surfaceCache, hydrologyMask, flowAccumulation);
                 SmoothHydrologyFields(hydrologyMask, flowAccumulation);
@@ -3650,6 +3652,80 @@ namespace GameServerApp.World
                 {
                     hydrologyMask[x, z] = hydrologyBuffer[x, z];
                     flowAccumulation[x, z] = flowBuffer[x, z];
+                }
+            }
+        }
+
+        private void StabilizeHydrologyWithCurvature(double[,] hydrologyMask, double[,] flowAccumulation, double[,]? hydrologyCurvature)
+        {
+            if (_hydrologyGradientStabilityIterations <= 0 || _hydrologyGradientStabilityBlend <= 0.0 || hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            var buffer = new double[width, depth];
+            double blend = Math.Clamp(_hydrologyGradientStabilityBlend, 0.0, 1.0);
+            double gradientClamp = Math.Max(1e-4, _hydrologyGradientClamp);
+            double curvatureWeight = Math.Clamp(_hydrologyCurvatureWeight, 0.0, 1.5);
+            double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
+
+            for (int iteration = 0; iteration < _hydrologyGradientStabilityIterations; iteration++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        double hydrology = hydrologyMask[x, z];
+                        double flow = flowAccumulation[x, z];
+                        double curvature = hydrologyCurvature?[x, z] ?? 0.0;
+
+                        double accum = hydrology;
+                        double weight = 1.0;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int sampleX = Math.Clamp(x + dx, 0, width - 1);
+                                int sampleZ = Math.Clamp(z + dz, 0, depth - 1);
+                                double neighborHydro = hydrologyMask[sampleX, sampleZ];
+                                double neighborFlow = flowAccumulation[sampleX, sampleZ];
+
+                                double gradX = hydrologyMask[Math.Min(width - 1, sampleX + 1), sampleZ] - hydrologyMask[Math.Max(0, sampleX - 1), sampleZ];
+                                double gradZ = hydrologyMask[sampleX, Math.Min(depth - 1, sampleZ + 1)] - hydrologyMask[sampleX, Math.Max(0, sampleZ - 1)];
+                                double gradientStrength = Math.Min(Math.Sqrt(gradX * gradX + gradZ * gradZ), gradientClamp);
+                                double continuity = 1.0 - Math.Clamp(Math.Abs(hydrology - neighborHydro), 0.0, 1.0);
+                                double stabilityWeight = 1.0
+                                    + gradientStrength * 0.35
+                                    + curvature * curvatureWeight * 0.2
+                                    + neighborFlow * 0.05
+                                    + flowPersistence * 0.1
+                                    + flow * 0.05;
+
+                                double neighborWeight = Math.Max(0.05, stabilityWeight * (0.65 + continuity * 0.35));
+                                accum += neighborHydro * neighborWeight;
+                                weight += neighborWeight;
+                            }
+                        }
+
+                        double targetHydro = weight > 0.0 ? accum / weight : hydrology;
+                        buffer[x, z] = Math.Clamp(hydrology + (targetHydro - hydrology) * blend, 0.0, 1.0);
+                    }
+                }
+
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        hydrologyMask[x, z] = buffer[x, z];
+                    }
                 }
             }
         }

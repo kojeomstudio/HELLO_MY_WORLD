@@ -23,3 +23,4 @@ namespace GameServerApp.Handlers
         
         protected abstract Task HandleAsync(Session session, T message);
     }
+}

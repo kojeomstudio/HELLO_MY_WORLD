@@ -1,7 +1,7 @@
-## Minecraft core/content/util rollout (latest 2025-12-24)
-- Shared JSON-driven world map control profile (generated in `GameServer/World/WorldManager.cs`, consumed by `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`) keeps caves, rivers, lakes, and hydrology masks aligned between server chunks and Unity previews.
+## Minecraft core/content/util rollout (latest 2025-12-25)
+- Shared JSON-driven world map control profile (generated in `GameServer/World/WorldManager.cs`, consumed by `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`) now carries riparian smoothing (`RiparianSmoothIterations/Blend/SaturationBoost`), lake shelves, and cave riparian plugs so hydrology/cave/lake passes stay aligned between server chunks and Unity previews. See `docs/minecraft_feature_core_content_util_2025-12-25.md` for the full matrix.
 - Map generation stays data-driven: knobs live in `config/world.json` (server) and `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json` (client) and are exported to `config/world_map_control_profile.json` for auditability/versioning.
-- EnhancedMinecraft protobuf remains the canonical packet surface; registry/validator/diagnostics in `SharedProtocol/EnhancedMinecraft` guard descriptor and handler drift on both server and client.
+- EnhancedMinecraft protobuf remains the canonical packet surface; registry/validator/diagnostics in `SharedProtocol/EnhancedMinecraft` guard descriptor and handler drift on both server and client. `ProtocolValidator.ValidateHandlerBindings()` now double-checks handler contracts against generated DTOs.
 
 ### Core (server vs client split)
 - Server: chunk lifecycle + world map control (`World/WorldManager.cs`, `World/Generation/*`), protocol registry/validation (`SharedProtocol/EnhancedMinecraft/*`), session/auth/routing (`SessionManager.cs`, `GameServer.cs`), persistence gates and world save.

@@ -84,6 +84,9 @@ Set-IfPresent $unity "HydrologySeamRelaxIterations" $server.Water.HydrologySeamR
 Set-IfPresent $unity "HydrologySeamRelaxBlend" $server.Water.HydrologySeamRelaxBlend
 Set-IfPresent $unity "HydrologyWarpFrequency" $server.Water.HydrologyWarpFrequency
 Set-IfPresent $unity "HydrologyWarpAmplitude" $server.Water.HydrologyWarpAmplitude
+Set-IfPresent $unity "RiparianSmoothIterations" $server.Water.RiparianSmoothIterations
+Set-IfPresent $unity "RiparianSmoothBlend" $server.Water.RiparianSmoothBlend
+Set-IfPresent $unity "RiparianSaturationBoost" $server.Water.RiparianSaturationBoost
 
 Set-IfPresent $unity "RiverFlowAlignmentWeight" $server.Water.RiverFlowAlignmentWeight
 Set-IfPresent $unity "RiverGradientPenalty" $server.Water.RiverGradientPenalty
@@ -116,6 +119,7 @@ Set-IfPresent $unity "CaveStabilitySmoothBlend" $server.Caves.StabilitySmoothBle
 Set-IfPresent $unity "CaveSupportDensity" $server.Caves.SupportDensity
 Set-IfPresent $unity "SupportHydrationBias" $server.Caves.SupportHydrationBias
 Set-IfPresent $unity "SupportFlowBias" $server.Caves.SupportFlowBias
+Set-IfPresent $unity "RiparianPlugDepth" $server.Caves.RiparianPlugDepth
 Set-IfPresent $unity "HydrologyStabilityWeight" $server.Caves.HydrologyStabilityWeight
 Set-IfPresent $unity "FlowStabilityWeight" $server.Caves.FlowStabilityWeight
 Set-IfPresent $unity "RoughnessStabilityWeight" $server.Caves.RoughnessStabilityWeight
@@ -126,6 +130,7 @@ Set-IfPresent $unity "LakeMinDepth" $server.Lakes.MinDepth
 Set-IfPresent $unity "LakeMaxDepth" $server.Lakes.MaxDepth
 Set-IfPresent $unity "LakeMaxRadius" $server.Lakes.MaxRadius
 Set-IfPresent $unity "LakeBasinSmoothIterations" $server.Lakes.LakeBasinSmoothIterations
+Set-IfPresent $unity "LakeShelfDepth" $server.Lakes.ShelfDepth
 Set-IfPresent $unity "LakeSpawnWeightBias" $server.Lakes.SpawnWeightBias
 Set-IfPresent $unity "LakeShorelineBlend" $server.Lakes.ShorelineBlend
 Set-IfPresent $unity "RiverProximitySuppression" $server.Lakes.RiverProximitySuppression

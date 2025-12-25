@@ -211,6 +211,7 @@ namespace GameServerApp
             });
             Console.WriteLine("[MinecraftDispatcher] Required Minecraft message handlers registered.");
             ProtoDiagnostics.LogHandlerCoverage(_minecraftDispatcher);
+            ProtocolValidator.ValidateHandlerBindings(_minecraftDispatcher);
         }
 
         public async Task StartAsync()

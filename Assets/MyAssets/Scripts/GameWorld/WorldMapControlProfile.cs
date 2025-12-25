@@ -49,6 +49,9 @@ public class WorldMapControlProfileData
     public float hydrologyFlowDivergenceClamp;
     public float hydrologyWarpFrequency;
     public float hydrologyWarpAmplitude;
+    public int riparianSmoothIterations;
+    public float riparianSmoothBlend;
+    public float riparianSaturationBoost;
     public float riverCenterThreshold;
     public float riverBankThreshold;
     public int riverDepth;
@@ -70,6 +73,7 @@ public class WorldMapControlProfileData
     public float lakeWetlandSaturationThreshold;
     public int lakeOutflowCarveDepth;
     public int lakeBasinSmoothIterations;
+    public int lakeShelfDepth;
     public float lakeRiverProximitySuppression;
     public float lakeInflowBlendWeight;
     public float lakeRimErosionWeight;
@@ -81,6 +85,7 @@ public class WorldMapControlProfileData
     public float caveSupportHydrationBias;
     public float caveSupportFlowBias;
     public float caveMoistureRetentionWeight;
+    public int caveRiparianPlugDepth;
     public float caveHydrologyWeight;
     public float caveFlowWeight;
     public float caveRoughnessWeight;
@@ -138,6 +143,9 @@ public sealed class WorldMapControlProfile
     public float HydrologyFlowDivergenceClamp { get; private set; }
     public float HydrologyWarpFrequency { get; private set; }
     public float HydrologyWarpAmplitude { get; private set; }
+    public int RiparianSmoothIterations { get; private set; }
+    public float RiparianSmoothBlend { get; private set; }
+    public float RiparianSaturationBoost { get; private set; }
     public float RiverCenterThreshold { get; private set; }
     public float RiverBankThreshold { get; private set; }
     public int RiverDepth { get; private set; }
@@ -159,6 +167,7 @@ public sealed class WorldMapControlProfile
     public float LakeWetlandSaturationThreshold { get; private set; }
     public int LakeOutflowCarveDepth { get; private set; }
     public int LakeBasinSmoothIterations { get; private set; }
+    public int LakeShelfDepth { get; private set; }
     public float LakeRiverProximitySuppression { get; private set; }
     public float LakeInflowBlendWeight { get; private set; }
     public float LakeRimErosionWeight { get; private set; }
@@ -170,6 +179,7 @@ public sealed class WorldMapControlProfile
     public float CaveSupportHydrationBias { get; private set; }
     public float CaveSupportFlowBias { get; private set; }
     public float CaveMoistureRetentionWeight { get; private set; }
+    public int CaveRiparianPlugDepth { get; private set; }
     public float CaveHydrologyWeight { get; private set; }
     public float CaveFlowWeight { get; private set; }
     public float CaveRoughnessWeight { get; private set; }
@@ -261,6 +271,9 @@ public sealed class WorldMapControlProfile
             hydrologyFlowDivergenceClamp = Mathf.Clamp(config.HydrologyFlowDivergenceClamp, 0f, 1.5f),
             hydrologyWarpFrequency = Mathf.Clamp(config.HydrologyWarpFrequency, 0.0001f, 0.01f),
             hydrologyWarpAmplitude = Mathf.Clamp(config.HydrologyWarpAmplitude, 0f, 64f),
+            riparianSmoothIterations = Mathf.Max(0, config.RiparianSmoothIterations),
+            riparianSmoothBlend = Mathf.Clamp01(config.RiparianSmoothBlend),
+            riparianSaturationBoost = Mathf.Clamp01(config.RiparianSaturationBoost),
             riverCenterThreshold = config.RiverCenterThreshold,
             riverBankThreshold = config.RiverBankThreshold,
             riverDepth = Mathf.Max(1, config.RiverDepth),
@@ -282,6 +295,7 @@ public sealed class WorldMapControlProfile
             lakeWetlandSaturationThreshold = Mathf.Clamp01(config.WetlandSaturationThreshold),
             lakeOutflowCarveDepth = Mathf.Max(1, config.OutflowCarveDepth),
             lakeBasinSmoothIterations = Mathf.Max(0, config.LakeBasinSmoothIterations),
+            lakeShelfDepth = Mathf.Max(0, config.LakeShelfDepth),
             lakeRiverProximitySuppression = Mathf.Clamp01(config.RiverProximitySuppression),
             lakeInflowBlendWeight = Mathf.Clamp01(config.LakeInflowBlendWeight),
             lakeRimErosionWeight = Mathf.Clamp01(config.LakeRimErosionWeight),
@@ -292,6 +306,7 @@ public sealed class WorldMapControlProfile
             caveSupportDensity = Mathf.Clamp01(config.CaveSupportDensity),
             caveSupportHydrationBias = Mathf.Clamp01(config.SupportHydrationBias),
             caveSupportFlowBias = Mathf.Clamp01(config.SupportFlowBias),
+            caveRiparianPlugDepth = Mathf.Max(0, config.RiparianPlugDepth),
             caveMoistureRetentionWeight = Mathf.Clamp01(config.MoistureRetentionWeight),
             caveHydrologyWeight = Mathf.Clamp01(config.HydrologyStabilityWeight),
             caveFlowWeight = Mathf.Clamp01(config.FlowStabilityWeight),
@@ -356,6 +371,9 @@ public sealed class WorldMapControlProfile
             HydrologyFlowDivergenceClamp = data.hydrologyFlowDivergenceClamp,
             HydrologyWarpFrequency = data.hydrologyWarpFrequency,
             HydrologyWarpAmplitude = data.hydrologyWarpAmplitude,
+            RiparianSmoothIterations = data.riparianSmoothIterations,
+            RiparianSmoothBlend = data.riparianSmoothBlend,
+            RiparianSaturationBoost = data.riparianSaturationBoost,
             RiverCenterThreshold = data.riverCenterThreshold,
             RiverBankThreshold = data.riverBankThreshold,
             RiverDepth = data.riverDepth,
@@ -377,6 +395,7 @@ public sealed class WorldMapControlProfile
             LakeWetlandSaturationThreshold = data.lakeWetlandSaturationThreshold,
             LakeOutflowCarveDepth = data.lakeOutflowCarveDepth,
             LakeBasinSmoothIterations = data.lakeBasinSmoothIterations,
+            LakeShelfDepth = data.lakeShelfDepth,
             LakeRiverProximitySuppression = data.lakeRiverProximitySuppression,
             LakeInflowBlendWeight = data.lakeInflowBlendWeight,
             LakeRimErosionWeight = data.lakeRimErosionWeight,
@@ -387,6 +406,7 @@ public sealed class WorldMapControlProfile
             CaveSupportDensity = data.caveSupportDensity,
             CaveSupportHydrationBias = data.caveSupportHydrationBias,
             CaveSupportFlowBias = data.caveSupportFlowBias,
+            CaveRiparianPlugDepth = data.caveRiparianPlugDepth,
             CaveMoistureRetentionWeight = data.caveMoistureRetentionWeight,
             CaveHydrologyWeight = data.caveHydrologyWeight,
             CaveFlowWeight = data.caveFlowWeight,
@@ -444,6 +464,9 @@ public sealed class WorldMapControlProfile
             .Append(data.hydrologyFlowDivergenceClamp).Append('|')
             .Append(data.hydrologyWarpFrequency).Append('|')
             .Append(data.hydrologyWarpAmplitude).Append('|')
+            .Append(data.riparianSmoothIterations).Append('|')
+            .Append(data.riparianSmoothBlend).Append('|')
+            .Append(data.riparianSaturationBoost).Append('|')
             .Append(data.riverCenterThreshold).Append('|')
             .Append(data.riverBankThreshold).Append('|')
             .Append(data.riverDepth).Append('|')
@@ -465,6 +488,7 @@ public sealed class WorldMapControlProfile
             .Append(data.lakeWetlandSaturationThreshold).Append('|')
             .Append(data.lakeOutflowCarveDepth).Append('|')
             .Append(data.lakeBasinSmoothIterations).Append('|')
+            .Append(data.lakeShelfDepth).Append('|')
             .Append(data.lakeRiverProximitySuppression).Append('|')
             .Append(data.lakeInflowBlendWeight).Append('|')
             .Append(data.lakeRimErosionWeight).Append('|')
@@ -475,6 +499,7 @@ public sealed class WorldMapControlProfile
             .Append(data.caveSupportDensity).Append('|')
             .Append(data.caveSupportHydrationBias).Append('|')
             .Append(data.caveSupportFlowBias).Append('|')
+            .Append(data.caveRiparianPlugDepth).Append('|')
             .Append(data.caveMoistureRetentionWeight).Append('|')
             .Append(data.caveHydrologyWeight).Append('|')
             .Append(data.caveFlowWeight).Append('|')

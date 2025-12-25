@@ -142,6 +142,9 @@ namespace MapGenLib
         public static float HydrologyWarpAmplitude = 9f;
         public static int HydrologySeamRelaxIterations = 2;
         public static float HydrologySeamRelaxBlend = 0.5f;
+        public static int RiparianSmoothIterations = 2;
+        public static float RiparianSmoothBlend = 0.6f;
+        public static float RiparianSaturationBoost = 0.18f;
         public static float RiverBankErosionWeight = 0.18f;
         public static float LakeRimErosionWeight = 0.30f;
         public static float LakeSpawnWeightBias = 0.3f;
@@ -175,6 +178,8 @@ namespace MapGenLib
         public static float CaveEdgeSealStrength = 0.45f;
         public static float WetlandSaturationThreshold = 0.55f;
         public static int OutflowCarveDepth = 2;
+        public static int LakeShelfDepth = 2;
+        public static int CaveRiparianPlugDepth = 2;
 
         public struct TerrainValue
         {
@@ -2377,10 +2382,18 @@ namespace MapGenLib
                     float lowlandBias = 1f - altitude;
                     float moisture = hydrology * 0.55f + accumulation * 0.3f + lowlandBias * 0.1f + valleyBias * 0.25f;
                     float erosionResilience = CustomMathf.Clamp01(1f - slopePenalty * 0.5f);
-                    riparian[x, z] = CustomMathf.Clamp01(moisture * erosionResilience);
+                    float combined = moisture * 0.65f + valleyBias * 0.35f;
+                    combined += RiparianSaturationBoost * CustomMathf.Clamp01(hydrology + accumulation + valleyBias);
+                    combined = CustomMathf.Clamp(combined * erosionResilience + hydrology * 0.05f, 0f, 1.6f);
+                    riparian[x, z] = combined;
                 }
             }
 
+            int riparianIterations = CustomMathf.Max(1, RiparianSmoothIterations);
+            float riparianBlend = RiparianSmoothBlend > 0f
+                ? CustomMathf.Clamp(RiparianSmoothBlend, 0f, 0.95f)
+                : CustomMathf.Clamp(HydrologySmoothBlend + 0.05f, 0f, 0.95f);
+            SmoothScalarField(riparian, riparianIterations, riparianBlend);
             return riparian;
         }
 
@@ -4353,6 +4366,10 @@ namespace MapGenLib
                             ? CustomMathf.Max(waterSurface + (basinStability > 0.6f ? 0 : 1), 1)
                             : CustomMathf.Max(waterSurface + 2 + (band.inner > 1.18f ? 1 : 0), 1);
                         targetSurface = CustomMathf.Min(surface, targetSurface);
+                        if (band.floodable && LakeShelfDepth > 0)
+                        {
+                            targetSurface = CustomMathf.Min(targetSurface, CustomMathf.Max(1, waterSurface - LakeShelfDepth));
+                        }
 
                         for (int y = surface; y > targetSurface; y--)
                         {
@@ -5045,6 +5062,21 @@ namespace MapGenLib
                         {
                             subWorldBlockData[x, y, z].CurrentType = fillBlock;
                             surfaceCache[x, z] = CustomMathf.Max(surfaceCache[x, z], y);
+                        }
+                    }
+
+                    if (CaveRiparianPlugDepth > 0 && saturation > 0.65f)
+                    {
+                        int plugDepth = CustomMathf.Clamp(CaveRiparianPlugDepth, 1, CustomMathf.Min(cavityHeight - 1, 8));
+                        int plugTop = CustomMathf.Max(bottom + plugDepth, sealStart - 1);
+                        int plugBottom = CustomMathf.Max(bottom + 1, plugTop - plugDepth + 1);
+                        for (int y = plugTop; y >= plugBottom; y--)
+                        {
+                            byte current = subWorldBlockData[x, y, z].CurrentType;
+                            if (current == (byte)BlockTileType.EMPTY || current == (byte)BlockTileType.WATER)
+                            {
+                                subWorldBlockData[x, y, z].CurrentType = fillBlock;
+                            }
                         }
                     }
 

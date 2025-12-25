@@ -98,4 +98,17 @@ public static class ProtocolRegistry
             }
         }
     }
+
+    public static bool TryResolveContractType(MinecraftMessageType messageType, out Type? contractType)
+    {
+        contractType = null;
+        if (BindingsByType.TryGetValue(messageType, out var binding))
+        {
+            var prototype = binding.Factory();
+            contractType = prototype.Descriptor?.ClrType;
+            return contractType != null;
+        }
+
+        return false;
+    }
 }

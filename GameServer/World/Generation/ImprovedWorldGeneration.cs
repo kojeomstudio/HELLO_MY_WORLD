@@ -232,6 +232,22 @@ namespace GameServerApp.World
                         }
                     }
 
+                    if (_caveRiparianPlugDepth > 0 && saturation > 0.65)
+                    {
+                        int plugDepth = Math.Min(_caveRiparianPlugDepth, cavityHeight - 1);
+                        int plugTop = Math.Max(bottom + plugDepth, sealStart - 1);
+                        int plugBottom = Math.Max(bottom + 1, plugTop - plugDepth + 1);
+
+                        for (int y = plugTop; y >= plugBottom; y--)
+                        {
+                            var block = chunk.GetBlock(x, y, z);
+                            if (block == BlockType.Air || block == BlockType.Water)
+                            {
+                                chunk.SetBlock(x, y, z, fillBlock);
+                            }
+                        }
+                    }
+
                     if (saturation > 0.95 && bottom + 1 < 256 && chunk.GetBlock(x, bottom + 1, z) == BlockType.Air)
                     {
                         chunk.SetBlock(x, bottom + 1, z, BlockType.Water);
@@ -387,6 +403,19 @@ namespace GameServerApp.World
                     if (curvatureBoost > 0.55 && solidSurface - 1 > 0)
                     {
                         chunk.SetBlock(x, solidSurface - 1, z, rimMaterial);
+                    }
+                    int shelfDepth = Math.Max(0, _lakeShelfDepth);
+                    if (shelfDepth > 0 && solidSurface >= waterSurface - shelfDepth && solidSurface <= waterSurface + shelfDepth + 1)
+                    {
+                        int shelfStart = Math.Max(1, waterSurface - shelfDepth);
+                        for (int y = shelfStart; y < waterSurface; y++)
+                        {
+                            var block = chunk.GetBlock(x, y, z);
+                            if (block == BlockType.Air)
+                            {
+                                chunk.SetBlock(x, y, z, rimMaterial);
+                            }
+                        }
                     }
                     for (int y = waterSurface; y <= Math.Min(waterSurface + 1, 255); y++)
                     {

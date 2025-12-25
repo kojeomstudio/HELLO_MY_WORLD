@@ -5,6 +5,7 @@ using System.Reflection;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
+using SharedProtocol;
 
 namespace SharedProtocol.EnhancedMinecraft;
 
@@ -74,6 +75,33 @@ public static class ProtocolValidator
         ValidateEnumBindings();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
+    }
+
+    public static void ValidateHandlerBindings(MinecraftMessageDispatcher dispatcher)
+    {
+        if (dispatcher == null) throw new ArgumentNullException(nameof(dispatcher));
+
+        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        {
+            bool hasHandler = dispatcher.TryGetHandlerContract(messageType, out var handlerContract);
+            bool hasDescriptor = ProtocolRegistry.TryResolveContractType(messageType, out var contractType);
+
+            if (hasHandler && hasDescriptor && handlerContract != null && contractType != null && !contractType.IsAssignableFrom(handlerContract))
+            {
+                throw new InvalidOperationException(
+                    $"Handler for '{messageType}' expects {handlerContract.Name} but EnhancedMinecraft registry exposes '{contractType.Name}'. Regenerate protobuf assets or update the handler contract.");
+            }
+
+            if (!hasHandler && !IsOptionalMessage(messageType))
+            {
+                Console.WriteLine($"[Proto][WARN] EnhancedMinecraft packet '{messageType}' is registered but has no handler. Add a handler or mark it optional.");
+            }
+
+            if (hasHandler && !hasDescriptor && !IsOptionalMessage(messageType))
+            {
+                Console.WriteLine($"[Proto][WARN] Handler registered for '{messageType}' without a generated EnhancedMinecraft binding. Regenerate protobuf assets or update ProtocolRegistry.");
+            }
+        }
     }
 
     /// <summary>

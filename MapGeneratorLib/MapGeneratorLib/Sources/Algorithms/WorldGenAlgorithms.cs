@@ -1615,6 +1615,8 @@ namespace MapGenLib
             int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
             float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
             float baseBlend = CustomMathf.Clamp01(HydrologySeamRelaxBlend);
+            float stabilityWeightBase = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
+            float varianceClamp = CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
             var hydroBuffer = new float[width, depth];
             var flowBuffer = new float[width, depth];
 
@@ -1677,11 +1679,17 @@ namespace MapGenLib
 
                         float averagedHydro = weight > 0f ? weightedHydro / weight : hydrologyMask[x, z];
                         float averagedFlow = weight > 0f ? weightedFlow / weight : flowAccumulation[x, z];
-                        float hydroBlend = CustomMathf.Clamp01(blend * (0.75f + flowPersistence * 0.25f));
-                        float flowBlend = CustomMathf.Clamp01(blend * (0.6f + flowPersistence * 0.35f));
+                        float stabilityBlend = CustomMathf.Clamp01(stabilityWeightBase * falloff);
+                        float hydroBlend = CustomMathf.Clamp01(blend * (0.75f + flowPersistence * 0.25f) + stabilityBlend * 0.35f);
+                        float flowBlend = CustomMathf.Clamp01(blend * (0.6f + flowPersistence * 0.35f) + stabilityBlend * 0.25f);
 
-                        hydroBuffer[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrologyMask[x, z], averagedHydro, hydroBlend));
-                        flowBuffer[x, z] = CustomMathf.Max(0f, CustomMathf.Lerp(flowAccumulation[x, z], averagedFlow, flowBlend));
+                        float targetHydro = CustomMathf.Lerp(hydrologyMask[x, z], averagedHydro, hydroBlend);
+                        float targetFlow = CustomMathf.Lerp(flowAccumulation[x, z], averagedFlow, flowBlend);
+                        float hydroDeltaClamp = CustomMathf.Clamp(targetHydro - hydrologyMask[x, z], -varianceClamp, varianceClamp);
+                        float flowDeltaClamp = CustomMathf.Clamp(targetFlow - flowAccumulation[x, z], -varianceClamp * 1.5f, varianceClamp * 1.5f);
+
+                        hydroBuffer[x, z] = CustomMathf.Clamp01(hydrologyMask[x, z] + hydroDeltaClamp);
+                        flowBuffer[x, z] = CustomMathf.Max(0f, flowAccumulation[x, z] + flowDeltaClamp);
                     }
                 }
 
@@ -2839,6 +2847,7 @@ namespace MapGenLib
             ApplyRiverMeanderTerraces(subWorldBlockData, subWorldSize, surfaceCache, riverIntensity, hydrologyMask);
             ApplyRiverHydrologyFeedback(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, riparianSaturation, channelThreshold, bankThreshold);
             AddRiverSeepageChannels(subWorldBlockData, subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, channelThreshold, bankThreshold);
+            SmoothRiverMouths(subWorldBlockData, subWorldSize, surfaceCache, riverIntensity, hydrologyMask, flowAccumulation, riparianSaturation);
         }
 
         private static void NormalizeRiverIntensity(
@@ -6948,6 +6957,83 @@ namespace MapGenLib
                     bool flood = hydrology > 0.7f || flow > 0.6f;
 
                     CarveRiverSeepagePath(subWorldBlockData, subWorldSize, surfaceCache, x, z, targetX, targetZ, riverSurface, depth, flood);
+                }
+            }
+        }
+
+        private static void SmoothRiverMouths(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int[,] surfaceCache,
+            float[,] riverIntensity,
+            float[,] hydrologyMask,
+            float[,] flowAccumulation,
+            float[,] riparianSaturation)
+        {
+            if (RiverMouthSmoothRadius <= 0)
+            {
+                return;
+            }
+
+            int radius = CustomMathf.Max(1, RiverMouthSmoothRadius);
+            int waterCeiling = CustomMathf.Min(subWorldSize.SizeY - 1, GlobalRiverWaterLevel + 6);
+
+            for (int x = 0; x < subWorldSize.SizeX; x++)
+            {
+                for (int z = 0; z < subWorldSize.SizeZ; z++)
+                {
+                    float intensity = riverIntensity[x, z];
+                    if (intensity < RiverCenterThreshold * 0.45f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0 || surface > waterCeiling)
+                    {
+                        continue;
+                    }
+
+                    float riparian = riparianSaturation != null ? riparianSaturation[x, z] : 0f;
+                    float wetness = CustomMathf.Clamp(hydrologyMask[x, z] + flowAccumulation[x, z] * 0.35f + riparian * 0.35f, 0f, 1.25f);
+                    float blend = CustomMathf.Clamp(RiverDeltaWetlandStrength + wetness * 0.25f, 0f, 1.35f);
+                    int targetWater = CustomMathf.Min(surface, CustomMathf.Min(subWorldSize.SizeY - 2, GlobalRiverWaterLevel));
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= subWorldSize.SizeX || nz < 0 || nz >= subWorldSize.SizeZ)
+                            {
+                                continue;
+                            }
+
+                            float distance = CustomMathf.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.2f)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[nx, nz];
+                            if (neighborSurface <= 0 || neighborSurface > waterCeiling)
+                            {
+                                continue;
+                            }
+
+                            int carveDepth = CustomMathf.Max(1, CustomMathf.RoundToInt((radius - distance + 1f) * blend));
+                            int waterFloor = CustomMathf.Max(1, targetWater - carveDepth);
+                            for (int y = waterFloor; y <= targetWater && y < subWorldSize.SizeY; y++)
+                            {
+                                subWorldBlockData[nx, y, nz].CurrentType = (byte)BlockTileType.WATER;
+                            }
+
+                            int rimY = CustomMathf.Max(1, waterFloor - 1);
+                            subWorldBlockData[nx, rimY, nz].CurrentType = (byte)BlockTileType.SAND;
+                            surfaceCache[nx, nz] = CustomMathf.Max(surfaceCache[nx, nz], targetWater);
+                        }
+                    }
                 }
             }
         }

@@ -121,11 +121,13 @@ public class GameNetworkManager
         try
         {
             ProtoFingerprint.AssertDescriptorFingerprint();
+            ProtocolRegistry.ValidateBindings();
+            ProtocolValidator.ValidateEnhancedContracts();
         }
         catch (Exception ex)
         {
             KojeomLogger.DebugLog(
-                $"[PROTO] EnhancedMinecraft descriptor fingerprint mismatch: {ex.Message}",
+                $"[PROTO] EnhancedMinecraft descriptor/registry validation failed: {ex.Message}",
                 LOG_TYPE.ERROR);
             throw;
         }

@@ -4443,6 +4443,8 @@ namespace GameServerApp.World
             int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
             double flowPersistence = Math.Clamp(_hydrologyFlowPersistence, 0.0, 1.0);
             double baseBlend = Math.Clamp(_hydrologySeamRelaxBlend, 0.0, 1.0);
+            double stabilityWeightBase = Math.Clamp(_hydrologyEdgeStabilityWeight, 0.0, 1.0);
+            double varianceClamp = Math.Clamp(_hydrologyEdgeVarianceClamp, 0.0, 1.0);
             var hydroBuffer = new double[width, depth];
             var flowBuffer = new double[width, depth];
 
@@ -4502,11 +4504,17 @@ namespace GameServerApp.World
 
                         double averagedHydro = weight > 0.0 ? weightedHydro / weight : hydrologyMask[x, z];
                         double averagedFlow = weight > 0.0 ? weightedFlow / weight : flowAccumulation[x, z];
-                        double hydroBlend = Math.Clamp(blend * (0.75 + flowPersistence * 0.25), 0.0, 1.0);
-                        double flowBlend = Math.Clamp(blend * (0.6 + flowPersistence * 0.35), 0.0, 1.0);
+                        double stabilityBlend = Math.Clamp(stabilityWeightBase * falloff, 0.0, 1.0);
+                        double hydroBlend = Math.Clamp(blend * (0.75 + flowPersistence * 0.25) + stabilityBlend * 0.35, 0.0, 1.0);
+                        double flowBlend = Math.Clamp(blend * (0.6 + flowPersistence * 0.35) + stabilityBlend * 0.25, 0.0, 1.0);
 
-                        hydroBuffer[x, z] = Math.Clamp(hydrologyMask[x, z] * (1.0 - hydroBlend) + averagedHydro * hydroBlend, 0.0, 1.0);
-                        flowBuffer[x, z] = Math.Max(0.0, flowAccumulation[x, z] * (1.0 - flowBlend) + averagedFlow * flowBlend);
+                        double targetHydro = hydrologyMask[x, z] * (1.0 - hydroBlend) + averagedHydro * hydroBlend;
+                        double targetFlow = flowAccumulation[x, z] * (1.0 - flowBlend) + averagedFlow * flowBlend;
+                        double hydroDeltaClamp = Math.Clamp(targetHydro - hydrologyMask[x, z], -varianceClamp, varianceClamp);
+                        double flowDeltaClamp = Math.Clamp(targetFlow - flowAccumulation[x, z], -varianceClamp * 1.5, varianceClamp * 1.5);
+
+                        hydroBuffer[x, z] = Math.Clamp(hydrologyMask[x, z] + hydroDeltaClamp, 0.0, 1.0);
+                        flowBuffer[x, z] = Math.Max(0.0, flowAccumulation[x, z] + flowDeltaClamp);
                     }
                 }
 

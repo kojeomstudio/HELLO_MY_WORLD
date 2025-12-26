@@ -247,6 +247,96 @@ public class WorldConfigFile : BaseDataFile
 
     }
 
+    public void OverrideWithProfile(WorldMapControlProfile profile)
+    {
+        // Keep Unity-side world config aligned with the authoritative server profile.
+        Config.ChunkSize = profile.ChunkSize;
+        Config.RenderDistance = profile.RenderDistance;
+        Config.SimulationDistance = profile.SimulationDistance;
+        Config.MapControlProfileVersion = profile.Version;
+        Config.GlobalWaterLevel = profile.GlobalWaterLevel;
+        Config.RiverCenterThreshold = profile.RiverCenterThreshold;
+        Config.RiverBankThreshold = profile.RiverBankThreshold;
+        Config.HydrologySmoothIterations = profile.HydrologySmoothIterations;
+        Config.HydrologySmoothBlend = profile.HydrologySmoothBlend;
+        Config.HydrologyShorePush = profile.HydrologyShorePush;
+        Config.HydrologySlopePenalty = profile.HydrologySlopePenalty;
+        Config.HydrologyFlowGain = profile.HydrologyFlowGain;
+        Config.HydrologyContinuityWeight = profile.HydrologyContinuityWeight;
+        Config.HydrologyEdgeFlowBias = profile.HydrologyEdgeFlowBias;
+        Config.HydrologyEdgeTangentWeight = profile.HydrologyEdgeTangentWeight;
+        Config.HydrologyEdgeFlowLockWeight = profile.HydrologyEdgeFlowLockWeight;
+        Config.HydrologyEdgeBlendRadius = profile.HydrologyEdgeBlendRadius;
+        Config.HydrologyEdgeStabilityIterations = profile.HydrologyEdgeStabilityIterations;
+        Config.HydrologyEdgeStabilityWeight = profile.HydrologyEdgeStabilityWeight;
+        Config.HydrologyEdgeVarianceClamp = profile.HydrologyEdgeVarianceClamp;
+        Config.HydrologyEdgeFluxBlend = profile.HydrologyEdgeFluxBlend;
+        Config.HydrologyVarianceBlend = profile.HydrologyVarianceBlend;
+        Config.HydrologyVarianceClamp = profile.HydrologyVarianceClamp;
+        Config.HydrologyWaterTableClampWeight = profile.HydrologyWaterTableClampWeight;
+        Config.HydrologyWaterTableClampRange = profile.HydrologyWaterTableClampRange;
+        Config.HydrologyWaterTableSlopeWeight = profile.HydrologyWaterTableSlopeWeight;
+        Config.HydrologyFlowPersistence = profile.HydrologyFlowPersistence;
+        Config.HydrologyGradientWeight = profile.HydrologyGradientWeight;
+        Config.HydrologyGradientSlopeWeight = profile.HydrologyGradientSlopeWeight;
+        Config.HydrologyGradientClamp = profile.HydrologyGradientClamp;
+        Config.HydrologyGradientStabilityIterations = profile.HydrologyGradientStabilityIterations;
+        Config.HydrologyGradientStabilityBlend = profile.HydrologyGradientStabilityBlend;
+        Config.HydrologyDirectionalIterations = profile.HydrologyDirectionalIterations;
+        Config.HydrologyDirectionalBlend = profile.HydrologyDirectionalBlend;
+        Config.HydrologyFlowDivergenceClamp = profile.HydrologyFlowDivergenceClamp;
+        Config.HydrologyCurvatureWeight = profile.HydrologyCurvatureWeight;
+        Config.HydrologySeamRelaxIterations = profile.HydrologySeamRelaxIterations;
+        Config.HydrologySeamRelaxBlend = profile.HydrologySeamRelaxBlend;
+        Config.HydrologyWarpFrequency = profile.HydrologyWarpFrequency;
+        Config.HydrologyWarpAmplitude = profile.HydrologyWarpAmplitude;
+        Config.RiparianSmoothIterations = profile.RiparianSmoothIterations;
+        Config.RiparianSmoothBlend = profile.RiparianSmoothBlend;
+        Config.RiparianSaturationBoost = profile.RiparianSaturationBoost;
+        Config.RiverFlowAlignmentWeight = profile.RiverFlowAlignmentWeight;
+        Config.RiverGradientPenalty = profile.RiverGradientPenalty;
+        Config.RiverHeadwaterStabilityWeight = profile.RiverHeadwaterStabilityWeight;
+        Config.RiverAnisotropyWeight = profile.RiverAnisotropyWeight;
+        Config.RiverReliefPenaltyWeight = profile.RiverReliefPenaltyWeight;
+        Config.RiverBankErosionWeight = profile.RiverBankErosionWeight;
+        Config.LakeRimErosionWeight = profile.LakeRimErosionWeight;
+        Config.LakeInflowBlendWeight = profile.LakeInflowBlendWeight;
+        Config.LakeSpawnWeightBias = profile.LakeSpawnWeightBias;
+        Config.LakeShorelineBlend = profile.LakeShorelineBlend;
+        Config.WetlandSaturationThreshold = profile.LakeWetlandSaturationThreshold;
+        Config.OutflowCarveDepth = profile.LakeOutflowCarveDepth;
+        Config.LakeBasinSmoothIterations = profile.LakeBasinSmoothIterations;
+        Config.LakeShelfDepth = profile.LakeShelfDepth;
+        Config.RiverProximitySuppression = profile.LakeRiverProximitySuppression;
+        Config.RiverNoiseScale = profile.RiverNoiseScale;
+        Config.RiverDepth = profile.RiverDepth;
+        Config.RiverIntensitySmoothIterations = profile.RiverIntensitySmoothIterations;
+        Config.RiverIntensitySmoothBlend = profile.RiverIntensitySmoothBlend;
+        Config.RiverConfluenceBoost = profile.RiverConfluenceBoost;
+        Config.RiverEdgeFeather = profile.RiverEdgeFeather;
+        Config.RiverMouthSmoothRadius = profile.RiverMouthSmoothRadius;
+        Config.RiverDeltaWetlandStrength = profile.RiverDeltaWetlandStrength;
+        Config.CaveStabilitySmoothIterations = profile.CaveStabilitySmoothIterations;
+        Config.CaveStabilitySmoothBlend = profile.CaveStabilitySmoothBlend;
+        Config.CaveSupportDensity = profile.CaveSupportDensity;
+        Config.SupportPillarChance = profile.SupportPillarChance;
+        Config.SupportHydrationBias = profile.CaveSupportHydrationBias;
+        Config.SupportFlowBias = profile.CaveSupportFlowBias;
+        Config.RiparianPlugDepth = profile.CaveRiparianPlugDepth;
+        Config.HydrologyStabilityWeight = profile.CaveHydrologyWeight;
+        Config.FlowStabilityWeight = profile.CaveFlowWeight;
+        Config.RoughnessStabilityWeight = profile.CaveRoughnessWeight;
+        Config.RiverSuppressionWeight = profile.CaveRiverSuppressionWeight;
+        Config.MoistureRetentionWeight = profile.CaveMoistureRetentionWeight;
+        Config.EdgeSealStrength = profile.CaveEdgeSealStrength;
+        Config.EnableRivers = profile.EnableRivers;
+        Config.EnableLakes = profile.EnableLakes;
+        Config.EnableCaves = profile.EnableCaves;
+        Config.UseImprovedRivers = profile.UseImprovedRivers;
+        Config.UseImprovedLakes = profile.UseImprovedLakes;
+        Config.UseImprovedCaves = profile.UseImprovedCaves;
+    }
+
     private static int ParseInt(Dictionary<string, string> data, string key, int defaultValue)
     {
         string extractedValue;

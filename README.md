@@ -94,6 +94,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
   - Then validate: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
   - If you already have `protoc` installed: `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`
 - `SharedProtocol.EnhancedMinecraft.ChunkPayloadBuilder` now executes `ProtocolValidator.ValidateEnhancedContracts()` on first use; run `dotnet build SharedProtocol/SharedProtocol.csproj` after regenerating protobufs so descriptor mismatches fail fast.
+- Unity networking (`GameNetworkManager`) also calls `ProtocolRegistry.ValidateBindings()` and `ProtocolValidator.ValidateEnhancedContracts()` during bootstrap so stale generated DTOs are caught before any packets are sent.
 
 ## Time & Weather Systems
 - The server now boots `WorldTimeSystem` to push `TimeUpdateMessage` snapshots on login and every tick so late joiners stay in sync.
@@ -115,6 +116,7 @@ http://studentgamedev.blogspot.kr/2013/08/unity-voxel-tutorial-part-1-generating
 - See `docs/world-generation.md` for the pipeline and extension notes.
 - Configure the day/night cycle via `WorldSettings` in `server-config.json` (`InitialWorldTime`, `InitialDayTime`, `EnableDayNightCycle`, `DayNightCycleSecondsPerDay`).
 - 2025-11-10 hydrology refresh: karst sinkholes + aquifer vents, sub-chunk tributary stitching, and clay/sand shoreline terraces now keep `MapGeneratorLib` and `GameServer.WorldManager` outputs visually identical, which simplifies authoring chunk previews inside the Unity tools.
+- 2025-12-27 map-control parity: Unity now overrides `WorldConfigData.json` fields with the exported `config/world_map_control_profile.json` on startup, runs the shared hydrology seam clamps, and mirrors the server river-mouth smoother so chunk borders, caves, rivers, and lakes stay in lockstep with streamed server chunks.
 
 ## Core Gameplay Systems
 - **PlayerController**: Comprehensive player movement, block interaction, and inventory management with support for both first-person and third-person controls

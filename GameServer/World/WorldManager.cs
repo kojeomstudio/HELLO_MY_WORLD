@@ -60,6 +60,7 @@ namespace GameServerApp.World
         private readonly int _riparianSmoothIterations;
         private readonly double _riparianSmoothBlend;
         private readonly double _riparianSaturationBoost;
+        private readonly int _riparianBufferRadius;
         private readonly double _riverBankErosionWeight;
         private readonly double _lakeRimErosionWeight;
         private readonly double _riverNoiseScale;
@@ -86,6 +87,7 @@ namespace GameServerApp.World
         private readonly double _riverGradientPenalty;
         private readonly double _riverHeadwaterStabilityWeight;
         private readonly double _riverReliefPenaltyWeight;
+        private readonly double _riverSeamFillStrength;
         private readonly double _caveSupportHydrationBias;
         private readonly double _caveSupportFlowBias;
         private readonly int _caveRiparianPlugDepth;
@@ -95,8 +97,10 @@ namespace GameServerApp.World
         private readonly double _lakeInflowBlendWeight;
         private readonly double _lakeWetlandSaturationThreshold;
         private readonly int _lakeOutflowCarveDepth;
+        private readonly int _lakeWetlandBufferRadius;
         private readonly double _caveMoistureRetentionWeight;
         private readonly double _caveEdgeSealStrength;
+        private readonly double _caveCeilingStabilityWeight;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -250,6 +254,7 @@ namespace GameServerApp.World
             _riparianSmoothIterations = Math.Clamp(_worldGenConfig.Water.RiparianSmoothIterations, 0, 6);
             _riparianSmoothBlend = Math.Clamp(_worldGenConfig.Water.RiparianSmoothBlend, 0.0, 1.0);
             _riparianSaturationBoost = Math.Clamp(_worldGenConfig.Water.RiparianSaturationBoost, 0.0, 1.0);
+            _riparianBufferRadius = Math.Clamp(_worldGenConfig.Water.RiparianBufferRadius, 0, 6);
             _riverBankErosionWeight = Math.Clamp(_worldGenConfig.Water.RiverBankErosionWeight, 0.0, 1.0);
             _lakeRimErosionWeight = Math.Clamp(_worldGenConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
             _riverNoiseScale = Math.Clamp(_worldGenConfig.Water.RiverNoiseScale, 0.0001, 0.05);
@@ -277,6 +282,7 @@ namespace GameServerApp.World
             _riverGradientPenalty = Math.Clamp(_worldGenConfig.Water.RiverGradientPenalty, 0.0, 1.0);
             _riverHeadwaterStabilityWeight = Math.Clamp(_worldGenConfig.Water.RiverHeadwaterStabilityWeight, 0.0, 1.0);
             _riverReliefPenaltyWeight = Math.Clamp(_worldGenConfig.Water.RiverReliefPenaltyWeight, 0.0, 1.0);
+            _riverSeamFillStrength = Math.Clamp(_worldGenConfig.Water.RiverSeamFillStrength, 0.0, 1.5);
             _caveSupportHydrationBias = Math.Clamp(_worldGenConfig.Caves.SupportHydrationBias, 0.0, 1.0);
             _caveSupportFlowBias = Math.Clamp(_worldGenConfig.Caves.SupportFlowBias, 0.0, 1.0);
             _caveRiparianPlugDepth = Math.Clamp(_worldGenConfig.Caves.RiparianPlugDepth, 0, 8);
@@ -286,8 +292,10 @@ namespace GameServerApp.World
             _lakeInflowBlendWeight = Math.Clamp(_worldGenConfig.Water.LakeInflowBlendWeight, 0.0, 1.0);
             _lakeWetlandSaturationThreshold = Math.Clamp(_worldGenConfig.Lakes.WetlandSaturationThreshold, 0.0, 1.25);
             _lakeOutflowCarveDepth = Math.Clamp(_worldGenConfig.Lakes.OutflowCarveDepth, 1, 12);
+            _lakeWetlandBufferRadius = Math.Clamp(_worldGenConfig.Lakes.WetlandBufferRadius, 0, 8);
             _caveMoistureRetentionWeight = Math.Clamp(_worldGenConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
             _caveEdgeSealStrength = Math.Clamp(_worldGenConfig.Caves.EdgeSealStrength, 0.0, 1.0);
+            _caveCeilingStabilityWeight = Math.Clamp(_worldGenConfig.Caves.CeilingStabilityWeight, 0.0, 1.0);
 
             _mapControlProfile = WorldMapControlProfile.Create(_worldGenConfig, _worldSettings);
             WorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
@@ -295,6 +303,7 @@ namespace GameServerApp.World
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
             Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riparian={_riparianSmoothIterations}/{_riparianSmoothBlend:0.##}/boost={_riparianSaturationBoost:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/dir={_hydrologyDirectionalIterations}/{_hydrologyDirectionalBlend:0.##}/divClamp={_hydrologyFlowDivergenceClamp:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}/shelf={_lakeShelfDepth}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}/plug={_caveRiparianPlugDepth}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
             Console.WriteLine($"[WorldManager] map control: chunk={_mapControlProfile.ChunkSize}, render={_mapControlProfile.RenderDistance}, sim={_mapControlProfile.SimulationDistance}, water={_mapControlProfile.GlobalWaterLevel}, curv={_mapControlProfile.HydrologyCurvatureWeight:0.##}, hash={_mapControlProfile.ProfileHash[..Math.Min(12, _mapControlProfile.ProfileHash.Length)]}");
+            Console.WriteLine($"[WorldManager] riparianBuffer={_riparianBufferRadius}, riverSeamFill={_riverSeamFillStrength:0.##}, lakeWetlandBuffer={_lakeWetlandBufferRadius}, caveCeilingStability={_caveCeilingStabilityWeight:0.##}");
             Console.WriteLine($"[WorldManager] map control profile written to '{_worldGenConfig.MapControlProfilePath}' (v{_mapControlProfile.Version})");
 
             var pipeline = new TerrainGenerationPipeline()
@@ -2877,7 +2886,66 @@ namespace GameServerApp.World
                 ? Math.Clamp(_riparianSmoothBlend, 0.0, 0.95)
                 : Math.Clamp(_hydrologySmoothBlend + 0.05, 0.0, 0.9);
             SmoothScalarField(riparian, riparianIterations, riparianBlend);
+            if (_riparianBufferRadius > 0)
+            {
+                ExpandRiparianBuffer(riparian, _riparianBufferRadius, Math.Clamp(_riparianSaturationBoost + 0.35, 0.0, 1.5));
+            }
             return riparian;
+        }
+
+        private static void ExpandRiparianBuffer(double[,] riparian, int radius, double strength)
+        {
+            int width = riparian.GetLength(0);
+            int depth = riparian.GetLength(1);
+            var buffered = (double[,])riparian.Clone();
+            double attenuation = Math.Clamp(strength, 0.0, 2.0);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double maxNeighbor = riparian[x, z];
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            double distance = Math.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.01)
+                            {
+                                continue;
+                            }
+
+                            double candidate = riparian[nx, nz] * Math.Clamp(1.0 - distance / (radius + 0.001), 0.0, 1.0);
+                            if (candidate > maxNeighbor)
+                            {
+                                maxNeighbor = candidate;
+                            }
+                        }
+                    }
+
+                    buffered[x, z] = Math.Max(buffered[x, z], Math.Clamp(maxNeighbor * attenuation, 0.0, 2.0));
+                }
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    riparian[x, z] = buffered[x, z];
+                }
+            }
         }
 
         private void PopulateRiverFieldCache(RiverFieldCache cache, TerrainGenerationContext context)

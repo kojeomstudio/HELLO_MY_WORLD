@@ -58,6 +58,7 @@ namespace GameServerApp.World
         public int RiparianSmoothIterations { get; set; }
         public double RiparianSmoothBlend { get; set; }
         public double RiparianSaturationBoost { get; set; }
+        public int RiparianBufferRadius { get; set; }
         public double RiverCenterThreshold { get; set; }
         public double RiverBankThreshold { get; set; }
         public int RiverDepth { get; set; }
@@ -73,6 +74,7 @@ namespace GameServerApp.World
         public double RiverEdgeFeather { get; set; }
         public int RiverMouthSmoothRadius { get; set; }
         public double RiverDeltaWetlandStrength { get; set; }
+        public double RiverSeamFillStrength { get; set; }
         public double RiverBankErosionWeight { get; set; }
         public double LakeSpawnWeightBias { get; set; }
         public double LakeShorelineBlend { get; set; }
@@ -80,6 +82,7 @@ namespace GameServerApp.World
         public int LakeOutflowCarveDepth { get; set; }
         public int LakeBasinSmoothIterations { get; set; }
         public int LakeShelfDepth { get; set; }
+        public int LakeWetlandBufferRadius { get; set; }
         public double LakeRiverProximitySuppression { get; set; }
         public double LakeInflowBlendWeight { get; set; }
         public double LakeRimErosionWeight { get; set; }
@@ -92,6 +95,7 @@ namespace GameServerApp.World
         public double CaveSupportFlowBias { get; set; }
         public double CaveMoistureRetentionWeight { get; set; }
         public int CaveRiparianPlugDepth { get; set; }
+        public double CaveCeilingStabilityWeight { get; set; }
         public double CaveHydrologyWeight { get; set; }
         public double CaveFlowWeight { get; set; }
         public double CaveRoughnessWeight { get; set; }
@@ -160,6 +164,7 @@ namespace GameServerApp.World
                 RiparianSmoothIterations = Math.Max(0, config.Water.RiparianSmoothIterations),
                 RiparianSmoothBlend = config.Water.RiparianSmoothBlend,
                 RiparianSaturationBoost = config.Water.RiparianSaturationBoost,
+                RiparianBufferRadius = Math.Max(0, config.Water.RiparianBufferRadius),
                 RiverCenterThreshold = config.Water.RiverCenterThreshold,
                 RiverBankThreshold = config.Water.RiverBankThreshold,
                 RiverDepth = Math.Max(1, config.Water.RiverDepth),
@@ -175,6 +180,7 @@ namespace GameServerApp.World
                 RiverEdgeFeather = config.Water.RiverEdgeFeather,
                 RiverMouthSmoothRadius = Math.Max(1, config.Water.RiverMouthSmoothRadius),
                 RiverDeltaWetlandStrength = config.Water.RiverDeltaWetlandStrength,
+                RiverSeamFillStrength = config.Water.RiverSeamFillStrength,
                 RiverBankErosionWeight = config.Water.RiverBankErosionWeight,
                 LakeSpawnWeightBias = config.Lakes.SpawnWeightBias,
                 LakeShorelineBlend = config.Lakes.ShorelineBlend,
@@ -182,6 +188,7 @@ namespace GameServerApp.World
                 LakeOutflowCarveDepth = Math.Max(1, config.Lakes.OutflowCarveDepth),
                 LakeBasinSmoothIterations = Math.Max(0, config.Lakes.LakeBasinSmoothIterations),
                 LakeShelfDepth = Math.Max(0, config.Lakes.ShelfDepth),
+                LakeWetlandBufferRadius = Math.Max(0, config.Lakes.WetlandBufferRadius),
                 LakeRiverProximitySuppression = config.Lakes.RiverProximitySuppression,
                 LakeInflowBlendWeight = config.Water.LakeInflowBlendWeight,
                 LakeRimErosionWeight = config.Water.LakeRimErosionWeight,
@@ -194,6 +201,7 @@ namespace GameServerApp.World
                 CaveSupportFlowBias = config.Caves.SupportFlowBias,
                 CaveMoistureRetentionWeight = config.Caves.MoistureRetentionWeight,
                 CaveRiparianPlugDepth = Math.Max(0, config.Caves.RiparianPlugDepth),
+                CaveCeilingStabilityWeight = config.Caves.CeilingStabilityWeight,
                 CaveHydrologyWeight = config.Caves.HydrologyStabilityWeight,
                 CaveFlowWeight = config.Caves.FlowStabilityWeight,
                 CaveRoughnessWeight = config.Caves.RoughnessStabilityWeight,
@@ -259,6 +267,7 @@ namespace GameServerApp.World
                 .Append(profile.RiparianSmoothIterations).Append('|')
                 .Append(profile.RiparianSmoothBlend).Append('|')
                 .Append(profile.RiparianSaturationBoost).Append('|')
+                .Append(profile.RiparianBufferRadius).Append('|')
                 .Append(profile.RiverCenterThreshold).Append('|')
                 .Append(profile.RiverBankThreshold).Append('|')
                 .Append(profile.RiverDepth).Append('|')
@@ -274,6 +283,7 @@ namespace GameServerApp.World
                 .Append(profile.RiverEdgeFeather).Append('|')
                 .Append(profile.RiverMouthSmoothRadius).Append('|')
                 .Append(profile.RiverDeltaWetlandStrength).Append('|')
+                .Append(profile.RiverSeamFillStrength).Append('|')
                 .Append(profile.RiverBankErosionWeight).Append('|')
                 .Append(profile.LakeSpawnWeightBias).Append('|')
                 .Append(profile.LakeShorelineBlend).Append('|')
@@ -281,6 +291,7 @@ namespace GameServerApp.World
                 .Append(profile.LakeOutflowCarveDepth).Append('|')
                 .Append(profile.LakeBasinSmoothIterations).Append('|')
                 .Append(profile.LakeShelfDepth).Append('|')
+                .Append(profile.LakeWetlandBufferRadius).Append('|')
                 .Append(profile.LakeRiverProximitySuppression).Append('|')
                 .Append(profile.LakeInflowBlendWeight).Append('|')
                 .Append(profile.LakeRimErosionWeight).Append('|')
@@ -292,6 +303,7 @@ namespace GameServerApp.World
                 .Append(profile.CaveSupportHydrationBias).Append('|')
                 .Append(profile.CaveSupportFlowBias).Append('|')
                 .Append(profile.CaveRiparianPlugDepth).Append('|')
+                .Append(profile.CaveCeilingStabilityWeight).Append('|')
                 .Append(profile.CaveMoistureRetentionWeight).Append('|')
                 .Append(profile.CaveHydrologyWeight).Append('|')
                 .Append(profile.CaveFlowWeight).Append('|')

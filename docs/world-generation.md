@@ -18,6 +18,14 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 `WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of `ITerrainGenerationStage` implementations. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable and testable.
 
+## 2026-02-10 Hydrology Seam Buffers & Wetland Stability
+
+- Riparian saturation now dilates across chunk edges (`Water.RiparianBufferRadius`) so rivers/lakes/caves share a softer wetness mask before carving and sealing.
+- Rivers run a seam-fill pre-pass (`Water.RiverSeamFillStrength`) to patch partial channels at chunk borders before bank shaping and mouth smoothing.
+- Lakes grow buffered wetlands around shorelines (`Lakes.WetlandBufferRadius`) so inflows/outflows blend naturally into nearby terrain and rivers.
+- Cave ceilings reinforce near saturated/riparian spans (`Caves.CeilingStabilityWeight`), reducing skylight collapses where water tables or rivers meet shallow caves.
+- These knobs are serialized into `config/world_map_control_profile.json` and mirrored to `Assets/StreamingAssets/world-map-control.json`; regenerate the profile hash when tweaking values.
+
 ## Configuration
 
 - Server boot now loads hydrology and cave/lake tuning from `config/world.json` via `WorldGenerationConfig` (path controlled by `World.WorldConfigPath` in `server-config.json`). Rivers, lakes, and noise-cave thresholds/flags can be toggled without recompiling.

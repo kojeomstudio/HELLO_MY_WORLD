@@ -61,6 +61,7 @@
     "RiparianSmoothIterations": 2,
     "RiparianSmoothBlend": 0.6,
     "RiparianSaturationBoost": 0.18,
+    "RiparianBufferRadius": 1,
     "RiverReliefPenaltyWeight": 0.25,
     "HydrologyWarpFrequency": 0.0009,
     "HydrologyWarpAmplitude": 9.0,
@@ -74,6 +75,7 @@
     "RiverEdgeFeather": 0.45,
     "RiverMouthSmoothRadius": 3,
     "RiverDeltaWetlandStrength": 0.45,
+    "RiverSeamFillStrength": 0.5,
     "RiverNoiseScale": 0.015,
     "RiverDepth": 6,
     "RiverIntensitySmoothIterations": 3,
@@ -124,7 +126,8 @@
     "MoistureRetentionWeight": 0.35,
     "EdgeSealStrength": 0.45,
     "SupportPillarChance": 0.28,
-    "RiparianPlugDepth": 2
+    "RiparianPlugDepth": 2,
+    "CeilingStabilityWeight": 0.35
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -183,6 +186,7 @@
     "ShorelineBlend": 0.66,
     "RiverProximitySuppression": 0.35,
     "WetlandSaturationThreshold": 0.55,
-    "OutflowCarveDepth": 2
+    "OutflowCarveDepth": 2,
+    "WetlandBufferRadius": 2
   }
 }

@@ -31,6 +31,7 @@ namespace GameServerApp.World
 
             AddCaveSupportPillars(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
             StabilizeCaveEntrances(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, hydrologyField.HydrologyCurvature);
+            ReinforceCaveCeilings(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation);
             SealChunkEdgeCaves(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
             SealRiparianCaves(chunk, surfaceCache, riparianSaturation);
         }
@@ -52,6 +53,7 @@ namespace GameServerApp.World
             GenerateRiversInternal(context);
 
             var riverField = GetRiverFieldCache(context);
+            BridgeRiverSeams(chunk, surfaceCache, riverField, hydrologyField.HydrologyMask);
             var riparianSaturation = GetRiparianSaturation(context, hydrologyField, riverField);
             EnhanceRiverBanks(chunk, surfaceCache, hydrologyField, riverField, riparianSaturation);
             SmoothRiverMouths(chunk, surfaceCache, riverField.Intensity, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation);
@@ -76,13 +78,14 @@ namespace GameServerApp.World
             SmoothScalarField(hydrologyField.FlowAccumulation, basinSmoothIterations, Math.Clamp(basinSmoothBlend + 0.02, 0.0, 0.95));
             if (hydrologyField.HydrologyCurvature != null)
             {
-                SmoothScalarField(hydrologyField.HydrologyCurvature, basinSmoothIterations, basinSmoothBlend);
+            SmoothScalarField(hydrologyField.HydrologyCurvature, basinSmoothIterations, basinSmoothBlend);
             }
 
             GenerateLakesInternal(context);
 
             EnhanceLakeShoreline(chunk, surfaceCache, hydrologyField, riparianSaturation);
             ReinforceLakeWetlands(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation, hydrologyField.HydrologyCurvature);
+            ExtendLakeWetlands(chunk, surfaceCache, riparianSaturation, hydrologyField.FlowAccumulation);
             CreateLakeOutflowChannels(chunk, surfaceCache, hydrologyField.FlowAccumulation, hydrologyField.HydrologyMask);
             BlendLakeWithRivers(chunk, surfaceCache, hydrologyField, riverField);
         }
@@ -119,6 +122,51 @@ namespace GameServerApp.World
                     if (patched && surface + 1 < 256)
                     {
                         chunk.SetBlock(x, surface + 1, z, BlockType.Air);
+                    }
+                }
+            }
+        }
+
+        private void ReinforceCaveCeilings(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation, double[,] riparianSaturation)
+        {
+            if (_caveCeilingStabilityWeight <= 0.0)
+            {
+                return;
+            }
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    if (!TryFindCaveSpan(chunk, surfaceCache[x, z], x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    double wetness = Math.Clamp(hydrologyMask[x, z] * 0.55 + flowAccumulation[x, z] * 0.35 + riparianSaturation[x, z] * 0.25, 0.0, 1.75);
+                    if (wetness < 0.25)
+                    {
+                        continue;
+                    }
+
+                    int spanHeight = Math.Max(1, top - bottom);
+                    int reinforceThickness = Math.Clamp((int)Math.Round(1 + wetness * 3.0 * _caveCeilingStabilityWeight), 1, Math.Min(4, spanHeight));
+                    int reinforceStart = Math.Max(bottom + 1, top - reinforceThickness + 1);
+                    var filler = wetness > 0.9 ? BlockType.Cobblestone : BlockType.Stone;
+
+                    for (int y = reinforceStart; y <= top; y++)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air || block == BlockType.Water)
+                        {
+                            chunk.SetBlock(x, y, z, filler);
+                        }
+                    }
+
+                    int airCap = Math.Min(255, top + 1);
+                    if (airCap < 256)
+                    {
+                        chunk.SetBlock(x, airCap, z, BlockType.Air);
                     }
                 }
             }
@@ -251,6 +299,61 @@ namespace GameServerApp.World
                     if (saturation > 0.95 && bottom + 1 < 256 && chunk.GetBlock(x, bottom + 1, z) == BlockType.Air)
                     {
                         chunk.SetBlock(x, bottom + 1, z, BlockType.Water);
+                    }
+                }
+            }
+        }
+
+        private void BridgeRiverSeams(ChunkData chunk, int[,] surfaceCache, RiverFieldCache riverField, double[,] hydrologyMask)
+        {
+            if (_riverSeamFillStrength <= 0.0)
+            {
+                return;
+            }
+
+            int edgeRadius = Math.Max(1, _riparianBufferRadius);
+            double seamBoost = Math.Clamp(_riverSeamFillStrength, 0.0, 2.0);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    bool nearEdge = x < edgeRadius || z < edgeRadius || x >= 16 - edgeRadius || z >= 16 - edgeRadius;
+                    if (!nearEdge)
+                    {
+                        continue;
+                    }
+
+                    double riverPressure = riverField.Intensity[x, z];
+                    if (riverPressure < RiverCenterThreshold * 0.6)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        continue;
+                    }
+
+                    double hydrology = hydrologyMask[x, z];
+                    double seamStrength = Math.Clamp(riverPressure / Math.Max(RiverCenterThreshold, 1e-5) * seamBoost, 0.0, 3.0);
+                    seamStrength = Math.Clamp(seamStrength * 0.7 + hydrology * 0.9, 0.0, 3.5);
+                    int carveDepth = Math.Clamp((int)Math.Round(_riverDepth * 0.5 + seamStrength * 1.5), 1, Math.Max(_riverDepth + 2, 4));
+                    int startY = Math.Max(1, surface - carveDepth);
+
+                    for (int y = surface; y >= startY; y--)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air || block == BlockType.Water || block == BlockType.Sand || block == BlockType.Clay)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Water);
+                        }
+                    }
+
+                    if (surface + 1 < 256)
+                    {
+                        chunk.SetBlock(x, surface + 1, z, BlockType.Air);
                     }
                 }
             }
@@ -468,6 +571,75 @@ namespace GameServerApp.World
                     if (wetlandFloor + 2 < 256)
                     {
                         chunk.SetBlock(x, wetlandFloor + 2, z, BlockType.Air);
+                    }
+                }
+            }
+        }
+
+        private void ExtendLakeWetlands(ChunkData chunk, int[,] surfaceCache, double[,] riparianSaturation, double[,] flowAccumulation)
+        {
+            if (_lakeWetlandBufferRadius <= 0)
+            {
+                return;
+            }
+
+            int radius = Math.Clamp(_lakeWetlandBufferRadius, 1, 6);
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int waterSurface = FindTopWaterLevel(chunk, x, z);
+                    if (waterSurface < 1)
+                    {
+                        continue;
+                    }
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                            {
+                                continue;
+                            }
+
+                            double distance = Math.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.25)
+                            {
+                                continue;
+                            }
+
+                            double riparian = riparianSaturation[nx, nz];
+                            if (riparian < _lakeWetlandSaturationThreshold * 0.8)
+                            {
+                                continue;
+                            }
+
+                            int surface = surfaceCache[nx, nz];
+                            if (surface <= 0 || surface < waterSurface - 3 || surface > waterSurface + 4)
+                            {
+                                continue;
+                            }
+
+                            double flow = flowAccumulation[nx, nz];
+                            double wetness = Math.Clamp(riparian * 0.6 + flow * 0.25, 0.0, 1.5);
+                            var rimMaterial = wetness > 0.85 ? BlockType.Clay : BlockType.Sand;
+                            chunk.SetBlock(nx, surface, nz, rimMaterial);
+                            int fillDepth = Math.Max(1, (int)Math.Round(Math.Max(1.0, wetness) + _lakeBasinSmoothIterations * 0.25));
+                            for (int y = surface - fillDepth; y < surface; y++)
+                            {
+                                if (y >= 1 && chunk.GetBlock(nx, y, nz) == BlockType.Air)
+                                {
+                                    chunk.SetBlock(nx, y, nz, rimMaterial);
+                                }
+                            }
+                            if (surface + 1 < 256)
+                            {
+                                chunk.SetBlock(nx, surface + 1, nz, BlockType.Air);
+                            }
+                        }
                     }
                 }
             }

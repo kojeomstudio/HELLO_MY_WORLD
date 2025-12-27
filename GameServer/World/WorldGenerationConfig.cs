@@ -122,6 +122,7 @@ namespace GameServerApp.World
         public int RiparianSmoothIterations { get; set; } = 2;
         public double RiparianSmoothBlend { get; set; } = 0.6;
         public double RiparianSaturationBoost { get; set; } = 0.18;
+        public int RiparianBufferRadius { get; set; } = 1;
         public double RiverFlowAlignmentWeight { get; set; } = 0.28;
         public double RiverGradientPenalty { get; set; } = 0.42;
         public double RiverHeadwaterStabilityWeight { get; set; } = 0.35;
@@ -131,6 +132,7 @@ namespace GameServerApp.World
         public double RiverEdgeFeather { get; set; } = 0.45;
         public int RiverMouthSmoothRadius { get; set; } = 3;
         public double RiverDeltaWetlandStrength { get; set; } = 0.45;
+        public double RiverSeamFillStrength { get; set; } = 0.5;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
         public bool UseImprovedRivers { get; set; } = true;
@@ -186,6 +188,7 @@ namespace GameServerApp.World
         public double EdgeSealStrength { get; set; } = 0.45;
         public double SupportPillarChance { get; set; } = 0.28;
         public int RiparianPlugDepth { get; set; } = 2;
+        public double CeilingStabilityWeight { get; set; } = 0.35;
     }
 
     public sealed class LakeConfig
@@ -200,5 +203,6 @@ namespace GameServerApp.World
         public double WetlandSaturationThreshold { get; set; } = 0.55;
         public int OutflowCarveDepth { get; set; } = 2;
         public int ShelfDepth { get; set; } = 2;
+        public int WetlandBufferRadius { get; set; } = 2;
     }
 }

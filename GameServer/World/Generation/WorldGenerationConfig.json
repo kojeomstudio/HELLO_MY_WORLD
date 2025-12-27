@@ -1,0 +1,1130 @@
+{
+  "version": "1.0.0",
+  "description": "Comprehensive world generation configuration for Minecraft-like terrain",
+  "world": {
+    "seed": 0,
+    "chunkSize": 16,
+    "maxHeight": 256,
+    "seaLevel": 64,
+    "generateStructures": true,
+    "generateEntities": true
+  },
+  "biomeGeneration": {
+    "temperature": {
+      "frequency": 0.002,
+      "octaves": 4,
+      "lacunarity": 2.0,
+      "gain": 0.5,
+      "equatorBonus": 0.3,
+      "polePenalty": 0.4
+    },
+    "humidity": {
+      "frequency": 0.003,
+      "octaves": 3,
+      "lacunarity": 2.2,
+      "gain": 0.6,
+      "waterBonus": 0.2,
+      "desertPenalty": 0.3
+    },
+    "variation": {
+      "frequency": 0.01,
+      "strength": 0.1,
+      "seedOffset": 12345
+    },
+    "smoothing": {
+      "enabled": true,
+      "threshold": 5,
+      "passes": 1,
+      "preserveRivers": true
+    },
+    "world": {
+      "height": 10000,
+      "seaLevel": 0.5,
+      "climateZones": 8
+    },
+    "biomes": [
+      {
+        "type": "Ocean",
+        "name": "Ocean",
+        "minTemperature": 0.0,
+        "maxTemperature": 1.0,
+        "minHumidity": 0.5,
+        "maxHumidity": 1.0,
+        "baseHeight": -0.5,
+        "heightVariation": 0.1,
+        "surfaceBlock": "water",
+        "subSurfaceBlock": "sand",
+        "vegetation": {
+          "kelp": 0.3,
+          "seagrass": 0.5
+        },
+        "mobs": {
+          "squid": 0.8,
+          "dolphin": 0.3
+        }
+      },
+      {
+        "type": "Plains",
+        "name": "Plains",
+        "minTemperature": 0.3,
+        "maxTemperature": 0.8,
+        "minHumidity": 0.2,
+        "maxHumidity": 0.6,
+        "baseHeight": 0.0,
+        "heightVariation": 0.2,
+        "surfaceBlock": "grass",
+        "subSurfaceBlock": "dirt",
+        "vegetation": {
+          "grass": 0.8,
+          "flowers": 0.2,
+          "trees_oak": 0.1
+        },
+        "mobs": {
+          "cow": 0.6,
+          "sheep": 0.5,
+          "chicken": 0.4,
+          "horse": 0.3
+        }
+      },
+      {
+        "type": "Desert",
+        "name": "Desert",
+        "minTemperature": 0.7,
+        "maxTemperature": 1.0,
+        "minHumidity": 0.0,
+        "maxHumidity": 0.2,
+        "baseHeight": 0.1,
+        "heightVariation": 0.3,
+        "surfaceBlock": "sand",
+        "subSurfaceBlock": "sandstone",
+        "vegetation": {
+          "cactus": 0.2,
+          "dead_bush": 0.3
+        },
+        "mobs": {
+          "rabbit": 0.4,
+          "camel": 0.3
+        }
+      },
+      {
+        "type": "Forest",
+        "name": "Forest",
+        "minTemperature": 0.3,
+        "maxTemperature": 0.7,
+        "minHumidity": 0.4,
+        "maxHumidity": 0.8,
+        "baseHeight": 0.0,
+        "heightVariation": 0.3,
+        "surfaceBlock": "grass",
+        "subSurfaceBlock": "dirt",
+        "vegetation": {
+          "trees_oak": 0.7,
+          "trees_birch": 0.3,
+          "flowers": 0.3,
+          "grass": 0.9
+        },
+        "mobs": {
+          "wolf": 0.3,
+          "deer": 0.5,
+          "bird": 0.6
+        }
+      },
+      {
+        "type": "Mountains",
+        "name": "Mountains",
+        "minTemperature": 0.0,
+        "maxTemperature": 0.6,
+        "minHumidity": 0.0,
+        "maxHumidity": 0.5,
+        "baseHeight": 0.8,
+        "heightVariation": 0.6,
+        "surfaceBlock": "stone",
+        "subSurfaceBlock": "stone",
+        "vegetation": {
+          "trees_spruce": 0.1,
+          "grass_mountain": 0.2
+        },
+        "ores": {
+          "coal": 1.2,
+          "iron": 1.3,
+          "gold": 1.5,
+          "diamond": 2.0
+        },
+        "mobs": {
+          "goat": 0.5,
+          "eagle": 0.3
+        }
+      }
+    ]
+  },
+  "oreDistribution": {
+    "globalRarityModifier": 1.0,
+    "enableClusterGeneration": true,
+    "clusterChance": 0.1,
+    "maxVeinsPerChunk": 50,
+    "oreTypes": [
+      {
+        "name": "coal",
+        "blockId": 16,
+        "rarity": 1.0,
+        "minDepth": 0,
+        "maxDepth": 256,
+        "veinSize": 17,
+        "veinSizeVariation": 8,
+        "baseRichness": 1.0,
+        "richnessVariation": 0.3,
+        "veinShape": "irregular"
+      },
+      {
+        "name": "iron",
+        "blockId": 15,
+        "rarity": 2.0,
+        "minDepth": 0,
+        "maxDepth": 64,
+        "veinSize": 9,
+        "veinSizeVariation": 4,
+        "baseRichness": 1.2,
+        "richnessVariation": 0.2,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "gold",
+        "blockId": 14,
+        "rarity": 5.0,
+        "minDepth": 0,
+        "maxDepth": 32,
+        "veinSize": 8,
+        "veinSizeVariation": 3,
+        "baseRichness": 1.5,
+        "richnessVariation": 0.25,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "diamond",
+        "blockId": 56,
+        "rarity": 20.0,
+        "minDepth": 0,
+        "maxDepth": 16,
+        "veinSize": 7,
+        "veinSizeVariation": 2,
+        "baseRichness": 2.0,
+        "richnessVariation": 0.1,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "copper",
+        "blockId": 21,
+        "rarity": 3.0,
+        "minDepth": 0,
+        "maxDepth": 96,
+        "veinSize": 10,
+        "veinSizeVariation": 5,
+        "baseRichness": 1.1,
+        "richnessVariation": 0.3,
+        "veinShape": "irregular"
+      }
+    ],
+    "biomes": [
+      {
+        "biomeType": "Mountains",
+        "overallRichnessModifier": 1.5,
+        "oreModifiers": {
+          "coal": 1.2,
+          "iron": 1.3,
+          "gold": 1.8,
+          "diamond": 2.0
+        }
+      },
+      {
+        "biomeType": "Desert",
+        "overallRichnessModifier": 0.8,
+        "oreModifiers": {
+          "gold": 1.5,
+          "copper": 1.3,
+          "iron": 0.7
+        },
+        "excludedOres": ["emerald"]
+      }
+    ]
+  },
+  "structureGeneration": {
+    "placementFrequency": 0.01,
+    "maxStructuresPerChunk": 3,
+    "enableStructureMerging": true,
+    "structureMergeChance": 0.1,
+    "structureTypes": [
+      {
+        "name": "village",
+        "templateName": "village_template",
+        "enabled": true,
+        "spawnChance": 0.05,
+        "minChunkSpacing": 8,
+        "allowedBiomes": ["Plains", "Desert", "Savanna"],
+        "minHeight": 60,
+        "maxHeight": 80
+      },
+      {
+        "name": "dungeon",
+        "templateName": "dungeon_template",
+        "enabled": true,
+        "spawnChance": 0.1,
+        "minChunkSpacing": 4,
+        "allowedBiomes": ["Plains", "Forest", "Mountains", "Desert"],
+        "minHeight": 0,
+        "maxHeight": 50
+      },
+      {
+        "name": "temple",
+        "templateName": "temple_template",
+        "enabled": true,
+        "spawnChance": 0.03,
+        "minChunkSpacing": 12,
+        "allowedBiomes": ["Desert", "Jungle"],
+        "minHeight": 60,
+        "maxHeight": 70
+      }
+    ],
+    "templates": [
+      {
+        "name": "village_template",
+        "sizeX": 32,
+        "sizeY": 10,
+        "sizeZ": 32,
+        "requiresFlatTerrain": true,
+        "requiredFlatnessRadius": 8,
+        "requiresWater": false,
+        "groundLevelOffset": 0,
+        "preferredBiomes": ["Plains", "Desert", "Savanna"]
+      },
+      {
+        "name": "dungeon_template",
+        "sizeX": 8,
+        "sizeY": 6,
+        "sizeZ": 8,
+        "requiresFlatTerrain": false,
+        "requiredFlatnessRadius": 2,
+        "requiresWater": false,
+        "groundLevelOffset": -2,
+        "preferredBiomes": ["Plains", "Forest", "Mountains", "Desert"]
+      }
+    ]
+  },
+  "entitySpawn": {
+    "spawnFrequency": 0.05,
+    "spawnChance": 0.1,
+    "maxEntitiesPerChunk": 20,
+    "enablePackSpawning": true,
+    "packSpawnChance": 0.3,
+    "maxPackSize": 6,
+    "entityTypes": [
+      {
+        "name": "zombie",
+        "category": "hostile",
+        "spawnChance": 0.8,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Taiga", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "hostile",
+        "behaviorType": "aggressive",
+        "canHaveEquipment": true,
+        "weaponChance": 0.2,
+        "armorChance": 0.1,
+        "possibleWeapons": ["wooden_sword", "stone_sword", "iron_sword"],
+        "possibleArmor": [
+          {"slot": "helmet", "type": "leather"},
+          {"slot": "chestplate", "type": "leather"},
+          {"slot": "leggings", "type": "leather"},
+          {"slot": "boots", "type": "leather"}
+        ]
+      },
+      {
+        "name": "skeleton",
+        "category": "hostile",
+        "spawnChance": 0.6,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Desert", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "ranged",
+        "behaviorType": "aggressive",
+        "canHaveEquipment": true,
+        "weaponChance": 0.8,
+        "armorChance": 0.3,
+        "possibleWeapons": ["bow"],
+        "possibleArmor": [
+          {"slot": "helmet", "type": "iron"},
+          {"slot": "chestplate", "type": "iron"},
+          {"slot": "leggings", "type": "iron"},
+          {"slot": "boots", "type": "iron"}
+        ]
+      },
+      {
+        "name": "creeper",
+        "category": "hostile",
+        "spawnChance": 0.4,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "explosive",
+        "behaviorType": "aggressive"
+      },
+      {
+        "name": "cow",
+        "category": "passive",
+        "spawnChance": 0.7,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 10.0,
+        "aiType": "passive",
+        "behaviorType": "graze",
+        "hasVariations": true,
+        "variants": [
+          {"name": "normal", "chance": 0.9},
+          {"name": "mooshroom", "chance": 0.1}
+        ]
+      },
+      {
+        "name": "pig",
+        "category": "passive",
+        "spawnChance": 0.6,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 10.0,
+        "aiType": "passive",
+        "behaviorType": "wander"
+      },
+      {
+        "name": "chicken",
+        "category": "passive",
+        "spawnChance": 0.8,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Desert"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 4.0,
+        "aiType": "passive",
+        "behaviorType": "wander",
+        "hasVariations": true,
+        "variants": [
+          {"name": "normal", "chance": 0.95},
+          {"name": "baby", "chance": 0.05}
+        ]
+      },
+      {
+        "name": "sheep",
+        "category": "passive",
+        "spawnChance": 0.7,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Taiga"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 8.0,
+        "aiType": "passive",
+        "behaviorType": "graze",
+        "hasVariations": true,
+        "variants": [
+          {"name": "white", "chance": 0.8},
+          {"name": "black", "chance": 0.05},
+          {"name": "gray", "chance": 0.05},
+          {"name": "brown", "chance": 0.05},
+          {"name": "pink", "chance": 0.05}
+        ]
+      }
+    ],
+    "biomeConfigs": [
+      {
+        "biomeType": "Plains",
+        "overallSpawnModifier": 1.2,
+        "entityModifiers": {
+          "cow": 1.5,
+          "sheep": 1.3,
+          "chicken": 1.2,
+          "pig": 1.4
+        }
+      },
+      {
+        "biomeType": "Forest",
+        "overallSpawnModifier": 1.0,
+        "entityModifiers": {
+          "wolf": 1.5,
+          "cow": 0.8,
+          "sheep": 1.2
+        }
+      },
+      {
+        "biomeType": "Desert",
+        "overallSpawnModifier": 0.6,
+        "entityModifiers": {
+          "cow": 0.3,
+          "sheep": 0.2,
+          "chicken": 0.8
+        },
+        "excludedEntities": ["pig"]
+      },
+      {
+        "biomeType": "Mountains",
+        "overallSpawnModifier": 0.8,
+        "entityModifiers": {
+          "goat": 2.0,
+          "cow": 0.4,
+          "sheep": 0.6
+        }
+      }
+    ]
+  },
+  "terrainGeneration": {
+    "baseTerrain": {
+      "frequency": 0.005,
+      "amplitude": 1.0,
+      "octaves": 6,
+      "persistence": 0.5,
+      "lacunarity": 2.0
+    },
+    "caves": {
+      "enabled": true,
+      "frequency": 0.02,
+      "threshold": 0.5,
+      "size": 3,
+      "verticality": 0.7
+    },
+    "rivers": {
+      "enabled": true,
+      "frequency": 0.01,
+      "width": 3,
+      "depth": 0.3,
+      "meanderStrength": 0.8
+    },
+    "lakes": {
+      "enabled": true,
+      "frequency": 0.008,
+      "minSize": 8,
+      "maxSize": 24,
+      "depth": 0.4,
+      "shoreSmoothness": 0.6
+    }
+  },
+  "layers": {
+    "executionOrder": [
+      {
+        "layerId": "BaseTerrain",
+        "enabled": true,
+        "priority": 1
+      },
+      {
+        "layerId": "BiomeGeneration",
+        "enabled": true,
+        "priority": 5
+      },
+      {
+        "layerId": "CaveGeneration",
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "layerId": "RiverGeneration",
+        "enabled": true,
+        "priority": 15
+      },
+      {
+        "layerId": "LakeGeneration",
+        "enabled": true,
+        "priority": 16
+      },
+      {
+        "layerId": "OreDistribution",
+        "enabled": true,
+        "priority": 20
+      },
+      {
+        "layerId": "StructureGeneration",
+        "enabled": true,
+        "priority": 25
+      },
+      {
+        "layerId": "EntitySpawn",
+        "enabled": true,
+        "priority": 30
+      }
+    ]
+  }
+}  "version": "1.0.0",
+  "description": "Comprehensive world generation configuration for Minecraft-like terrain",
+  "world": {
+    "seed": 0,
+    "chunkSize": 16,
+    "maxHeight": 256,
+    "seaLevel": 64,
+    "generateStructures": true,
+    "generateEntities": true
+  },
+  "biomeGeneration": {
+    "temperature": {
+      "frequency": 0.002,
+      "octaves": 4,
+      "lacunarity": 2.0,
+      "gain": 0.5,
+      "equatorBonus": 0.3,
+      "polePenalty": 0.4
+    },
+    "humidity": {
+      "frequency": 0.003,
+      "octaves": 3,
+      "lacunarity": 2.2,
+      "gain": 0.6,
+      "waterBonus": 0.2,
+      "desertPenalty": 0.3
+    },
+    "variation": {
+      "frequency": 0.01,
+      "strength": 0.1,
+      "seedOffset": 12345
+    },
+    "smoothing": {
+      "enabled": true,
+      "threshold": 5,
+      "passes": 1,
+      "preserveRivers": true
+    },
+    "world": {
+      "height": 10000,
+      "seaLevel": 0.5,
+      "climateZones": 8
+    },
+    "biomes": [
+      {
+        "type": "Ocean",
+        "name": "Ocean",
+        "minTemperature": 0.0,
+        "maxTemperature": 1.0,
+        "minHumidity": 0.5,
+        "maxHumidity": 1.0,
+        "baseHeight": -0.5,
+        "heightVariation": 0.1,
+        "surfaceBlock": "water",
+        "subSurfaceBlock": "sand",
+        "vegetation": {
+          "kelp": 0.3,
+          "seagrass": 0.5
+        },
+        "mobs": {
+          "squid": 0.8,
+          "dolphin": 0.3
+        }
+      },
+      {
+        "type": "Plains",
+        "name": "Plains",
+        "minTemperature": 0.3,
+        "maxTemperature": 0.8,
+        "minHumidity": 0.2,
+        "maxHumidity": 0.6,
+        "baseHeight": 0.0,
+        "heightVariation": 0.2,
+        "surfaceBlock": "grass",
+        "subSurfaceBlock": "dirt",
+        "vegetation": {
+          "grass": 0.8,
+          "flowers": 0.2,
+          "trees_oak": 0.1
+        },
+        "mobs": {
+          "cow": 0.6,
+          "sheep": 0.5,
+          "chicken": 0.4,
+          "horse": 0.3
+        }
+      },
+      {
+        "type": "Desert",
+        "name": "Desert",
+        "minTemperature": 0.7,
+        "maxTemperature": 1.0,
+        "minHumidity": 0.0,
+        "maxHumidity": 0.2,
+        "baseHeight": 0.1,
+        "heightVariation": 0.3,
+        "surfaceBlock": "sand",
+        "subSurfaceBlock": "sandstone",
+        "vegetation": {
+          "cactus": 0.2,
+          "dead_bush": 0.3
+        },
+        "mobs": {
+          "rabbit": 0.4,
+          "camel": 0.3
+        }
+      },
+      {
+        "type": "Forest",
+        "name": "Forest",
+        "minTemperature": 0.3,
+        "maxTemperature": 0.7,
+        "minHumidity": 0.4,
+        "maxHumidity": 0.8,
+        "baseHeight": 0.0,
+        "heightVariation": 0.3,
+        "surfaceBlock": "grass",
+        "subSurfaceBlock": "dirt",
+        "vegetation": {
+          "trees_oak": 0.7,
+          "trees_birch": 0.3,
+          "flowers": 0.3,
+          "grass": 0.9
+        },
+        "mobs": {
+          "wolf": 0.3,
+          "deer": 0.5,
+          "bird": 0.6
+        }
+      },
+      {
+        "type": "Mountains",
+        "name": "Mountains",
+        "minTemperature": 0.0,
+        "maxTemperature": 0.6,
+        "minHumidity": 0.0,
+        "maxHumidity": 0.5,
+        "baseHeight": 0.8,
+        "heightVariation": 0.6,
+        "surfaceBlock": "stone",
+        "subSurfaceBlock": "stone",
+        "vegetation": {
+          "trees_spruce": 0.1,
+          "grass_mountain": 0.2
+        },
+        "ores": {
+          "coal": 1.2,
+          "iron": 1.3,
+          "gold": 1.5,
+          "diamond": 2.0
+        },
+        "mobs": {
+          "goat": 0.5,
+          "eagle": 0.3
+        }
+      }
+    ]
+  },
+  "oreDistribution": {
+    "globalRarityModifier": 1.0,
+    "enableClusterGeneration": true,
+    "clusterChance": 0.1,
+    "maxVeinsPerChunk": 50,
+    "oreTypes": [
+      {
+        "name": "coal",
+        "blockId": 16,
+        "rarity": 1.0,
+        "minDepth": 0,
+        "maxDepth": 256,
+        "veinSize": 17,
+        "veinSizeVariation": 8,
+        "baseRichness": 1.0,
+        "richnessVariation": 0.3,
+        "veinShape": "irregular"
+      },
+      {
+        "name": "iron",
+        "blockId": 15,
+        "rarity": 2.0,
+        "minDepth": 0,
+        "maxDepth": 64,
+        "veinSize": 9,
+        "veinSizeVariation": 4,
+        "baseRichness": 1.2,
+        "richnessVariation": 0.2,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "gold",
+        "blockId": 14,
+        "rarity": 5.0,
+        "minDepth": 0,
+        "maxDepth": 32,
+        "veinSize": 8,
+        "veinSizeVariation": 3,
+        "baseRichness": 1.5,
+        "richnessVariation": 0.25,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "diamond",
+        "blockId": 56,
+        "rarity": 20.0,
+        "minDepth": 0,
+        "maxDepth": 16,
+        "veinSize": 7,
+        "veinSizeVariation": 2,
+        "baseRichness": 2.0,
+        "richnessVariation": 0.1,
+        "veinShape": "spherical"
+      },
+      {
+        "name": "copper",
+        "blockId": 21,
+        "rarity": 3.0,
+        "minDepth": 0,
+        "maxDepth": 96,
+        "veinSize": 10,
+        "veinSizeVariation": 5,
+        "baseRichness": 1.1,
+        "richnessVariation": 0.3,
+        "veinShape": "irregular"
+      }
+    ],
+    "biomes": [
+      {
+        "biomeType": "Mountains",
+        "overallRichnessModifier": 1.5,
+        "oreModifiers": {
+          "coal": 1.2,
+          "iron": 1.3,
+          "gold": 1.8,
+          "diamond": 2.0
+        }
+      },
+      {
+        "biomeType": "Desert",
+        "overallRichnessModifier": 0.8,
+        "oreModifiers": {
+          "gold": 1.5,
+          "copper": 1.3,
+          "iron": 0.7
+        },
+        "excludedOres": ["emerald"]
+      }
+    ]
+  },
+  "structureGeneration": {
+    "placementFrequency": 0.01,
+    "maxStructuresPerChunk": 3,
+    "enableStructureMerging": true,
+    "structureMergeChance": 0.1,
+    "structureTypes": [
+      {
+        "name": "village",
+        "templateName": "village_template",
+        "enabled": true,
+        "spawnChance": 0.05,
+        "minChunkSpacing": 8,
+        "allowedBiomes": ["Plains", "Desert", "Savanna"],
+        "minHeight": 60,
+        "maxHeight": 80
+      },
+      {
+        "name": "dungeon",
+        "templateName": "dungeon_template",
+        "enabled": true,
+        "spawnChance": 0.1,
+        "minChunkSpacing": 4,
+        "allowedBiomes": ["Plains", "Forest", "Mountains", "Desert"],
+        "minHeight": 0,
+        "maxHeight": 50
+      },
+      {
+        "name": "temple",
+        "templateName": "temple_template",
+        "enabled": true,
+        "spawnChance": 0.03,
+        "minChunkSpacing": 12,
+        "allowedBiomes": ["Desert", "Jungle"],
+        "minHeight": 60,
+        "maxHeight": 70
+      }
+    ],
+    "templates": [
+      {
+        "name": "village_template",
+        "sizeX": 32,
+        "sizeY": 10,
+        "sizeZ": 32,
+        "requiresFlatTerrain": true,
+        "requiredFlatnessRadius": 8,
+        "requiresWater": false,
+        "groundLevelOffset": 0,
+        "preferredBiomes": ["Plains", "Desert", "Savanna"]
+      },
+      {
+        "name": "dungeon_template",
+        "sizeX": 8,
+        "sizeY": 6,
+        "sizeZ": 8,
+        "requiresFlatTerrain": false,
+        "requiredFlatnessRadius": 2,
+        "requiresWater": false,
+        "groundLevelOffset": -2,
+        "preferredBiomes": ["Plains", "Forest", "Mountains", "Desert"]
+      }
+    ]
+  },
+  "entitySpawn": {
+    "spawnFrequency": 0.05,
+    "spawnChance": 0.1,
+    "maxEntitiesPerChunk": 20,
+    "enablePackSpawning": true,
+    "packSpawnChance": 0.3,
+    "maxPackSize": 6,
+    "entityTypes": [
+      {
+        "name": "zombie",
+        "category": "hostile",
+        "spawnChance": 0.8,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Taiga", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "hostile",
+        "behaviorType": "aggressive",
+        "canHaveEquipment": true,
+        "weaponChance": 0.2,
+        "armorChance": 0.1,
+        "possibleWeapons": ["wooden_sword", "stone_sword", "iron_sword"],
+        "possibleArmor": [
+          {"slot": "helmet", "type": "leather"},
+          {"slot": "chestplate", "type": "leather"},
+          {"slot": "leggings", "type": "leather"},
+          {"slot": "boots", "type": "leather"}
+        ]
+      },
+      {
+        "name": "skeleton",
+        "category": "hostile",
+        "spawnChance": 0.6,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Desert", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "ranged",
+        "behaviorType": "aggressive",
+        "canHaveEquipment": true,
+        "weaponChance": 0.8,
+        "armorChance": 0.3,
+        "possibleWeapons": ["bow"],
+        "possibleArmor": [
+          {"slot": "helmet", "type": "iron"},
+          {"slot": "chestplate", "type": "iron"},
+          {"slot": "leggings", "type": "iron"},
+          {"slot": "boots", "type": "iron"}
+        ]
+      },
+      {
+        "name": "creeper",
+        "category": "hostile",
+        "spawnChance": 0.4,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Mountains"],
+        "requiresDarkness": true,
+        "spawnTime": "Night",
+        "maxHealth": 20.0,
+        "aiType": "explosive",
+        "behaviorType": "aggressive"
+      },
+      {
+        "name": "cow",
+        "category": "passive",
+        "spawnChance": 0.7,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 10.0,
+        "aiType": "passive",
+        "behaviorType": "graze",
+        "hasVariations": true,
+        "variants": [
+          {"name": "normal", "chance": 0.9},
+          {"name": "mooshroom", "chance": 0.1}
+        ]
+      },
+      {
+        "name": "pig",
+        "category": "passive",
+        "spawnChance": 0.6,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 10.0,
+        "aiType": "passive",
+        "behaviorType": "wander"
+      },
+      {
+        "name": "chicken",
+        "category": "passive",
+        "spawnChance": 0.8,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Desert"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 4.0,
+        "aiType": "passive",
+        "behaviorType": "wander",
+        "hasVariations": true,
+        "variants": [
+          {"name": "normal", "chance": 0.95},
+          {"name": "baby", "chance": 0.05}
+        ]
+      },
+      {
+        "name": "sheep",
+        "category": "passive",
+        "spawnChance": 0.7,
+        "minSpawnHeight": 0,
+        "maxSpawnHeight": 256,
+        "allowedBiomes": ["Plains", "Forest", "Taiga"],
+        "requiresLight": true,
+        "spawnTime": "Day",
+        "maxHealth": 8.0,
+        "aiType": "passive",
+        "behaviorType": "graze",
+        "hasVariations": true,
+        "variants": [
+          {"name": "white", "chance": 0.8},
+          {"name": "black", "chance": 0.05},
+          {"name": "gray", "chance": 0.05},
+          {"name": "brown", "chance": 0.05},
+          {"name": "pink", "chance": 0.05}
+        ]
+      }
+    ],
+    "biomeConfigs": [
+      {
+        "biomeType": "Plains",
+        "overallSpawnModifier": 1.2,
+        "entityModifiers": {
+          "cow": 1.5,
+          "sheep": 1.3,
+          "chicken": 1.2,
+          "pig": 1.4
+        }
+      },
+      {
+        "biomeType": "Forest",
+        "overallSpawnModifier": 1.0,
+        "entityModifiers": {
+          "wolf": 1.5,
+          "cow": 0.8,
+          "sheep": 1.2
+        }
+      },
+      {
+        "biomeType": "Desert",
+        "overallSpawnModifier": 0.6,
+        "entityModifiers": {
+          "cow": 0.3,
+          "sheep": 0.2,
+          "chicken": 0.8
+        },
+        "excludedEntities": ["pig"]
+      },
+      {
+        "biomeType": "Mountains",
+        "overallSpawnModifier": 0.8,
+        "entityModifiers": {
+          "goat": 2.0,
+          "cow": 0.4,
+          "sheep": 0.6
+        }
+      }
+    ]
+  },
+  "terrainGeneration": {
+    "baseTerrain": {
+      "frequency": 0.005,
+      "amplitude": 1.0,
+      "octaves": 6,
+      "persistence": 0.5,
+      "lacunarity": 2.0
+    },
+    "caves": {
+      "enabled": true,
+      "frequency": 0.02,
+      "threshold": 0.5,
+      "size": 3,
+      "verticality": 0.7
+    },
+    "rivers": {
+      "enabled": true,
+      "frequency": 0.01,
+      "width": 3,
+      "depth": 0.3,
+      "meanderStrength": 0.8
+    },
+    "lakes": {
+      "enabled": true,
+      "frequency": 0.008,
+      "minSize": 8,
+      "maxSize": 24,
+      "depth": 0.4,
+      "shoreSmoothness": 0.6
+    }
+  },
+  "layers": {
+    "executionOrder": [
+      {
+        "layerId": "BaseTerrain",
+        "enabled": true,
+        "priority": 1
+      },
+      {
+        "layerId": "BiomeGeneration",
+        "enabled": true,
+        "priority": 5
+      },
+      {
+        "layerId": "CaveGeneration",
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "layerId": "RiverGeneration",
+        "enabled": true,
+        "priority": 15
+      },
+      {
+        "layerId": "LakeGeneration",
+        "enabled": true,
+        "priority": 16
+      },
+      {
+        "layerId": "OreDistribution",
+        "enabled": true,
+        "priority": 20
+      },
+      {
+        "layerId": "StructureGeneration",
+        "enabled": true,
+        "priority": 25
+      },
+      {
+        "layerId": "EntitySpawn",
+        "enabled": true,
+        "priority": 30
+      }
+    ]
+  }
+}

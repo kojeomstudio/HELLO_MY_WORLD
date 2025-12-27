@@ -793,6 +793,7 @@ namespace GameServerApp.World
             AddCaveRibbonTerraces(chunk, surfaceCache, hydrologyMask, caveStabilityField, flowAccumulation);
             ApplyCaveHydrologyErosion(chunk, surfaceCache, hydrologyMask, flowAccumulation);
             StabilizeMoistCaveCeilings(chunk, surfaceCache, hydrologyMask, flowAccumulation);
+            SealCaveChunkEdges(context, chunk, surfaceCache, hydrologyMask);
         }
         
         private double[,] BuildCaveStabilityField(
@@ -850,6 +851,66 @@ namespace GameServerApp.World
 
             FeatherScalarFieldEdges(stability);
             return stability;
+        }
+
+        private void SealCaveChunkEdges(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask)
+        {
+            if (_caveEdgeSealStrength <= 0.0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, (int)Math.Round(3 + _caveEdgeSealStrength * 4));
+            double sealWeight = Math.Clamp(_caveEdgeSealStrength, 0.0, 1.0);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, 15 - x), Math.Min(z, 15 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        surface = FindSurfaceLevel(chunk, x, z);
+                        if (surface <= 0)
+                        {
+                            continue;
+                        }
+                        surfaceCache[x, z] = surface;
+                    }
+
+                    double hydrology = Math.Clamp(hydrologyMask[x, z], 0.0, 1.0);
+                    double sealFactor = sealWeight * (1.0 - edgeDistance / (double)radius);
+                    sealFactor = Math.Clamp(sealFactor * (0.65 + hydrology * 0.45), 0.0, 1.0);
+
+                    int sealDepth = Math.Max(4, (int)Math.Round(10 * sealFactor));
+                    int minY = Math.Max(2, surface - sealDepth);
+
+                    for (int y = minY; y < surface; y++)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block != BlockType.Air)
+                        {
+                            continue;
+                        }
+
+                        double jitter = SampleDeterministicNoise(context.ChunkX * 16 + x, context.ChunkZ * 16 + z, y + SaltCaveMain);
+                        if (jitter <= sealFactor)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Stone);
+                        }
+                    }
+                }
+            }
         }
 
         private void FeatherScalarFieldEdges(double[,] field)
@@ -4973,6 +5034,7 @@ namespace GameServerApp.World
             ApplyRiverMeanderTerraces(chunk, surfaceCache, riverIntensity, hydrologyMask, riverField);
             ApplyRiverHydrologyFeedback(chunk, surfaceCache, riverField, hydrologyMask, flowAccumulation, riverIntensity);
             AddRiverSeepageChannels(chunk, surfaceCache, hydrologyMask, flowAccumulation, riverIntensity, riverField);
+            SmoothRiverMouths(context, chunk, surfaceCache, hydrologyMask, riverIntensity);
         }
 
         private void NormalizeRiverIntensity(
@@ -5062,6 +5124,104 @@ namespace GameServerApp.World
                     }
 
                     riverIntensity[x, z] = scaled;
+                }
+            }
+        }
+
+        private void SmoothRiverMouths(
+            TerrainGenerationContext context,
+            ChunkData chunk,
+            int[,] surfaceCache,
+            double[,] hydrologyMask,
+            double[,] riverIntensity)
+        {
+            if (_riverMouthSmoothRadius <= 0 && _riverDeltaWetlandStrength <= 0.0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, _riverMouthSmoothRadius);
+            double wetland = Math.Clamp(_riverDeltaWetlandStrength, 0.0, 1.0);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    double intensity = riverIntensity[x, z];
+                    if (intensity <= RiverCenterThreshold * 0.45)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        surface = FindSurfaceLevel(chunk, x, z);
+                        if (surface <= 0)
+                        {
+                            continue;
+                        }
+                        surfaceCache[x, z] = surface;
+                    }
+
+                    double shoreBias = Math.Clamp((GlobalWaterLevel + radius - surface) / Math.Max(1.0, _hydrologyShorePush), 0.0, 1.0);
+                    if (shoreBias <= 0.05 && hydrologyMask[x, z] < 0.45)
+                    {
+                        continue;
+                    }
+
+                    double mouthStrength = Math.Clamp(intensity / RiverBankThreshold, 0.0, 1.35);
+                    mouthStrength = Math.Clamp(mouthStrength * (0.55 + shoreBias * 0.65) + hydrologyMask[x, z] * 0.25, 0.0, 1.5);
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                            {
+                                continue;
+                            }
+
+                            double falloff = 1.0 - Math.Clamp(Math.Sqrt(dx * dx + dz * dz) / (radius + 0.5), 0.0, 1.0);
+                            if (falloff <= 0.0)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = surfaceCache[nx, nz];
+                            if (neighborSurface <= 0)
+                            {
+                                neighborSurface = FindSurfaceLevel(chunk, nx, nz);
+                                if (neighborSurface <= 0)
+                                {
+                                    continue;
+                                }
+                                surfaceCache[nx, nz] = neighborSurface;
+                            }
+
+                            int riverSurface = Math.Min(neighborSurface, GlobalWaterLevel);
+                            int carveDepth = Math.Max(1, (int)Math.Round(_riverDepth * mouthStrength * falloff * 0.6));
+                            int target = Math.Max(1, riverSurface - carveDepth);
+
+                            for (int y = riverSurface; y >= target; y--)
+                            {
+                                chunk.SetBlock(nx, y, nz, BlockType.Water);
+                            }
+
+                            if (wetland > 0.0 && falloff > 0.35)
+                            {
+                                var bankBlock = wetland > 0.5 ? BlockType.Clay : BlockType.Sand;
+                                int bankY = Math.Max(target - 1, 1);
+                                chunk.SetBlock(nx, bankY, nz, bankBlock);
+                                if (riverSurface + 1 < 256)
+                                {
+                                    chunk.SetBlock(nx, riverSurface + 1, nz, BlockType.Air);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -6559,9 +6719,10 @@ namespace GameServerApp.World
                 return;
             }
 
-            int length = Math.Clamp((int)Math.Round(3 + weight * 5), 2, 8);
+            int length = Math.Clamp((int)Math.Round(2 + weight * 3 + _lakeOutflowCarveDepth * 0.35), 2, 12);
             int currentX = originX + dirX * 2;
             int currentZ = originZ + dirZ * 2;
+            int maxDrop = Math.Max(1, Math.Min(_lakeOutflowCarveDepth, 12));
 
             for (int step = 0; step < length; step++)
             {
@@ -6581,7 +6742,8 @@ namespace GameServerApp.World
                     surfaceCache[currentX, currentZ] = surface;
                 }
 
-                int target = Math.Max(1, waterSurface - 2 - step);
+                int depth = Math.Max(1, maxDrop - step / 2);
+                int target = Math.Max(1, waterSurface - depth);
                 if (surface > target)
                 {
                     for (int y = surface; y > target; y--)
@@ -6591,7 +6753,7 @@ namespace GameServerApp.World
                 }
 
                 int sandY = Math.Max(1, target - 1);
-                chunk.SetBlock(currentX, sandY, currentZ, BlockType.Sand);
+                chunk.SetBlock(currentX, sandY, currentZ, BlockType.Clay);
                 for (int y = target; y <= Math.Min(waterSurface, 255); y++)
                 {
                     chunk.SetBlock(currentX, y, currentZ, BlockType.Water);

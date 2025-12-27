@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEngine;
 using Minecraft.Core;
 
@@ -27,11 +28,78 @@ namespace Minecraft.World
         private readonly float[,] _caveMapCache = new float[16, 256];
         private readonly float[,] _riverMapCache = new float[16, 16];
         private readonly float[,] _lakeMapCache = new float[16, 16];
+        private TerrainTuning _tuning;
+
+        [Serializable]
+        private class TerrainTuning
+        {
+            public int RiverDepth;
+            public float RiverEdgeFeather;
+            public int RiverMouthSmoothRadius;
+            public float RiverDeltaWetlandStrength;
+            public int RiverIntensitySmoothIterations;
+            public float RiverIntensitySmoothBlend;
+            public int LakeOutflowCarveDepth;
+            public float LakeWetlandSaturationThreshold;
+            public float LakeShorelineBlend;
+            public float CaveEdgeSealStrength;
+
+            public static TerrainTuning FromDefaults(WorldConfig config)
+            {
+                return new TerrainTuning
+                {
+                    RiverDepth = Mathf.Max(2, config.Terrain.SeaLevel > 0 ? config.Terrain.SeaLevel / 10 : 6),
+                    RiverEdgeFeather = 0.35f,
+                    RiverMouthSmoothRadius = 3,
+                    RiverDeltaWetlandStrength = 0.35f,
+                    RiverIntensitySmoothIterations = 2,
+                    RiverIntensitySmoothBlend = 0.5f,
+                    LakeOutflowCarveDepth = 2,
+                    LakeWetlandSaturationThreshold = 0.55f,
+                    LakeShorelineBlend = 0.66f,
+                    CaveEdgeSealStrength = 0.35f
+                };
+            }
+        }
+
+        [Serializable]
+        private class WorldConfigRaw
+        {
+            public WaterRaw Water = new WaterRaw();
+            public LakeRaw Lakes = new LakeRaw();
+            public CaveRaw Caves = new CaveRaw();
+        }
+
+        [Serializable]
+        private class WaterRaw
+        {
+            public int RiverDepth = 6;
+            public float RiverEdgeFeather = 0.35f;
+            public int RiverMouthSmoothRadius = 3;
+            public float RiverDeltaWetlandStrength = 0.35f;
+            public int RiverIntensitySmoothIterations = 3;
+            public float RiverIntensitySmoothBlend = 0.55f;
+        }
+
+        [Serializable]
+        private class LakeRaw
+        {
+            public int OutflowCarveDepth = 2;
+            public float WetlandSaturationThreshold = 0.55f;
+            public float ShorelineBlend = 0.66f;
+        }
+
+        [Serializable]
+        private class CaveRaw
+        {
+            public float EdgeSealStrength = 0.35f;
+        }
         
         private void Awake()
         {
             _worldConfig = WorldConfig.Instance;
             _blockDataManager = BlockDataManager.Instance;
+            _tuning = LoadTerrainTuning();
             
             InitializeNoiseGenerators();
         }
@@ -71,6 +139,39 @@ namespace Minecraft.World
             // Ore noise
             _oreNoise = new FastNoise(seed + 5);
             _oreNoise.SetNoiseType(FastNoise.NoiseType.WhiteNoise);
+        }
+
+        private TerrainTuning LoadTerrainTuning()
+        {
+            var tuning = TerrainTuning.FromDefaults(_worldConfig);
+            try
+            {
+                string configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
+                if (File.Exists(configPath))
+                {
+                    string json = File.ReadAllText(configPath);
+                    var raw = JsonUtility.FromJson<WorldConfigRaw>(json);
+                    if (raw != null)
+                    {
+                        tuning.RiverDepth = raw.Water.RiverDepth > 0 ? raw.Water.RiverDepth : tuning.RiverDepth;
+                        tuning.RiverEdgeFeather = Mathf.Clamp01(raw.Water.RiverEdgeFeather);
+                        tuning.RiverMouthSmoothRadius = Math.Max(1, raw.Water.RiverMouthSmoothRadius);
+                        tuning.RiverDeltaWetlandStrength = Mathf.Clamp01(raw.Water.RiverDeltaWetlandStrength);
+                        tuning.RiverIntensitySmoothIterations = Math.Max(1, raw.Water.RiverIntensitySmoothIterations);
+                        tuning.RiverIntensitySmoothBlend = Mathf.Clamp01(raw.Water.RiverIntensitySmoothBlend);
+                        tuning.LakeOutflowCarveDepth = Math.Max(1, raw.Lakes.OutflowCarveDepth);
+                        tuning.LakeWetlandSaturationThreshold = Mathf.Clamp01(raw.Lakes.WetlandSaturationThreshold);
+                        tuning.LakeShorelineBlend = Mathf.Clamp01(raw.Lakes.ShorelineBlend);
+                        tuning.CaveEdgeSealStrength = Mathf.Clamp01(raw.Caves.EdgeSealStrength);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[TerrainGenerator] Failed to load world-config.json tuning: {ex.Message}");
+            }
+
+            return tuning;
         }
         
         /// <summary>
@@ -134,6 +235,8 @@ namespace Minecraft.World
                     _heightMapCache[x, z] = height;
                 }
             }
+
+            SealEdgeCaves(blocks, chunkX, chunkZ);
         }
         
         private void GenerateBiomeMap(int chunkX, int chunkZ)
@@ -324,6 +427,8 @@ namespace Minecraft.World
                     _riverMapCache[x, z] = riverValue;
                 }
             }
+
+            SmoothRiverMapEdges();
             
             // Apply river generation
             for (int x = 0; x < chunkSize; x++)
@@ -344,7 +449,7 @@ namespace Minecraft.World
                         }
                         
                         // Add water at river bottom
-                        for (int y = seaLevel - _worldConfig.Water.RiverDepth; y < seaLevel; y++)
+                        for (int y = seaLevel - _tuning.RiverDepth; y < seaLevel; y++)
                         {
                             if (y >= 0 && y < worldHeight)
                             {
@@ -369,6 +474,8 @@ namespace Minecraft.World
                     }
                 }
             }
+
+            FeatherRiverBanksAndMouths(blocks, chunkX, chunkZ, seaLevel);
         }
         
         private void GenerateLakes(int[,,] blocks, int chunkX, int chunkZ)
@@ -445,9 +552,315 @@ namespace Minecraft.World
                                     blocks[x, y, z] = GetBlockId("sandstone");
                             }
                         }
+
+                        int waterSurface = Mathf.Clamp(lakeBottom + Mathf.Max(1, lakeDepth / 2), 1, worldHeight - 1);
+                        CarveLakeOutflow(blocks, chunkX, chunkZ, x, z, waterSurface);
                     }
                 }
             }
+
+            BlendLakeWetlands(blocks, seaLevel);
+        }
+
+        private void SmoothRiverMapEdges()
+        {
+            if (_tuning.RiverEdgeFeather <= 0f)
+                return;
+
+            int chunkSize = _worldConfig.ChunkSize;
+            int radius = Mathf.Clamp(_tuning.RiverMouthSmoothRadius, 1, Math.Max(1, chunkSize / 2));
+            float blendBase = Mathf.Clamp01(_tuning.RiverEdgeFeather);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(chunkSize - 1 - x, chunkSize - 1 - z));
+                    if (edgeDistance >= radius)
+                        continue;
+
+                    int inwardX = x <= chunkSize / 2 ? 1 : -1;
+                    int inwardZ = z <= chunkSize / 2 ? 1 : -1;
+                    int sampleX = Mathf.Clamp(x + inwardX, 0, chunkSize - 1);
+                    int sampleZ = Mathf.Clamp(z + inwardZ, 0, chunkSize - 1);
+                    float neighbor = _riverMapCache[sampleX, sampleZ];
+                    float blend = blendBase * (1f - edgeDistance / (float)radius);
+                    _riverMapCache[x, z] = Mathf.Lerp(_riverMapCache[x, z], neighbor, blend);
+                }
+            }
+
+            int iterations = Math.Max(1, _tuning.RiverIntensitySmoothIterations);
+            float intensityBlend = Mathf.Clamp01(_tuning.RiverIntensitySmoothBlend);
+            for (int i = 0; i < iterations; i++)
+            {
+                BlurRiverIntensity(intensityBlend);
+            }
+        }
+
+        private void BlurRiverIntensity(float blend)
+        {
+            int chunkSize = _worldConfig.ChunkSize;
+            var temp = new float[chunkSize, chunkSize];
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    float sum = 0f;
+                    int samples = 0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            int nx = Mathf.Clamp(x + dx, 0, chunkSize - 1);
+                            int nz = Mathf.Clamp(z + dz, 0, chunkSize - 1);
+                            sum += _riverMapCache[nx, nz];
+                            samples++;
+                        }
+                    }
+
+                    float average = samples > 0 ? sum / samples : _riverMapCache[x, z];
+                    temp[x, z] = Mathf.Lerp(_riverMapCache[x, z], average, blend);
+                }
+            }
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    _riverMapCache[x, z] = temp[x, z];
+                }
+            }
+        }
+
+        private void FeatherRiverBanksAndMouths(int[,,] blocks, int chunkX, int chunkZ, int seaLevel)
+        {
+            int chunkSize = _worldConfig.ChunkSize;
+            int worldHeight = _worldConfig.WorldHeight;
+            float bankThreshold = _worldConfig.Water.RiverBankThreshold;
+            int radius = Mathf.Clamp(_tuning.RiverMouthSmoothRadius, 1, Math.Max(1, chunkSize / 2));
+            float wetland = Mathf.Clamp01(_tuning.RiverDeltaWetlandStrength);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    float riverValue = _riverMapCache[x, z];
+                    if (riverValue <= 0f || riverValue >= bankThreshold)
+                        continue;
+
+                    int surface = GetSurfaceHeight(blocks, x, z, worldHeight);
+                    if (surface < 0 || surface > seaLevel + radius)
+                        continue;
+
+                    float falloff = 1f - Mathf.Clamp01(Mathf.Abs(surface - seaLevel) / (radius + 0.5f));
+                    float strength = Mathf.Clamp01(1f - (riverValue / bankThreshold));
+                    int target = Math.Max(1, surface - Mathf.CeilToInt((_tuning.RiverDepth + 1) * falloff * strength));
+                    int waterTop = Math.Min(surface, seaLevel);
+
+                    for (int y = target; y <= waterTop && y < worldHeight; y++)
+                    {
+                        blocks[x, y, z] = GetBlockId("water");
+                    }
+
+                    if (wetland > 0f && falloff > 0.2f)
+                    {
+                        int bankY = Math.Max(1, target - 1);
+                        blocks[x, bankY, z] = wetland > 0.5f ? GetBlockId("clay") : GetBlockId("sand");
+                        if (waterTop + 1 < worldHeight)
+                        {
+                            blocks[x, waterTop + 1, z] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SealEdgeCaves(int[,,] blocks, int chunkX, int chunkZ)
+        {
+            if (_tuning.CaveEdgeSealStrength <= 0f)
+                return;
+
+            int chunkSize = _worldConfig.ChunkSize;
+            int worldHeight = _worldConfig.WorldHeight;
+            int radius = Mathf.Clamp(Mathf.CeilToInt(3 + _tuning.CaveEdgeSealStrength * 4f), 1, Math.Max(1, chunkSize / 2));
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(chunkSize - 1 - x, chunkSize - 1 - z));
+                    if (edgeDistance >= radius)
+                        continue;
+
+                    int surface = GetSurfaceHeight(blocks, x, z, worldHeight);
+                    if (surface < 0)
+                        continue;
+
+                    float seal = Mathf.Clamp01(_tuning.CaveEdgeSealStrength * (1f - edgeDistance / (float)radius));
+                    int minY = Math.Max(1, surface - 10);
+
+                    for (int y = minY; y < surface; y++)
+                    {
+                        if (blocks[x, y, z] != 0)
+                            continue;
+
+                        float jitter = Mathf.Abs(Mathf.PerlinNoise((chunkX * chunkSize + x) * 0.17f, (chunkZ * chunkSize + z + y) * 0.19f));
+                        if (jitter < seal)
+                        {
+                            blocks[x, y, z] = GetBlockId("stone");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CarveLakeOutflow(int[,,] blocks, int chunkX, int chunkZ, int startX, int startZ, int waterSurface)
+        {
+            if (_tuning.LakeOutflowCarveDepth <= 0)
+                return;
+
+            int chunkSize = _worldConfig.ChunkSize;
+            int worldHeight = _worldConfig.WorldHeight;
+            Vector2Int direction = GetSteepestNeighborDirection(blocks, startX, startZ, worldHeight);
+            if (direction == Vector2Int.zero)
+            {
+                direction = new Vector2Int(0, 1);
+            }
+
+            int length = Mathf.Clamp(_tuning.RiverMouthSmoothRadius, 2, Math.Max(2, chunkSize / 2));
+            int currentX = startX;
+            int currentZ = startZ;
+
+            for (int step = 0; step < length; step++)
+            {
+                currentX += direction.x;
+                currentZ += direction.y;
+                if (currentX < 1 || currentX >= chunkSize - 1 || currentZ < 1 || currentZ >= chunkSize - 1)
+                {
+                    break;
+                }
+
+                int surface = GetSurfaceHeight(blocks, currentX, currentZ, worldHeight);
+                if (surface < 0)
+                {
+                    break;
+                }
+
+                int target = Math.Max(1, waterSurface - _tuning.LakeOutflowCarveDepth + step / 2);
+                for (int y = target; y <= waterSurface && y < worldHeight; y++)
+                {
+                    blocks[currentX, y, currentZ] = GetBlockId("water");
+                }
+
+                int bankY = Math.Max(1, target - 1);
+                blocks[currentX, bankY, currentZ] = GetBlockId("sand");
+            }
+        }
+
+        private void BlendLakeWetlands(int[,,] blocks, int seaLevel)
+        {
+            if (_tuning.LakeWetlandSaturationThreshold <= 0f)
+                return;
+
+            int chunkSize = _worldConfig.ChunkSize;
+            int worldHeight = _worldConfig.WorldHeight;
+            int clayId = GetBlockId("clay");
+            int sandId = GetBlockId("sand");
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int surface = GetSurfaceHeight(blocks, x, z, worldHeight);
+                    if (surface < 1 || surface > worldHeight - 2)
+                    {
+                        continue;
+                    }
+
+                    bool hasWater = ColumnHasWater(blocks, x, z, worldHeight, Math.Max(0, surface - 3), surface + 1);
+                    if (!hasWater)
+                    {
+                        continue;
+                    }
+
+                    float shoreline = Mathf.Clamp01(_tuning.LakeShorelineBlend);
+                    int shoreBlock = shoreline > _tuning.LakeWetlandSaturationThreshold ? clayId : sandId;
+                    blocks[x, surface, z] = shoreBlock;
+                    if (surface + 1 < worldHeight)
+                    {
+                        blocks[x, surface + 1, z] = 0;
+                    }
+                }
+            }
+        }
+
+        private int GetSurfaceHeight(int[,,] blocks, int x, int z, int worldHeight)
+        {
+            for (int y = worldHeight - 1; y >= 0; y--)
+            {
+                if (blocks[x, y, z] != 0)
+                {
+                    return y;
+                }
+            }
+            return -1;
+        }
+
+        private bool ColumnHasWater(int[,,] blocks, int x, int z, int worldHeight, int minY, int maxY)
+        {
+            int waterId = GetBlockId("water");
+            minY = Mathf.Clamp(minY, 0, worldHeight - 1);
+            maxY = Mathf.Clamp(maxY, 0, worldHeight - 1);
+
+            for (int y = maxY; y >= minY; y--)
+            {
+                if (blocks[x, y, z] == waterId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private Vector2Int GetSteepestNeighborDirection(int[,,] blocks, int x, int z, int worldHeight)
+        {
+            int centerHeight = GetSurfaceHeight(blocks, x, z, worldHeight);
+            int bestDrop = 0;
+            Vector2Int bestDir = Vector2Int.zero;
+            Vector2Int[] directions =
+            {
+                new Vector2Int(1, 0),
+                new Vector2Int(-1, 0),
+                new Vector2Int(0, 1),
+                new Vector2Int(0, -1)
+            };
+
+            foreach (var dir in directions)
+            {
+                int nx = x + dir.x;
+                int nz = z + dir.y;
+                if (nx < 0 || nx >= _worldConfig.ChunkSize || nz < 0 || nz >= _worldConfig.ChunkSize)
+                {
+                    continue;
+                }
+
+                int neighborHeight = GetSurfaceHeight(blocks, nx, nz, worldHeight);
+                if (neighborHeight < 0)
+                {
+                    continue;
+                }
+
+                int drop = centerHeight - neighborHeight;
+                if (drop > bestDrop)
+                {
+                    bestDrop = drop;
+                    bestDir = dir;
+                }
+            }
+
+            return bestDir;
         }
         
         private void GenerateOres(int[,,] blocks, int chunkX, int chunkZ)

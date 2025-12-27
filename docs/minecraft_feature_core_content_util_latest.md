@@ -1,25 +1,25 @@
 ## Minecraft core/content/util rollout (latest 2025-12-27)
-- Data-driven world map control profile (`config/world_map_control_profile.json`) remains the single source for chunk sizing, hydrology seams, caves/rivers/lakes flags, and riparian knobs; it is emitted server-side in `GameServer/World/WorldManager.cs` and consumed by Unity in `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`.
-- World tuning stays JSON-first: `config/world.json` (server) and `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json` (client) feed the profile so terrain previews and authoritative chunks stay aligned.
-- EnhancedMinecraft protobuf is enforced through `SharedProtocol/EnhancedMinecraft` registry + validator; Unity networking should call into the same registry to catch descriptor drift after `protoc` regeneration.
+- World + network remain JSON/protobuf driven: `config/world.json` (server) mirrors `Assets/StreamingAssets/world-config.json` and emits `config/world_map_control_profile.json` that Unity reads via `WorldMapControlProfile`.
+- Core paths are explicitly split by responsibility and platform: server worldgen + protocol registry in `GameServer/World/*` + `SharedProtocol/EnhancedMinecraft/*`, client chunk/map/render in `Assets/MyAssets/Scripts/GameWorld/*` and `Assets/Scripts/Minecraft/World/*`.
+- Data + ops live in JSON/config managers (`GameCommon/Configuration`, `GameCommon/DataDriven`) so environment/config values stay versioned and auditable.
 
-### Core (server vs client split)
-- Server: chunk lifecycle + hydrology-aware world map control (`World/WorldManager.cs`, `World/Generation/*`), protocol registry/validation (`SharedProtocol/EnhancedMinecraft/*`), session/auth/routing (`SessionManager.cs`, `GameServer.cs`), persistence + world seed.
-- Client: chunk subscription/render/prediction + map-control bootstrap (`Assets/MyAssets/Scripts/GameWorld/*`), reconnection + interest management, HUD/time/weather projection using the profile hashes.
-- Data: JSON configs for world/server/client, protobuf DTOs from `proto/*.proto`, generated map-control profile cache at `config/world_map_control_profile.json`.
+### Core (server + client)
+- Server authority: chunk lifecycle + hydrology-aware terrain pipeline (`WorldManager`, `World/Generation/*`), session/auth/routing (`SessionManager.cs`, handlers), EnhancedMinecraft protocol registry/validator, map-control profile export.
+- Client authority: chunk subscription/render/prediction (`ChunkManager`, `ImprovedChunkManager`), world-map control UI/overlays (`EnhancedWorldMapController`, `WorldAreaManager`), profile bootstrap (hash/version) + reconnection logic.
+- Shared data contracts: protobuf DTOs from `proto/*.proto` and generated C# in `Assets/Generated/Protobuf`, config contracts in `GameCommon/Configuration/ConfigModels.cs`.
 
 ### Content (terrain + gameplay)
-- Terrain/hydrology: rivers, lakes, and caves share hydrology/curvature caches in `MapGeneratorLib/.../WorldGenAlgorithms.cs` and server chunk generation; river mouth smoothing, lake shoreline blending, and riparian sealing are tuned through JSON profile fields.
-- Gameplay: block interaction, inventory/recipes, entities/spawn/combat, container flows, time/weather authority in server handlers; protobuf packets carry deltas (`ChunkLoad/Unload`, `BlockChange`, `Entity*`, `TimeUpdate`, `WeatherChange`, `Container*`).
-- Data-driven assets: item/block/recipe tables in `config/*.json` drive server validation and client presentation.
+- Terrain & hydrology: caves/rivers/lakes share caches and water-table blending; smoother cave stability, river meanders/deltas, and lake shoreline/outflow rules are tuned from JSON and consumed by both server (`WorldManager`) and client generators (`TerrainGenerator`, `ImprovedTerrainGenerator`).
+- Map & exploration: map markers/biome overlays, player visibility toggles, and chunk heatmaps feed the enhanced world map controller; chunk/radar data respects the map-control profile.
+- Gameplay layers: block placement/break, entities, inventory/recipes, weather/time sync, and container flows carried over protobuf packets (`ChunkLoad/Unload`, `BlockChange`, `Entity*`, `TimeUpdate`, `WeatherChange`, `Container*`).
 
-### Utility (tooling, ops, validation)
-- Protocol health: `ProtocolRegistry`, `ProtocolValidator`, and `ProtoDiagnostics` verify EnhancedMinecraft descriptors are registered and handlers exist; protobuf regeneration remains the source of truth.
-- World tuning/presets: JSON configs plus generated map-control profile allow deterministic repros; hydrology/cave/river/lake knobs are documented in `docs/world-generation.md`.
-- Metrics/ops: chunk residency + server status hooks, scripts under `scripts/`, recordings under `Recordings/`.
+### Utility (tooling, validation, data)
+- Config + data-driven pipeline: unified JSON loaders (`UnifiedConfigManager`, `DataManager`) keep server/client/environment knobs in versioned config files and validate shapes before use.
+- Protocol health: `ProtocolRegistry`, `ProtocolValidator`, `ProtoDiagnostics` ensure EnhancedMinecraft packet handlers line up with generated DTOs after `protoc` runs.
+- Observability & safeguards: map-control profile hashes/versioning, chunk residency hooks, and config-path sanity (json, streaming assets) keep worldgen deterministic across platforms.
 
 ### Implementation order (current sprint)
-1. Harden hydrology seams and river mouth/lake shoreline blending using the shared map-control profile.
-2. Enforce map-control bootstrap on the Unity client (profile hash/versions) to avoid drift from server exports.
-3. Validate EnhancedMinecraft registry usage on the client and server after any `.proto` regeneration.
-4. Extend chunk lifecycle/content layers (biomes/structures/loot) once hydrology + protocol guardrails stay green.
+1. Finalize this core/content/util catalog and align config sources (server `config/*.json`, client `StreamingAssets`/Resources).
+2. Upgrade terrain algorithms for caves/rivers/lakes on server + client (stability, hydrology smoothing, shoreline/delta blending) and wire to map-control profile.
+3. Re-validate protobuf references/registries on both ends and repair any missing handlers/usings after regeneration.
+4. Run builds/tests, then publish updated docs/config so data-driven defaults remain reproducible.

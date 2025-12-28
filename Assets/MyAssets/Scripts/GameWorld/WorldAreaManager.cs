@@ -76,6 +76,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.RiparianSmoothIterations = Mathf.Max(0, MapControlProfile.RiparianSmoothIterations);
         WorldGenAlgorithms.RiparianSmoothBlend = Mathf.Clamp01(MapControlProfile.RiparianSmoothBlend);
         WorldGenAlgorithms.RiparianSaturationBoost = Mathf.Clamp01(MapControlProfile.RiparianSaturationBoost);
+        WorldGenAlgorithms.RiparianBufferRadius = Mathf.Max(0, MapControlProfile.RiparianBufferRadius);
         WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, MapControlProfile.HydrologySeamRelaxIterations);
         WorldGenAlgorithms.HydrologySeamRelaxBlend = Mathf.Clamp01(MapControlProfile.HydrologySeamRelaxBlend);
         WorldGenAlgorithms.RiverNoiseScale = Mathf.Clamp(MapControlProfile.RiverNoiseScale, 0.0001f, 0.05f);
@@ -101,6 +102,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(MapControlProfile.LakeRiverProximitySuppression);
         WorldGenAlgorithms.WetlandSaturationThreshold = Mathf.Clamp01(MapControlProfile.LakeWetlandSaturationThreshold);
         WorldGenAlgorithms.OutflowCarveDepth = Mathf.Max(1, MapControlProfile.LakeOutflowCarveDepth);
+        WorldGenAlgorithms.LakeWetlandBufferRadius = Mathf.Max(0, MapControlProfile.LakeWetlandBufferRadius);
         WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, MapControlProfile.CaveStabilitySmoothIterations);
         WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(MapControlProfile.CaveStabilitySmoothBlend);
         WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(MapControlProfile.CaveSupportDensity);

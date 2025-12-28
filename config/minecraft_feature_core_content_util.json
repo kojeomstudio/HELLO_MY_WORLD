@@ -1,0 +1,138 @@
+{
+    "version": "2025-12-28",
+    "description": "Ordered Minecraft feature inventory split into core, content, and utility. Each entry lists the primary client/server owners so sequencing stays aligned.",
+    "categories": {
+        "core": [
+            {
+                "id": "core.chunk_streaming",
+                "name": "Chunk streaming & residency",
+                "server_owner": "GameServer.WorldManager",
+                "client_owner": "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager",
+                "notes": "Stream chunks via EnhancedMinecraft protobuf (load/unload, view distance) using map-control profile for limits.",
+                "order": 1,
+                "status": "ready"
+            },
+            {
+                "id": "core.player_state_sync",
+                "name": "Authoritative player state sync",
+                "server_owner": "Handlers/WorldBlockHandler, SessionManager",
+                "client_owner": "Assets/MyAssets/Scripts/Network/GameNetworkManager",
+                "notes": "Movement, rotation, and action sequencing (request/response) with rollback-safe packet ordering.",
+                "order": 2,
+                "status": "ready"
+            },
+            {
+                "id": "core.block_interaction",
+                "name": "Block placement/break",
+                "server_owner": "Handlers/MinecraftMessageHandler, WorldSynchronizationManager",
+                "client_owner": "Assets/MyAssets/Scripts/Player/BlockInteractionController",
+                "notes": "Data-driven block IDs/materials; queued sync broadcast for edits; honors container protection.",
+                "order": 3,
+                "status": "ready"
+            },
+            {
+                "id": "core.inventory_crafting",
+                "name": "Inventory & crafting pipeline",
+                "server_owner": "GameServerApp.Inventory, CraftingManager",
+                "client_owner": "Assets/MyAssets/Scripts/UI/CraftingUI, InventoryUI",
+                "notes": "Hotbar + survival inventory with recipe JSON, stack rules, and protobuf container diffs.",
+                "order": 4,
+                "status": "ready"
+            },
+            {
+                "id": "core.worldgen_parity",
+                "name": "Worldgen parity (terrain/cave/river/lake)",
+                "server_owner": "WorldManager & Generation pipeline",
+                "client_owner": "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator",
+                "notes": "Shared map-control profile, hydrology gradients, riparian buffers, and ceiling/seam sealing for caves.",
+                "order": 5,
+                "status": "in-progress"
+            },
+            {
+                "id": "core.protocol_health",
+                "name": "Protocol registry & handler validation",
+                "server_owner": "SharedProtocol.EnhancedMinecraft.ProtocolValidator",
+                "client_owner": "Assets/MyAssets/Scripts/Network/MinecraftMessageDispatcher",
+                "notes": "Google.Protobuf bindings validated at bootstrap; registry hash aligns with generated DTOs.",
+                "order": 6,
+                "status": "in-progress"
+            }
+        ],
+        "content": [
+            {
+                "id": "content.biomes_weather",
+                "name": "Biome + weather loop",
+                "server_owner": "WorldSettings WeatherSystem",
+                "client_owner": "Assets/MyAssets/Scripts/Environment/WeatherController",
+                "notes": "Data-driven biome palette, time/weather protobuf updates, sky/lighting binding.",
+                "order": 1,
+                "status": "ready"
+            },
+            {
+                "id": "content.ores_structures",
+                "name": "Ores & structures",
+                "server_owner": "WorldManager ore/structure passes",
+                "client_owner": "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator",
+                "notes": "Ore JSON ranges, dungeon/tree toggles, regional main caves and wetlands-aware placement.",
+                "order": 2,
+                "status": "ready"
+            },
+            {
+                "id": "content.mobs_npcs",
+                "name": "Mob spawning and AI hooks",
+                "server_owner": "GameServerApp.AI.Spawner",
+                "client_owner": "Assets/MyAssets/Scripts/AI/NpcController",
+                "notes": "Spawn tables from JSON, combat + pathing hooks, synced entity spawn/update/despawn messages.",
+                "order": 3,
+                "status": "planned"
+            },
+            {
+                "id": "content.redstone_fx",
+                "name": "Redstone/FX and audio glue",
+                "server_owner": "Handlers/BlockChangeNotification",
+                "client_owner": "Assets/MyAssets/Scripts/Effects/EffectManager",
+                "notes": "ParticleEffect/SoundEffect protobuf usage, timing offsets, and culling rules.",
+                "order": 4,
+                "status": "planned"
+            }
+        ],
+        "util": [
+            {
+                "id": "util.config_sync",
+                "name": "JSON config sync",
+                "server_owner": "WorldSettings, scripts/sync_world_config.ps1",
+                "client_owner": "Assets/MyAssets/Scripts/GameWorld/WorldConfigLoader",
+                "notes": "Environment/config values managed via JSON (world, map-control, server-config) with hash verification.",
+                "order": 1,
+                "status": "ready"
+            },
+            {
+                "id": "util.proto_tooling",
+                "name": "Protobuf generation/verification",
+                "server_owner": "scripts/generate_proto.ps1, SharedProtocol",
+                "client_owner": "Assets/Generated/Protobuf",
+                "notes": "Uses protoc C# output; ProtocolValidator + ProtocolStandardization enforce Google.Protobuf pipeline.",
+                "order": 2,
+                "status": "in-progress"
+            },
+            {
+                "id": "util.telemetry_logging",
+                "name": "Telemetry, metrics, logging",
+                "server_owner": "GameServerApp.Diagnostics",
+                "client_owner": "Assets/MyAssets/Scripts/Diagnostics/ClientMetrics",
+                "notes": "Room/session metrics, worldgen timings, packet health counters surfaced in server status response.",
+                "order": 3,
+                "status": "planned"
+            },
+            {
+                "id": "util.selftest_ci",
+                "name": "Self-test and CI hooks",
+                "server_owner": "dotnet run -- --selftest, dotnet test",
+                "client_owner": "Unity Test Runner (Edit/PlayMode)",
+                "notes": "Smoke test for chunk/packet loopback plus targeted worldgen diffing against map-control JSON.",
+                "order": 4,
+                "status": "planned"
+            }
+        ]
+    }
+}

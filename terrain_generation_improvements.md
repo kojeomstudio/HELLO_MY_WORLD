@@ -1,6 +1,11 @@
 # Terrain Generation Improvements Analysis
 
-## Latest update (2026-01-22)
+## Latest update (2025-12-28)
+- Added a riparian-aware hydrology buffer that blends nearby saturation/flow into edge cells before river/lake/cave passes run (`GameServer/World/WorldManager.cs`, `MapGeneratorLib/.../WorldGenAlgorithms.cs`). The buffer uses the JSON-driven `RiparianBufferRadius` so chunk seams stay hydrated and cave ceilings near waterways stabilize instead of collapsing.
+- Map-control propagation now includes `riparianBufferRadius` and `lakeWetlandBufferRadius` for the Unity preview (`WorldAreaManager` → `WorldGenAlgorithms`), keeping StreamingAssets profiles aligned with server worldgen and map tools.
+- Lake wetland pocket spawning now respects the configured wetland buffer radius, producing smoother shallow shelves around basins for rivers to blend into.
+
+## Previous update (2026-01-22)
 - Added flow-aligned hydrology smoothing with a configurable directional blend/iteration count and divergence clamp, applied inside `StabilizeHydrologyGradients` on both server (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`) so rivers/lakes/caves stabilize along downhill flow instead of collapsing across seams.
 - New JSON knobs (`HydrologyDirectionalIterations`, `HydrologyDirectionalBlend`, `HydrologyFlowDivergenceClamp`) mirror between `config/world.json` and `Assets/.../WorldConfigData.json`, keeping server and client previews in lockstep.
 - Map control now feeds render/simulation distance into chunk residency trimming and the Unity subworld loader radius, reducing over-generation while keeping streamed terrain consistent with the directional hydrology passes.

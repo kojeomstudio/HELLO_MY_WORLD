@@ -2808,6 +2808,7 @@ namespace GameServerApp.World
                 ClampHydrologyToWaterTable(surfaceCache, hydrologyMask, flowAccumulation);
                 RelaxHydrologySeams(hydrologyMask, flowAccumulation);
                 AnchorHydrologySeamsToSlope(surfaceCache, hydrologyMask, flowAccumulation);
+                ApplyRiparianHydrologyBuffer(hydrologyMask, flowAccumulation);
                 FeatherHydrologyEdges(hydrologyMask, flowAccumulation);
                 var hydrologyCurvature = BuildHydrologyCurvature(hydrologyMask, flowAccumulation);
                 var hydrologyGradient = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache, hydrologyCurvature);
@@ -4732,6 +4733,75 @@ namespace GameServerApp.World
                     flowAccumulation[x, z] = Math.Clamp(blendedFlow, 0.0, 8.0);
                 }
             }
+        }
+
+        private void ApplyRiparianHydrologyBuffer(double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null || _riparianBufferRadius <= 0)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int radius = Math.Max(1, _riparianBufferRadius);
+            double boost = Math.Clamp(_riparianSaturationBoost + 0.15, 0.0, 1.25);
+            var hydroBuffer = new double[width, depth];
+            var flowBuffer = new double[width, depth];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    double hydrology = hydrologyMask[x, z];
+                    double flow = flowAccumulation[x, z];
+                    double weightedHydro = hydrology;
+                    double weightedFlow = flow;
+                    double weight = 1.0;
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                            {
+                                continue;
+                            }
+
+                            double distance = Math.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.01)
+                            {
+                                continue;
+                            }
+
+                            double falloff = Math.Clamp(1.0 - distance / (radius + 0.001), 0.0, 1.0);
+                            double neighborHydro = hydrologyMask[nx, nz];
+                            double neighborFlow = flowAccumulation[nx, nz];
+                            double influence = falloff * (0.45 + boost * 0.35);
+
+                            weightedHydro += neighborHydro * influence;
+                            weightedFlow += neighborFlow * influence * 0.6;
+                            weight += influence;
+                        }
+                    }
+
+                    double targetHydro = weight > 0.0 ? weightedHydro / weight : hydrology;
+                    double targetFlow = weight > 0.0 ? weightedFlow / weight : flow;
+                    double blend = Math.Clamp(boost * 0.5, 0.0, 0.85);
+                    hydroBuffer[x, z] = Math.Clamp(hydrology + (targetHydro - hydrology) * blend, 0.0, 1.25);
+                    flowBuffer[x, z] = Math.Max(0.0, flow + (targetFlow - flow) * blend * 0.85);
+                }
+            }
+
+            Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
+            Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
         }
 
         private void FeatherHydrologyEdges(double[,] hydrologyMask, double[,] flowAccumulation)

@@ -1,25 +1,24 @@
-## Minecraft core/content/util rollout (latest 2026-02-10)
-- World + network remain JSON/protobuf driven: `config/world.json` (server) mirrors `Assets/StreamingAssets/world-config.json` and emits `config/world_map_control_profile.json` that Unity reads via `WorldMapControlProfile` (hash now includes riparian buffer, river seam fill, lake wetland buffer, cave ceiling stability).
-- Core paths are explicitly split by responsibility and platform: server worldgen + protocol registry in `GameServer/World/*` + `SharedProtocol/EnhancedMinecraft/*`, client chunk/map/render in `Assets/MyAssets/Scripts/GameWorld/*`, `Assets/MyAssets/Scripts/DataFiles/*`, and `Assets/Scripts/Minecraft/World/*`.
-- Data + ops live in JSON/config managers (`GameCommon/Configuration`, `GameCommon/DataDriven`) so environment/config values stay versioned and auditable.
+## Minecraft core/content/util rollout (2025-12-28)
+- Source of truth: `config/minecraft_feature_core_content_util.json` (ordered, JSON, client/server owners). Update the JSON first, then mirror sequencing here.
+- Data-driven world/protocol: `config/world.json` ?? `Assets/StreamingAssets/world-config.json` and `config/world_map_control_profile.json` ?? `Assets/StreamingAssets/world-map-control.json` stay hash-checked for parity.
+- Ownership split: server worldgen/protocol in `GameServer/World/*` + `SharedProtocol/EnhancedMinecraft/*`; client chunk/render/map control in `Assets/MyAssets/Scripts/GameWorld/*` and `Assets/Scripts/Minecraft/World/*`.
 
-### Core (server + client)
-- Server authority: chunk lifecycle + hydrology-aware terrain pipeline (`WorldManager`, `World/Generation/*`), session/auth/routing (`SessionManager.cs`, handlers), EnhancedMinecraft protocol registry/validator (`ProtocolValidator.ValidateEnhancedContracts/ValidateHandlerBindings`), map-control profile export.
-- Client authority: chunk subscription/render/prediction (`ChunkManager`, `ImprovedChunkManager`), world-map control UI/overlays (`EnhancedWorldMapController`, `WorldAreaManager`), profile bootstrap (hash/version) + reconnection logic (hash validation in `WorldMapControlProfile.LoadFromFile`).
-- Shared data contracts: protobuf DTOs from `proto/*.proto` and generated C# in `Assets/Generated/Protobuf`, config contracts in `GameCommon/Configuration/ConfigModels.cs`.
+### Core (order)
+1. `core.chunk_streaming` — chunk streaming/residency via EnhancedMinecraft protobuf, render/sim distances driven by map-control profile.
+2. `core.player_state_sync` — authoritative movement/action sequencing across handlers + client dispatcher.
+3. `core.block_interaction` — data-driven block edits with queued sync broadcasts and container safety.
+4. `core.inventory_crafting` — inventory + crafting with recipe JSON and protobuf container diffs.
+5. `core.worldgen_parity` — shared hydrology/riparian/cave sealing pipeline across server, MapGeneratorLib, and Unity terrain.
+6. `core.protocol_health` — registry/handler validation (Google.Protobuf) at bootstrap.
 
-### Content (terrain + gameplay)
-- Terrain & hydrology: riparian saturation buffers expand across chunk edges, rivers run a seam-fill carve before bank shaping, lakes grow buffered wetlands/outflows, and cave ceilings reinforce near wet/riparian spans (all JSON-driven knobs).
-- Map & exploration: map markers/biome overlays, player visibility toggles, and chunk heatmaps feed the enhanced world map controller; chunk/radar data respects the map-control profile (render/simulation distance + hydrology knobs).
-- Gameplay layers: block placement/break, entities, inventory/recipes, weather/time sync, and container flows carried over protobuf packets (`ChunkLoad/Unload`, `BlockChange`, `Entity*`, `TimeUpdate`, `WeatherChange`, `Container*`).
+### Content (order)
+1. `content.biomes_weather` — biome palette, time/weather updates bound to sky/lighting.
+2. `content.ores_structures` — ore ranges and structures with wetlands-aware placement.
+3. `content.mobs_npcs` — spawn tables + AI hooks, entity spawn/update/despawn sync.
+4. `content.redstone_fx` — particle/sound glue tied to block changes and action results.
 
-### Utility (tooling, validation, data)
-- Config + data-driven pipeline: unified JSON loaders (`UnifiedConfigManager`, `DataManager`) keep server/client/environment knobs in versioned config files and validate shapes before use; new knobs (`RiparianBufferRadius`, `RiverSeamFillStrength`, `WetlandBufferRadius`, `CeilingStabilityWeight`) are now parsed on both sides.
-- Protocol health: `ProtocolRegistry`, `ProtocolValidator`, `ProtoDiagnostics` ensure EnhancedMinecraft packet handlers line up with generated DTOs after `protoc` runs.
-- Observability & safeguards: map-control profile hashes/versioning, chunk residency hooks, and config-path sanity (json, streaming assets) keep worldgen deterministic across platforms.
-
-### Implementation order (current sprint)
-1. Align config/profile sources (server `config/*.json`, client `StreamingAssets`/Resources`) and regenerate map-control hash. ✅
-2. Upgrade terrain algorithms for caves/rivers/lakes (riparian buffer, river seam fill, lake wetlands, cave ceiling stability) on server + client, wired to map-control profile. ✅
-3. Re-validate protobuf references/registries on both ends and repair any missing handlers/usings after regeneration. ✅
-4. Run builds/tests, then publish updated docs/config so data-driven defaults remain reproducible. 🔄
+### Utility (order)
+1. `util.config_sync` — JSON config management + map-control hash verification.
+2. `util.proto_tooling` — protoc generation/verification; registry standardization.
+3. `util.telemetry_logging` — worldgen/packet metrics surfaced via server status.
+4. `util.selftest_ci` — self-test loop and Unity Edit/PlayMode coverage.

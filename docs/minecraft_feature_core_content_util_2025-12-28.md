@@ -1,34 +1,25 @@
-## Minecraft feature catalog (core / content / utility) — 2025-12-28
+# Core/Content/Utility Feature Inventory (2025-12-28)
 
-- Current iteration: slope-aware water-table clamping attenuates hydrology/flow boosts on steep terrain using `HydrologyWaterTableSlopeWeight` so rivers, lakes, and cave moisture stay tied to the configured sea level without flooding cliffs. The knob is mirrored across `config/world.json`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`, `WorldManager`, and `MapGeneratorLib`.
-- Protocol guard: `ProtocolValidator` now checks `PlayerActionRequest/Response/ActionResult` descriptors (in addition to chunk/time/weather/status/entity/world control) to surface stale generated DTO `using` bindings before runtime.
-- Scope: server authority in `GameServer/` + SharedProtocol protobuf validation + Unity client/world preview (`Assets/MyAssets/...`, MapGeneratorLib).
+- Source JSON: `minecraft_feature_core_content_util.json`; config mirror: `config/minecraft_feature_core_content_util.json`.
+- Phases: Critical (`core_001`-`core_005`), Essential (`content_001`/`content_002`/`content_003`/`content_006`), Advanced (`content_004`/`content_005`), Polish (`util_001`-`util_005`).
+- Data model: IDs and components stay data-driven; keep updates in JSON so Unity StreamingAssets and the server share the same view.
+- Priority focus for this iteration: hydrology edge damping for caves/rivers/lakes and protocol registry validation to keep client/server parity.
 
-### Core (authority, world map control, protocol)
-- World map control & chunk streaming (seams, water-table clamp, slope-aware hydrology): `GameServer/World/WorldManager.cs`, `WorldGenerationConfig`, `Generation/*`, `ChunkPayloadBuilder`; client mirrors via `MapGeneratorLib/WorldGenAlgorithms.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`.
-- Session/room routing & lifecycle: `Program.cs`, `SessionManager.cs`, `Handlers/*` for auth/move/block/inventory/entity; client bindings in `Assets/MyAssets/Scripts/Network/*`.
-- Protocol registry & validation: `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`, `ProtoRuntime.EnsureInitialized()`, `ProtocolRegistry` (guards chunk/time/weather/status/entity/world/action descriptors and parser assemblies).
-- Chunk/time/weather/world control packets: proto (`proto/*.proto`), generated DTOs (`Assets/Generated/Protobuf`, `SharedProtocol/EnhancedMinecraft/*`); framed transport `[len][type][protobuf]`.
+## Core
+- `core_001` World Generation: terrain + hydrology + cave/river/lake passes (`WorldManager`, `MapGeneratorLib`).
+- `core_002` Networking & Protocol: Google.Protobuf contracts + handler registry checks (`ProtocolStandardization.ValidateProtocolImplementation`).
+- `core_003` Player Systems: movement/auth/sync; health & hunger next.
+- `core_004` Block System: placement/change handlers; future state system and block entities.
+- `core_005` Chunk Management: load/unload/render; multithreaded generation backlog.
+- `core_006` Configuration System: JSON-driven world/server/client settings.
 
-### Content (worldgen, gameplay, entities)
-- Terrain & hydrology (rivers/lakes/caves with seam blend, edge stability, water-table clamp, slope-aware attenuation): `WorldManager` passes (BuildHydrologyMask → Normalize/Blend/Clamp/Relax → River/Lake/Cave stages); mirrored in `MapGeneratorLib`.
-- Biomes/weather/sky + time: `WorldTimeSystem`, `WeatherSystem`; Unity binds to skybox/FX (`Assets/MyAssets/Scripts/GameWorld`).
-- Structures/loot/containers: `DungeonGenerationStage`, container handlers, Unity container UI; data tables in JSON.
-- Entities/combat/remote player sync: `EntitySpawn/Update/Despawn` handlers, `EntitySyncService`; Unity `RemoteEntityManager`, combat HUD.
-- Items/crafting/inventory: authoritative handlers + UI drag/drop; recipes/loot JSON.
+## Content
+- `content_001` Items & Equipment; `content_002` Crafting; `content_003` Mobs & Entities.
+- `content_004` Structures & Buildings (villages/dungeons/strongholds).
+- `content_005` World Features (biomes, weather, dimensions).
+- `content_006` Ores & Resources with JSON vein configs.
 
-### Utility (data, tooling, ops)
-- Data-driven configs: `config/world.json`, `server-config.json`, `Assets/.../WorldConfigData.json`; hydrology knobs include `HydrologyWaterTableClampWeight/Range/SlopeWeight`, seam/tangent/flow-lock weights, river smoothing, cave support biases. Keep server/client JSON and `WorldGenerationConfig` aligned.
-- Protobuf/tooling: `proto/*.proto` → `Assets/Generated/Protobuf`, `SharedProtocol`; validator + `scripts/verify_protobuf.ps1`; rebuild via `dotnet build SharedProtocol/SharedProtocol.csproj`.
-- Metrics/observability: server status HUD/telemetry (`ServerStatusResponse`), chunk residency counters, recordings under `Recordings/`.
-- Data tables: blocks/recipes/mobs/loot/worldgen tunables in JSON; keep server/client copies in sync.
-
-### Recommended sequencing
-1) Core: validate protobufs, world map control, room/session routing, slope-aware water-table clamp active before traffic.
-2) Content: hydrology-driven rivers/lakes/caves with seam stability + new slope-aware clamp; biome/weather/time sync; entity and container flows.
-3) Utility: keep configs/DTOs/data tables synchronized; capture telemetry for seam stability and proto registry health.
-
-### Iteration checklist
-- [x] Add slope-aware water-table clamp (`HydrologyWaterTableSlopeWeight`) shared across server/client configs and hydrology builders.
-- [x] Extend protobuf validation to cover `PlayerActionRequest/Response/ActionResult` so stale generated DTOs surface at startup.
-- [ ] Capture seam-stability/river clamp telemetry in the dev HUD for QA review (follow-up).
+## Utilities
+- `util_001` UI/UX (inventory, map, settings); `util_002` Server Management (permissions, backups).
+- `util_003` Development Tools (debugging, editors); `util_004` Data Management (JSON configs, SQLite, backups).
+- `util_005` Performance & Optimization (chunk loading, multithreading, memory/bandwidth).

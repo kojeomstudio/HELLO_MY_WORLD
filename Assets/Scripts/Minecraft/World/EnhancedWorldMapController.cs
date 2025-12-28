@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using Minecraft.Core;
-using SharedProtocol;
+using EnhancedMinecraftProtocol;
 
 namespace Minecraft.World
 {
@@ -30,8 +30,12 @@ namespace Minecraft.World
         // World data
         private WorldConfig _worldConfig;
         private WorldMapControlProfile _mapControlProfile;
-        private Dictionary<Vector2Int, ChunkData> _loadedChunks = new();
-        private Dictionary<string, PlayerMapMarker> _playerMarkers = new();
+        private readonly Dictionary<Vector2Int, ChunkData> _loadedChunks = new();
+        private readonly Dictionary<string, PlayerMapMarker> _playerMarkers = new();
+        private bool _showPlayers = true;
+        private bool _showCaves = true;
+        private bool _showRivers = true;
+        private bool _showLakes = true;
         
         // Map rendering
         private RenderTexture _mapRenderTexture;
@@ -61,18 +65,14 @@ namespace Minecraft.World
         private void InitializeConfiguration()
         {
             _worldConfig = WorldConfig.Instance;
-            
-            // Load world map control profile
+
             string profilePath = ResolveProfilePath();
-            if (File.Exists(profilePath))
-            {
-                string json = File.ReadAllText(profilePath);
-                _mapControlProfile = JsonUtility.FromJson<WorldMapControlProfile>(json);
-            }
-            else
-            {
-                _mapControlProfile = CreateDefaultProfile();
-            }
+            _mapControlProfile = WorldMapControlProfile.LoadFromFile(profilePath, _worldConfig);
+            _showPlayers = true;
+            _showCaves = _mapControlProfile.EnableCaves;
+            _showRivers = _mapControlProfile.EnableRivers;
+            _showLakes = _mapControlProfile.EnableLakes;
+            ApplyToggleDefaults();
         }
 
         private string ResolveProfilePath()
@@ -98,6 +98,29 @@ namespace Minecraft.World
             }
 
             return defaultPath;
+        }
+
+        private void ApplyToggleDefaults()
+        {
+            if (showPlayersToggle != null)
+            {
+                showPlayersToggle.isOn = _showPlayers;
+            }
+
+            if (showCavesToggle != null)
+            {
+                showCavesToggle.isOn = _showCaves;
+            }
+
+            if (showRiversToggle != null)
+            {
+                showRiversToggle.isOn = _showRivers;
+            }
+
+            if (showLakesToggle != null)
+            {
+                showLakesToggle.isOn = _showLakes;
+            }
         }
         
         private void InitializeBiomeColors()
@@ -213,13 +236,19 @@ namespace Minecraft.World
                 UpdatePlayerMarker(playerId, worldPosition);
                 return;
             }
-            
+
+            var markerObject = CreateMapMarkerObject(worldPosition, playerName);
+            if (markerObject != null)
+            {
+                markerObject.SetActive(_showPlayers);
+            }
+
             var marker = new PlayerMapMarker
             {
                 PlayerId = playerId,
                 PlayerName = playerName,
                 WorldPosition = worldPosition,
-                MarkerObject = CreateMapMarkerObject(worldPosition, playerName)
+                MarkerObject = markerObject
             };
             
             _playerMarkers[playerId] = marker;
@@ -240,6 +269,7 @@ namespace Minecraft.World
                 // Convert world position to map position
                 var mapPos = WorldToMapPosition(worldPosition);
                 marker.MarkerObject.transform.localPosition = mapPos;
+                marker.MarkerObject.SetActive(_showPlayers);
             }
         }
         
@@ -272,6 +302,13 @@ namespace Minecraft.World
         
         private void UpdateMapTexture(Vector2Int mapPos, ChunkData chunkData)
         {
+            bool overlayHydrology = _showRivers || _showLakes;
+            bool overlayCaves = _showCaves;
+            if (!overlayHydrology && !overlayCaves)
+            {
+                return;
+            }
+
             // This would update the map texture with chunk data
             // Implementation depends on how the map is rendered
             // For now, we'll just mark it as needing update
@@ -362,45 +399,34 @@ namespace Minecraft.World
         
         private WorldMapControlProfile CreateDefaultProfile()
         {
-            return new WorldMapControlProfile
-            {
-                ChunkSize = 16,
-                RenderDistance = 10,
-                SimulationDistance = 8,
-                GlobalWaterLevel = 62,
-                EnableRivers = true,
-                EnableLakes = true,
-                EnableCaves = true,
-                UseImprovedRivers = true,
-                UseImprovedLakes = true,
-                UseImprovedCaves = true
-            };
+            return WorldMapControlProfile.FromConfig(_worldConfig);
         }
         
         // Toggle event handlers
         private void OnShowPlayersToggled(bool isOn)
         {
+            _showPlayers = isOn;
             SetPlayerMarkersVisible(isOn);
         }
         
         private void OnShowCavesToggled(bool isOn)
         {
             // Update map to show/hide caves
-            _mapControlProfile.ShowCaves = isOn;
+            _showCaves = isOn;
             UpdateMap();
         }
         
         private void OnShowRiversToggled(bool isOn)
         {
             // Update map to show/hide rivers
-            _mapControlProfile.ShowRivers = isOn;
+            _showRivers = isOn;
             UpdateMap();
         }
         
         private void OnShowLakesToggled(bool isOn)
         {
             // Update map to show/hide lakes
-            _mapControlProfile.ShowLakes = isOn;
+            _showLakes = isOn;
             UpdateMap();
         }
         
@@ -460,29 +486,6 @@ namespace Minecraft.World
             }
         }
     }
-    
-    /// <summary>
-    /// World map control profile configuration
-    /// </summary>
-    [Serializable]
-    public class WorldMapControlProfile
-    {
-        public int ChunkSize = 16;
-        public int RenderDistance = 10;
-        public int SimulationDistance = 8;
-        public int GlobalWaterLevel = 62;
-        public bool EnableRivers = true;
-        public bool EnableLakes = true;
-        public bool EnableCaves = true;
-        public bool UseImprovedRivers = true;
-        public bool UseImprovedLakes = true;
-        public bool UseImprovedCaves = true;
-        public bool ShowCaves = true;
-        public bool ShowRivers = true;
-        public bool ShowLakes = true;
-        public bool ShowPlayers = true;
-    }
-    
     /// <summary>
     /// Player marker data for map display
     /// </summary>

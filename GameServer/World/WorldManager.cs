@@ -2796,6 +2796,7 @@ namespace GameServerApp.World
                 var hydrologyMask = BuildHydrologyMask(context.ChunkX, context.ChunkZ, surfaceCache);
                 var flowAccumulation = BuildFlowAccumulation(surfaceCache);
                 BlendHydrologySeams(context.ChunkX, context.ChunkZ, hydrologyMask, flowAccumulation);
+                DampHydrologyEdgeNoise(hydrologyMask, flowAccumulation);
                 EnforceHydrologyEdgeConsistency(hydrologyMask, flowAccumulation);
                 StabilizeHydrologyVariance(hydrologyMask, flowAccumulation, surfaceCache);
                 StabilizeHydrologyGradients(hydrologyMask, flowAccumulation, surfaceCache);
@@ -4103,6 +4104,75 @@ namespace GameServerApp.World
             double blend = _hydrologySmoothBlend > 0.0 ? _hydrologySmoothBlend : 0.6;
             SmoothScalarField(risk, iterations, blend);
             return risk;
+        }
+
+        private void DampHydrologyEdgeNoise(double[,] hydrologyMask, double[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            int edgeRadius = Math.Max(1, _hydrologyEdgeBlendRadius);
+            double flowLock = Math.Clamp(_hydrologyEdgeFlowLockWeight, 0.0, 1.0);
+            double fluxBlend = Math.Clamp(_hydrologyEdgeFluxBlend + 0.1, 0.0, 1.0);
+            double varianceClamp = Math.Clamp(_hydrologyEdgeVarianceClamp, 0.0, 1.0);
+            var hydrologyCopy = (double[,])hydrologyMask.Clone();
+            var flowCopy = (double[,])flowAccumulation.Clone();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, z), Math.Min(width - 1 - x, depth - 1 - z));
+                    if (edgeDistance >= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double attenuation = 1.0 - edgeDistance / (double)edgeRadius;
+                    double neighborHydro = SampleNeighborhoodAverage(hydrologyCopy, x, z, edgeRadius);
+                    double neighborFlow = SampleNeighborhoodAverage(flowCopy, x, z, edgeRadius);
+                    double hydroBlend = Math.Clamp(attenuation * fluxBlend, 0.0, 1.0);
+                    double flowBlend = Math.Clamp(attenuation * (fluxBlend * 0.5 + flowLock * 0.5 + 0.05), 0.0, 1.0);
+
+                    double blendedHydro = hydrologyMask[x, z] * (1.0 - hydroBlend) + neighborHydro * hydroBlend;
+                    blendedHydro = ClampEdgeVariance(blendedHydro, neighborHydro, varianceClamp);
+                    hydrologyMask[x, z] = Math.Clamp(blendedHydro, 0.0, 1.0);
+
+                    double blendedFlow = flowAccumulation[x, z] * (1.0 - flowBlend) + neighborFlow * flowBlend;
+                    blendedFlow = ClampEdgeVariance(blendedFlow, neighborFlow, varianceClamp * 1.15, 0.02);
+                    flowAccumulation[x, z] = Math.Max(0.0, blendedFlow);
+                }
+            }
+        }
+
+        private static double SampleNeighborhoodAverage(double[,] field, int x, int z, int radius)
+        {
+            int width = field.GetLength(0);
+            int depth = field.GetLength(1);
+            double sum = 0.0;
+            int count = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= width || nz < 0 || nz >= depth)
+                    {
+                        continue;
+                    }
+
+                    sum += field[nx, nz];
+                    count++;
+                }
+            }
+
+            return count > 0 ? sum / count : field[x, z];
         }
 
         private static (double hydro, double flow) ComputeInteriorHydrologyAverages(double[,] hydrologyMask, double[,] flowAccumulation, int edgeRadius)

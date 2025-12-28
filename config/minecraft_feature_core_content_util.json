@@ -1,138 +1,418 @@
 {
-    "version": "2025-12-28",
-    "description": "Ordered Minecraft feature inventory split into core, content, and utility. Each entry lists the primary client/server owners so sequencing stays aligned.",
-    "categories": {
-        "core": [
-            {
-                "id": "core.chunk_streaming",
-                "name": "Chunk streaming & residency",
-                "server_owner": "GameServer.WorldManager",
-                "client_owner": "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager",
-                "notes": "Stream chunks via EnhancedMinecraft protobuf (load/unload, view distance) using map-control profile for limits.",
-                "order": 1,
-                "status": "ready"
-            },
-            {
-                "id": "core.player_state_sync",
-                "name": "Authoritative player state sync",
-                "server_owner": "Handlers/WorldBlockHandler, SessionManager",
-                "client_owner": "Assets/MyAssets/Scripts/Network/GameNetworkManager",
-                "notes": "Movement, rotation, and action sequencing (request/response) with rollback-safe packet ordering.",
-                "order": 2,
-                "status": "ready"
-            },
-            {
-                "id": "core.block_interaction",
-                "name": "Block placement/break",
-                "server_owner": "Handlers/MinecraftMessageHandler, WorldSynchronizationManager",
-                "client_owner": "Assets/MyAssets/Scripts/Player/BlockInteractionController",
-                "notes": "Data-driven block IDs/materials; queued sync broadcast for edits; honors container protection.",
-                "order": 3,
-                "status": "ready"
-            },
-            {
-                "id": "core.inventory_crafting",
-                "name": "Inventory & crafting pipeline",
-                "server_owner": "GameServerApp.Inventory, CraftingManager",
-                "client_owner": "Assets/MyAssets/Scripts/UI/CraftingUI, InventoryUI",
-                "notes": "Hotbar + survival inventory with recipe JSON, stack rules, and protobuf container diffs.",
-                "order": 4,
-                "status": "ready"
-            },
-            {
-                "id": "core.worldgen_parity",
-                "name": "Worldgen parity (terrain/cave/river/lake)",
-                "server_owner": "WorldManager & Generation pipeline",
-                "client_owner": "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator",
-                "notes": "Shared map-control profile, hydrology gradients, riparian buffers, and ceiling/seam sealing for caves.",
-                "order": 5,
-                "status": "in-progress"
-            },
-            {
-                "id": "core.protocol_health",
-                "name": "Protocol registry & handler validation",
-                "server_owner": "SharedProtocol.EnhancedMinecraft.ProtocolValidator",
-                "client_owner": "Assets/MyAssets/Scripts/Network/MinecraftMessageDispatcher",
-                "notes": "Google.Protobuf bindings validated at bootstrap; registry hash aligns with generated DTOs.",
-                "order": 6,
-                "status": "in-progress"
-            }
-        ],
-        "content": [
-            {
-                "id": "content.biomes_weather",
-                "name": "Biome + weather loop",
-                "server_owner": "WorldSettings WeatherSystem",
-                "client_owner": "Assets/MyAssets/Scripts/Environment/WeatherController",
-                "notes": "Data-driven biome palette, time/weather protobuf updates, sky/lighting binding.",
-                "order": 1,
-                "status": "ready"
-            },
-            {
-                "id": "content.ores_structures",
-                "name": "Ores & structures",
-                "server_owner": "WorldManager ore/structure passes",
-                "client_owner": "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator",
-                "notes": "Ore JSON ranges, dungeon/tree toggles, regional main caves and wetlands-aware placement.",
-                "order": 2,
-                "status": "ready"
-            },
-            {
-                "id": "content.mobs_npcs",
-                "name": "Mob spawning and AI hooks",
-                "server_owner": "GameServerApp.AI.Spawner",
-                "client_owner": "Assets/MyAssets/Scripts/AI/NpcController",
-                "notes": "Spawn tables from JSON, combat + pathing hooks, synced entity spawn/update/despawn messages.",
-                "order": 3,
-                "status": "planned"
-            },
-            {
-                "id": "content.redstone_fx",
-                "name": "Redstone/FX and audio glue",
-                "server_owner": "Handlers/BlockChangeNotification",
-                "client_owner": "Assets/MyAssets/Scripts/Effects/EffectManager",
-                "notes": "ParticleEffect/SoundEffect protobuf usage, timing offsets, and culling rules.",
-                "order": 4,
-                "status": "planned"
-            }
-        ],
-        "util": [
-            {
-                "id": "util.config_sync",
-                "name": "JSON config sync",
-                "server_owner": "WorldSettings, scripts/sync_world_config.ps1",
-                "client_owner": "Assets/MyAssets/Scripts/GameWorld/WorldConfigLoader",
-                "notes": "Environment/config values managed via JSON (world, map-control, server-config) with hash verification.",
-                "order": 1,
-                "status": "ready"
-            },
-            {
-                "id": "util.proto_tooling",
-                "name": "Protobuf generation/verification",
-                "server_owner": "scripts/generate_proto.ps1, SharedProtocol",
-                "client_owner": "Assets/Generated/Protobuf",
-                "notes": "Uses protoc C# output; ProtocolValidator + ProtocolStandardization enforce Google.Protobuf pipeline.",
-                "order": 2,
-                "status": "in-progress"
-            },
-            {
-                "id": "util.telemetry_logging",
-                "name": "Telemetry, metrics, logging",
-                "server_owner": "GameServerApp.Diagnostics",
-                "client_owner": "Assets/MyAssets/Scripts/Diagnostics/ClientMetrics",
-                "notes": "Room/session metrics, worldgen timings, packet health counters surfaced in server status response.",
-                "order": 3,
-                "status": "planned"
-            },
-            {
-                "id": "util.selftest_ci",
-                "name": "Self-test and CI hooks",
-                "server_owner": "dotnet run -- --selftest, dotnet test",
-                "client_owner": "Unity Test Runner (Edit/PlayMode)",
-                "notes": "Smoke test for chunk/packet loopback plus targeted worldgen diffing against map-control JSON.",
-                "order": 4,
-                "status": "planned"
-            }
-        ]
+  "categories": {
+    "core": {
+      "name": "Core Features",
+      "description": "Essential systems and infrastructure required for Minecraft-like gameplay",
+      "features": [
+        {
+          "id": "core_001",
+          "name": "World Generation",
+          "description": "Procedural terrain generation with heightmaps, biomes, and basic features",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "TerrainGenerator.cs",
+            "ImprovedTerrainGenerator.cs",
+            "ChunkManager.cs"
+          ],
+          "improvements_needed": [
+            "Enhanced cave generation algorithms",
+            "Improved river flow patterns",
+            "Better lake basin formation",
+            "Multi-layered terrain noise"
+          ]
+        },
+        {
+          "id": "core_002",
+          "name": "Networking & Protocol",
+          "description": "Client-server communication using Google Protobuf",
+          "status": "partially_implemented",
+          "priority": "critical",
+          "components": [
+            "NetworkManager.cs",
+            "ProtobufNetworkClient.cs",
+            "Generated Protobuf classes"
+          ],
+          "improvements_needed": [
+            "Complete message handler registration",
+            "Fix protocol inconsistencies",
+            "Implement missing protocol messages",
+            "Standardize on Google.Protobuf"
+          ]
+        },
+        {
+          "id": "core_003",
+          "name": "Player Systems",
+          "description": "Player movement, authentication, and basic interactions",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "PlayerController",
+            "Authentication system",
+            "Movement synchronization"
+          ],
+          "improvements_needed": [
+            "Health and hunger system",
+            "Experience and leveling",
+            "Game modes implementation",
+            "Player abilities system"
+          ]
+        },
+        {
+          "id": "core_004",
+          "name": "Block System",
+          "description": "Block placement, removal, and basic block management",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "BlockDataManager",
+            "Block change handlers",
+            "Chunk-based block storage"
+          ],
+          "improvements_needed": [
+            "Block state system",
+            "Redstone circuitry",
+            "Block entity system",
+            "Block physics and gravity"
+          ]
+        },
+        {
+          "id": "core_005",
+          "name": "Chunk Management",
+          "description": "Chunk loading, unloading, and rendering optimization",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "ChunkManager.cs",
+            "ChunkRenderer.cs",
+            "ChunkSnapshot.cs"
+          ],
+          "improvements_needed": [
+            "Multi-threaded chunk generation",
+            "Better chunk culling",
+            "Optimized mesh generation",
+            "Memory management improvements"
+          ]
+        },
+        {
+          "id": "core_006",
+          "name": "Configuration System",
+          "description": "Data-driven JSON configuration for server and client",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "server-config.json",
+            "client-config.json",
+            "world-config.json"
+          ],
+          "improvements_needed": [
+            "Configuration validation",
+            "Hot-reload functionality",
+            "Environment-specific configs",
+            "Configuration versioning"
+          ]
+        }
+      ]
+    },
+    "content": {
+      "name": "Content Features",
+      "description": "Game content, items, entities, and interactive elements",
+      "features": [
+        {
+          "id": "content_001",
+          "name": "Items & Equipment",
+          "description": "Tools, weapons, armor, and miscellaneous items",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "items.json",
+            "Item definitions",
+            "Tool durability system"
+          ],
+          "improvements_needed": [
+            "Complete tool tier system",
+            "Weapon damage calculations",
+            "Armor protection values",
+            "Enchantment system",
+            "Potion brewing",
+            "Item repair system"
+          ]
+        },
+        {
+          "id": "content_002",
+          "name": "Crafting System",
+          "description": "Hand crafting, workbench, furnace, and recipe management",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "crafting_recipes.json",
+            "CraftingManager",
+            "Multiple crafting types"
+          ],
+          "improvements_needed": [
+            "Advanced recipe system",
+            "Recipe book interface",
+            "Crafting queue system",
+            "Special recipe unlocks"
+          ]
+        },
+        {
+          "id": "content_003",
+          "name": "Mobs & Entities",
+          "description": "Animals, monsters, NPCs, and entity management",
+          "status": "basic",
+          "priority": "high",
+          "components": [
+            "Basic entity spawning",
+            "EntityInfo structure"
+          ],
+          "improvements_needed": [
+            "Hostile mob AI",
+            "Passive mob AI",
+            "Mob breeding system",
+            "Boss mob system",
+            "Mob drops and experience",
+            "Taming system",
+            "Mob pathfinding"
+          ]
+        },
+        {
+          "id": "content_004",
+          "name": "Structures & Buildings",
+          "description": "Generated structures, buildings, and architectural elements",
+          "status": "planned",
+          "priority": "medium",
+          "components": [],
+          "improvements_needed": [
+            "Village generation",
+            "Temple generation",
+            "Mineshaft generation",
+            "Dungeon generation",
+            "Stronghold generation",
+            "Building system with blueprints",
+            "Multi-block structures",
+            "Door and window mechanics",
+            "Redstone contraptions",
+            "Piston mechanics",
+            "Minecart and rail system"
+          ]
+        },
+        {
+          "id": "content_005",
+          "name": "World Features",
+          "description": "Environmental systems, dimensions, and world mechanics",
+          "status": "partially_implemented",
+          "priority": "medium",
+          "components": [
+            "Day/night cycle basics",
+            "Basic weather system",
+            "Biome system"
+          ],
+          "improvements_needed": [
+            "Advanced weather effects",
+            "Seasonal changes",
+            "Dimension system (Nether, End)",
+            "Portal mechanics",
+            "World border system",
+            "Custom world generation settings"
+          ]
+        },
+        {
+          "id": "content_006",
+          "name": "Ores & Resources",
+          "description": "Mineral distribution, mining, and resource management",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "Ore generation system",
+            "Ore configuration in JSON",
+            "Vein generation algorithms"
+          ],
+          "improvements_needed": [
+            "Advanced ore distribution",
+            "Rare ore variants",
+            "Geode generation",
+            "Fossil generation",
+            "Mineral vein improvements"
+          ]
+        }
+      ]
+    },
+    "utilities": {
+      "name": "Utility Features",
+      "description": "Supporting systems, tools, and quality-of-life improvements",
+      "features": [
+        {
+          "id": "util_001",
+          "name": "User Interface",
+          "description": "HUD, menus, inventory management, and user interactions",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "Basic chat system",
+            "Login UI",
+            "Status displays",
+            "Basic inventory UI"
+          ],
+          "improvements_needed": [
+            "Advanced inventory management",
+            "Crafting interface",
+            "Map system",
+            "Settings and configuration menu",
+            "Player statistics display",
+            "Achievement system",
+            "Tutorial system",
+            "Accessibility options"
+          ]
+        },
+        {
+          "id": "util_002",
+          "name": "Server Management",
+          "description": "Server administration, moderation, and management tools",
+          "status": "basic",
+          "priority": "medium",
+          "components": [
+            "Basic server console",
+            "Player authentication",
+            "Basic permission system"
+          ],
+          "improvements_needed": [
+            "Advanced permission system",
+            "World backup and restore",
+            "Server statistics and monitoring",
+            "Remote administration tools",
+            "Plugin system",
+            "Anti-cheat measures"
+          ]
+        },
+        {
+          "id": "util_003",
+          "name": "Development Tools",
+          "description": "Tools for content creation, debugging, and development",
+          "status": "basic",
+          "priority": "low",
+          "components": [
+            "Basic debugging tools",
+            "Configuration editors"
+          ],
+          "improvements_needed": [
+            "World editor",
+            "Resource pack support",
+            "Mod support framework",
+            "Performance profiling tools",
+            "Network debugging utilities",
+            "Content creation tools"
+          ]
+        },
+        {
+          "id": "util_004",
+          "name": "Data Management",
+          "description": "Save system, data validation, and data integrity",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "JSON configuration system",
+            "SQLite database integration",
+            "Data validation"
+          ],
+          "improvements_needed": [
+            "Save format optimization",
+            "Database performance optimization",
+            "Import/export functionality",
+            "Version compatibility system",
+            "Data integrity checks",
+            "Automatic backup system"
+          ]
+        },
+        {
+          "id": "util_005",
+          "name": "Performance & Optimization",
+          "description": "System performance, memory management, and optimization",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "Chunk loading optimization",
+            "Multi-threading support",
+            "Memory management"
+          ],
+          "improvements_needed": [
+            "Network bandwidth optimization",
+            "Advanced memory usage optimization",
+            "Multithreading improvements",
+            "Database query optimization",
+            "Rendering performance improvements",
+            "Asset loading optimization"
+          ]
+        }
+      ]
     }
+  },
+  "implementation_priority": {
+    "phase_1_critical": {
+      "name": "Phase 1: Critical Infrastructure",
+      "features": [
+        "core_001",
+        "core_002",
+        "core_003",
+        "core_004",
+        "core_005"
+      ],
+      "estimated_time": "2-3 weeks"
+    },
+    "phase_2_essential": {
+      "name": "Phase 2: Essential Gameplay",
+      "features": [
+        "content_001",
+        "content_002",
+        "content_003",
+        "content_006"
+      ],
+      "estimated_time": "3-4 weeks"
+    },
+    "phase_3_advanced": {
+      "name": "Phase 3: Advanced Content",
+      "features": [
+        "content_004",
+        "content_005"
+      ],
+      "estimated_time": "4-5 weeks"
+    },
+    "phase_4_polish": {
+      "name": "Phase 4: Polish & Optimization",
+      "features": [
+        "util_001",
+        "util_002",
+        "util_003",
+        "util_004",
+        "util_005"
+      ],
+      "estimated_time": "2-3 weeks"
+    }
+  },
+  "technical_requirements": {
+    "protocol_requirements": {
+      "standardize_protobuf": "Complete Google.Protobuf standardization",
+      "message_validation": "Implement comprehensive message validation",
+      "protocol_versioning": "Add protocol versioning system",
+      "compression": "Add message compression",
+      "documentation": "Complete protocol documentation"
+    },
+    "performance_requirements": {
+      "chunk_optimization": "Optimize chunk loading and rendering",
+      "network_optimization": "Optimize network bandwidth and protocols",
+      "memory_optimization": "Optimize memory usage and garbage collection",
+      "multithreading": "Improve multithreading support",
+      "database_optimization": "Optimize database queries and indexing"
+    },
+    "security_requirements": {
+      "input_validation": "Comprehensive input validation and sanitization",
+      "anti_cheat": "Advanced anti-cheat measures",
+      "rate_limiting": "Implement rate limiting and DDoS protection",
+      "permissions": "Complete permission system with role-based access",
+      "authentication": "Secure authentication with encryption"
+    }
+  },
+  "last_updated": "2025-12-28T06:32:00Z",
+  "version": "1.0.0"
 }
+

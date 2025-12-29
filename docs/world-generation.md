@@ -18,6 +18,13 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 `WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of `ITerrainGenerationStage` implementations. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable and testable.
 
+## 2025-12-29 Map-Control & Pipeline Refresh
+
+- Replaced the duplicated `GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs` with a hydrology-aware implementation that consumes `TerrainGeneration` + `Water/Caves/Lakes` knobs from `config/world.json` (via `WorldGenerationConfig`). Caves now use warped simplex noise with moisture bias; rivers/lakes respect JSON thresholds and edge smoothing.
+- Added a single server `WorldMapController` that saves the hashed `WorldMapControlProfile` at boot and streams chunks through the new pipeline. The profile path defaults to `config/world_map_control_profile.json`.
+- Unity now uses `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs` to read `Assets/StreamingAssets/world-map-control.json`, build preview chunks (height/cave/river/lake masks) with the same knobs, and unload distant previews as the player moves.
+- EnhancedMinecraft handlers now validate their generated protobuf contracts during construction (`ProtocolValidator.ValidateMessageContract`) so stale protobuf bindings are caught before chunk payloads are serialized.
+
 ## 2026-02-10 Hydrology Seam Buffers & Wetland Stability
 
 - Riparian saturation now dilates across chunk edges (`Water.RiparianBufferRadius`) so rivers/lakes/caves share a softer wetness mask before carving and sealing.

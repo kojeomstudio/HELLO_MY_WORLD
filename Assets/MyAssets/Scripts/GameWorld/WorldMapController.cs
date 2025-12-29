@@ -4,1269 +4,382 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Minecraft.Core;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace GameWorld
 {
     /// <summary>
-    /// Client-side world map controller that synchronizes with server terrain generation
-    /// Uses WorldMapControlProfile to ensure consistent terrain rendering between client and server
+    /// Unity-side world map controller that mirrors the server map-control profile.
+    /// Generates local preview chunks (height, caves, rivers, lakes) using the JSON profile.
     /// </summary>
     public class WorldMapController : MonoBehaviour
     {
-        [Header("World Map Configuration")]
-        [SerializeField] private string worldProfilePath = "StreamingAssets/WorldMapControlProfile.json";
+        [Header("Profile")]
+        [SerializeField] private string profileFileName = "world-map-control.json";
         [SerializeField] private bool enableDebugLogging = true;
-        [SerializeField] private int maxConcurrentChunkRequests = 4;
-        
-        [Header("Rendering Settings")]
-        [SerializeField] private Material terrainMaterial;
-        [SerializeField] private Material waterMaterial;
-        [SerializeField] private Transform playerTransform;
-        
-        // World generation profile
-        private WorldMapControlProfile worldProfile;
-        private string profileHash;
-        
-        // Chunk management
-        private readonly ConcurrentDictionary<Vector2Int, ChunkRenderer> loadedChunks = new();
-        private readonly ConcurrentQueue<ChunkRequest> chunkRequestQueue = new();
-        private readonly SemaphoreSlim chunkRequestSemaphore;
-        
-        // Terrain generation
-        private EnhancedTerrainGenerator terrainGenerator;
-        private CancellationTokenSource cancellationTokenSource;
-        
-        // Events
-        public event Action<Vector2Int> OnChunkLoaded;
-        public event Action<Vector2Int> OnChunkUnloaded;
-        public event Action<WorldMapControlProfile> OnProfileUpdated;
-        
-        private void Awake()
-        {
-            chunkRequestSemaphore = new SemaphoreSlim(maxConcurrentChunkRequests, maxConcurrentChunkRequests);
-            cancellationTokenSource = new CancellationTokenSource();
-            
-            // Load world profile
-            LoadWorldProfile();
-            
-            // Initialize terrain generator
-            InitializeTerrainGenerator();
-        }
-        
-        private void Start()
-        {
-            // Start chunk processing
-            _ = ProcessChunkRequestsAsync(cancellationTokenSource.Token);
-            
-            // Load initial chunks around player
-            if (playerTransform != null)
-            {
-                LoadChunksAroundPlayer();
-            }
-        }
-        
-        private void OnDestroy()
-        {
-            cancellationTokenSource?.Cancel();
-            chunkRequestSemaphore?.Dispose();
-            
-            // Clean up loaded chunks
-            foreach (var chunk in loadedChunks.Values)
-            {
-                if (chunk != null)
-                {
-                    Destroy(chunk.gameObject);
-                }
-            }
-            loadedChunks.Clear();
-        }
-        
-        private void Update()
-        {
-            // Check if player moved to a new chunk
-            if (playerTransform != null)
-            {
-                var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-                if (!loadedChunks.ContainsKey(playerChunkPos))
-                {
-                    LoadChunksAroundPlayer();
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Loads the world map control profile from StreamingAssets
-        /// </summary>
-        private void LoadWorldProfile()
-        {
-            try
-            {
-                var profilePath = Path.Combine(Application.streamingAssetsPath, "WorldMapControlProfile.json");
-                
-                if (File.Exists(profilePath))
-                {
-                    var json = File.ReadAllText(profilePath);
-                    worldProfile = JsonUtility.FromJson<WorldMapControlProfile>(json);
-                    profileHash = ComputeProfileHash(worldProfile);
-                    
-                    if (enableDebugLogging)
-                    {
-                        Debug.Log($"[WorldMapController] Loaded world profile: {worldProfile.SourceConfig} (Hash: {profileHash})");
-                    }
-                    
-                    OnProfileUpdated?.Invoke(worldProfile);
-                }
-                else
-                {
-                    Debug.LogWarning($"[WorldMapController] World profile not found at {profilePath}, using defaults");
-                    CreateDefaultProfile();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[WorldMapController] Failed to load world profile: {ex.Message}");
-                CreateDefaultProfile();
-            }
-        }
-        
-        /// <summary>
-        /// Creates a default world profile when none is available
-        /// </summary>
-        private void CreateDefaultProfile()
-        {
-            worldProfile = new WorldMapControlProfile
-            {
-                Version = 1,
-                ChunkSize = 16,
-                RenderDistance = 8,
-                SimulationDistance = 6,
-                GlobalWaterLevel = 62,
-                EnableRivers = true,
-                EnableLakes = true,
-                EnableCaves = true,
-                UseImprovedRivers = true,
-                UseImprovedLakes = true,
-                UseImprovedCaves = true
-            };
-            
-            profileHash = ComputeProfileHash(worldProfile);
-            OnProfileUpdated?.Invoke(worldProfile);
-        }
-        
-        /// <summary>
-        /// Initializes the terrain generator with the current world profile
-        /// </summary>
-        private void InitializeTerrainGenerator()
-        {
-            if (worldProfile == null)
-            {
-                Debug.LogError("[WorldMapController] Cannot initialize terrain generator without world profile");
-                return;
-            }
-            
-            terrainGenerator = new EnhancedTerrainGenerator(worldProfile);
-            
-            if (enableDebugLogging)
-            {
-                Debug.Log($"[WorldMapController] Initialized terrain generator with profile: {worldProfile.SourceConfig}");
-            }
-        }
-        
-        /// <summary>
-        /// Loads chunks around the player's current position
-        /// </summary>
-        private void LoadChunksAroundPlayer()
-        {
-            if (playerTransform == null || worldProfile == null) return;
-            
-            var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-            var renderDistance = worldProfile.RenderDistance;
-            
-            for (int x = -renderDistance; x <= renderDistance; x++)
-            {
-                for (int z = -renderDistance; z <= renderDistance; z++)
-                {
-                    var chunkPos = new Vector2Int(playerChunkPos.x + x, playerChunkPos.y + z);
-                    var distance = Mathf.Sqrt(x * x + z * z);
-                    
-                    // Only load chunks within render distance
-                    if (distance <= renderDistance && !loadedChunks.ContainsKey(chunkPos))
-                    {
-                        RequestChunk(chunkPos);
-                    }
-                }
-            }
-            
-            // Unload distant chunks
-            UnloadDistantChunks(playerChunkPos, renderDistance + 2);
-        }
-        
-        /// <summary>
-        /// Requests a chunk to be loaded
-        /// </summary>
-        private void RequestChunk(Vector2Int chunkPosition)
-        {
-            var request = new ChunkRequest
-            {
-                Position = chunkPosition,
-                Priority = ComputeChunkPriority(chunkPosition),
-                RequestTime = DateTime.UtcNow
-            };
-            
-            chunkRequestQueue.Enqueue(request);
-        }
-        
-        /// <summary>
-        /// Computes chunk priority based on distance to player
-        /// </summary>
-        private float ComputeChunkPriority(Vector2Int chunkPosition)
-        {
-            if (playerTransform == null) return 0f;
-            
-            var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-            var distance = Vector2Int.Distance(chunkPosition, playerChunkPos);
-            
-            // Higher priority for closer chunks
-            return 1f / (1f + distance);
-        }
-        
-        /// <summary>
-        /// Processes chunk requests asynchronously
-        /// </summary>
-        private async Task ProcessChunkRequestsAsync(CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    if (chunkRequestQueue.TryDequeue(out var request))
-                    {
-                        await chunkRequestSemaphore.WaitAsync(cancellationToken);
-                        
-                        try
-                        {
-                            _ = LoadChunkAsync(request);
-                        }
-                        finally
-                        {
-                            chunkRequestSemaphore.Release();
-                        }
-                    }
-                    else
-                    {
-                        await Task.Delay(10, cancellationToken);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"[WorldMapController] Error processing chunk request: {ex.Message}");
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Loads a chunk asynchronously
-        /// </summary>
-        private async Task LoadChunkAsync(ChunkRequest request)
-        {
-            try
-            {
-                if (worldProfile == null || terrainGenerator == null)
-                {
-                    Debug.LogError("[WorldMapController] Cannot load chunk without world profile or terrain generator");
-                    return;
-                }
-                
-                var chunkData = await terrainGenerator.GenerateChunkAsync(request.Position.x, request.Position.y);
-                
-                if (chunkData != null)
-                {
-                    // Create chunk renderer on main thread
-                    UnityMainThreadDispatcher.Instance.Enqueue(() =>
-                    {
-                        CreateChunkRenderer(request.Position, chunkData);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[WorldMapController] Failed to load chunk {request.Position}: {ex.Message}");
-            }
-        }
-        
-        /// <summary>
-        /// Creates a chunk renderer for the generated chunk data
-        /// </summary>
-        private void CreateChunkRenderer(Vector2Int position, ChunkData chunkData)
-        {
-            if (loadedChunks.ContainsKey(position))
-            {
-                // Chunk already loaded, skip
-                return;
-            }
-            
-            var chunkObject = new GameObject($"Chunk_{position.x}_{position.y}");
-            chunkObject.transform.SetParent(transform);
-            
-            var chunkRenderer = chunkObject.AddComponent<ChunkRenderer>();
-            chunkRenderer.Initialize(chunkData, terrainMaterial, waterMaterial);
-            
-            // Position chunk in world
-            var worldPos = ChunkToWorldPosition(position);
-            chunkObject.transform.position = worldPos;
-            
-            loadedChunks[position] = chunkRenderer;
-            OnChunkLoaded?.Invoke(position);
-            
-            if (enableDebugLogging)
-            {
-                Debug.Log($"[WorldMapController] Loaded chunk at {position}");
-            }
-        }
-        
-        /// <summary>
-        /// Unloads chunks that are too far from the player
-        /// </summary>
-        private void UnloadDistantChunks(Vector2Int playerChunkPos, int maxDistance)
-        {
-            var chunksToUnload = new List<Vector2Int>();
-            
-            foreach (var kvp in loadedChunks)
-            {
-                var distance = Vector2Int.Distance(kvp.Key, playerChunkPos);
-                if (distance > maxDistance)
-                {
-                    chunksToUnload.Add(kvp.Key);
-                }
-            }
-            
-            foreach (var chunkPos in chunksToUnload)
-            {
-                if (loadedChunks.TryRemove(chunkPos, out var chunkRenderer))
-                {
-                    if (chunkRenderer != null)
-                    {
-                        Destroy(chunkRenderer.gameObject);
-                    }
-                    
-                    OnChunkUnloaded?.Invoke(chunkPos);
-                    
-                    if (enableDebugLogging)
-                    {
-                        Debug.Log($"[WorldMapController] Unloaded distant chunk at {chunkPos}");
-                    }
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Converts world position to chunk position
-        /// </summary>
-        private Vector2Int WorldToChunkPosition(Vector3 worldPosition)
-        {
-            if (worldProfile == null) return Vector2Int.zero;
-            
-            var chunkSize = worldProfile.ChunkSize;
-            var x = Mathf.FloorToInt(worldPosition.x / chunkSize);
-            var z = Mathf.FloorToInt(worldPosition.z / chunkSize);
-            
-            return new Vector2Int(x, z);
-        }
-        
-        /// <summary>
-        /// Converts chunk position to world position
-        /// </summary>
-        private Vector3 ChunkToWorldPosition(Vector2Int chunkPosition)
-        {
-            if (worldProfile == null) return Vector3.zero;
-            
-            var chunkSize = worldProfile.ChunkSize;
-            return new Vector3(chunkPosition.x * chunkSize, 0f, chunkPosition.y * chunkSize);
-        }
-        
-        /// <summary>
-        /// Computes hash of world profile for validation
-        /// </summary>
-        private string ComputeProfileHash(WorldMapControlProfile profile)
-        {
-            if (profile == null) return string.Empty;
-            
-            var profileString = $"{profile.Version}|{profile.ChunkSize}|{profile.RenderDistance}|{profile.SimulationDistance}|{profile.GlobalWaterLevel}|{profile.EnableRivers}|{profile.EnableLakes}|{profile.EnableCaves}|{profile.UseImprovedRivers}|{profile.UseImprovedLakes}|{profile.UseImprovedCaves}";
-            
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            var hashBytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(profileString));
-            return Convert.ToHexString(hashBytes).ToLowerInvariant();
-        }
-        
-        /// <summary>
-        /// Reloads the world profile from disk
-        /// </summary>
-        public void ReloadProfile()
-        {
-            LoadWorldProfile();
-            InitializeTerrainGenerator();
-            
-            // Reload all chunks with new profile
-            foreach (var chunk in loadedChunks.Values)
-            {
-                if (chunk != null)
-                {
-                    Destroy(chunk.gameObject);
-                }
-            }
-            loadedChunks.Clear();
-            
-            if (playerTransform != null)
-            {
-                LoadChunksAroundPlayer();
-            }
-        }
-        
-        /// <summary>
-        /// Gets the current world profile
-        /// </summary>
-        public WorldMapControlProfile GetWorldProfile()
-        {
-            return worldProfile;
-        }
-        
-        /// <summary>
-        /// Gets the profile hash for validation
-        /// </summary>
-        public string GetProfileHash()
-        {
-            return profileHash;
-        }
-        
-        /// <summary>
-        /// Checks if the profile matches the expected hash
-        /// </summary>
-        public bool ValidateProfile(string expectedHash)
-        {
-            return !string.IsNullOrEmpty(profileHash) && profileHash == expectedHash;
-        }
-    }
-    
-    /// <summary>
-    /// Represents a chunk load request
-    /// </summary>
-    internal struct ChunkRequest
-    {
-        public Vector2Int Position;
-        public float Priority;
-        public DateTime RequestTime;
-    }
-    
-    /// <summary>
-    /// Enhanced terrain generator that uses WorldMapControlProfile
-    /// </summary>
-    public class EnhancedTerrainGenerator
-    {
-        private readonly WorldMapControlProfile profile;
-        
-        public EnhancedTerrainGenerator(WorldMapControlProfile profile)
-        {
-            this.profile = profile ?? throw new ArgumentNullException(nameof(profile));
-        }
-        
-        /// <summary>
-        /// Generates chunk data for the specified chunk coordinates
-        /// </summary>
-        public async Task<ChunkData> GenerateChunkAsync(int chunkX, int chunkZ)
-        {
-            await Task.Yield(); // Ensure async operation
-            
-            var chunkData = new ChunkData
-            {
-                ChunkX = chunkX,
-                ChunkZ = chunkZ,
-                Size = profile.ChunkSize
-            };
-            
-            // Generate terrain heightmap
-            GenerateTerrainHeightmap(chunkData);
-            
-            // Generate caves if enabled
-            if (profile.EnableCaves)
-            {
-                GenerateCaves(chunkData);
-            }
-            
-            // Generate rivers if enabled
-            if (profile.EnableRivers)
-            {
-                GenerateRivers(chunkData);
-            }
-            
-            // Generate lakes if enabled
-            if (profile.EnableLakes)
-            {
-                GenerateLakes(chunkData);
-            }
-            
-            return chunkData;
-        }
-        
-        private void GenerateTerrainHeightmap(ChunkData chunkData)
-        {
-            // Simple heightmap generation using Perlin noise
-            var size = chunkData.Size;
-            chunkData.HeightMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
-            {
-                for (int z = 0; z < size; z++)
-                {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // Multi-octave Perlin noise
-                    var height = 0f;
-                    var amplitude = 1f;
-                    var frequency = 0.01f;
-                    
-                    for (int octave = 0; octave < 4; octave++)
-                    {
-                        height += Mathf.PerlinNoise(worldX * frequency, worldZ * frequency) * amplitude;
-                        amplitude *= 0.5f;
-                        frequency *= 2f;
-                    }
-                    
-                    // Normalize and scale height
-                    height = Mathf.Clamp01(height);
-                    height *= 64f; // Max height variation
-                    
-                    chunkData.HeightMap[x, z] = height;
-                }
-            }
-        }
-        
-        private void GenerateCaves(ChunkData chunkData)
-        {
-            // Simple cave generation using 3D Perlin noise
-            var size = chunkData.Size;
-            var caveMap = new bool[size, size, size];
-            
-            for (int x = 0; x < size; x++)
-            {
-                for (int y = 0; y < size; y++)
-                {
-                    for (int z = 0; z < size; z++)
-                    {
-                        var worldX = chunkData.ChunkX * size + x;
-                        var worldY = y;
-                        var worldZ = chunkData.ChunkZ * size + z;
-                        
-                        // 3D noise for cave generation
-                        var noise = Mathf.PerlinNoise(worldX * 0.05f, worldZ * 0.05f) + 
-                                   Mathf.PerlinNoise(worldX * 0.1f, worldY * 0.1f) + 
-                                   Mathf.PerlinNoise(worldY * 0.1f, worldZ * 0.1f);
-                        
-                        caveMap[x, y, z] = noise > 1.5f && worldY < profile.GlobalWaterLevel + 20;
-                    }
-                }
-            }
-            
-            chunkData.CaveMap = caveMap;
-        }
-        
-        private void GenerateRivers(ChunkData chunkData)
-        {
-            // Simple river generation using 2D Perlin noise
-            var size = chunkData.Size;
-            var riverMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
-            {
-                for (int z = 0; z < size; z++)
-                {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // River noise
-                    var riverNoise = Mathf.PerlinNoise(worldX * 0.02f, worldZ * 0.02f);
-                    riverMap[x, z] = riverNoise > 0.7f ? 1f : 0f;
-                }
-            }
-            
-            chunkData.RiverMap = riverMap;
-        }
-        
-        private void GenerateLakes(ChunkData chunkData)
-        {
-            // Simple lake generation
-            var size = chunkData.Size;
-            var lakeMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
-            {
-                for (int z = 0; z < size; z++)
-                {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // Lake noise
-                    var lakeNoise = Mathf.PerlinNoise(worldX * 0.01f, worldZ * 0.01f);
-                    lakeMap[x, z] = lakeNoise > 0.8f ? 1f : 0f;
-                }
-            }
-            
-            chunkData.LakeMap = lakeMap;
-        }
-    }
-    
-    /// <summary>
-    /// Chunk data structure
-    /// </summary>
-    public class ChunkData
-    {
-        public int ChunkX { get; set; }
-        public int ChunkZ { get; set; }
-        public int Size { get; set; }
-        public float[,] HeightMap { get; set; }
-        public bool[,,] CaveMap { get; set; }
-        public float[,] RiverMap { get; set; }
-        public float[,] LakeMap { get; set; }
-    }
-}using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.Networking;
 
-namespace GameWorld
-{
-    /// <summary>
-    /// Client-side world map controller that synchronizes with server terrain generation
-    /// Uses WorldMapControlProfile to ensure consistent terrain rendering between client and server
-    /// </summary>
-    public class WorldMapController : MonoBehaviour
-    {
-        [Header("World Map Configuration")]
-        [SerializeField] private string worldProfilePath = "StreamingAssets/WorldMapControlProfile.json";
-        [SerializeField] private bool enableDebugLogging = true;
-        [SerializeField] private int maxConcurrentChunkRequests = 4;
-        
-        [Header("Rendering Settings")]
-        [SerializeField] private Material terrainMaterial;
-        [SerializeField] private Material waterMaterial;
+        [Header("Streaming")]
         [SerializeField] private Transform playerTransform;
-        
-        // World generation profile
-        private WorldMapControlProfile worldProfile;
-        private string profileHash;
-        
-        // Chunk management
-        private readonly ConcurrentDictionary<Vector2Int, ChunkRenderer> loadedChunks = new();
-        private readonly ConcurrentQueue<ChunkRequest> chunkRequestQueue = new();
-        private readonly SemaphoreSlim chunkRequestSemaphore;
-        
-        // Terrain generation
-        private EnhancedTerrainGenerator terrainGenerator;
-        private CancellationTokenSource cancellationTokenSource;
-        
-        // Events
-        public event Action<Vector2Int> OnChunkLoaded;
-        public event Action<Vector2Int> OnChunkUnloaded;
-        public event Action<WorldMapControlProfile> OnProfileUpdated;
-        
+        [SerializeField] private int viewRadiusChunks = 4;
+        [SerializeField] private int maxConcurrentChunkBuilds = 4;
+
+        private WorldMapControlProfile profile = null!;
+        private EnhancedTerrainGenerator generator = null!;
+        private CancellationTokenSource cancellation = null!;
+        private SemaphoreSlim buildSemaphore = null!;
+
+        private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
+        private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
+
         private void Awake()
         {
-            chunkRequestSemaphore = new SemaphoreSlim(maxConcurrentChunkRequests, maxConcurrentChunkRequests);
-            cancellationTokenSource = new CancellationTokenSource();
-            
-            // Load world profile
-            LoadWorldProfile();
-            
-            // Initialize terrain generator
-            InitializeTerrainGenerator();
+            LoadProfile();
+            generator = new EnhancedTerrainGenerator(profile);
+            cancellation = new CancellationTokenSource();
+            buildSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrentChunkBuilds));
+            _ = ProcessQueueAsync(cancellation.Token);
         }
-        
-        private void Start()
-        {
-            // Start chunk processing
-            _ = ProcessChunkRequestsAsync(cancellationTokenSource.Token);
-            
-            // Load initial chunks around player
-            if (playerTransform != null)
-            {
-                LoadChunksAroundPlayer();
-            }
-        }
-        
+
         private void OnDestroy()
         {
-            cancellationTokenSource?.Cancel();
-            chunkRequestSemaphore?.Dispose();
-            
-            // Clean up loaded chunks
-            foreach (var chunk in loadedChunks.Values)
-            {
-                if (chunk != null)
-                {
-                    Destroy(chunk.gameObject);
-                }
-            }
+            cancellation?.Cancel();
+            buildSemaphore?.Dispose();
             loadedChunks.Clear();
         }
-        
+
         private void Update()
         {
-            // Check if player moved to a new chunk
-            if (playerTransform != null)
+            if (playerTransform == null || profile == null)
             {
-                var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-                if (!loadedChunks.ContainsKey(playerChunkPos))
-                {
-                    LoadChunksAroundPlayer();
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Loads the world map control profile from StreamingAssets
-        /// </summary>
-        private void LoadWorldProfile()
-        {
-            try
-            {
-                var profilePath = Path.Combine(Application.streamingAssetsPath, "WorldMapControlProfile.json");
-                
-                if (File.Exists(profilePath))
-                {
-                    var json = File.ReadAllText(profilePath);
-                    worldProfile = JsonUtility.FromJson<WorldMapControlProfile>(json);
-                    profileHash = ComputeProfileHash(worldProfile);
-                    
-                    if (enableDebugLogging)
-                    {
-                        Debug.Log($"[WorldMapController] Loaded world profile: {worldProfile.SourceConfig} (Hash: {profileHash})");
-                    }
-                    
-                    OnProfileUpdated?.Invoke(worldProfile);
-                }
-                else
-                {
-                    Debug.LogWarning($"[WorldMapController] World profile not found at {profilePath}, using defaults");
-                    CreateDefaultProfile();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[WorldMapController] Failed to load world profile: {ex.Message}");
-                CreateDefaultProfile();
-            }
-        }
-        
-        /// <summary>
-        /// Creates a default world profile when none is available
-        /// </summary>
-        private void CreateDefaultProfile()
-        {
-            worldProfile = new WorldMapControlProfile
-            {
-                Version = 1,
-                ChunkSize = 16,
-                RenderDistance = 8,
-                SimulationDistance = 6,
-                GlobalWaterLevel = 62,
-                EnableRivers = true,
-                EnableLakes = true,
-                EnableCaves = true,
-                UseImprovedRivers = true,
-                UseImprovedLakes = true,
-                UseImprovedCaves = true
-            };
-            
-            profileHash = ComputeProfileHash(worldProfile);
-            OnProfileUpdated?.Invoke(worldProfile);
-        }
-        
-        /// <summary>
-        /// Initializes the terrain generator with the current world profile
-        /// </summary>
-        private void InitializeTerrainGenerator()
-        {
-            if (worldProfile == null)
-            {
-                Debug.LogError("[WorldMapController] Cannot initialize terrain generator without world profile");
                 return;
             }
-            
-            terrainGenerator = new EnhancedTerrainGenerator(worldProfile);
-            
+
+            EnqueueAroundPlayer();
+            UnloadDistantChunks();
+        }
+
+        private void LoadProfile()
+        {
+            var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
+            profile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
+
             if (enableDebugLogging)
             {
-                Debug.Log($"[WorldMapController] Initialized terrain generator with profile: {worldProfile.SourceConfig}");
+                Debug.Log($"[WorldMapController] Loaded profile hash={profile.ProfileHash} from {profilePath}");
             }
         }
-        
-        /// <summary>
-        /// Loads chunks around the player's current position
-        /// </summary>
-        private void LoadChunksAroundPlayer()
+
+        private void EnqueueAroundPlayer()
         {
-            if (playerTransform == null || worldProfile == null) return;
-            
-            var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-            var renderDistance = worldProfile.RenderDistance;
-            
-            for (int x = -renderDistance; x <= renderDistance; x++)
+            var playerChunk = WorldToChunk(playerTransform.position);
+            for (int dx = -viewRadiusChunks; dx <= viewRadiusChunks; dx++)
             {
-                for (int z = -renderDistance; z <= renderDistance; z++)
+                for (int dz = -viewRadiusChunks; dz <= viewRadiusChunks; dz++)
                 {
-                    var chunkPos = new Vector2Int(playerChunkPos.x + x, playerChunkPos.y + z);
-                    var distance = Mathf.Sqrt(x * x + z * z);
-                    
-                    // Only load chunks within render distance
-                    if (distance <= renderDistance && !loadedChunks.ContainsKey(chunkPos))
+                    var pos = new Vector2Int(playerChunk.x + dx, playerChunk.y + dz);
+                    if (loadedChunks.ContainsKey(pos))
                     {
-                        RequestChunk(chunkPos);
+                        continue;
                     }
+
+                    requestQueue.Enqueue(pos);
                 }
             }
-            
-            // Unload distant chunks
-            UnloadDistantChunks(playerChunkPos, renderDistance + 2);
         }
-        
-        /// <summary>
-        /// Requests a chunk to be loaded
-        /// </summary>
-        private void RequestChunk(Vector2Int chunkPosition)
+
+        private async Task ProcessQueueAsync(CancellationToken token)
         {
-            var request = new ChunkRequest
+            while (!token.IsCancellationRequested)
             {
-                Position = chunkPosition,
-                Priority = ComputeChunkPriority(chunkPosition),
-                RequestTime = DateTime.UtcNow
-            };
-            
-            chunkRequestQueue.Enqueue(request);
-        }
-        
-        /// <summary>
-        /// Computes chunk priority based on distance to player
-        /// </summary>
-        private float ComputeChunkPriority(Vector2Int chunkPosition)
-        {
-            if (playerTransform == null) return 0f;
-            
-            var playerChunkPos = WorldToChunkPosition(playerTransform.position);
-            var distance = Vector2Int.Distance(chunkPosition, playerChunkPos);
-            
-            // Higher priority for closer chunks
-            return 1f / (1f + distance);
-        }
-        
-        /// <summary>
-        /// Processes chunk requests asynchronously
-        /// </summary>
-        private async Task ProcessChunkRequestsAsync(CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
+                if (!requestQueue.TryDequeue(out var pos))
+                {
+                    await Task.Delay(10, token);
+                    continue;
+                }
+
+                if (loadedChunks.ContainsKey(pos))
+                {
+                    continue;
+                }
+
+                await buildSemaphore.WaitAsync(token);
                 try
                 {
-                    if (chunkRequestQueue.TryDequeue(out var request))
+                    var chunk = await generator.GenerateChunkAsync(pos, token);
+                    loadedChunks[pos] = chunk;
+                    if (enableDebugLogging)
                     {
-                        await chunkRequestSemaphore.WaitAsync(cancellationToken);
-                        
-                        try
-                        {
-                            _ = LoadChunkAsync(request);
-                        }
-                        finally
-                        {
-                            chunkRequestSemaphore.Release();
-                        }
+                        Debug.Log($"[WorldMapController] Built preview chunk {pos}");
                     }
-                    else
-                    {
-                        await Task.Delay(10, cancellationToken);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[WorldMapController] Error processing chunk request: {ex.Message}");
+                    Debug.LogWarning($"[WorldMapController] Failed to build chunk {pos}: {ex.Message}");
+                }
+                finally
+                {
+                    buildSemaphore.Release();
                 }
             }
         }
-        
-        /// <summary>
-        /// Loads a chunk asynchronously
-        /// </summary>
-        private async Task LoadChunkAsync(ChunkRequest request)
+
+        private void UnloadDistantChunks()
         {
-            try
+            if (playerTransform == null)
             {
-                if (worldProfile == null || terrainGenerator == null)
-                {
-                    Debug.LogError("[WorldMapController] Cannot load chunk without world profile or terrain generator");
-                    return;
-                }
-                
-                var chunkData = await terrainGenerator.GenerateChunkAsync(request.Position.x, request.Position.y);
-                
-                if (chunkData != null)
-                {
-                    // Create chunk renderer on main thread
-                    UnityMainThreadDispatcher.Instance.Enqueue(() =>
-                    {
-                        CreateChunkRenderer(request.Position, chunkData);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[WorldMapController] Failed to load chunk {request.Position}: {ex.Message}");
-            }
-        }
-        
-        /// <summary>
-        /// Creates a chunk renderer for the generated chunk data
-        /// </summary>
-        private void CreateChunkRenderer(Vector2Int position, ChunkData chunkData)
-        {
-            if (loadedChunks.ContainsKey(position))
-            {
-                // Chunk already loaded, skip
                 return;
             }
-            
-            var chunkObject = new GameObject($"Chunk_{position.x}_{position.y}");
-            chunkObject.transform.SetParent(transform);
-            
-            var chunkRenderer = chunkObject.AddComponent<ChunkRenderer>();
-            chunkRenderer.Initialize(chunkData, terrainMaterial, waterMaterial);
-            
-            // Position chunk in world
-            var worldPos = ChunkToWorldPosition(position);
-            chunkObject.transform.position = worldPos;
-            
-            loadedChunks[position] = chunkRenderer;
-            OnChunkLoaded?.Invoke(position);
-            
-            if (enableDebugLogging)
-            {
-                Debug.Log($"[WorldMapController] Loaded chunk at {position}");
-            }
-        }
-        
-        /// <summary>
-        /// Unloads chunks that are too far from the player
-        /// </summary>
-        private void UnloadDistantChunks(Vector2Int playerChunkPos, int maxDistance)
-        {
-            var chunksToUnload = new List<Vector2Int>();
-            
+
+            var playerChunk = WorldToChunk(playerTransform.position);
+            var maxDistance = viewRadiusChunks + 2;
+            var removal = new List<Vector2Int>();
+
             foreach (var kvp in loadedChunks)
             {
-                var distance = Vector2Int.Distance(kvp.Key, playerChunkPos);
-                if (distance > maxDistance)
+                var pos = kvp.Key;
+                if (Mathf.Abs(pos.x - playerChunk.x) > maxDistance || Mathf.Abs(pos.y - playerChunk.y) > maxDistance)
                 {
-                    chunksToUnload.Add(kvp.Key);
+                    removal.Add(pos);
                 }
             }
-            
-            foreach (var chunkPos in chunksToUnload)
+
+            foreach (var pos in removal)
             {
-                if (loadedChunks.TryRemove(chunkPos, out var chunkRenderer))
+                loadedChunks.TryRemove(pos, out _);
+                if (enableDebugLogging)
                 {
-                    if (chunkRenderer != null)
-                    {
-                        Destroy(chunkRenderer.gameObject);
-                    }
-                    
-                    OnChunkUnloaded?.Invoke(chunkPos);
-                    
-                    if (enableDebugLogging)
-                    {
-                        Debug.Log($"[WorldMapController] Unloaded distant chunk at {chunkPos}");
-                    }
+                    Debug.Log($"[WorldMapController] Unloaded preview chunk {pos}");
                 }
             }
         }
-        
-        /// <summary>
-        /// Converts world position to chunk position
-        /// </summary>
-        private Vector2Int WorldToChunkPosition(Vector3 worldPosition)
+
+        private static Vector2Int WorldToChunk(Vector3 position)
         {
-            if (worldProfile == null) return Vector2Int.zero;
-            
-            var chunkSize = worldProfile.ChunkSize;
-            var x = Mathf.FloorToInt(worldPosition.x / chunkSize);
-            var z = Mathf.FloorToInt(worldPosition.z / chunkSize);
-            
-            return new Vector2Int(x, z);
-        }
-        
-        /// <summary>
-        /// Converts chunk position to world position
-        /// </summary>
-        private Vector3 ChunkToWorldPosition(Vector2Int chunkPosition)
-        {
-            if (worldProfile == null) return Vector3.zero;
-            
-            var chunkSize = worldProfile.ChunkSize;
-            return new Vector3(chunkPosition.x * chunkSize, 0f, chunkPosition.y * chunkSize);
-        }
-        
-        /// <summary>
-        /// Computes hash of world profile for validation
-        /// </summary>
-        private string ComputeProfileHash(WorldMapControlProfile profile)
-        {
-            if (profile == null) return string.Empty;
-            
-            var profileString = $"{profile.Version}|{profile.ChunkSize}|{profile.RenderDistance}|{profile.SimulationDistance}|{profile.GlobalWaterLevel}|{profile.EnableRivers}|{profile.EnableLakes}|{profile.EnableCaves}|{profile.UseImprovedRivers}|{profile.UseImprovedLakes}|{profile.UseImprovedCaves}";
-            
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            var hashBytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(profileString));
-            return Convert.ToHexString(hashBytes).ToLowerInvariant();
-        }
-        
-        /// <summary>
-        /// Reloads the world profile from disk
-        /// </summary>
-        public void ReloadProfile()
-        {
-            LoadWorldProfile();
-            InitializeTerrainGenerator();
-            
-            // Reload all chunks with new profile
-            foreach (var chunk in loadedChunks.Values)
-            {
-                if (chunk != null)
-                {
-                    Destroy(chunk.gameObject);
-                }
-            }
-            loadedChunks.Clear();
-            
-            if (playerTransform != null)
-            {
-                LoadChunksAroundPlayer();
-            }
-        }
-        
-        /// <summary>
-        /// Gets the current world profile
-        /// </summary>
-        public WorldMapControlProfile GetWorldProfile()
-        {
-            return worldProfile;
-        }
-        
-        /// <summary>
-        /// Gets the profile hash for validation
-        /// </summary>
-        public string GetProfileHash()
-        {
-            return profileHash;
-        }
-        
-        /// <summary>
-        /// Checks if the profile matches the expected hash
-        /// </summary>
-        public bool ValidateProfile(string expectedHash)
-        {
-            return !string.IsNullOrEmpty(profileHash) && profileHash == expectedHash;
+            const int chunkSize = 16;
+            int cx = Mathf.FloorToInt(position.x / chunkSize);
+            int cz = Mathf.FloorToInt(position.z / chunkSize);
+            return new Vector2Int(cx, cz);
         }
     }
-    
+
     /// <summary>
-    /// Represents a chunk load request
+    /// Lightweight terrain generator for Unity previews. Mirrors the server hydrology/cave/lake rules.
     /// </summary>
-    internal struct ChunkRequest
-    {
-        public Vector2Int Position;
-        public float Priority;
-        public DateTime RequestTime;
-    }
-    
-    /// <summary>
-    /// Enhanced terrain generator that uses WorldMapControlProfile
-    /// </summary>
-    public class EnhancedTerrainGenerator
+    public sealed class EnhancedTerrainGenerator
     {
         private readonly WorldMapControlProfile profile;
-        
+        private readonly System.Random random;
+
         public EnhancedTerrainGenerator(WorldMapControlProfile profile)
         {
             this.profile = profile ?? throw new ArgumentNullException(nameof(profile));
+            random = new System.Random(profile.ProfileHash.GetHashCode());
         }
-        
-        /// <summary>
-        /// Generates chunk data for the specified chunk coordinates
-        /// </summary>
-        public async Task<ChunkData> GenerateChunkAsync(int chunkX, int chunkZ)
+
+        public Task<ChunkData> GenerateChunkAsync(Vector2Int chunkPos, CancellationToken token)
         {
-            await Task.Yield(); // Ensure async operation
-            
-            var chunkData = new ChunkData
-            {
-                ChunkX = chunkX,
-                ChunkZ = chunkZ,
-                Size = profile.ChunkSize
-            };
-            
-            // Generate terrain heightmap
-            GenerateTerrainHeightmap(chunkData);
-            
-            // Generate caves if enabled
-            if (profile.EnableCaves)
-            {
-                GenerateCaves(chunkData);
-            }
-            
-            // Generate rivers if enabled
-            if (profile.EnableRivers)
-            {
-                GenerateRivers(chunkData);
-            }
-            
-            // Generate lakes if enabled
-            if (profile.EnableLakes)
-            {
-                GenerateLakes(chunkData);
-            }
-            
-            return chunkData;
+            return Task.Run(() => GenerateChunk(chunkPos), token);
         }
-        
-        private void GenerateTerrainHeightmap(ChunkData chunkData)
+
+        private ChunkData GenerateChunk(Vector2Int chunkPos)
         {
-            // Simple heightmap generation using Perlin noise
-            var size = chunkData.Size;
-            chunkData.HeightMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
+            var chunk = new ChunkData(profile.ChunkSize, chunkPos.x, chunkPos.y, profile.GlobalWaterLevel);
+            BuildHeightMap(chunk);
+            BuildCaves(chunk);
+            BuildRivers(chunk);
+            BuildLakes(chunk);
+            return chunk;
+        }
+
+        private void BuildHeightMap(ChunkData chunk)
+        {
+            for (int x = 0; x < chunk.Size; x++)
             {
-                for (int z = 0; z < size; z++)
+                for (int z = 0; z < chunk.Size; z++)
                 {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // Multi-octave Perlin noise
-                    var height = 0f;
-                    var amplitude = 1f;
-                    var frequency = 0.01f;
-                    
-                    for (int octave = 0; octave < 4; octave++)
-                    {
-                        height += Mathf.PerlinNoise(worldX * frequency, worldZ * frequency) * amplitude;
-                        amplitude *= 0.5f;
-                        frequency *= 2f;
-                    }
-                    
-                    // Normalize and scale height
-                    height = Mathf.Clamp01(height);
-                    height *= 64f; // Max height variation
-                    
-                    chunkData.HeightMap[x, z] = height;
+                    int worldX = chunk.ChunkX * chunk.Size + x;
+                    int worldZ = chunk.ChunkZ * chunk.Size + z;
+
+                    float continental = Mathf.PerlinNoise(worldX * 0.003f, worldZ * 0.003f);
+                    float macro = Mathf.PerlinNoise(worldX * 0.007f, worldZ * 0.007f);
+                    float detail = Mathf.PerlinNoise(worldX * 0.017f, worldZ * 0.017f);
+
+                    float blended = continental * 0.6f + macro * 0.3f + detail * 0.1f;
+                    int height = Mathf.Clamp(Mathf.RoundToInt(profile.GlobalWaterLevel + blended * 32f), 4, 250);
+                    chunk.HeightMap[x, z] = height;
                 }
             }
         }
-        
-        private void GenerateCaves(ChunkData chunkData)
+
+        private void BuildCaves(ChunkData chunk)
         {
-            // Simple cave generation using 3D Perlin noise
-            var size = chunkData.Size;
-            var caveMap = new bool[size, size, size];
-            
-            for (int x = 0; x < size; x++)
+            if (!profile.EnableCaves)
             {
-                for (int y = 0; y < size; y++)
+                return;
+            }
+
+            for (int x = 0; x < chunk.Size; x++)
+            {
+                for (int z = 0; z < chunk.Size; z++)
                 {
-                    for (int z = 0; z < size; z++)
+                    int columnHeight = chunk.HeightMap[x, z];
+                    for (int y = 4; y < columnHeight; y++)
                     {
-                        var worldX = chunkData.ChunkX * size + x;
-                        var worldY = y;
-                        var worldZ = chunkData.ChunkZ * size + z;
-                        
-                        // 3D noise for cave generation
-                        var noise = Mathf.PerlinNoise(worldX * 0.05f, worldZ * 0.05f) + 
-                                   Mathf.PerlinNoise(worldX * 0.1f, worldY * 0.1f) + 
-                                   Mathf.PerlinNoise(worldY * 0.1f, worldZ * 0.1f);
-                        
-                        caveMap[x, y, z] = noise > 1.5f && worldY < profile.GlobalWaterLevel + 20;
+                        float warpX = Mathf.PerlinNoise((chunk.ChunkX * chunk.Size + x) * profile.HydrologyWarpFrequency, y * 0.03f) * profile.HydrologyWarpAmplitude;
+                        float warpZ = Mathf.PerlinNoise((chunk.ChunkZ * chunk.Size + z) * profile.HydrologyWarpFrequency, y * 0.03f + 37f) * profile.HydrologyWarpAmplitude;
+
+                        float noise = Mathf.PerlinNoise(
+                            (chunk.ChunkX * chunk.Size + x + warpX) * 0.035f,
+                            (chunk.ChunkZ * chunk.Size + z + warpZ + y * 0.05f));
+
+                        float threshold = 0.55f - profile.CaveDepthWeight * 0.25f;
+                        if (noise > threshold)
+                        {
+                            chunk.CaveMask[x, y, z] = true;
+                        }
                     }
                 }
             }
-            
-            chunkData.CaveMap = caveMap;
         }
-        
-        private void GenerateRivers(ChunkData chunkData)
+
+        private void BuildRivers(ChunkData chunk)
         {
-            // Simple river generation using 2D Perlin noise
-            var size = chunkData.Size;
-            var riverMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
+            if (!profile.EnableRivers)
             {
-                for (int z = 0; z < size; z++)
+                return;
+            }
+
+            for (int x = 0; x < chunk.Size; x++)
+            {
+                for (int z = 0; z < chunk.Size; z++)
                 {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // River noise
-                    var riverNoise = Mathf.PerlinNoise(worldX * 0.02f, worldZ * 0.02f);
-                    riverMap[x, z] = riverNoise > 0.7f ? 1f : 0f;
+                    int worldX = chunk.ChunkX * chunk.Size + x;
+                    int worldZ = chunk.ChunkZ * chunk.Size + z;
+
+                    float warp = Mathf.PerlinNoise(worldX * profile.HydrologyWarpFrequency, worldZ * profile.HydrologyWarpFrequency);
+                    float riverNoise = Mathf.PerlinNoise(worldX * profile.RiverNoiseScale + warp, worldZ * profile.RiverNoiseScale + warp * 0.5f);
+                    float intensity = 1f - Mathf.Abs(riverNoise - 0.5f) * 2f;
+
+                    if (intensity > profile.RiverCenterThreshold)
+                    {
+                        chunk.RiverMask[x, z] = intensity;
+                        int depth = Mathf.Clamp(Mathf.CeilToInt(profile.RiverDepth * intensity), 2, profile.RiverDepth + 2);
+                        chunk.HeightMap[x, z] = Mathf.Max(chunk.HeightMap[x, z] - depth, profile.GlobalWaterLevel - depth);
+                    }
                 }
             }
-            
-            chunkData.RiverMap = riverMap;
+
+            Smooth2D(chunk.RiverMask, profile.RiverIntensitySmoothIterations, profile.RiverIntensitySmoothBlend);
         }
-        
-        private void GenerateLakes(ChunkData chunkData)
+
+        private void BuildLakes(ChunkData chunk)
         {
-            // Simple lake generation
-            var size = chunkData.Size;
-            var lakeMap = new float[size, size];
-            
-            for (int x = 0; x < size; x++)
+            if (!profile.EnableLakes)
             {
-                for (int z = 0; z < size; z++)
+                return;
+            }
+
+            for (int x = 0; x < chunk.Size; x++)
+            {
+                for (int z = 0; z < chunk.Size; z++)
                 {
-                    var worldX = chunkData.ChunkX * size + x;
-                    var worldZ = chunkData.ChunkZ * size + z;
-                    
-                    // Lake noise
-                    var lakeNoise = Mathf.PerlinNoise(worldX * 0.01f, worldZ * 0.01f);
-                    lakeMap[x, z] = lakeNoise > 0.8f ? 1f : 0f;
+                    float riverIntensity = chunk.RiverMask[x, z];
+                    if (riverIntensity > profile.LakeRiverProximitySuppression)
+                    {
+                        continue;
+                    }
+
+                    int worldX = chunk.ChunkX * chunk.Size + x;
+                    int worldZ = chunk.ChunkZ * chunk.Size + z;
+                    float noise = Mathf.PerlinNoise(worldX * 0.01f, worldZ * 0.01f) + profile.LakeSpawnWeightBias;
+
+                    if (noise > profile.LakeWetlandSaturationThreshold)
+                    {
+                        chunk.LakeMask[x, z] = noise;
+                        int depth = Mathf.Clamp(Mathf.CeilToInt(profile.LakeShelfDepth + noise * profile.LakeOutflowCarveDepth), 1, profile.LakeOutflowCarveDepth + 2);
+                        chunk.HeightMap[x, z] = Mathf.Max(chunk.HeightMap[x, z] - depth, profile.GlobalWaterLevel - depth);
+                    }
                 }
             }
-            
-            chunkData.LakeMap = lakeMap;
+
+            Smooth2D(chunk.LakeMask, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
+        }
+
+        private static void Smooth2D(float[,] field, int iterations, float blend)
+        {
+            iterations = Mathf.Max(0, iterations);
+            blend = Mathf.Clamp01(blend);
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float sum = field[x, z];
+                        int samples = 1;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                                {
+                                    continue;
+                                }
+
+                                sum += field[nx, nz];
+                                samples++;
+                            }
+                        }
+
+                        float average = sum / samples;
+                        buffer[x, z] = field[x, z] * (1f - blend) + average * blend;
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
         }
     }
-    
+
     /// <summary>
-    /// Chunk data structure
+    /// Preview-friendly chunk container (height/cave/river/lake masks).
     /// </summary>
-    public class ChunkData
+    public sealed class ChunkData
     {
-        public int ChunkX { get; set; }
-        public int ChunkZ { get; set; }
-        public int Size { get; set; }
-        public float[,] HeightMap { get; set; }
-        public bool[,,] CaveMap { get; set; }
-        public float[,] RiverMap { get; set; }
-        public float[,] LakeMap { get; set; }
+        public int ChunkX { get; }
+        public int ChunkZ { get; }
+        public int Size { get; }
+        public int WaterLevel { get; }
+
+        public int[,] HeightMap { get; }
+        public bool[,,] CaveMask { get; }
+        public float[,] RiverMask { get; }
+        public float[,] LakeMask { get; }
+
+        public ChunkData(int size, int chunkX, int chunkZ, int waterLevel)
+        {
+            Size = size;
+            ChunkX = chunkX;
+            ChunkZ = chunkZ;
+            WaterLevel = waterLevel;
+
+            HeightMap = new int[size, size];
+            CaveMask = new bool[size, 256, size];
+            RiverMask = new float[size, size];
+            LakeMask = new float[size, size];
+        }
     }
 }

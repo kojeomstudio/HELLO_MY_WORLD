@@ -106,6 +106,25 @@ public static class ProtocolValidator
     }
 
     /// <summary>
+    /// Lightweight guard to ensure a handler's message type matches the registered EnhancedMinecraft contract.
+    /// Used by UnifiedMessageHandler to fail fast when protobuf bindings drift.
+    /// </summary>
+    public static void ValidateMessageContract<TMessage>(MinecraftMessageType messageType)
+    {
+        ProtoFingerprint.AssertDescriptorFingerprint();
+
+        if (!ProtocolRegistry.TryResolveContractType(messageType, out var contractType) || contractType == null)
+        {
+            throw new InvalidOperationException($"[Proto] No EnhancedMinecraft binding registered for '{messageType}'. Run protoc and refresh ProtocolRegistry.");
+        }
+
+        if (!contractType.IsAssignableFrom(typeof(TMessage)))
+        {
+            throw new InvalidOperationException($"[Proto] Handler expects {typeof(TMessage).Name} but registry exposes {contractType.Name} for '{messageType}'. Regenerate bindings or update the handler contract.");
+        }
+    }
+
+    /// <summary>
     /// Targeted chunk contract validation for handlers that need to fail fast on stale protobuf bindings.
     /// </summary>
     public static void ValidateChunkContracts()

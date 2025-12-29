@@ -14,6 +14,9 @@ namespace GameServerApp.World
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
         public int MapControlProfileVersion { get; set; } = 1;
+        public string WorldName { get; set; } = "HELLO_MY_WORLD";
+        public long Seed { get; set; } = 0;
+        public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
         public int ChunkSize { get; set; } = 16;
         public int RenderDistance { get; set; } = 10;
         public int SimulationDistance { get; set; } = 8;
@@ -63,6 +66,7 @@ namespace GameServerApp.World
             Water ??= new WaterConfig();
             Caves ??= new CaveConfig();
             Lakes ??= new LakeConfig();
+            TerrainGeneration ??= new TerrainGenerationConfig();
             ChunkSize = Math.Max(ChunkSize, 1);
             RenderDistance = Math.Max(RenderDistance, 1);
             SimulationDistance = Math.Max(SimulationDistance, 1);
@@ -72,6 +76,23 @@ namespace GameServerApp.World
                 : MapControlProfilePath;
             MapControlProfileVersion = Math.Max(1, MapControlProfileVersion);
         }
+    }
+
+    public sealed class TerrainGenerationConfig
+    {
+        public int SeaLevel { get; set; } = 62;
+        public int BedrockLevel { get; set; } = 5;
+        public double NoiseScale { get; set; } = 100.0;
+        public double NoiseAmplitude { get; set; } = 50.0;
+        public int Octaves { get; set; } = 4;
+        public double Persistence { get; set; } = 0.5;
+        public double Lacunarity { get; set; } = 2.0;
+        public double BiomeScale { get; set; } = 0.005;
+        public double TemperatureScale { get; set; } = 0.003;
+        public double HumidityScale { get; set; } = 0.004;
+        public double MountainThreshold { get; set; } = 0.6;
+        public int MountainMaxHeight { get; set; } = 200;
+        public int PlainBaseHeight { get; set; } = 64;
     }
 
     public sealed class WaterConfig

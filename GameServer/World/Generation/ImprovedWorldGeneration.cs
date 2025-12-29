@@ -34,6 +34,7 @@ namespace GameServerApp.World
             ReinforceCaveCeilings(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation);
             SealChunkEdgeCaves(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation);
             SealRiparianCaves(chunk, surfaceCache, riparianSaturation);
+            ApplyCaveHydrologyBarriers(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation);
         }
 
         public void GenerateImprovedRiversInternal(TerrainGenerationContext context)
@@ -53,6 +54,7 @@ namespace GameServerApp.World
             GenerateRiversInternal(context);
 
             var riverField = GetRiverFieldCache(context);
+            HarmonizeRiverFieldWithHydrology(riverField, hydrologyField);
             BridgeRiverSeams(chunk, surfaceCache, riverField, hydrologyField.HydrologyMask);
             var riparianSaturation = GetRiparianSaturation(context, hydrologyField, riverField);
             EnhanceRiverBanks(chunk, surfaceCache, hydrologyField, riverField, riparianSaturation);
@@ -83,6 +85,7 @@ namespace GameServerApp.World
 
             GenerateLakesInternal(context);
 
+            StabilizeLakeRims(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.HydrologyGradient);
             EnhanceLakeShoreline(chunk, surfaceCache, hydrologyField, riparianSaturation);
             ReinforceLakeWetlands(chunk, surfaceCache, hydrologyField.HydrologyMask, hydrologyField.FlowAccumulation, riparianSaturation, hydrologyField.HydrologyCurvature);
             ExtendLakeWetlands(chunk, surfaceCache, riparianSaturation, hydrologyField.FlowAccumulation);
@@ -304,6 +307,88 @@ namespace GameServerApp.World
             }
         }
 
+        private void ApplyCaveHydrologyBarriers(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, double[,] flowAccumulation, double[,] riparianSaturation)
+        {
+            if (_caveRiparianPlugDepth <= 0)
+            {
+                return;
+            }
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    if (!TryFindCaveSpan(chunk, surfaceCache[x, z], x, z, out int top, out int bottom))
+                    {
+                        continue;
+                    }
+
+                    double hydrology = hydrologyMask[x, z];
+                    double flow = flowAccumulation[x, z];
+                    double saturation = riparianSaturation[x, z];
+                    double moisture = Math.Clamp(hydrology * 0.55 + flow * _caveMoistureRetentionWeight * 0.4 + saturation * 0.45, 0.0, 1.8);
+                    if (moisture < 0.55)
+                    {
+                        continue;
+                    }
+
+                    int spanHeight = Math.Max(1, top - bottom);
+                    int barrierDepth = Math.Clamp((int)Math.Round(_caveRiparianPlugDepth * (0.6 + moisture * 0.4)), 1, Math.Min(spanHeight, 6));
+                    int sealStart = Math.Max(bottom + 1, top - barrierDepth + 1);
+                    var filler = moisture > 1.1 ? BlockType.Cobblestone : BlockType.Stone;
+
+                    for (int y = sealStart; y <= top; y++)
+                    {
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air || block == BlockType.Water)
+                        {
+                            chunk.SetBlock(x, y, z, filler);
+                        }
+                    }
+
+                    if (top + 1 < 256)
+                    {
+                        chunk.SetBlock(x, top + 1, z, BlockType.Air);
+                    }
+                }
+            }
+        }
+
+        private void HarmonizeRiverFieldWithHydrology(RiverFieldCache riverField, HydrologyFieldCache hydrologyField)
+        {
+            var gradientField = hydrologyField.HydrologyGradient;
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    double intensity = riverField.Intensity[x, z];
+                    double hydrology = hydrologyField.HydrologyMask[x, z];
+                    double flow = hydrologyField.FlowAccumulation[x, z];
+                    double gradientMag = gradientField?[x, z].Length() ?? 0.0;
+
+                    var flowDir = riverField.Flow[x, z];
+                    double alignment = 0.0;
+                    if (gradientField != null && flowDir.LengthSquared() > 1e-6f)
+                    {
+                        var gradDir = gradientField[x, z];
+                        if (gradDir.LengthSquared() > 1e-6f)
+                        {
+                            alignment = Math.Abs(Vector2.Dot(Vector2.Normalize(flowDir), Vector2.Normalize(gradDir)));
+                        }
+                    }
+
+                    double stabilityDamp = 1.0 - Math.Clamp(gradientMag * _riverGradientPenalty * 0.35, 0.0, 0.55);
+                    double flowBoost = Math.Clamp(flow * (_riverHeadwaterStabilityWeight * 0.6 + 0.12), 0.0, 1.2);
+                    double hydrologyBias = Math.Clamp(hydrology * (_riverFlowAlignmentWeight * 0.35 + 0.18), 0.0, 1.05);
+                    double anisotropy = 1.0 - Math.Clamp(alignment * _riverAnisotropyWeight * 0.25, 0.0, 0.35);
+
+                    double adjusted = intensity * stabilityDamp * anisotropy + hydrologyBias * RiverBankThreshold + flowBoost * 0.08;
+                    riverField.Intensity[x, z] = Math.Clamp(adjusted, 0.0, RiverBankThreshold * 1.35);
+                }
+            }
+        }
+
         private void BridgeRiverSeams(ChunkData chunk, int[,] surfaceCache, RiverFieldCache riverField, double[,] hydrologyMask)
         {
             if (_riverSeamFillStrength <= 0.0)
@@ -466,6 +551,41 @@ namespace GameServerApp.World
                                 chunk.SetBlock(nx, bankTop + 1, nz, BlockType.Air);
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        private void StabilizeLakeRims(ChunkData chunk, int[,] surfaceCache, double[,] hydrologyMask, Vector2[,]? hydrologyGradient)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface < 1 || surface >= 255)
+                    {
+                        continue;
+                    }
+
+                    var topBlock = chunk.GetBlock(x, surface, z);
+                    if (topBlock != BlockType.Water)
+                    {
+                        continue;
+                    }
+
+                    double hydrology = hydrologyMask[x, z];
+                    double gradientMag = hydrologyGradient?[x, z].Length() ?? 0.0;
+                    double rimStrength = Math.Clamp(hydrology * 0.6 + gradientMag * _lakeRimErosionWeight * 0.8, 0.0, 1.4);
+                    if (rimStrength < 0.25)
+                    {
+                        continue;
+                    }
+
+                    SculptLakeBank(chunk, x, z, surface, rimStrength);
+                    if (surface + 1 < 256)
+                    {
+                        chunk.SetBlock(x, surface + 1, z, BlockType.Air);
                     }
                 }
             }

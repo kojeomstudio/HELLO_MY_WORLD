@@ -39,6 +39,15 @@ public class WorldAreaManager : MonoBehaviour
         WorldConfigFile.Instance.OverrideWithProfile(MapControlProfile);
         var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
 
+        var expectedProfile = WorldMapControlProfile.FromConfig(tunedWorldConfig);
+        if (!string.Equals(expectedProfile.ProfileHash, MapControlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.LogWarning($"[WorldAreaManager] Map control profile hash mismatch. File={MapControlProfile.ProfileHash} Config={expectedProfile.ProfileHash}. Rebuilding map control profile from config to keep world previews in sync.");
+            MapControlProfile = expectedProfile;
+            WorldConfigFile.Instance.OverrideWithProfile(MapControlProfile);
+            tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+        }
+
         WorldGenAlgorithms.RiverCenterThreshold = MapControlProfile.RiverCenterThreshold;
         WorldGenAlgorithms.RiverBankThreshold = MapControlProfile.RiverBankThreshold;
         WorldGenAlgorithms.GlobalRiverWaterLevel = Mathf.Max(0, MapControlProfile.GlobalWaterLevel);

@@ -62,6 +62,7 @@ public static class ProtocolValidator
 
         ValidateUniqueBindings();
         ValidateRegistryDescriptors();
+        ValidateDescriptorFiles();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
         ValidateRegistryBindingNames();
@@ -368,6 +369,28 @@ public static class ProtocolValidator
         // Only network-level packets (mapped to MinecraftMessageType) must be registered; many
         // helper contracts (e.g., PlayerStats, nested metadata messages) are referenced through
         // those packet roots and should not be forced into the registry.
+    }
+
+    private static void ValidateDescriptorFiles()
+    {
+        string expectedFile = EnhancedMinecraftGameReflection.Descriptor.Name ?? string.Empty;
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            var messageDescriptor = RequireDescriptor(binding.DescriptorName);
+            string descriptorFile = messageDescriptor.File?.Name ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(descriptorFile) || string.IsNullOrWhiteSpace(expectedFile))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' is missing file metadata. Regenerate protobuf assets so using directives bind to the generated DTOs.");
+            }
+
+            if (!string.Equals(descriptorFile, expectedFile, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.DescriptorName}' resolved from '{descriptorFile}', expected '{expectedFile}'. Regenerate protobuf assets so server and Unity reference the same generated file.");
+            }
+        }
     }
 
     private static void ValidateRegistryCoverage()

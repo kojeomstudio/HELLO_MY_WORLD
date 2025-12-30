@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using GameServerApp.Models;
 using GameServerApp.Utils;
 using Microsoft.Extensions.Logging;
+using GameServerApp.World;
 
 namespace GameServerApp.World.Generation
 {
@@ -17,6 +18,7 @@ namespace GameServerApp.World.Generation
         private readonly WorldSettings worldSettings;
         private readonly ILogger? logger;
         private readonly Random random;
+        private readonly ImprovedTerrainCoordinator? improvedCoordinator;
 
         private readonly int seaLevel;
         private readonly int bedrockLevel;
@@ -40,6 +42,13 @@ namespace GameServerApp.World.Generation
                 : config.TerrainGeneration.SeaLevel, 4, worldHeight - 8);
             bedrockLevel = Math.Max(1, config.TerrainGeneration.BedrockLevel);
             random = new Random((int)(worldSettings.WorldSeed ^ 0x5f3759df));
+
+            if ((config.Caves.EnableCaves && config.Caves.UseImprovedCaves) ||
+                (config.Water.EnableRivers && config.Water.UseImprovedRivers) ||
+                (config.Water.EnableLakes && config.Water.UseImprovedLakes))
+            {
+                improvedCoordinator = new ImprovedTerrainCoordinator(config, worldSettings);
+            }
         }
 
         public Task<ChunkData> GenerateChunkAsync(int chunkX, int chunkZ, CancellationToken cancellationToken = default)
@@ -58,9 +67,21 @@ namespace GameServerApp.World.Generation
             bool enableRivers = worldSettings.EnableRivers && config.Water.EnableRivers;
             bool enableLakes = worldSettings.EnableLakes && config.Water.EnableLakes;
 
-            bool[,,]? caveMask = enableCaves ? BuildCaveMask(chunkX, chunkZ, heightMap) : null;
-            float[,]? riverMask = enableRivers ? BuildRiverMask(chunkX, chunkZ, heightMap) : null;
-            float[,]? lakeMask = enableLakes ? BuildLakeMask(chunkX, chunkZ, heightMap, riverMask) : null;
+            TerrainMaskResult? improvedMasks = null;
+            if (improvedCoordinator != null && (enableCaves || enableRivers || enableLakes))
+            {
+                improvedMasks = improvedCoordinator.GenerateMasks(chunkX, chunkZ, heightMap, chunkSize);
+            }
+
+            bool[,,]? caveMask = enableCaves
+                ? improvedMasks?.Caves ?? BuildCaveMask(chunkX, chunkZ, heightMap)
+                : null;
+            float[,]? riverMask = enableRivers
+                ? improvedMasks?.Rivers ?? BuildRiverMask(chunkX, chunkZ, heightMap)
+                : null;
+            float[,]? lakeMask = enableLakes
+                ? improvedMasks?.Lakes ?? BuildLakeMask(chunkX, chunkZ, heightMap, riverMask)
+                : null;
 
             if (caveMask != null)
             {
@@ -220,11 +241,19 @@ namespace GameServerApp.World.Generation
                         0.55,
                         (int)worldSettings.WorldSeed ^ 0x00DD);
 
-                    double gradientPenalty = Math.Abs(heightMap[x, z] - seaLevel) * water.RiverGradientPenalty;
                     double intensity = Math.Clamp(1.0 - Math.Abs(baseNoise), 0.0, 1.0);
-                    intensity -= gradientPenalty * 0.01;
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double continuity = 1.0 - Math.Min(1.0, slope * water.RiverGradientPenalty * 0.01);
+                    double anisotropy = ComputeAnisotropy(heightMap, x, z) * water.RiverAnisotropyWeight;
+                    double reliefPenalty = Math.Max(0.0, (heightMap[x, z] - seaLevel) * water.RiverReliefPenaltyWeight * 0.01);
 
-                    if (intensity > water.RiverCenterThreshold)
+                    intensity = intensity * continuity - anisotropy - reliefPenalty;
+                    if (IsEdge(x, z))
+                    {
+                        intensity *= Math.Max(0.15, 1.0 - water.RiverEdgeFeather);
+                    }
+
+                    if (intensity > water.RiverBankThreshold)
                     {
                         mask[x, z] = (float)Math.Clamp(intensity, 0.0, 1.0);
                     }
@@ -232,6 +261,7 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(mask, water.RiverIntensitySmoothIterations, water.RiverIntensitySmoothBlend);
+            RelaxEdges(mask, water.HydrologySeamRelaxIterations, water.HydrologySeamRelaxBlend);
             return mask;
         }
 
@@ -265,9 +295,10 @@ namespace GameServerApp.World.Generation
                         0.6,
                         (int)worldSettings.WorldSeed ^ 0x99);
 
-                    double weight = (noise * 0.65) + (basin * 0.35) + lakeConfig.SpawnWeightBias;
+                    double weight = (noise * 0.6) + (basin * 0.4) + lakeConfig.SpawnWeightBias;
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
-                    weight -= riverSuppression;
+                    double altitudePenalty = Math.Max(0, seaLevel - heightMap[x, z]) * 0.0025;
+                    weight -= riverSuppression + altitudePenalty;
 
                     if (weight > lakeConfig.WetlandSaturationThreshold && heightMap[x, z] > bedrockLevel + lakeConfig.MinDepth)
                     {
@@ -277,6 +308,7 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, config.Water.HydrologySmoothBlend);
+            RelaxEdges(lakes, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return lakes;
         }
 
@@ -320,6 +352,7 @@ namespace GameServerApp.World.Generation
 
                     bool hasRiver = river > config.Water.RiverCenterThreshold;
                     bool hasLake = lake > config.Lakes.ShorelineBlend;
+                    float wetland = Math.Max(river, lake);
 
                     if (hasRiver)
                     {
@@ -329,14 +362,37 @@ namespace GameServerApp.World.Generation
                             int y = Math.Max(bedrockLevel + 1, surface - d);
                             chunk.SetBlock(x, y, z, BlockType.Water);
                         }
+
+                        // Feather river banks to reduce jagged edges and surface seams
+                        int bankDepth = Math.Max(1, (int)(config.Water.RiverEdgeFeather * 4));
+                        for (int b = 0; b < bankDepth; b++)
+                        {
+                            int bankY = Math.Max(bedrockLevel + 1, surface - b);
+                            var current = chunk.GetBlock(x, bankY, z);
+                            if (current == BlockType.Grass || current == BlockType.Dirt)
+                            {
+                                chunk.SetBlock(x, bankY, z, b == 0 ? BlockType.Sand : BlockType.Dirt);
+                            }
+                        }
                     }
                     else if (hasLake)
                     {
                         int depth = Math.Clamp((int)(config.Lakes.MaxDepth * lake), config.Lakes.MinDepth, config.Lakes.MaxDepth);
+                        int shelfDepth = Math.Clamp(config.Lakes.ShelfDepth, 1, depth);
+
                         for (int d = 0; d < depth; d++)
                         {
                             int y = Math.Max(bedrockLevel + 1, surface - d);
                             chunk.SetBlock(x, y, z, BlockType.Water);
+                        }
+
+                        for (int s = 0; s < shelfDepth; s++)
+                        {
+                            int bankY = Math.Max(bedrockLevel + 1, surface - s);
+                            if (chunk.GetBlock(x, bankY, z) == BlockType.Grass)
+                            {
+                                chunk.SetBlock(x, bankY, z, BlockType.Sand);
+                            }
                         }
                     }
 
@@ -347,6 +403,12 @@ namespace GameServerApp.World.Generation
                         {
                             chunk.SetBlock(x, y, z, BlockType.Water);
                         }
+                    }
+
+                    // Add a shallow wetland buffer to keep riparian zones consistent
+                    if (!hasRiver && !hasLake && wetland > 0.35f && chunk.GetBlock(x, surface, z) == BlockType.Grass)
+                    {
+                        chunk.SetBlock(x, surface, z, BlockType.Dirt);
                     }
                 }
             }
@@ -398,6 +460,84 @@ namespace GameServerApp.World.Generation
 
                 Array.Copy(buffer, field, buffer.Length);
             }
+        }
+
+        private void RelaxEdges(float[,] field, int iterations, double blend)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                var buffer = (float[,])field.Clone();
+
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        if (!IsEdge(x, z))
+                        {
+                            continue;
+                        }
+
+                        float sum = 0;
+                        int samples = 0;
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                                {
+                                    continue;
+                                }
+
+                                sum += field[nx, nz];
+                                samples++;
+                            }
+                        }
+
+                        var average = samples > 0 ? sum / samples : field[x, z];
+                        buffer[x, z] = (float)(field[x, z] * (1.0 - blend) + average * blend);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private double ComputeSlope(int[,] heightMap, int x, int z)
+        {
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(chunkSize - 1, x + 1), z];
+            int down = heightMap[x, Math.Max(0, z - 1)];
+            int up = heightMap[x, Math.Min(chunkSize - 1, z + 1)];
+
+            double dx = right - left;
+            double dz = up - down;
+            return Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        private double ComputeAnisotropy(int[,] heightMap, int x, int z)
+        {
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(chunkSize - 1, x + 1), z];
+            int down = heightMap[x, Math.Max(0, z - 1)];
+            int up = heightMap[x, Math.Min(chunkSize - 1, z + 1)];
+
+            double slopeX = Math.Abs(right - left);
+            double slopeZ = Math.Abs(up - down);
+            double diff = Math.Abs(slopeX - slopeZ);
+            return Math.Min(1.0, diff * 0.01);
+        }
+
+        private bool IsEdge(int x, int z)
+        {
+            return x == 0 || z == 0 || x == chunkSize - 1 || z == chunkSize - 1;
         }
 
         private BiomeType ResolveBiome(int height, int noiseSample)

@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GameServerApp.Configuration;
+using GameServerApp.World;
 using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp
@@ -32,6 +34,7 @@ namespace GameServerApp
                 try
                 {
                     var config = ServerConfig.LoadFromFile();
+                    EnsureWorldMapProfile(config);
                     var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 
                     var cts = new CancellationTokenSource();
@@ -121,6 +124,7 @@ namespace GameServerApp
                 Console.WriteLine("\n=== Starting Enhanced Minecraft Server ===");
                 
                 var config = ServerConfig.LoadFromFile();
+                EnsureWorldMapProfile(config);
                 var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
                 
                 var cts = new CancellationTokenSource();
@@ -214,7 +218,21 @@ namespace GameServerApp
                     break;
             }
         }
-        
+
+        private static void EnsureWorldMapProfile(ServerConfig config)
+        {
+            var configManager = new DataDrivenConfigManager("config");
+            configManager.ValidateConfigurations();
+
+            var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
+            var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
+
+            var profile = WorldMapControlProfile.Create(worldGenConfig, config.World);
+            profile.RenderDistance = Math.Max(profile.RenderDistance, mapSettings.DefaultRenderDistance);
+            profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
+            WorldMapControlProfileUtility.Save(profile, worldGenConfig.MapControlProfilePath);
+        }
+
         private static void DisplayConfigurationMenu()
         {
             Console.WriteLine("\n=== Server Configuration ===");

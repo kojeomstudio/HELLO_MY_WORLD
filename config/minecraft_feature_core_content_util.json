@@ -111,6 +111,46 @@
             "Environment-specific configs",
             "Configuration versioning"
           ]
+        },
+        {
+          "id": "core_007",
+          "name": "World Map Control & Hydrology Sync",
+          "description": "Server/client aligned world map control profile with hydrology-aware terrain masks (caves, rivers, lakes)",
+          "status": "in_progress",
+          "priority": "critical",
+          "components": [
+            "config/world_map_control_profile.json",
+            "GameServer.WorldMapControlManager",
+            "Unity EnhancedWorldMapController",
+            "EnhancedTerrainGenerationPipeline",
+            "ImprovedTerrainCoordinator"
+          ],
+          "improvements_needed": [
+            "Share profile hash to clients and validate alignment",
+            "Hydrology-aware river/lake carving with seam relaxation",
+            "Cave stability smoothing and edge sealing",
+            "Render-distance aware map texture sizing using chunkSize",
+            "Data-driven wetland and mouth smoothing"
+          ]
+        },
+        {
+          "id": "core_008",
+          "name": "EnhancedMinecraft Protocol Validation",
+          "description": "Google Protobuf pipeline validation to ensure generated packets and handlers stay aligned",
+          "status": "in_progress",
+          "priority": "high",
+          "components": [
+            "SharedProtocol/EnhancedMinecraft/*",
+            "proto/enhanced_minecraft_game.proto",
+            "Assets/Generated/Protobuf",
+            "ProtocolValidator"
+          ],
+          "improvements_needed": [
+            "Registry coverage checks for new packets",
+            "Handler contract validation per message type",
+            "Fingerprint/hash guardrails to catch stale bindings",
+            "Surface-level self test during server startup"
+          ]
         }
       ]
     },
@@ -389,6 +429,28 @@
       "estimated_time": "2-3 weeks"
     }
   },
+  "execution_order": [
+    {
+      "order": 1,
+      "focus": "Align map-control profile and hydrology defaults",
+      "features": ["core_001", "core_007"]
+    },
+    {
+      "order": 2,
+      "focus": "Protocol validation and packet registry hardening",
+      "features": ["core_002", "core_008"]
+    },
+    {
+      "order": 3,
+      "focus": "Content balance after terrain/protocol changes",
+      "features": ["content_001", "content_003", "content_006"]
+    },
+    {
+      "order": 4,
+      "focus": "Utility polish and tooling",
+      "features": ["util_001", "util_005"]
+    }
+  ],
   "technical_requirements": {
     "protocol_requirements": {
       "standardize_protobuf": "Complete Google.Protobuf standardization",
@@ -412,7 +474,7 @@
       "authentication": "Secure authentication with encryption"
     }
   },
-  "last_updated": "2025-12-28T06:32:00Z",
-  "version": "1.0.0"
+  "last_updated": "2025-12-30T15:00:00Z",
+  "version": "1.1.0"
 }
 

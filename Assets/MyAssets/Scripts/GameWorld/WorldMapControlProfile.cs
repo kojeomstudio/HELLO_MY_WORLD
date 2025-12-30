@@ -537,4 +537,10 @@ public sealed class WorldMapControlProfile
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));
         return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
     }
+
+    public bool MatchesHash(string hash)
+    {
+        return !string.IsNullOrWhiteSpace(hash) &&
+               string.Equals(ProfileHash, hash, StringComparison.OrdinalIgnoreCase);
+    }
 }

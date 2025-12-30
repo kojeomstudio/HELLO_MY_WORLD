@@ -74,6 +74,7 @@ public static class ProtocolValidator
         ValidateServerStatusDescriptors();
         ValidateEntityDescriptors();
         ValidateEnumBindings();
+        ValidateOptionalDescriptorVisibility();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -479,6 +480,21 @@ public static class ProtocolValidator
             string joined = string.Join(", ", missing);
             throw new InvalidOperationException(
                 $"EnhancedMinecraft protocol registry is missing bindings for: {joined}. Add ProtocolRegistry entries or mark them optional so generated protobuf classes remain reachable via using directives.");
+        }
+    }
+
+    private static void ValidateOptionalDescriptorVisibility()
+    {
+        foreach (var messageType in OptionalMessages)
+        {
+            bool generated = EnhancedMinecraftGameReflection.Descriptor
+                .MessageTypes
+                .Any(d => d.Name == messageType.ToString());
+
+            if (!generated)
+            {
+                Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft packet '{messageType}' is not present in generated descriptors. Run protoc to keep optional bindings reachable when promoted to required.");
+            }
         }
     }
 

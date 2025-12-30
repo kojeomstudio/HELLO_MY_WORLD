@@ -246,8 +246,11 @@ namespace GameServerApp.World.Generation
                     double continuity = 1.0 - Math.Min(1.0, slope * water.RiverGradientPenalty * 0.01);
                     double anisotropy = ComputeAnisotropy(heightMap, x, z) * water.RiverAnisotropyWeight;
                     double reliefPenalty = Math.Max(0.0, (heightMap[x, z] - seaLevel) * water.RiverReliefPenaltyWeight * 0.01);
+                    double flowAlignment = ComputeFlowAlignment(heightMap, x, z) * water.RiverFlowAlignmentWeight;
+                    double headwaterStability = 1.0 - Math.Min(1.0, Math.Abs(heightMap[x, z] - seaLevel) * water.RiverHeadwaterStabilityWeight * 0.01);
 
-                    intensity = intensity * continuity - anisotropy - reliefPenalty;
+                    intensity = intensity * continuity * headwaterStability + flowAlignment;
+                    intensity -= anisotropy + reliefPenalty;
                     if (IsEdge(x, z))
                     {
                         intensity *= Math.Max(0.15, 1.0 - water.RiverEdgeFeather);
@@ -262,6 +265,7 @@ namespace GameServerApp.World.Generation
 
             Smooth2D(mask, water.RiverIntensitySmoothIterations, water.RiverIntensitySmoothBlend);
             RelaxEdges(mask, water.HydrologySeamRelaxIterations, water.HydrologySeamRelaxBlend);
+            BoostRiverConfluences(mask, water.RiverConfluenceBoost);
             return mask;
         }
 
@@ -296,11 +300,15 @@ namespace GameServerApp.World.Generation
                         (int)worldSettings.WorldSeed ^ 0x99);
 
                     double weight = (noise * 0.6) + (basin * 0.4) + lakeConfig.SpawnWeightBias;
+                    double inflow = riverMask != null ? riverMask[x, z] * config.Water.LakeInflowBlendWeight : 0.0;
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
                     double altitudePenalty = Math.Max(0, seaLevel - heightMap[x, z]) * 0.0025;
-                    weight -= riverSuppression + altitudePenalty;
+                    double slopePenalty = ComputeSlope(heightMap, x, z) * config.Water.LakeRimErosionWeight * 0.05;
+                    weight += inflow;
+                    weight -= riverSuppression + altitudePenalty + slopePenalty;
 
-                    if (weight > lakeConfig.WetlandSaturationThreshold && heightMap[x, z] > bedrockLevel + lakeConfig.MinDepth)
+                    double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - inflow * 0.1;
+                    if (weight > wetlandThreshold && heightMap[x, z] > bedrockLevel + lakeConfig.MinDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);
                     }
@@ -309,6 +317,7 @@ namespace GameServerApp.World.Generation
 
             Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, config.Water.HydrologySmoothBlend);
             RelaxEdges(lakes, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
+            ApplyWetlandBuffer(lakes, lakeConfig.WetlandBufferRadius, lakeConfig.ShorelineBlend);
             return lakes;
         }
 
@@ -326,6 +335,12 @@ namespace GameServerApp.World.Generation
                             continue;
                         }
 
+                        bool isEdge = x == 0 || z == 0 || x == chunkSize - 1 || z == chunkSize - 1;
+                        if (isEdge && random.NextDouble() < config.Caves.EdgeSealStrength)
+                        {
+                            continue;
+                        }
+
                         bool nearBottom = y < bedrockLevel + 6;
                         if (nearBottom && random.NextDouble() < caves.LavaThreshold)
                         {
@@ -338,6 +353,8 @@ namespace GameServerApp.World.Generation
                     }
                 }
             }
+
+            AddCaveSupports(chunk, caves);
         }
 
         private void ApplyHydrology(ChunkData chunk, int[,] heightMap, float[,]? riverMask, float[,]? lakeMask)
@@ -374,6 +391,9 @@ namespace GameServerApp.World.Generation
                                 chunk.SetBlock(x, bankY, z, b == 0 ? BlockType.Sand : BlockType.Dirt);
                             }
                         }
+
+                        ErodeRiverBanks(chunk, x, z, surface, bankDepth, config.Water.RiverBankErosionWeight);
+                        ApplyRiverMouthBlend(chunk, x, z, surface, config.Water.RiverMouthSmoothRadius);
                     }
                     else if (hasLake)
                     {
@@ -394,6 +414,8 @@ namespace GameServerApp.World.Generation
                                 chunk.SetBlock(x, bankY, z, BlockType.Sand);
                             }
                         }
+
+                        ApplyWetlandRing(chunk, x, z, surface, config.Lakes.WetlandBufferRadius);
                     }
 
                     // Ensure sea level fill for low terrain
@@ -510,6 +532,97 @@ namespace GameServerApp.World.Generation
             }
         }
 
+        private void BoostRiverConfluences(float[,] field, double confluenceBoost)
+        {
+            if (confluenceBoost <= 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    float center = field[x, z];
+                    if (center <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float neighbors = 0f;
+                    int samples = 0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            neighbors += field[x + dx, z + dz];
+                            samples++;
+                        }
+                    }
+
+                    float average = samples > 0 ? neighbors / samples : 0f;
+                    float boosted = center + (average * (float)confluenceBoost * 0.5f);
+                    buffer[x, z] = Math.Clamp(boosted, 0f, 1f);
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private void ApplyWetlandBuffer(float[,] field, int radius, double shorelineBlend)
+        {
+            radius = Math.Max(0, radius);
+            shorelineBlend = Math.Clamp(shorelineBlend, 0.0, 1.0);
+            if (radius == 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float center = field[x, z];
+                    if (center <= 0f)
+                    {
+                        continue;
+                    }
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                            {
+                                continue;
+                            }
+
+                            float falloff = 1f - (Math.Abs(dx) + Math.Abs(dz)) / (float)(radius + 1);
+                            float influence = Math.Clamp(center * (float)shorelineBlend * falloff, 0f, 1f);
+                            buffer[nx, nz] = Math.Max(buffer[nx, nz], influence);
+                        }
+                    }
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
         private double ComputeSlope(int[,] heightMap, int x, int z)
         {
             int left = heightMap[Math.Max(0, x - 1), z];
@@ -533,6 +646,160 @@ namespace GameServerApp.World.Generation
             double slopeZ = Math.Abs(up - down);
             double diff = Math.Abs(slopeX - slopeZ);
             return Math.Min(1.0, diff * 0.01);
+        }
+
+        private double ComputeFlowAlignment(int[,] heightMap, int x, int z)
+        {
+            int current = heightMap[x, z];
+            int east = heightMap[Math.Min(chunkSize - 1, x + 1), z];
+            int north = heightMap[x, Math.Min(chunkSize - 1, z + 1)];
+
+            double dx = current - east;
+            double dz = current - north;
+            double magnitude = Math.Sqrt(dx * dx + dz * dz);
+            if (magnitude <= double.Epsilon)
+            {
+                return 0.0;
+            }
+
+            double normalized = magnitude / (magnitude + 12.0);
+            return 1.0 - normalized;
+        }
+
+        private void AddCaveSupports(ChunkData chunk, CaveConfig caves)
+        {
+            double chance = Math.Clamp(caves.SupportPillarChance, 0.0, 1.0);
+            if (chance <= 0.0)
+            {
+                return;
+            }
+
+            int maxY = Math.Min(worldHeight - 4, seaLevel);
+            for (int x = 1; x < chunkSize - 1; x++)
+            {
+                for (int z = 1; z < chunkSize - 1; z++)
+                {
+                    if (random.NextDouble() > chance)
+                    {
+                        continue;
+                    }
+
+                    int baseY = random.Next(bedrockLevel + 2, Math.Max(bedrockLevel + 3, maxY - 6));
+                    int height = random.Next(2, 5);
+                    for (int i = 0; i < height; i++)
+                    {
+                        int y = baseY + i;
+                        var current = chunk.GetBlock(x, y, z);
+                        if (current == BlockType.Air || current == BlockType.Water)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Stone);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ErodeRiverBanks(ChunkData chunk, int x, int z, int surface, int bankDepth, double erosionWeight)
+        {
+            if (erosionWeight <= 0.0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, (int)Math.Round(erosionWeight * 4));
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    if (Math.Abs(dx) + Math.Abs(dz) > radius)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                    {
+                        continue;
+                    }
+
+                    int ny = Math.Max(bedrockLevel + 1, surface - bankDepth);
+                    var block = chunk.GetBlock(nx, ny, nz);
+                    if (block == BlockType.Grass)
+                    {
+                        chunk.SetBlock(nx, ny, nz, BlockType.Dirt);
+                    }
+                    else if (block == BlockType.Dirt && ny <= seaLevel + 1)
+                    {
+                        chunk.SetBlock(nx, ny, nz, BlockType.Sand);
+                    }
+                }
+            }
+        }
+
+        private void ApplyRiverMouthBlend(ChunkData chunk, int x, int z, int surface, int radius)
+        {
+            radius = Math.Max(0, radius);
+            if (radius == 0 || surface > seaLevel + radius)
+            {
+                return;
+            }
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                    {
+                        continue;
+                    }
+
+                    int ny = Math.Max(bedrockLevel + 1, seaLevel - Math.Max(0, Math.Abs(dx) + Math.Abs(dz) - 1));
+                    for (int y = ny; y <= seaLevel; y++)
+                    {
+                        if (chunk.GetBlock(nx, y, nz) == BlockType.Air || chunk.GetBlock(nx, y, nz) == BlockType.Dirt)
+                        {
+                            chunk.SetBlock(nx, y, nz, BlockType.Water);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyWetlandRing(ChunkData chunk, int x, int z, int surface, int radius)
+        {
+            radius = Math.Max(0, radius);
+            if (radius == 0)
+            {
+                return;
+            }
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                    {
+                        continue;
+                    }
+
+                    int ny = Math.Max(bedrockLevel + 1, surface - 1);
+                    var block = chunk.GetBlock(nx, ny, nz);
+                    if (block == BlockType.Grass)
+                    {
+                        chunk.SetBlock(nx, ny, nz, BlockType.Dirt);
+                    }
+
+                    if (ny < seaLevel && chunk.GetBlock(nx, ny + 1, nz) == BlockType.Air)
+                    {
+                        chunk.SetBlock(nx, ny + 1, nz, BlockType.Water);
+                    }
+                }
+            }
         }
 
         private bool IsEdge(int x, int z)

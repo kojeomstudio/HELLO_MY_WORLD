@@ -15,6 +15,7 @@ namespace GameServerApp.World
     {
         private readonly WorldMapControlSettings settings;
         private readonly EnhancedTerrainGenerationPipeline pipeline;
+        private readonly WorldMapControlProfile controlProfile;
         private readonly ConcurrentDictionary<int, WorldMapProfile> profiles = new();
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
 
@@ -25,6 +26,7 @@ namespace GameServerApp.World
             if (worldSettings == null) throw new ArgumentNullException(nameof(worldSettings));
 
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+            controlProfile = WorldMapControlProfile.Create(generationConfig, worldSettings);
         }
 
         public Task<WorldMapResponse> HandleAsync(WorldMapRequest request)
@@ -78,6 +80,8 @@ namespace GameServerApp.World
             return new WorldMapResponse
             {
                 Success = true,
+                ControlProfile = controlProfile,
+                ControlProfileHash = controlProfile.ProfileHash,
                 WorldMapData = new WorldMapData
                 {
                     Chunks = chunks,
@@ -104,6 +108,7 @@ namespace GameServerApp.World
             return new WorldMapResponse
             {
                 Success = true,
+                ControlProfileHash = controlProfile.ProfileHash,
                 WorldMapData = new WorldMapData
                 {
                     Chunks = chunkList,
@@ -144,6 +149,7 @@ namespace GameServerApp.World
             return Task.FromResult(new WorldMapResponse
             {
                 Success = true,
+                ControlProfileHash = controlProfile.ProfileHash,
                 PlayerProfile = profile
             });
         }
@@ -195,6 +201,8 @@ namespace GameServerApp.World
         public string? ErrorMessage { get; set; }
         public WorldMapData? WorldMapData { get; set; }
         public WorldMapProfile? PlayerProfile { get; set; }
+        public WorldMapControlProfile? ControlProfile { get; set; }
+        public string ControlProfileHash { get; set; } = string.Empty;
     }
 
     public sealed class WorldMapData

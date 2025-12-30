@@ -32,6 +32,7 @@ namespace Minecraft.World
         private WorldMapControlProfile _mapControlProfile;
         private readonly Dictionary<Vector2Int, ChunkData> _loadedChunks = new();
         private readonly Dictionary<string, PlayerMapMarker> _playerMarkers = new();
+        private string _profileHash = string.Empty;
         private bool _showPlayers = true;
         private bool _showCaves = true;
         private bool _showRivers = true;
@@ -68,11 +69,13 @@ namespace Minecraft.World
 
             string profilePath = ResolveProfilePath();
             _mapControlProfile = WorldMapControlProfile.LoadFromFile(profilePath, _worldConfig);
+            _profileHash = _mapControlProfile.ProfileHash;
             _showPlayers = true;
             _showCaves = _mapControlProfile.EnableCaves;
             _showRivers = _mapControlProfile.EnableRivers;
             _showLakes = _mapControlProfile.EnableLakes;
             ApplyToggleDefaults();
+            ValidateProfileHash();
         }
 
         private string ResolveProfilePath()
@@ -142,20 +145,37 @@ namespace Minecraft.World
         private void InitializeMapRendering()
         {
             // Create render texture for map
-            int mapSize = _mapControlProfile.RenderDistance * 2 * 16;
-            _mapRenderTexture = new RenderTexture(mapSize, mapSize, 24);
-            _mapRenderTexture.name = "WorldMapRenderTexture";
+            int chunkSize = Mathf.Max(1, _mapControlProfile.ChunkSize);
+            int mapSize = Mathf.Max(chunkSize * 2, _mapControlProfile.RenderDistance * 2 * chunkSize);
+
+            if (_mapRenderTexture != null)
+            {
+                _mapRenderTexture.Release();
+                DestroyImmediate(_mapRenderTexture);
+            }
+
+            if (_mapTexture != null)
+            {
+                DestroyImmediate(_mapTexture);
+            }
+
+            _mapRenderTexture = new RenderTexture(mapSize, mapSize, 24)
+            {
+                name = "WorldMapRenderTexture"
+            };
             
             // Create texture for map display
-            _mapTexture = new Texture2D(mapSize, mapSize, TextureFormat.RGB24, false);
-            _mapTexture.name = "WorldMapTexture";
+            _mapTexture = new Texture2D(mapSize, mapSize, TextureFormat.RGB24, false)
+            {
+                name = "WorldMapTexture"
+            };
             
             // Setup camera for map rendering
             if (mapCamera != null)
             {
                 mapCamera.targetTexture = _mapRenderTexture;
                 mapCamera.orthographic = true;
-                mapCamera.orthographicSize = _mapControlProfile.RenderDistance * 16;
+                mapCamera.orthographicSize = _mapControlProfile.RenderDistance * chunkSize;
                 mapCamera.cullingMask = LayerMask.GetMask("MapLayer");
             }
         }
@@ -401,6 +421,36 @@ namespace Minecraft.World
         {
             return WorldMapControlProfile.FromConfig(_worldConfig);
         }
+
+        public void ApplyServerProfile(WorldMapControlProfile profile, string serverHash = "")
+        {
+            if (profile == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(serverHash) &&
+                !string.Equals(profile.ProfileHash, serverHash, StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.LogWarning($"[WorldMap] Server profile hash {serverHash} differs from local {_profileHash}. Rebinding to server profile.");
+            }
+
+            _mapControlProfile = profile;
+            _profileHash = profile.ProfileHash;
+            _showCaves = profile.EnableCaves;
+            _showRivers = profile.EnableRivers;
+            _showLakes = profile.EnableLakes;
+            ApplyToggleDefaults();
+            InitializeMapRendering();
+        }
+
+        private void ValidateProfileHash()
+        {
+            if (string.IsNullOrWhiteSpace(_profileHash))
+            {
+                Debug.LogWarning("[WorldMap] Map-control profile hash missing; verify server exported config/world_map_control_profile.json.");
+            }
+        }
         
         // Toggle event handlers
         private void OnShowPlayersToggled(bool isOn)
@@ -412,6 +462,13 @@ namespace Minecraft.World
         private void OnShowCavesToggled(bool isOn)
         {
             // Update map to show/hide caves
+            if (!_mapControlProfile.EnableCaves)
+            {
+                _showCaves = false;
+                if (showCavesToggle != null) showCavesToggle.isOn = false;
+                return;
+            }
+
             _showCaves = isOn;
             UpdateMap();
         }
@@ -419,6 +476,13 @@ namespace Minecraft.World
         private void OnShowRiversToggled(bool isOn)
         {
             // Update map to show/hide rivers
+            if (!_mapControlProfile.EnableRivers)
+            {
+                _showRivers = false;
+                if (showRiversToggle != null) showRiversToggle.isOn = false;
+                return;
+            }
+
             _showRivers = isOn;
             UpdateMap();
         }
@@ -426,6 +490,13 @@ namespace Minecraft.World
         private void OnShowLakesToggled(bool isOn)
         {
             // Update map to show/hide lakes
+            if (!_mapControlProfile.EnableLakes)
+            {
+                _showLakes = false;
+                if (showLakesToggle != null) showLakesToggle.isOn = false;
+                return;
+            }
+
             _showLakes = isOn;
             UpdateMap();
         }

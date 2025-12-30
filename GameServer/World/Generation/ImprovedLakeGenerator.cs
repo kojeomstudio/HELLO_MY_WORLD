@@ -30,14 +30,19 @@ namespace GameServerApp.World.Generation
 
                     double primary = SimplexNoise.Generate(worldX * 0.008, worldZ * 0.008, 1.0, 3, 1.0, 0.55, random.Next());
                     double basin = SimplexNoise.Generate(worldX * 0.004 + 31, worldZ * 0.004 + 17, 1.0, 2, 1.0, 0.6, random.Next());
-                    double weight = (primary * 0.6) + (basin * 0.4) + config.SpawnWeightBias;
+                    double inflow = riverMask != null ? riverMask[x, z] * config.ShorelineBlend : 0.0;
+                    double slope = ComputeSlope(heightMap, x, z, chunkSize);
+                    double rimPenalty = slope * config.ShorelineBlend * 0.05;
+                    double elevationBias = Math.Max(0, seaLevel - heightMap[x, z]) * 0.0015;
+                    double weight = (primary * 0.6) + (basin * 0.4) + config.SpawnWeightBias + inflow + elevationBias - rimPenalty;
 
                     if (riverMask != null)
                     {
-                        weight -= riverMask[x, z] * config.RiverProximitySuppression;
+                        weight -= riverMask[x, z] * config.RiverProximitySuppression * 0.5;
                     }
 
-                    if (weight > config.WetlandSaturationThreshold && heightMap[x, z] > seaLevel - config.MaxDepth)
+                    double wetlandThreshold = config.WetlandSaturationThreshold - (inflow * 0.15);
+                    if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - config.MaxDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);
                     }
@@ -45,7 +50,20 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth(lakes, config.LakeBasinSmoothIterations, 0.55);
+            ApplyWetlandBuffer(lakes, config.WetlandBufferRadius, config.ShorelineBlend);
             return lakes;
+        }
+
+        private static double ComputeSlope(int[,] heightMap, int x, int z, int chunkSize)
+        {
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(chunkSize - 1, x + 1), z];
+            int down = heightMap[x, Math.Max(0, z - 1)];
+            int up = heightMap[x, Math.Min(chunkSize - 1, z + 1)];
+
+            double dx = right - left;
+            double dz = up - down;
+            return Math.Sqrt(dx * dx + dz * dz);
         }
 
         private static void Smooth(float[,] field, int iterations, double blend)
@@ -93,6 +111,51 @@ namespace GameServerApp.World.Generation
 
                 Array.Copy(buffer, field, buffer.Length);
             }
+        }
+
+        private static void ApplyWetlandBuffer(float[,] field, int radius, double shorelineBlend)
+        {
+            radius = Math.Max(0, radius);
+            shorelineBlend = Math.Clamp(shorelineBlend, 0.0, 1.0);
+            if (radius == 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float center = field[x, z];
+                    if (center <= 0f)
+                    {
+                        continue;
+                    }
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                            {
+                                continue;
+                            }
+
+                            float distanceFalloff = 1f - (Math.Abs(dx) + Math.Abs(dz)) / (float)(radius + 1);
+                            float influence = Math.Clamp(center * (float)shorelineBlend * distanceFalloff, 0f, 1f);
+                            buffer[nx, nz] = Math.Max(buffer[nx, nz], influence);
+                        }
+                    }
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
         }
     }
 }

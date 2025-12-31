@@ -69,6 +69,12 @@ namespace Minecraft.World
 
             string profilePath = ResolveProfilePath();
             _mapControlProfile = WorldMapControlProfile.LoadFromFile(profilePath, _worldConfig);
+            if (_mapControlProfile.Version < _worldConfig.MapControlProfileVersion)
+            {
+                Debug.LogWarning($"[WorldMap] Map-control profile v{_mapControlProfile.Version} is older than config v{_worldConfig.MapControlProfileVersion}. Regenerating from config.");
+                _mapControlProfile = WorldMapControlProfile.FromConfig(_worldConfig);
+            }
+
             _profileHash = _mapControlProfile.ProfileHash;
             _showPlayers = true;
             _showCaves = _mapControlProfile.EnableCaves;
@@ -81,23 +87,13 @@ namespace Minecraft.World
         private string ResolveProfilePath()
         {
             string defaultPath = Path.Combine(Application.streamingAssetsPath, "world-map-control.json");
-            try
+            string configuredPath = _worldConfig != null ? _worldConfig.MapControlProfilePath : string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(configuredPath))
             {
-                var pathProperty = typeof(WorldConfig).GetProperty("MapControlProfilePath");
-                if (pathProperty != null)
-                {
-                    var value = pathProperty.GetValue(_worldConfig) as string;
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        return Path.IsPathRooted(value)
-                            ? value
-                            : Path.Combine(Application.streamingAssetsPath, value);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[WorldMap] Failed to resolve map-control profile path: {ex.Message}");
+                return Path.IsPathRooted(configuredPath)
+                    ? configuredPath
+                    : Path.Combine(Application.streamingAssetsPath, configuredPath);
             }
 
             return defaultPath;

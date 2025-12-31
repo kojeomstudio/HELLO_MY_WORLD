@@ -151,6 +151,27 @@
             "Fingerprint/hash guardrails to catch stale bindings",
             "Surface-level self test during server startup"
           ]
+        },
+        {
+          "id": "core_009",
+          "name": "World Config & Map Control Parity",
+          "description": "Keep Unity world config aligned with server hydrology/cave/lake knobs and refresh map-control profiles when versions shift",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json",
+            "config/world.json",
+            "config/world_map_control_profile.json"
+          ],
+          "improvements_needed": [
+            "Keep profile hashes in sync across server and client builds",
+            "Regenerate world-map-control profiles when config versions increment",
+            "Validate hydrology, lake, and cave knobs against streamed profile data"
+          ]
         }
       ]
     },
@@ -433,7 +454,7 @@
     {
       "order": 1,
       "focus": "Align map-control profile and hydrology defaults",
-      "features": ["core_001", "core_007"]
+      "features": ["core_001", "core_007", "core_009"]
     },
     {
       "order": 2,
@@ -474,7 +495,7 @@
       "authentication": "Secure authentication with encryption"
     }
   },
-  "last_updated": "2025-12-30T15:00:00Z",
-  "version": "1.1.0"
+  "last_updated": "2026-02-11T00:00:00Z",
+  "version": "1.2.0"
 }
 

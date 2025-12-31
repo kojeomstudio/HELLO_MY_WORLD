@@ -6,8 +6,8 @@ using UnityEngine;
 namespace Minecraft.Core
 {
     /// <summary>
-    /// Client-side world configuration manager that mirrors server's WorldGenerationConfig
-    /// Ensures terrain generation parity between server and client
+    /// Client-side world configuration loader that mirrors the authoritative server JSON.
+    /// Exposes hydrology/cave/lake tuning so Unity world previews match server generation.
     /// </summary>
     public class WorldConfig
     {
@@ -21,7 +21,9 @@ namespace Minecraft.Core
         public int ChunkSize { get; private set; }
         public int RenderDistance { get; private set; }
         public int SimulationDistance { get; private set; }
-        
+        public string MapControlProfilePath { get; private set; }
+        public int MapControlProfileVersion { get; private set; }
+
         public TerrainConfig Terrain { get; private set; }
         public WaterConfig Water { get; private set; }
         public CaveConfig Caves { get; private set; }
@@ -36,11 +38,11 @@ namespace Minecraft.Core
         private static WorldConfig LoadConfig()
         {
             var config = new WorldConfig();
-            
+
             try
             {
                 string configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
-                
+
                 if (File.Exists(configPath))
                 {
                     string jsonContent = File.ReadAllText(configPath);
@@ -64,196 +66,201 @@ namespace Minecraft.Core
 
         private void InitializeFromData(WorldConfigData data)
         {
-            WorldName = data.WorldName ?? "DefaultWorld";
+            WorldName = string.IsNullOrWhiteSpace(data.WorldName) ? "DefaultWorld" : data.WorldName;
             Seed = data.Seed;
-            GameMode = data.GameMode ?? "survival";
-            WorldHeight = data.WorldHeight;
-            ChunkSize = data.ChunkSize;
-            RenderDistance = data.RenderDistance;
-            SimulationDistance = data.SimulationDistance;
+            GameMode = string.IsNullOrWhiteSpace(data.GameMode) ? "survival" : data.GameMode;
+            WorldHeight = Math.Max(1, data.WorldHeight);
+            ChunkSize = Math.Max(1, data.ChunkSize);
+            RenderDistance = Math.Max(1, data.RenderDistance);
+            SimulationDistance = Math.Max(1, data.SimulationDistance);
+            MapControlProfilePath = string.IsNullOrWhiteSpace(data.MapControlProfilePath)
+                ? "world-map-control.json"
+                : data.MapControlProfilePath;
+            MapControlProfileVersion = data.MapControlProfileVersion <= 0 ? 1 : data.MapControlProfileVersion;
 
-            Terrain = new TerrainConfig(data.TerrainGeneration);
-            Water = new WaterConfig(data.Water);
-            Caves = new CaveConfig(data.Caves);
-            Ores = new OreConfig(data.Ores);
-            Structures = new StructureConfig(data.Structures);
-            Lakes = new LakeConfig(data.Lakes);
+            Terrain = new TerrainConfig(data.TerrainGeneration ?? new TerrainGenerationData());
+            Water = new WaterConfig(data.Water ?? new WaterData());
+            Caves = new CaveConfig(data.Caves ?? new CaveData());
+            Ores = new OreConfig(data.Ores ?? new OreData());
+            Structures = new StructureConfig(data.Structures ?? new StructureData());
+            Lakes = new LakeConfig(data.Lakes ?? new LakeData());
         }
 
         private void InitializeDefaults()
         {
-            WorldName = "DefaultWorld";
-            Seed = 0;
-            GameMode = "survival";
-            WorldHeight = 256;
-            ChunkSize = 16;
-            RenderDistance = 10;
-            SimulationDistance = 8;
-
-            Terrain = new TerrainConfig();
-            Water = new WaterConfig();
-            Caves = new CaveConfig();
-            Ores = new OreConfig();
-            Structures = new StructureConfig();
-            Lakes = new LakeConfig();
+            InitializeFromData(new WorldConfigData());
         }
 
         public void ApplyToUnity()
         {
             // Apply quality settings based on configuration
-            QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1); // Max quality for testing
-            
-            // Apply render distance to any relevant Unity systems
-            // This would be used by chunk loading systems
+            QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1);
         }
     }
 
-    [System.Serializable]
+    [Serializable]
     public class WorldConfigData
     {
-        public string WorldName;
-        public int Seed;
-        public string GameMode;
-        public int WorldHeight;
-        public int ChunkSize;
-        public int RenderDistance;
-        public int SimulationDistance;
-        public TerrainGenerationData TerrainGeneration;
-        public WaterData Water;
-        public CaveData Caves;
-        public OreData Ores;
-        public StructureData Structures;
-        public LakeData Lakes;
+        public string WorldName = "HELLO_MY_WORLD";
+        public int Seed = 0;
+        public string GameMode = "survival";
+        public int WorldHeight = 256;
+        public int ChunkSize = 16;
+        public int RenderDistance = 10;
+        public int SimulationDistance = 8;
+        public string MapControlProfilePath = "world-map-control.json";
+        public int MapControlProfileVersion = 1;
+        public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
+        public WaterData Water = new WaterData();
+        public CaveData Caves = new CaveData();
+        public OreData Ores = new OreData();
+        public StructureData Structures = new StructureData();
+        public LakeData Lakes = new LakeData();
     }
 
-    [System.Serializable]
+    [Serializable]
     public class TerrainGenerationData
     {
-        public int SeaLevel;
-        public int BedrockLevel;
-        public float NoiseScale;
-        public float NoiseAmplitude;
-        public int Octaves;
-        public float Persistence;
-        public float Lacunarity;
-        public float BiomeScale;
-        public float TemperatureScale;
-        public float HumidityScale;
-        public float MountainThreshold;
-        public int MountainMaxHeight;
-        public int PlainBaseHeight;
+        public int SeaLevel = 62;
+        public int BedrockLevel = 5;
+        public float NoiseScale = 100.0f;
+        public float NoiseAmplitude = 50.0f;
+        public int Octaves = 4;
+        public float Persistence = 0.5f;
+        public float Lacunarity = 2.0f;
+        public float BiomeScale = 0.005f;
+        public float TemperatureScale = 0.003f;
+        public float HumidityScale = 0.004f;
+        public float MountainThreshold = 0.6f;
+        public int MountainMaxHeight = 200;
+        public int PlainBaseHeight = 64;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class WaterData
     {
-        public int GlobalWaterLevel;
-        public float RiverCenterThreshold;
-        public float RiverBankThreshold;
-        public int HydrologySmoothIterations;
-        public float HydrologySmoothBlend;
-        public float HydrologyShorePush;
-        public float HydrologySlopePenalty;
-        public float HydrologyFlowGain;
-        public float HydrologyContinuityWeight;
-        public float HydrologyEdgeFlowBias;
-        public float HydrologyEdgeTangentWeight;
-        public float HydrologyEdgeFlowLockWeight;
-        public int HydrologyEdgeBlendRadius;
-        public int HydrologyEdgeStabilityIterations;
-        public float HydrologyEdgeStabilityWeight;
-        public float HydrologyEdgeVarianceClamp;
-        public float HydrologyWaterTableClampWeight;
-        public int HydrologyWaterTableClampRange;
-        public float HydrologyWaterTableSlopeWeight;
-        public float HydrologyFlowPersistence;
-        public float HydrologyGradientWeight;
-        public float HydrologyGradientSlopeWeight;
-        public float HydrologyGradientClamp;
-        public int HydrologyGradientStabilityIterations;
-        public float HydrologyGradientStabilityBlend;
-        public int HydrologyDirectionalIterations;
-        public float HydrologyDirectionalBlend;
-        public float HydrologyFlowDivergenceClamp;
-        public float HydrologyCurvatureWeight;
-        public int HydrologySeamRelaxIterations;
-        public float HydrologySeamRelaxBlend;
-        public float RiverReliefPenaltyWeight;
-        public float HydrologyWarpFrequency;
-        public float HydrologyWarpAmplitude;
-        public float RiverFlowAlignmentWeight;
-        public float RiverGradientPenalty;
-        public float RiverHeadwaterStabilityWeight;
-        public float RiverAnisotropyWeight;
-        public float RiverBankErosionWeight;
-        public float LakeRimErosionWeight;
-        public float LakeInflowBlendWeight;
-        public float RiverNoiseScale;
-        public int RiverDepth;
-        public int RiverIntensitySmoothIterations;
-        public float RiverIntensitySmoothBlend;
-        public float RiverConfluenceBoost;
-        public bool EnableOceans;
-        public bool EnableRivers;
-        public bool EnableLakes;
-        public bool UseImprovedRivers;
-        public bool UseImprovedLakes;
+        public int GlobalWaterLevel = 62;
+        public float RiverCenterThreshold = 0.0125f;
+        public float RiverBankThreshold = 0.028f;
+        public int HydrologySmoothIterations = 2;
+        public float HydrologySmoothBlend = 0.6f;
+        public float HydrologyShorePush = 5.0f;
+        public float HydrologySlopePenalty = 6.0f;
+        public float HydrologyFlowGain = 0.5f;
+        public float HydrologyContinuityWeight = 0.35f;
+        public float HydrologyEdgeFlowBias = 0.35f;
+        public float HydrologyEdgeTangentWeight = 0.45f;
+        public float HydrologyEdgeFlowLockWeight = 0.38f;
+        public int HydrologyEdgeBlendRadius = 3;
+        public int HydrologyEdgeStabilityIterations = 1;
+        public float HydrologyEdgeStabilityWeight = 0.32f;
+        public float HydrologyEdgeVarianceClamp = 0.32f;
+        public float HydrologyEdgeFluxBlend = 0.55f;
+        public float HydrologyVarianceBlend = 0.55f;
+        public float HydrologyVarianceClamp = 0.65f;
+        public float HydrologyWaterTableClampWeight = 0.42f;
+        public int HydrologyWaterTableClampRange = 18;
+        public float HydrologyWaterTableSlopeWeight = 0.55f;
+        public float HydrologyFlowPersistence = 0.68f;
+        public float HydrologyGradientWeight = 0.35f;
+        public float HydrologyGradientSlopeWeight = 0.42f;
+        public float HydrologyGradientClamp = 1.65f;
+        public int HydrologyGradientStabilityIterations = 1;
+        public float HydrologyGradientStabilityBlend = 0.45f;
+        public int HydrologyDirectionalIterations = 1;
+        public float HydrologyDirectionalBlend = 0.42f;
+        public float HydrologyFlowDivergenceClamp = 0.55f;
+        public float HydrologyCurvatureWeight = 0.32f;
+        public int HydrologySeamRelaxIterations = 2;
+        public float HydrologySeamRelaxBlend = 0.5f;
+        public int RiparianSmoothIterations = 2;
+        public float RiparianSmoothBlend = 0.6f;
+        public float RiparianSaturationBoost = 0.18f;
+        public int RiparianBufferRadius = 1;
+        public float RiverReliefPenaltyWeight = 0.25f;
+        public float HydrologyWarpFrequency = 0.0009f;
+        public float HydrologyWarpAmplitude = 9.0f;
+        public float RiverFlowAlignmentWeight = 0.28f;
+        public float RiverGradientPenalty = 0.42f;
+        public float RiverHeadwaterStabilityWeight = 0.35f;
+        public float RiverAnisotropyWeight = 0.32f;
+        public float RiverBankErosionWeight = 0.18f;
+        public float LakeRimErosionWeight = 0.3f;
+        public float LakeInflowBlendWeight = 0.42f;
+        public float RiverEdgeFeather = 0.45f;
+        public int RiverMouthSmoothRadius = 3;
+        public float RiverDeltaWetlandStrength = 0.45f;
+        public float RiverSeamFillStrength = 0.5f;
+        public float RiverNoiseScale = 0.015f;
+        public int RiverDepth = 6;
+        public int RiverIntensitySmoothIterations = 3;
+        public float RiverIntensitySmoothBlend = 0.58f;
+        public float RiverConfluenceBoost = 0.35f;
+        public bool EnableOceans = true;
+        public bool EnableRivers = true;
+        public bool EnableLakes = true;
+        public bool UseImprovedRivers = true;
+        public bool UseImprovedLakes = true;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class CaveData
     {
-        public bool EnableCaves;
-        public bool UseImprovedCaves;
-        public bool UseRegionalMainCaves;
-        public int RegionalMainCaveRegionSizeChunks;
-        public int RegionalMainCaveWormCountMin;
-        public int RegionalMainCaveWormCountMax;
-        public int RegionalMainCaveStepsMin;
-        public int RegionalMainCaveStepsMax;
-        public int RegionalMainCaveMinY;
-        public int RegionalMainCaveMaxY;
-        public float RegionalMainCaveRadiusMin;
-        public float RegionalMainCaveRadiusMax;
-        public float CaveDensity;
-        public float CaveNoiseScale;
-        public float Threshold;
-        public float CaveThreshold;
-        public int MinCaveHeight;
-        public int MaxCaveHeight;
-        public float HorizontalFrequency;
-        public float VerticalFrequency;
-        public float NoiseThreshold;
-        public float LavaThreshold;
-        public float WaterThreshold;
-        public float FloodedCaveNoiseFrequency;
-        public float FloodedCaveProximityToWaterTableWeight;
-        public float FloodedCaveThreshold;
-        public int StabilitySmoothIterations;
-        public float StabilitySmoothBlend;
-        public float SupportDensity;
-        public float SupportHydrationBias;
-        public float SupportFlowBias;
-        public float HydrologyStabilityWeight;
-        public float FlowStabilityWeight;
-        public float RoughnessStabilityWeight;
-        public float RiverSuppressionWeight;
-        public float MoistureRetentionWeight;
+        public bool EnableCaves = true;
+        public bool UseImprovedCaves = true;
+        public bool UseRegionalMainCaves = true;
+        public int RegionalMainCaveRegionSizeChunks = 4;
+        public int RegionalMainCaveWormCountMin = 4;
+        public int RegionalMainCaveWormCountMax = 9;
+        public int RegionalMainCaveStepsMin = 180;
+        public int RegionalMainCaveStepsMax = 320;
+        public int RegionalMainCaveMinY = 14;
+        public int RegionalMainCaveMaxY = 72;
+        public float RegionalMainCaveRadiusMin = 1.8f;
+        public float RegionalMainCaveRadiusMax = 3.2f;
+        public float CaveDensity = 0.3f;
+        public float CaveNoiseScale = 0.05f;
+        public float Threshold = 0.45f;
+        public float CaveThreshold = 0.45f;
+        public int MinCaveHeight = 5;
+        public int MaxCaveHeight = 128;
+        public float HorizontalFrequency = 0.0026f;
+        public float VerticalFrequency = 0.018f;
+        public float NoiseThreshold = 0.45f;
+        public float LavaThreshold = 0.28f;
+        public float WaterThreshold = 0.34f;
+        public float FloodedCaveNoiseFrequency = 0.0031f;
+        public float FloodedCaveProximityToWaterTableWeight = 0.6f;
+        public float FloodedCaveThreshold = 0.75f;
+        public int StabilitySmoothIterations = 1;
+        public float StabilitySmoothBlend = 0.55f;
+        public float SupportDensity = 0.6f;
+        public float SupportHydrationBias = 0.42f;
+        public float SupportFlowBias = 0.2f;
+        public float HydrologyStabilityWeight = 0.45f;
+        public float FlowStabilityWeight = 0.25f;
+        public float RoughnessStabilityWeight = 0.1f;
+        public float RiverSuppressionWeight = 0.35f;
+        public float MoistureRetentionWeight = 0.35f;
+        public float EdgeSealStrength = 0.45f;
+        public float SupportPillarChance = 0.28f;
+        public int RiparianPlugDepth = 2;
+        public float CaveCeilingStabilityWeight = 0.35f;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class OreData
     {
-        public bool EnableOreGeneration;
-        public OreConfigData Coal;
-        public OreConfigData Iron;
-        public OreConfigData Gold;
-        public OreConfigData Diamond;
-        public OreConfigData Redstone;
-        public OreConfigData Lapis;
+        public bool EnableOreGeneration = true;
+        public OreConfigData Coal = new OreConfigData { MinHeight = 5, MaxHeight = 128, VeinSize = 17, VeinsPerChunk = 20 };
+        public OreConfigData Iron = new OreConfigData { MinHeight = 5, MaxHeight = 64, VeinSize = 9, VeinsPerChunk = 20 };
+        public OreConfigData Gold = new OreConfigData { MinHeight = 5, MaxHeight = 32, VeinSize = 9, VeinsPerChunk = 2 };
+        public OreConfigData Diamond = new OreConfigData { MinHeight = 5, MaxHeight = 16, VeinSize = 8, VeinsPerChunk = 1 };
+        public OreConfigData Redstone = new OreConfigData { MinHeight = 5, MaxHeight = 16, VeinSize = 8, VeinsPerChunk = 8 };
+        public OreConfigData Lapis = new OreConfigData { MinHeight = 5, MaxHeight = 32, VeinSize = 7, VeinsPerChunk = 1 };
     }
 
-    [System.Serializable]
+    [Serializable]
     public class OreConfigData
     {
         public int MinHeight;
@@ -262,47 +269,49 @@ namespace Minecraft.Core
         public int VeinsPerChunk;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class StructureData
     {
-        public bool EnableTrees;
-        public float TreeDensity;
-        public bool EnableVillages;
-        public bool EnableMineshafts;
-        public bool EnableDungeons;
-        public float DungeonChance;
+        public bool EnableTrees = true;
+        public float TreeDensity = 0.05f;
+        public bool EnableVillages = false;
+        public bool EnableMineshafts = false;
+        public bool EnableDungeons = true;
+        public float DungeonChance = 0.01f;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class LakeData
     {
-        public int MinDepth;
-        public int MaxDepth;
-        public int MaxRadius;
-        public int LakeBasinSmoothIterations;
-        public float SpawnWeightBias;
-        public float ShorelineBlend;
-        public float RiverProximitySuppression;
+        public int MinDepth = 3;
+        public int MaxDepth = 9;
+        public int MaxRadius = 9;
+        public int LakeBasinSmoothIterations = 2;
+        public int ShelfDepth = 2;
+        public float SpawnWeightBias = 0.3f;
+        public float ShorelineBlend = 0.66f;
+        public float RiverProximitySuppression = 0.35f;
+        public float WetlandSaturationThreshold = 0.55f;
+        public int OutflowCarveDepth = 2;
+        public int WetlandBufferRadius = 2;
     }
 
-    // Configuration wrapper classes for type safety and easier access
+    // Configuration wrappers for type safety and easier access
     public class TerrainConfig
     {
-        public int SeaLevel { get; private set; }
-        public int BedrockLevel { get; private set; }
-        public float NoiseScale { get; private set; }
-        public float NoiseAmplitude { get; private set; }
-        public int Octaves { get; private set; }
-        public float Persistence { get; private set; }
-        public float Lacunarity { get; private set; }
-        public float BiomeScale { get; private set; }
-        public float TemperatureScale { get; private set; }
-        public float HumidityScale { get; private set; }
-        public float MountainThreshold { get; private set; }
-        public int MountainMaxHeight { get; private set; }
-        public int PlainBaseHeight { get; private set; }
-
-        public TerrainConfig() : this(new TerrainGenerationData()) { }
+        public int SeaLevel { get; }
+        public int BedrockLevel { get; }
+        public float NoiseScale { get; }
+        public float NoiseAmplitude { get; }
+        public int Octaves { get; }
+        public float Persistence { get; }
+        public float Lacunarity { get; }
+        public float BiomeScale { get; }
+        public float TemperatureScale { get; }
+        public float HumidityScale { get; }
+        public float MountainThreshold { get; }
+        public int MountainMaxHeight { get; }
+        public int PlainBaseHeight { get; }
 
         public TerrainConfig(TerrainGenerationData data)
         {
@@ -324,21 +333,129 @@ namespace Minecraft.Core
 
     public class WaterConfig
     {
-        public int GlobalWaterLevel { get; private set; }
-        public float RiverCenterThreshold { get; private set; }
-        public float RiverBankThreshold { get; private set; }
-        public bool EnableRivers { get; private set; }
-        public bool EnableLakes { get; private set; }
-        public bool UseImprovedRivers { get; private set; }
-        public bool UseImprovedLakes { get; private set; }
-
-        public WaterConfig() : this(new WaterData()) { }
+        public int GlobalWaterLevel { get; }
+        public float RiverCenterThreshold { get; }
+        public float RiverBankThreshold { get; }
+        public int HydrologySmoothIterations { get; }
+        public float HydrologySmoothBlend { get; }
+        public float HydrologyShorePush { get; }
+        public float HydrologySlopePenalty { get; }
+        public float HydrologyFlowGain { get; }
+        public float HydrologyContinuityWeight { get; }
+        public float HydrologyEdgeFlowBias { get; }
+        public float HydrologyEdgeTangentWeight { get; }
+        public float HydrologyEdgeFlowLockWeight { get; }
+        public int HydrologyEdgeBlendRadius { get; }
+        public int HydrologyEdgeStabilityIterations { get; }
+        public float HydrologyEdgeStabilityWeight { get; }
+        public float HydrologyEdgeVarianceClamp { get; }
+        public float HydrologyEdgeFluxBlend { get; }
+        public float HydrologyVarianceBlend { get; }
+        public float HydrologyVarianceClamp { get; }
+        public float HydrologyWaterTableClampWeight { get; }
+        public int HydrologyWaterTableClampRange { get; }
+        public float HydrologyWaterTableSlopeWeight { get; }
+        public float HydrologyFlowPersistence { get; }
+        public float HydrologyGradientWeight { get; }
+        public float HydrologyGradientSlopeWeight { get; }
+        public float HydrologyGradientClamp { get; }
+        public int HydrologyGradientStabilityIterations { get; }
+        public float HydrologyGradientStabilityBlend { get; }
+        public int HydrologyDirectionalIterations { get; }
+        public float HydrologyDirectionalBlend { get; }
+        public float HydrologyFlowDivergenceClamp { get; }
+        public float HydrologyCurvatureWeight { get; }
+        public int HydrologySeamRelaxIterations { get; }
+        public float HydrologySeamRelaxBlend { get; }
+        public int RiparianSmoothIterations { get; }
+        public float RiparianSmoothBlend { get; }
+        public float RiparianSaturationBoost { get; }
+        public int RiparianBufferRadius { get; }
+        public float RiverReliefPenaltyWeight { get; }
+        public float HydrologyWarpFrequency { get; }
+        public float HydrologyWarpAmplitude { get; }
+        public float RiverFlowAlignmentWeight { get; }
+        public float RiverGradientPenalty { get; }
+        public float RiverHeadwaterStabilityWeight { get; }
+        public float RiverAnisotropyWeight { get; }
+        public float RiverBankErosionWeight { get; }
+        public float LakeRimErosionWeight { get; }
+        public float LakeInflowBlendWeight { get; }
+        public float RiverEdgeFeather { get; }
+        public int RiverMouthSmoothRadius { get; }
+        public float RiverDeltaWetlandStrength { get; }
+        public float RiverSeamFillStrength { get; }
+        public float RiverNoiseScale { get; }
+        public int RiverDepth { get; }
+        public int RiverIntensitySmoothIterations { get; }
+        public float RiverIntensitySmoothBlend { get; }
+        public float RiverConfluenceBoost { get; }
+        public bool EnableOceans { get; }
+        public bool EnableRivers { get; }
+        public bool EnableLakes { get; }
+        public bool UseImprovedRivers { get; }
+        public bool UseImprovedLakes { get; }
 
         public WaterConfig(WaterData data)
         {
             GlobalWaterLevel = data.GlobalWaterLevel;
             RiverCenterThreshold = data.RiverCenterThreshold;
             RiverBankThreshold = data.RiverBankThreshold;
+            HydrologySmoothIterations = data.HydrologySmoothIterations;
+            HydrologySmoothBlend = data.HydrologySmoothBlend;
+            HydrologyShorePush = data.HydrologyShorePush;
+            HydrologySlopePenalty = data.HydrologySlopePenalty;
+            HydrologyFlowGain = data.HydrologyFlowGain;
+            HydrologyContinuityWeight = data.HydrologyContinuityWeight;
+            HydrologyEdgeFlowBias = data.HydrologyEdgeFlowBias;
+            HydrologyEdgeTangentWeight = data.HydrologyEdgeTangentWeight;
+            HydrologyEdgeFlowLockWeight = data.HydrologyEdgeFlowLockWeight;
+            HydrologyEdgeBlendRadius = data.HydrologyEdgeBlendRadius;
+            HydrologyEdgeStabilityIterations = data.HydrologyEdgeStabilityIterations;
+            HydrologyEdgeStabilityWeight = data.HydrologyEdgeStabilityWeight;
+            HydrologyEdgeVarianceClamp = data.HydrologyEdgeVarianceClamp;
+            HydrologyEdgeFluxBlend = data.HydrologyEdgeFluxBlend;
+            HydrologyVarianceBlend = data.HydrologyVarianceBlend;
+            HydrologyVarianceClamp = data.HydrologyVarianceClamp;
+            HydrologyWaterTableClampWeight = data.HydrologyWaterTableClampWeight;
+            HydrologyWaterTableClampRange = data.HydrologyWaterTableClampRange;
+            HydrologyWaterTableSlopeWeight = data.HydrologyWaterTableSlopeWeight;
+            HydrologyFlowPersistence = data.HydrologyFlowPersistence;
+            HydrologyGradientWeight = data.HydrologyGradientWeight;
+            HydrologyGradientSlopeWeight = data.HydrologyGradientSlopeWeight;
+            HydrologyGradientClamp = data.HydrologyGradientClamp;
+            HydrologyGradientStabilityIterations = data.HydrologyGradientStabilityIterations;
+            HydrologyGradientStabilityBlend = data.HydrologyGradientStabilityBlend;
+            HydrologyDirectionalIterations = data.HydrologyDirectionalIterations;
+            HydrologyDirectionalBlend = data.HydrologyDirectionalBlend;
+            HydrologyFlowDivergenceClamp = data.HydrologyFlowDivergenceClamp;
+            HydrologyCurvatureWeight = data.HydrologyCurvatureWeight;
+            HydrologySeamRelaxIterations = data.HydrologySeamRelaxIterations;
+            HydrologySeamRelaxBlend = data.HydrologySeamRelaxBlend;
+            RiparianSmoothIterations = data.RiparianSmoothIterations;
+            RiparianSmoothBlend = data.RiparianSmoothBlend;
+            RiparianSaturationBoost = data.RiparianSaturationBoost;
+            RiparianBufferRadius = data.RiparianBufferRadius;
+            RiverReliefPenaltyWeight = data.RiverReliefPenaltyWeight;
+            HydrologyWarpFrequency = data.HydrologyWarpFrequency;
+            HydrologyWarpAmplitude = data.HydrologyWarpAmplitude;
+            RiverFlowAlignmentWeight = data.RiverFlowAlignmentWeight;
+            RiverGradientPenalty = data.RiverGradientPenalty;
+            RiverHeadwaterStabilityWeight = data.RiverHeadwaterStabilityWeight;
+            RiverAnisotropyWeight = data.RiverAnisotropyWeight;
+            RiverBankErosionWeight = data.RiverBankErosionWeight;
+            LakeRimErosionWeight = data.LakeRimErosionWeight;
+            LakeInflowBlendWeight = data.LakeInflowBlendWeight;
+            RiverEdgeFeather = data.RiverEdgeFeather;
+            RiverMouthSmoothRadius = data.RiverMouthSmoothRadius;
+            RiverDeltaWetlandStrength = data.RiverDeltaWetlandStrength;
+            RiverSeamFillStrength = data.RiverSeamFillStrength;
+            RiverNoiseScale = data.RiverNoiseScale;
+            RiverDepth = data.RiverDepth;
+            RiverIntensitySmoothIterations = data.RiverIntensitySmoothIterations;
+            RiverIntensitySmoothBlend = data.RiverIntensitySmoothBlend;
+            RiverConfluenceBoost = data.RiverConfluenceBoost;
+            EnableOceans = data.EnableOceans;
             EnableRivers = data.EnableRivers;
             EnableLakes = data.EnableLakes;
             UseImprovedRivers = data.UseImprovedRivers;
@@ -348,36 +465,96 @@ namespace Minecraft.Core
 
     public class CaveConfig
     {
-        public bool EnableCaves { get; private set; }
-        public bool UseImprovedCaves { get; private set; }
-        public bool UseRegionalMainCaves { get; private set; }
-        public float HorizontalFrequency { get; private set; }
-        public float VerticalFrequency { get; private set; }
-        public float Threshold { get; private set; }
-        public float LavaThreshold { get; private set; }
-        public float WaterThreshold { get; private set; }
-
-        public CaveConfig() : this(new CaveData()) { }
+        public bool EnableCaves { get; }
+        public bool UseImprovedCaves { get; }
+        public bool UseRegionalMainCaves { get; }
+        public int RegionalMainCaveRegionSizeChunks { get; }
+        public int RegionalMainCaveWormCountMin { get; }
+        public int RegionalMainCaveWormCountMax { get; }
+        public int RegionalMainCaveStepsMin { get; }
+        public int RegionalMainCaveStepsMax { get; }
+        public int RegionalMainCaveMinY { get; }
+        public int RegionalMainCaveMaxY { get; }
+        public float RegionalMainCaveRadiusMin { get; }
+        public float RegionalMainCaveRadiusMax { get; }
+        public float CaveDensity { get; }
+        public float CaveNoiseScale { get; }
+        public float Threshold { get; }
+        public float CaveThreshold { get; }
+        public int MinCaveHeight { get; }
+        public int MaxCaveHeight { get; }
+        public float HorizontalFrequency { get; }
+        public float VerticalFrequency { get; }
+        public float NoiseThreshold { get; }
+        public float LavaThreshold { get; }
+        public float WaterThreshold { get; }
+        public float FloodedCaveNoiseFrequency { get; }
+        public float FloodedCaveProximityToWaterTableWeight { get; }
+        public float FloodedCaveThreshold { get; }
+        public int StabilitySmoothIterations { get; }
+        public float StabilitySmoothBlend { get; }
+        public float SupportDensity { get; }
+        public float SupportHydrationBias { get; }
+        public float SupportFlowBias { get; }
+        public float HydrologyStabilityWeight { get; }
+        public float FlowStabilityWeight { get; }
+        public float RoughnessStabilityWeight { get; }
+        public float RiverSuppressionWeight { get; }
+        public float MoistureRetentionWeight { get; }
+        public float EdgeSealStrength { get; }
+        public float SupportPillarChance { get; }
+        public int RiparianPlugDepth { get; }
+        public float CaveCeilingStabilityWeight { get; }
 
         public CaveConfig(CaveData data)
         {
             EnableCaves = data.EnableCaves;
             UseImprovedCaves = data.UseImprovedCaves;
             UseRegionalMainCaves = data.UseRegionalMainCaves;
+            RegionalMainCaveRegionSizeChunks = data.RegionalMainCaveRegionSizeChunks;
+            RegionalMainCaveWormCountMin = data.RegionalMainCaveWormCountMin;
+            RegionalMainCaveWormCountMax = data.RegionalMainCaveWormCountMax;
+            RegionalMainCaveStepsMin = data.RegionalMainCaveStepsMin;
+            RegionalMainCaveStepsMax = data.RegionalMainCaveStepsMax;
+            RegionalMainCaveMinY = data.RegionalMainCaveMinY;
+            RegionalMainCaveMaxY = data.RegionalMainCaveMaxY;
+            RegionalMainCaveRadiusMin = data.RegionalMainCaveRadiusMin;
+            RegionalMainCaveRadiusMax = data.RegionalMainCaveRadiusMax;
+            CaveDensity = data.CaveDensity;
+            CaveNoiseScale = data.CaveNoiseScale;
+            Threshold = data.Threshold;
+            CaveThreshold = data.CaveThreshold;
+            MinCaveHeight = data.MinCaveHeight;
+            MaxCaveHeight = data.MaxCaveHeight;
             HorizontalFrequency = data.HorizontalFrequency;
             VerticalFrequency = data.VerticalFrequency;
-            Threshold = data.Threshold;
+            NoiseThreshold = data.NoiseThreshold;
             LavaThreshold = data.LavaThreshold;
             WaterThreshold = data.WaterThreshold;
+            FloodedCaveNoiseFrequency = data.FloodedCaveNoiseFrequency;
+            FloodedCaveProximityToWaterTableWeight = data.FloodedCaveProximityToWaterTableWeight;
+            FloodedCaveThreshold = data.FloodedCaveThreshold;
+            StabilitySmoothIterations = data.StabilitySmoothIterations;
+            StabilitySmoothBlend = data.StabilitySmoothBlend;
+            SupportDensity = data.SupportDensity;
+            SupportHydrationBias = data.SupportHydrationBias;
+            SupportFlowBias = data.SupportFlowBias;
+            HydrologyStabilityWeight = data.HydrologyStabilityWeight;
+            FlowStabilityWeight = data.FlowStabilityWeight;
+            RoughnessStabilityWeight = data.RoughnessStabilityWeight;
+            RiverSuppressionWeight = data.RiverSuppressionWeight;
+            MoistureRetentionWeight = data.MoistureRetentionWeight;
+            EdgeSealStrength = data.EdgeSealStrength;
+            SupportPillarChance = data.SupportPillarChance;
+            RiparianPlugDepth = data.RiparianPlugDepth;
+            CaveCeilingStabilityWeight = data.CaveCeilingStabilityWeight;
         }
     }
 
     public class OreConfig
     {
-        public bool EnableOreGeneration { get; private set; }
-        public Dictionary<string, OreConfigData> Ores { get; private set; }
-
-        public OreConfig() : this(new OreData()) { }
+        public bool EnableOreGeneration { get; }
+        public Dictionary<string, OreConfigData> Ores { get; }
 
         public OreConfig(OreData data)
         {
@@ -396,17 +573,19 @@ namespace Minecraft.Core
 
     public class StructureConfig
     {
-        public bool EnableTrees { get; private set; }
-        public float TreeDensity { get; private set; }
-        public bool EnableDungeons { get; private set; }
-        public float DungeonChance { get; private set; }
-
-        public StructureConfig() : this(new StructureData()) { }
+        public bool EnableTrees { get; }
+        public float TreeDensity { get; }
+        public bool EnableVillages { get; }
+        public bool EnableMineshafts { get; }
+        public bool EnableDungeons { get; }
+        public float DungeonChance { get; }
 
         public StructureConfig(StructureData data)
         {
             EnableTrees = data.EnableTrees;
             TreeDensity = data.TreeDensity;
+            EnableVillages = data.EnableVillages;
+            EnableMineshafts = data.EnableMineshafts;
             EnableDungeons = data.EnableDungeons;
             DungeonChance = data.DungeonChance;
         }
@@ -414,446 +593,31 @@ namespace Minecraft.Core
 
     public class LakeConfig
     {
-        public int MinDepth { get; private set; }
-        public int MaxDepth { get; private set; }
-        public int MaxRadius { get; private set; }
-
-        public LakeConfig() : this(new LakeData()) { }
-
-        public LakeConfig(LakeData data)
-        {
-            MinDepth = data.MinDepth;
-            MaxDepth = data.MaxDepth;
-            MaxRadius = data.MaxRadius;
-        }
-    }
-}using System.Collections.Generic;
-using System.IO;
-using UnityEngine;
-
-namespace Minecraft.Core
-{
-    /// <summary>
-    /// Client-side world configuration manager that mirrors server's WorldGenerationConfig
-    /// Ensures terrain generation parity between server and client
-    /// </summary>
-    public class WorldConfig
-    {
-        private static WorldConfig _instance;
-        public static WorldConfig Instance => _instance ??= LoadConfig();
-
-        public string WorldName { get; private set; }
-        public int Seed { get; private set; }
-        public string GameMode { get; private set; }
-        public int WorldHeight { get; private set; }
-        public int ChunkSize { get; private set; }
-        public int RenderDistance { get; private set; }
-        public int SimulationDistance { get; private set; }
-        
-        public TerrainConfig Terrain { get; private set; }
-        public WaterConfig Water { get; private set; }
-        public CaveConfig Caves { get; private set; }
-        public OreConfig Ores { get; private set; }
-        public StructureConfig Structures { get; private set; }
-        public LakeConfig Lakes { get; private set; }
-
-        private WorldConfig()
-        {
-        }
-
-        private static WorldConfig LoadConfig()
-        {
-            var config = new WorldConfig();
-            
-            try
-            {
-                string configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
-                
-                if (File.Exists(configPath))
-                {
-                    string jsonContent = File.ReadAllText(configPath);
-                    var configData = JsonUtility.FromJson<WorldConfigData>(jsonContent);
-                    config.InitializeFromData(configData);
-                }
-                else
-                {
-                    Debug.LogWarning($"[WorldConfig] Configuration file not found at {configPath}, using defaults");
-                    config.InitializeDefaults();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[WorldConfig] Failed to load configuration: {ex.Message}");
-                config.InitializeDefaults();
-            }
-
-            return config;
-        }
-
-        private void InitializeFromData(WorldConfigData data)
-        {
-            WorldName = data.WorldName ?? "DefaultWorld";
-            Seed = data.Seed;
-            GameMode = data.GameMode ?? "survival";
-            WorldHeight = data.WorldHeight;
-            ChunkSize = data.ChunkSize;
-            RenderDistance = data.RenderDistance;
-            SimulationDistance = data.SimulationDistance;
-
-            Terrain = new TerrainConfig(data.TerrainGeneration);
-            Water = new WaterConfig(data.Water);
-            Caves = new CaveConfig(data.Caves);
-            Ores = new OreConfig(data.Ores);
-            Structures = new StructureConfig(data.Structures);
-            Lakes = new LakeConfig(data.Lakes);
-        }
-
-        private void InitializeDefaults()
-        {
-            WorldName = "DefaultWorld";
-            Seed = 0;
-            GameMode = "survival";
-            WorldHeight = 256;
-            ChunkSize = 16;
-            RenderDistance = 10;
-            SimulationDistance = 8;
-
-            Terrain = new TerrainConfig();
-            Water = new WaterConfig();
-            Caves = new CaveConfig();
-            Ores = new OreConfig();
-            Structures = new StructureConfig();
-            Lakes = new LakeConfig();
-        }
-
-        public void ApplyToUnity()
-        {
-            // Apply quality settings based on configuration
-            QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1); // Max quality for testing
-            
-            // Apply render distance to any relevant Unity systems
-            // This would be used by chunk loading systems
-        }
-    }
-
-    [System.Serializable]
-    public class WorldConfigData
-    {
-        public string WorldName;
-        public int Seed;
-        public string GameMode;
-        public int WorldHeight;
-        public int ChunkSize;
-        public int RenderDistance;
-        public int SimulationDistance;
-        public TerrainGenerationData TerrainGeneration;
-        public WaterData Water;
-        public CaveData Caves;
-        public OreData Ores;
-        public StructureData Structures;
-        public LakeData Lakes;
-    }
-
-    [System.Serializable]
-    public class TerrainGenerationData
-    {
-        public int SeaLevel;
-        public int BedrockLevel;
-        public float NoiseScale;
-        public float NoiseAmplitude;
-        public int Octaves;
-        public float Persistence;
-        public float Lacunarity;
-        public float BiomeScale;
-        public float TemperatureScale;
-        public float HumidityScale;
-        public float MountainThreshold;
-        public int MountainMaxHeight;
-        public int PlainBaseHeight;
-    }
-
-    [System.Serializable]
-    public class WaterData
-    {
-        public int GlobalWaterLevel;
-        public float RiverCenterThreshold;
-        public float RiverBankThreshold;
-        public int HydrologySmoothIterations;
-        public float HydrologySmoothBlend;
-        public float HydrologyShorePush;
-        public float HydrologySlopePenalty;
-        public float HydrologyFlowGain;
-        public float HydrologyContinuityWeight;
-        public float HydrologyEdgeFlowBias;
-        public float HydrologyEdgeTangentWeight;
-        public float HydrologyEdgeFlowLockWeight;
-        public int HydrologyEdgeBlendRadius;
-        public int HydrologyEdgeStabilityIterations;
-        public float HydrologyEdgeStabilityWeight;
-        public float HydrologyEdgeVarianceClamp;
-        public float HydrologyWaterTableClampWeight;
-        public int HydrologyWaterTableClampRange;
-        public float HydrologyWaterTableSlopeWeight;
-        public float HydrologyFlowPersistence;
-        public float HydrologyGradientWeight;
-        public float HydrologyGradientSlopeWeight;
-        public float HydrologyGradientClamp;
-        public int HydrologyGradientStabilityIterations;
-        public float HydrologyGradientStabilityBlend;
-        public int HydrologyDirectionalIterations;
-        public float HydrologyDirectionalBlend;
-        public float HydrologyFlowDivergenceClamp;
-        public float HydrologyCurvatureWeight;
-        public int HydrologySeamRelaxIterations;
-        public float HydrologySeamRelaxBlend;
-        public float RiverReliefPenaltyWeight;
-        public float HydrologyWarpFrequency;
-        public float HydrologyWarpAmplitude;
-        public float RiverFlowAlignmentWeight;
-        public float RiverGradientPenalty;
-        public float RiverHeadwaterStabilityWeight;
-        public float RiverAnisotropyWeight;
-        public float RiverBankErosionWeight;
-        public float LakeRimErosionWeight;
-        public float LakeInflowBlendWeight;
-        public float RiverNoiseScale;
-        public int RiverDepth;
-        public int RiverIntensitySmoothIterations;
-        public float RiverIntensitySmoothBlend;
-        public float RiverConfluenceBoost;
-        public bool EnableOceans;
-        public bool EnableRivers;
-        public bool EnableLakes;
-        public bool UseImprovedRivers;
-        public bool UseImprovedLakes;
-    }
-
-    [System.Serializable]
-    public class CaveData
-    {
-        public bool EnableCaves;
-        public bool UseImprovedCaves;
-        public bool UseRegionalMainCaves;
-        public int RegionalMainCaveRegionSizeChunks;
-        public int RegionalMainCaveWormCountMin;
-        public int RegionalMainCaveWormCountMax;
-        public int RegionalMainCaveStepsMin;
-        public int RegionalMainCaveStepsMax;
-        public int RegionalMainCaveMinY;
-        public int RegionalMainCaveMaxY;
-        public float RegionalMainCaveRadiusMin;
-        public float RegionalMainCaveRadiusMax;
-        public float CaveDensity;
-        public float CaveNoiseScale;
-        public float Threshold;
-        public float CaveThreshold;
-        public int MinCaveHeight;
-        public int MaxCaveHeight;
-        public float HorizontalFrequency;
-        public float VerticalFrequency;
-        public float NoiseThreshold;
-        public float LavaThreshold;
-        public float WaterThreshold;
-        public float FloodedCaveNoiseFrequency;
-        public float FloodedCaveProximityToWaterTableWeight;
-        public float FloodedCaveThreshold;
-        public int StabilitySmoothIterations;
-        public float StabilitySmoothBlend;
-        public float SupportDensity;
-        public float SupportHydrationBias;
-        public float SupportFlowBias;
-        public float HydrologyStabilityWeight;
-        public float FlowStabilityWeight;
-        public float RoughnessStabilityWeight;
-        public float RiverSuppressionWeight;
-        public float MoistureRetentionWeight;
-    }
-
-    [System.Serializable]
-    public class OreData
-    {
-        public bool EnableOreGeneration;
-        public OreConfigData Coal;
-        public OreConfigData Iron;
-        public OreConfigData Gold;
-        public OreConfigData Diamond;
-        public OreConfigData Redstone;
-        public OreConfigData Lapis;
-    }
-
-    [System.Serializable]
-    public class OreConfigData
-    {
-        public int MinHeight;
-        public int MaxHeight;
-        public int VeinSize;
-        public int VeinsPerChunk;
-    }
-
-    [System.Serializable]
-    public class StructureData
-    {
-        public bool EnableTrees;
-        public float TreeDensity;
-        public bool EnableVillages;
-        public bool EnableMineshafts;
-        public bool EnableDungeons;
-        public float DungeonChance;
-    }
-
-    [System.Serializable]
-    public class LakeData
-    {
-        public int MinDepth;
-        public int MaxDepth;
-        public int MaxRadius;
-        public int LakeBasinSmoothIterations;
-        public float SpawnWeightBias;
-        public float ShorelineBlend;
-        public float RiverProximitySuppression;
-    }
-
-    // Configuration wrapper classes for type safety and easier access
-    public class TerrainConfig
-    {
-        public int SeaLevel { get; private set; }
-        public int BedrockLevel { get; private set; }
-        public float NoiseScale { get; private set; }
-        public float NoiseAmplitude { get; private set; }
-        public int Octaves { get; private set; }
-        public float Persistence { get; private set; }
-        public float Lacunarity { get; private set; }
-        public float BiomeScale { get; private set; }
-        public float TemperatureScale { get; private set; }
-        public float HumidityScale { get; private set; }
-        public float MountainThreshold { get; private set; }
-        public int MountainMaxHeight { get; private set; }
-        public int PlainBaseHeight { get; private set; }
-
-        public TerrainConfig() : this(new TerrainGenerationData()) { }
-
-        public TerrainConfig(TerrainGenerationData data)
-        {
-            SeaLevel = data.SeaLevel;
-            BedrockLevel = data.BedrockLevel;
-            NoiseScale = data.NoiseScale;
-            NoiseAmplitude = data.NoiseAmplitude;
-            Octaves = data.Octaves;
-            Persistence = data.Persistence;
-            Lacunarity = data.Lacunarity;
-            BiomeScale = data.BiomeScale;
-            TemperatureScale = data.TemperatureScale;
-            HumidityScale = data.HumidityScale;
-            MountainThreshold = data.MountainThreshold;
-            MountainMaxHeight = data.MountainMaxHeight;
-            PlainBaseHeight = data.PlainBaseHeight;
-        }
-    }
-
-    public class WaterConfig
-    {
-        public int GlobalWaterLevel { get; private set; }
-        public float RiverCenterThreshold { get; private set; }
-        public float RiverBankThreshold { get; private set; }
-        public bool EnableRivers { get; private set; }
-        public bool EnableLakes { get; private set; }
-        public bool UseImprovedRivers { get; private set; }
-        public bool UseImprovedLakes { get; private set; }
-
-        public WaterConfig() : this(new WaterData()) { }
-
-        public WaterConfig(WaterData data)
-        {
-            GlobalWaterLevel = data.GlobalWaterLevel;
-            RiverCenterThreshold = data.RiverCenterThreshold;
-            RiverBankThreshold = data.RiverBankThreshold;
-            EnableRivers = data.EnableRivers;
-            EnableLakes = data.EnableLakes;
-            UseImprovedRivers = data.UseImprovedRivers;
-            UseImprovedLakes = data.UseImprovedLakes;
-        }
-    }
-
-    public class CaveConfig
-    {
-        public bool EnableCaves { get; private set; }
-        public bool UseImprovedCaves { get; private set; }
-        public bool UseRegionalMainCaves { get; private set; }
-        public float HorizontalFrequency { get; private set; }
-        public float VerticalFrequency { get; private set; }
-        public float Threshold { get; private set; }
-        public float LavaThreshold { get; private set; }
-        public float WaterThreshold { get; private set; }
-
-        public CaveConfig() : this(new CaveData()) { }
-
-        public CaveConfig(CaveData data)
-        {
-            EnableCaves = data.EnableCaves;
-            UseImprovedCaves = data.UseImprovedCaves;
-            UseRegionalMainCaves = data.UseRegionalMainCaves;
-            HorizontalFrequency = data.HorizontalFrequency;
-            VerticalFrequency = data.VerticalFrequency;
-            Threshold = data.Threshold;
-            LavaThreshold = data.LavaThreshold;
-            WaterThreshold = data.WaterThreshold;
-        }
-    }
-
-    public class OreConfig
-    {
-        public bool EnableOreGeneration { get; private set; }
-        public Dictionary<string, OreConfigData> Ores { get; private set; }
-
-        public OreConfig() : this(new OreData()) { }
-
-        public OreConfig(OreData data)
-        {
-            EnableOreGeneration = data.EnableOreGeneration;
-            Ores = new Dictionary<string, OreConfigData>
-            {
-                ["Coal"] = data.Coal,
-                ["Iron"] = data.Iron,
-                ["Gold"] = data.Gold,
-                ["Diamond"] = data.Diamond,
-                ["Redstone"] = data.Redstone,
-                ["Lapis"] = data.Lapis
-            };
-        }
-    }
-
-    public class StructureConfig
-    {
-        public bool EnableTrees { get; private set; }
-        public float TreeDensity { get; private set; }
-        public bool EnableDungeons { get; private set; }
-        public float DungeonChance { get; private set; }
-
-        public StructureConfig() : this(new StructureData()) { }
-
-        public StructureConfig(StructureData data)
-        {
-            EnableTrees = data.EnableTrees;
-            TreeDensity = data.TreeDensity;
-            EnableDungeons = data.EnableDungeons;
-            DungeonChance = data.DungeonChance;
-        }
-    }
-
-    public class LakeConfig
-    {
-        public int MinDepth { get; private set; }
-        public int MaxDepth { get; private set; }
-        public int MaxRadius { get; private set; }
-
-        public LakeConfig() : this(new LakeData()) { }
+        public int MinDepth { get; }
+        public int MaxDepth { get; }
+        public int MaxRadius { get; }
+        public int LakeBasinSmoothIterations { get; }
+        public int ShelfDepth { get; }
+        public float SpawnWeightBias { get; }
+        public float ShorelineBlend { get; }
+        public float RiverProximitySuppression { get; }
+        public float WetlandSaturationThreshold { get; }
+        public int OutflowCarveDepth { get; }
+        public int WetlandBufferRadius { get; }
 
         public LakeConfig(LakeData data)
         {
             MinDepth = data.MinDepth;
             MaxDepth = data.MaxDepth;
             MaxRadius = data.MaxRadius;
+            LakeBasinSmoothIterations = data.LakeBasinSmoothIterations;
+            ShelfDepth = data.ShelfDepth;
+            SpawnWeightBias = data.SpawnWeightBias;
+            ShorelineBlend = data.ShorelineBlend;
+            RiverProximitySuppression = data.RiverProximitySuppression;
+            WetlandSaturationThreshold = data.WetlandSaturationThreshold;
+            OutflowCarveDepth = data.OutflowCarveDepth;
+            WetlandBufferRadius = data.WetlandBufferRadius;
         }
     }
-}
 }

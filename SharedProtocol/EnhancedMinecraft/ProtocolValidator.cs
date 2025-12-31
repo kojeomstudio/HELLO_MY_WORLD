@@ -63,6 +63,7 @@ public static class ProtocolValidator
         ValidateUniqueBindings();
         ValidateRegistryDescriptors();
         ValidateDescriptorFiles();
+        ValidateDescriptorAssemblies();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
         ValidateRegistryBindingNames();
@@ -409,6 +410,25 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.DescriptorName}' resolved from '{descriptorFile}', expected '{expectedFile}'. Regenerate protobuf assets so server and Unity reference the same generated file.");
+            }
+        }
+    }
+
+    private static void ValidateDescriptorAssemblies()
+    {
+        Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(binding.MessageType, out IMessage prototype))
+            {
+                continue;
+            }
+
+            Assembly? actualAssembly = prototype.Descriptor?.ClrType?.Assembly;
+            if (actualAssembly != null && expectedAssembly != null && !ReferenceEquals(actualAssembly, expectedAssembly))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
             }
         }
     }

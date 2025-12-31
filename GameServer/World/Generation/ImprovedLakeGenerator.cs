@@ -158,4 +158,253 @@ namespace GameServerApp.World.Generation
             Array.Copy(buffer, field, buffer.Length);
         }
     }
+
+    /// <summary>
+    /// Configuration for lake generation
+    /// </summary>
+    public class LakeConfig
+    {
+        public double SpawnWeightBias { get; set; } = 0.0;
+        public double ShorelineBlend { get; set; } = 0.5;
+        public double RiverProximitySuppression { get; set; } = 0.8;
+        public double WetlandSaturationThreshold { get; set; } = 0.6;
+        public double MaxDepth { get; set; } = 10.0;
+        public int LakeBasinSmoothIterations { get; set; } = 2;
+        public int WetlandBufferRadius { get; set; } = 3;
+    }
+}
+    /// Configuration for lake generation
+    /// </summary>
+    public class LakeConfig
+    {
+        public double SpawnWeightBias { get; set; } = 0.0;
+        public double ShorelineBlend { get; set; } = 0.5;
+        public double RiverProximitySuppression { get; set; } = 0.8;
+        public double WetlandSaturationThreshold { get; set; } = 0.6;
+        public double MaxDepth { get; set; } = 10.0;
+        public int LakeBasinSmoothIterations { get; set; } = 2;
+        public int WetlandBufferRadius { get; set; } = 3;
+    }
+}
+                    intensityMap[x, z] = intensityMap[x, z] * 0.4 + smoothedMap[x, z] * 0.6;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Find the surface level at a position
+        /// </summary>
+        private int FindSurfaceLevel(ChunkData chunk, int x, int z)
+        {
+            for (int y = 255; y >= 0; y--)
+            {
+                BlockType block = chunk.GetBlock(x, y, z);
+                if (block != BlockType.Air && block != BlockType.Water)
+                {
+                    return y;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Find the water level at a position
+        /// </summary>
+        private int FindWaterLevel(ChunkData chunk, int x, int z)
+        {
+            for (int y = 255; y >= 0; y--)
+            {
+                BlockType block = chunk.GetBlock(x, y, z);
+                if (block == BlockType.Water)
+                {
+                    return y;
+                }
+            }
+            return -1;
+        }
+    }
+}
+                    }
+                    
+                    // Add reeds occasionally
+                    if (_random.NextDouble() < 0.03 * intensity)
+                    {
+                        AddReeds(chunk, x, z);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add lake shores
+        /// </summary>
+        private void AddLakeShores(ChunkData chunk, int x, int z, int surfaceY, double intensity)
+        {
+            // Calculate shore width based on intensity
+            int shoreWidth = (int)(1 + intensity * 2);
+            
+            for (int i = -shoreWidth; i <= shoreWidth; i++)
+            {
+                for (int j = -shoreWidth; j <= shoreWidth; j++)
+                {
+                    // Calculate distance from lake center
+                    double distance = Math.Sqrt(i * i + j * j);
+                    
+                    // Only place shores at certain distances
+                    if (distance > shoreWidth * 0.7 && distance <= shoreWidth)
+                    {
+                        int shoreX = x + i;
+                        int shoreZ = z + j;
+                        
+                        if (shoreX >= 0 && shoreX < 16 && shoreZ >= 0 && shoreZ < 16)
+                        {
+                            // Choose shore material based on intensity
+                            BlockType shoreMaterial = intensity > 0.6 ? BlockType.Sand : BlockType.Dirt;
+                            
+                            // Place shore material
+                            int shoreY = FindSurfaceLevel(chunk, shoreX, shoreZ);
+                            if (shoreY >= 0 && shoreY < 256)
+                            {
+                                chunk.SetBlock(shoreX, shoreY, shoreZ, shoreMaterial);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add a lily pad
+        /// </summary>
+        private void AddLilyPad(ChunkData chunk, int x, int z)
+        {
+            int waterY = FindWaterLevel(chunk, x, z);
+            if (waterY < 0)
+                return;
+            
+            // Place lily pad on water surface
+            if (waterY + 1 < 256)
+            {
+                chunk.SetBlock(x, waterY + 1, z, BlockType.LilyPad);
+            }
+        }
+
+        /// <summary>
+        /// Add reeds
+        /// </summary>
+        private void AddReeds(ChunkData chunk, int x, int z)
+        {
+            int surfaceY = FindSurfaceLevel(chunk, x, z);
+            if (surfaceY < 0)
+                return;
+            
+            // Check if this is a water block or near water
+            bool nearWater = false;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    
+                    if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16)
+                    {
+                        int waterY = FindWaterLevel(chunk, nx, nz);
+                        if (waterY >= 0 && Math.Abs(waterY - surfaceY) <= 1)
+                        {
+                            nearWater = true;
+                            break;
+                        }
+                    }
+                }
+                if (nearWater) break;
+            }
+            
+            if (nearWater)
+            {
+                // Place reeds
+                int reedHeight = 1 + _random.Next(2);
+                for (int i = 0; i < reedHeight && surfaceY + i < 256; i++)
+                {
+                    chunk.SetBlock(x, surfaceY + i, z, BlockType.Reeds);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Smooth the intensity map
+        /// </summary>
+        private void SmoothIntensityMap(double[,] intensityMap)
+        {
+            var smoothedMap = new double[16, 16];
+            
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    double sum = 0;
+                    int count = 0;
+                    
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            
+                            if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16)
+                            {
+                                sum += intensityMap[nx, nz];
+                                count++;
+                            }
+                        }
+                    }
+                    
+                    smoothedMap[x, z] = sum / count;
+                }
+            }
+            
+            // Copy smoothed values back
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    intensityMap[x, z] = intensityMap[x, z] * 0.4 + smoothedMap[x, z] * 0.6;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Find the surface level at a position
+        /// </summary>
+        private int FindSurfaceLevel(ChunkData chunk, int x, int z)
+        {
+            for (int y = 255; y >= 0; y--)
+            {
+                BlockType block = chunk.GetBlock(x, y, z);
+                if (block != BlockType.Air && block != BlockType.Water)
+                {
+                    return y;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Find the water level at a position
+        /// </summary>
+        private int FindWaterLevel(ChunkData chunk, int x, int z)
+        {
+            for (int y = 255; y >= 0; y--)
+            {
+                BlockType block = chunk.GetBlock(x, y, z);
+                if (block == BlockType.Water)
+                {
+                    return y;
+                }
+            }
+            return -1;
+        }
+    }
+}
 }

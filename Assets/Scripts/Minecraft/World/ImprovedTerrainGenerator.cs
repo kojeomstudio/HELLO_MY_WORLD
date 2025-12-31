@@ -346,14 +346,20 @@ namespace Minecraft.World
             int chunkSize = _worldConfig.ChunkSize;
             int worldHeight = _worldConfig.WorldHeight;
             
-            // Multi-layer cave generation
+            // Multi-layer cave generation with improved connectivity
             GenerateCaveLayer(blocks, chunkX, chunkZ, _worldConfig.Caves.HorizontalFrequency, _worldConfig.Caves.VerticalFrequency, _worldConfig.Caves.Threshold);
             
             // Add secondary cave layer for more complexity
             GenerateCaveLayer(blocks, chunkX, chunkZ, _worldConfig.Caves.HorizontalFrequency * 2f, _worldConfig.Caves.VerticalFrequency * 1.5f, _worldConfig.Caves.Threshold * 0.8f);
             
-            // Add lava and water in caves
+            // Add tertiary cave layer for large caverns
+            GenerateCaveLayer(blocks, chunkX, chunkZ, _worldConfig.Caves.HorizontalFrequency * 0.5f, _worldConfig.Caves.VerticalFrequency * 0.8f, _worldConfig.Caves.Threshold * 0.6f);
+            
+            // Add lava and water in caves with improved distribution
             AddCaveLiquids(blocks, chunkX, chunkZ);
+            
+            // Add cave connections for better navigation
+            GenerateCaveConnections(blocks, chunkX, chunkZ);
         }
         
         private void GenerateCaveLayer(int[,,] blocks, int chunkX, int chunkZ, float hFreq, float vFreq, float threshold)
@@ -423,65 +429,26 @@ namespace Minecraft.World
             int worldHeight = _worldConfig.WorldHeight;
             int seaLevel = _worldConfig.Terrain.SeaLevel;
             
-            for (int x = 0; x < chunkSize; x++)
-            {
-                for (int z = 0; z < chunkSize; z++)
-                {
-                    int worldX = chunkX * chunkSize + x;
-                    int worldZ = chunkZ * chunkSize + z;
-
-                    float warp = _riverNoise.GetNoise(worldX * _worldConfig.Water.HydrologyWarpFrequency, worldZ * _worldConfig.Water.HydrologyWarpFrequency);
-                    float warpedX = worldX + warp * _worldConfig.Water.HydrologyWarpAmplitude;
-                    float warpedZ = worldZ + warp * _worldConfig.Water.HydrologyWarpAmplitude;
-
-                    float baseNoise = Mathf.Abs(_riverNoise.GetNoise(warpedX * _worldConfig.Water.RiverNoiseScale, warpedZ * _worldConfig.Water.RiverNoiseScale));
-                    float intensity = Mathf.Clamp01(1f - baseNoise);
-
-                    float slope = CalculateSlope(x, z);
-                    float gradientPenalty = slope * _worldConfig.Water.RiverGradientPenalty * 0.5f;
-                    float reliefPenalty = Mathf.Max(0f, ((_heightMapCache[x, z] * worldHeight) - _worldConfig.Water.GlobalWaterLevel) * _worldConfig.Water.RiverReliefPenaltyWeight * 0.01f);
-                    float anisotropy = ComputeAnisotropy(x, z);
-                    float flowAlignment = ComputeFlowAlignment(x, z);
-
-                    intensity = intensity * (1f - gradientPenalty);
-                    intensity = Mathf.Clamp01(intensity - reliefPenalty - anisotropy + flowAlignment);
-
-                    _riverMapCache[x, z] = intensity > _worldConfig.Water.RiverCenterThreshold ? intensity : 0f;
-                }
-            }
-
-            SmoothMask(_riverMapCache, _worldConfig.Water.RiverIntensitySmoothIterations, _worldConfig.Water.RiverIntensitySmoothBlend);
-            BoostConfluences(_riverMapCache, _worldConfig.Water.RiverConfluenceBoost);
-            SmoothMask(_riverMapCache, _worldConfig.Water.HydrologySeamRelaxIterations, _worldConfig.Water.HydrologySeamRelaxBlend);
-
-            float centerCutoff = Mathf.Clamp01(1f - (_worldConfig.Water.RiverCenterThreshold * 40f));
-            float bankCutoff = Mathf.Clamp01(centerCutoff - (_worldConfig.Water.RiverBankThreshold * 20f));
-
+            // Generate river network with improved flow dynamics
+            GenerateRiverNetwork(blocks, chunkX, chunkZ);
+            
+            // Apply river carving with enhanced meandering
             for (int x = 0; x < chunkSize; x++)
             {
                 for (int z = 0; z < chunkSize; z++)
                 {
                     float intensity = _riverMapCache[x, z];
-
-                    if (intensity >= centerCutoff)
+                    
+                    if (intensity > _worldConfig.Water.RiverCenterThreshold)
                     {
                         int carvedDepth = Mathf.Max(2, Mathf.RoundToInt(_worldConfig.Water.RiverDepth + intensity * _worldConfig.Water.RiverDepth * 0.5f));
-                        for (int y = seaLevel; y < worldHeight; y++)
-                        {
-                            blocks[x, y, z] = 0;
-                        }
-
-                        for (int y = seaLevel - carvedDepth; y < seaLevel; y++)
-                        {
-                            if (y >= 0 && y < worldHeight)
-                            {
-                                blocks[x, y, z] = GetBlockId("water");
-                            }
-                        }
-                    }
-                    else if (intensity >= bankCutoff)
-                    {
-                        GenerateRiverBanks(blocks, x, z, seaLevel, worldHeight);
+                        
+                        // Carve river channel with variable width
+                        int riverWidth = Mathf.Max(1, Mathf.RoundToInt(2 + intensity * 3));
+                        CarveRiverChannel(blocks, x, z, seaLevel, worldHeight, carvedDepth, riverWidth);
+                        
+                        // Add river banks with improved erosion
+                        GenerateEnhancedRiverBanks(blocks, x, z, seaLevel, worldHeight, intensity, riverWidth);
                     }
                 }
             }
@@ -925,6 +892,205 @@ namespace Minecraft.World
                     // Apply biome-specific surface details
                     ApplyBiomeSurfaceDetails(blocks, x, z, surfaceY, biome, detail);
                 }
+                
+                private void GenerateRiverNetwork(int[,,] blocks, int chunkX, int chunkZ)
+                {
+                    // Generate river flow paths with meandering patterns
+                    for (int x = 0; x < _worldConfig.ChunkSize; x++)
+                    {
+                        for (int z = 0; z < _worldConfig.ChunkSize; z++)
+                        {
+                            int worldX = chunkX * _worldConfig.ChunkSize + x;
+                            int worldZ = chunkZ * _worldConfig.ChunkSize + z;
+                            
+                            // Calculate flow direction based on height gradient
+                            float flowX = CalculateFlowDirection(x, z, worldX, worldZ);
+                            float flowZ = CalculateFlowDirection(x, z, worldX, worldZ);
+                            
+                            // Generate river path with variable width
+                            float riverIntensity = Mathf.Clamp01(_riverMapCache[x, z]);
+                            int riverWidth = Mathf.Max(1, Mathf.RoundToInt(2 + riverIntensity * 3));
+                            
+                            // Carve river channel
+                            CarveRiverChannel(blocks, x, z, worldX, worldZ, riverWidth);
+                        }
+                    }
+                }
+                
+                private float CalculateFlowDirection(int x, int z, int worldX, int worldZ)
+                {
+                    // Calculate flow direction based on surrounding height differences
+                    float heightCurrent = _heightMapCache[x, z];
+                    float heightEast = x < _worldConfig.ChunkSize - 1 ? _heightMapCache[x + 1, z] : heightCurrent;
+                    float heightWest = x > 0 ? _heightMapCache[x - 1, z] : heightCurrent;
+                    float heightNorth = z < _worldConfig.ChunkSize - 1 ? _heightMapCache[x, z + 1] : heightCurrent;
+                    float heightSouth = z > 0 ? _heightMapCache[x, z - 1] : heightCurrent;
+                    
+                    // Calculate gradient vectors
+                    float gradientX = (heightEast - heightWest) * 0.5f;
+                    float gradientZ = (heightNorth - heightSouth) * 0.5f;
+                    
+                    // Add some randomness for natural meandering
+                    float randomFactor = UnityEngine.Random.Range(-0.2f, 0.2f);
+                    
+                    // Normalize and return flow direction
+                    float magnitude = Mathf.Sqrt(gradientX * gradientX + gradientZ * gradientZ);
+                    if (magnitude < 0.001f) return 0f;
+                    
+                    return Mathf.Clamp01((gradientX + randomFactor) / magnitude);
+                }
+                
+                private void CarveRiverChannel(int[,,] blocks, int x, int z, int worldX, int worldZ, int width)
+                {
+                    int seaLevel = _worldConfig.Terrain.SeaLevel;
+                    int surfaceY = FindSurfaceHeight(blocks, x, z, _worldConfig.WorldHeight);
+                    
+                    if (surfaceY <= seaLevel) return;
+                    
+                    // Carve river channel with variable width
+                    for (int w = -width/2; w <= width/2; w++)
+                    {
+                        int carveX = x + w;
+                        int carveZ = z + w;
+                        
+                        if (carveX >= 0 && carveX < _worldConfig.ChunkSize &&
+                            carveZ >= 0 && carveZ < _worldConfig.ChunkSize)
+                        {
+                            // Only carve if within bounds and below surface
+                            for (int y = surfaceY; y >= seaLevel && y < surfaceY + 2; y++)
+                            {
+                                blocks[carveX, y, carveZ] = 0; // Air
+                            }
+                        }
+                    }
+                }
+                
+                private void GenerateEnhancedRiverBanks(int[,,] blocks, int x, int z, int seaLevel, int worldHeight, float intensity, int width)
+                {
+                    // Generate river banks with erosion and deposition
+                    int surfaceY = FindSurfaceHeight(blocks, x, z, worldHeight);
+                    
+                    if (surfaceY <= seaLevel) return;
+                    
+                    // Create bank materials based on flow intensity
+                    for (int w = -width/2 - 1; w <= width/2 + 1; w++)
+                    {
+                        int bankX = x + w;
+                        int bankZ = z + w;
+                        
+                        if (bankX >= 0 && bankX < _worldConfig.ChunkSize &&
+                            bankZ >= 0 && bankZ < _worldConfig.ChunkSize)
+                        {
+                            // Determine bank material based on intensity
+                            int bankMaterial = intensity > 0.7f ? GetBlockId("clay") :
+                                           intensity > 0.4f ? GetBlockId("sand") : GetBlockId("dirt");
+                            
+                            // Place bank material
+                            for (int y = surfaceY - 1; y >= seaLevel && y < surfaceY; y++)
+                            {
+                                if (blocks[bankX, y, bankZ] == 0)
+                                {
+                                    blocks[bankX, y, bankZ] = bankMaterial;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                private void GenerateLakeBasins(int[,,] blocks, int chunkX, int chunkZ)
+                {
+                    // Generate lake basins with improved topology
+                    for (int x = 0; x < _worldConfig.ChunkSize; x++)
+                    {
+                        for (int z = 0; z < _worldConfig.ChunkSize; z++)
+                        {
+                            float weight = _lakeMapCache[x, z];
+                            if (weight <= 0f) continue;
+                            
+                            int terrainHeight = FindSurfaceHeight(blocks, x, z, _worldConfig.WorldHeight);
+                            if (terrainHeight <= 0) continue;
+                            
+                            // Create lake basin with variable depth
+                            float depthFactor = Mathf.Clamp01(weight * 2f);
+                            int lakeDepth = Mathf.RoundToInt(_worldConfig.Lakes.MinDepth + depthFactor * (_worldConfig.Lakes.MaxDepth - _worldConfig.Lakes.MinDepth));
+                            
+                            // Carve lake basin
+                            int seaLevel = _worldConfig.Terrain.SeaLevel;
+                            for (int y = terrainHeight; y >= seaLevel - lakeDepth && y < terrainHeight; y++)
+                            {
+                                blocks[x, y, z] = 0; // Air
+                            }
+                            
+                            // Fill with water
+                            for (int y = seaLevel - lakeDepth; y < seaLevel; y++)
+                            {
+                                blocks[x, y, z] = GetBlockId("water");
+                            }
+                            
+                            // Add shoreline features
+                            GenerateLakeShoreline(blocks, x, z, terrainHeight, seaLevel, weight);
+                        }
+                    }
+                }
+                
+                private void GenerateLakeShoreline(int[,,] blocks, int x, int z, int terrainHeight, int seaLevel, float weight)
+                {
+                    // Generate shoreline with sand/clay based on lake weight
+                    if (weight > 0.6f)
+                    {
+                        // Sandy shoreline
+                        for (int y = seaLevel - 1; y < terrainHeight && y < terrainHeight + 1; y++)
+                        {
+                            if (UnityEngine.Random.value < 0.7f)
+                            {
+                                blocks[x, y, z] = GetBlockId("sand");
+                            }
+                        }
+                    }
+                    else if (weight > 0.3f)
+                    {
+                        // Clay shoreline
+                        for (int y = seaLevel - 1; y < terrainHeight && y < terrainHeight + 1; y++)
+                        {
+                            if (UnityEngine.Random.value < 0.5f)
+                            {
+                                blocks[x, y, z] = GetBlockId("clay");
+                            }
+                        }
+                    }
+                }
+                
+                private void GenerateCaveConnections(int[,,] blocks, int chunkX, int chunkZ)
+                {
+                    // Connect cave systems for better navigation
+                    for (int x = 1; x < _worldConfig.ChunkSize - 1; x++)
+                    {
+                        for (int z = 1; z < _worldConfig.ChunkSize - 1; z++)
+                        {
+                            // Check if we have cave openings at adjacent positions
+                            bool hasCaveNorth = blocks[x, z + 1, z] == 0;
+                            bool hasCaveSouth = blocks[x, z - 1, z] == 0;
+                            bool hasCaveEast = blocks[x + 1, z, z] == 0;
+                            bool hasCaveWest = blocks[x - 1, z, z] == 0;
+                            
+                            int caveCount = (hasCaveNorth ? 1 : 0) + (hasCaveSouth ? 1 : 0) +
+                                           (hasCaveEast ? 1 : 0) + (hasCaveWest ? 1 : 0);
+                            
+                            // Create tunnels based on cave count
+                            if (caveCount >= 2)
+                            {
+                                // Create connecting tunnel
+                                int tunnelY = UnityEngine.Random.Range(_worldConfig.Caves.MinCaveHeight, _worldConfig.Caves.MaxCaveHeight);
+                                
+                                for (int y = tunnelY; y >= _worldConfig.Caves.MinCaveHeight && y < _worldConfig.Caves.MaxCaveHeight; y++)
+                                {
+                                    blocks[x, y, z] = 0; // Air
+                                }
+                            }
+                            }
+                        }
+                    }
+                }
             }
         }
         
@@ -965,3 +1131,169 @@ namespace Minecraft.World
         }
     }
 }
+                {
+                    // Generate river banks with erosion and deposition
+                    int surfaceY = FindSurfaceHeight(blocks, x, z, worldHeight);
+                    
+                    if (surfaceY <= seaLevel) return;
+                    
+                    // Create bank materials based on flow intensity
+                    for (int w = -width/2 - 1; w <= width/2 + 1; w++)
+                    {
+                        int bankX = x + w;
+                        int bankZ = z + w;
+                        
+                        if (bankX >= 0 && bankX < _worldConfig.ChunkSize &&
+                            bankZ >= 0 && bankZ < _worldConfig.ChunkSize)
+                        {
+                            // Determine bank material based on intensity
+                            int bankMaterial = intensity > 0.7f ? GetBlockId("clay") :
+                                           intensity > 0.4f ? GetBlockId("sand") : GetBlockId("dirt");
+                            
+                            // Place bank material
+                            for (int y = surfaceY - 1; y >= seaLevel && y < surfaceY; y++)
+                            {
+                                if (blocks[bankX, y, bankZ] == 0)
+                                {
+                                    blocks[bankX, y, bankZ] = bankMaterial;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                private void GenerateLakeBasins(int[,,] blocks, int chunkX, int chunkZ)
+                {
+                    // Generate lake basins with improved topology
+                    for (int x = 0; x < _worldConfig.ChunkSize; x++)
+                    {
+                        for (int z = 0; z < _worldConfig.ChunkSize; z++)
+                        {
+                            float weight = _lakeMapCache[x, z];
+                            if (weight <= 0f) continue;
+                            
+                            int terrainHeight = FindSurfaceHeight(blocks, x, z, _worldConfig.WorldHeight);
+                            if (terrainHeight <= 0) continue;
+                            
+                            // Create lake basin with variable depth
+                            float depthFactor = Mathf.Clamp01(weight * 2f);
+                            int lakeDepth = Mathf.RoundToInt(_worldConfig.Lakes.MinDepth + depthFactor * (_worldConfig.Lakes.MaxDepth - _worldConfig.Lakes.MinDepth));
+                            
+                            // Carve lake basin
+                            int seaLevel = _worldConfig.Terrain.SeaLevel;
+                            for (int y = terrainHeight; y >= seaLevel - lakeDepth && y < terrainHeight; y++)
+                            {
+                                blocks[x, y, z] = 0; // Air
+                            }
+                            
+                            // Fill with water
+                            for (int y = seaLevel - lakeDepth; y < seaLevel; y++)
+                            {
+                                blocks[x, y, z] = GetBlockId("water");
+                            }
+                            
+                            // Add shoreline features
+                            GenerateLakeShoreline(blocks, x, z, terrainHeight, seaLevel, weight);
+                        }
+                    }
+                }
+                
+                private void GenerateLakeShoreline(int[,,] blocks, int x, int z, int terrainHeight, int seaLevel, float weight)
+                {
+                    // Generate shoreline with sand/clay based on lake weight
+                    if (weight > 0.6f)
+                    {
+                        // Sandy shoreline
+                        for (int y = seaLevel - 1; y < terrainHeight && y < terrainHeight + 1; y++)
+                        {
+                            if (UnityEngine.Random.value < 0.7f)
+                            {
+                                blocks[x, y, z] = GetBlockId("sand");
+                            }
+                        }
+                    }
+                    else if (weight > 0.3f)
+                    {
+                        // Clay shoreline
+                        for (int y = seaLevel - 1; y < terrainHeight && y < terrainHeight + 1; y++)
+                        {
+                            if (UnityEngine.Random.value < 0.5f)
+                            {
+                                blocks[x, y, z] = GetBlockId("clay");
+                            }
+                        }
+                    }
+                }
+                
+                private void GenerateCaveConnections(int[,,] blocks, int chunkX, int chunkZ)
+                {
+                    // Connect cave systems for better navigation
+                    for (int x = 1; x < _worldConfig.ChunkSize - 1; x++)
+                    {
+                        for (int z = 1; z < _worldConfig.ChunkSize - 1; z++)
+                        {
+                            // Check if we have cave openings at adjacent positions
+                            bool hasCaveNorth = blocks[x, z + 1, z] == 0;
+                            bool hasCaveSouth = blocks[x, z - 1, z] == 0;
+                            bool hasCaveEast = blocks[x + 1, z, z] == 0;
+                            bool hasCaveWest = blocks[x - 1, z, z] == 0;
+                            
+                            int caveCount = (hasCaveNorth ? 1 : 0) + (hasCaveSouth ? 1 : 0) +
+                                           (hasCaveEast ? 1 : 0) + (hasCaveWest ? 1 : 0);
+                            
+                            // Create tunnels based on cave count
+                            if (caveCount >= 2)
+                            {
+                                // Create connecting tunnel
+                                int tunnelY = UnityEngine.Random.Range(_worldConfig.Caves.MinCaveHeight, _worldConfig.Caves.MaxCaveHeight);
+                                
+                                for (int y = tunnelY; y >= _worldConfig.Caves.MinCaveHeight && y < _worldConfig.Caves.MaxCaveHeight; y++)
+                                {
+                                    blocks[x, y, z] = 0; // Air
+                                }
+                            }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        private void ApplyBiomeSurfaceDetails(int[,,] blocks, int x, int z, int surfaceY, int biome, float detail)
+        {
+            // Add surface features based on biome and detail noise
+            switch (biome)
+            {
+                case 0: // Plains
+                    if (detail > 0.7f && UnityEngine.Random.value < 0.1f)
+                    {
+                        // Add flowers
+                        blocks[x, surfaceY + 1, z] = GetBlockId("flower");
+                    }
+                    break;
+                    
+                case 2: // Forest
+                    if (UnityEngine.Random.value < 0.05f)
+                    {
+                        // Add trees (simplified - would need tree generation system)
+                        blocks[x, surfaceY + 1, z] = GetBlockId("log");
+                    }
+                    break;
+                    
+                case 3: // Desert
+                    if (detail > 0.6f && UnityEngine.Random.value < 0.05f)
+                    {
+                        // Add cacti
+                        blocks[x, surfaceY + 1, z] = GetBlockId("cactus");
+                    }
+                    break;
+            }
+        }
+        
+        private int GetBlockId(string blockName)
+        {
+            return _blockDataManager.GetBlockId(blockName);
+        }
+    }
+}
+

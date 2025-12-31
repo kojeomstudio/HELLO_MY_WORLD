@@ -1,5 +1,6 @@
 using Game.Auth;
 using Networking.Core;
+using Google.Protobuf;
 
 namespace Networking.Handlers
 {
@@ -33,3 +34,4 @@ namespace Networking.Handlers
         }
     }
 }
+

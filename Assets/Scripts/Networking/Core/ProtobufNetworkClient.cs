@@ -423,6 +423,11 @@ namespace Networking.Core
                 message.MergeFrom(data);
                 return true;
             }
+            catch (Google.Protobuf.InvalidProtocolBufferException)
+            {
+                message = default(T);
+                return false;
+            }
             catch
             {
                 message = default(T);
@@ -520,3 +525,8 @@ namespace Networking.Core
         System = 3
     }
 }
+        Whisper = 2,
+        System = 3
+    }
+}
+

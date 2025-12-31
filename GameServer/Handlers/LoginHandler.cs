@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using GameCommon;
-using GameServerApp.Core;
 using GameServerApp.Database;
 using GameServerApp.Models;
 using GameServerApp.Systems;
@@ -267,11 +266,4 @@ namespace GameServerApp.Handlers
             return Convert.ToBase64String(bytes);
         }
     }
-}
-            var bytes = new byte[32];
-            rng.GetBytes(bytes);
-            return Convert.ToBase64String(bytes);
-        }
-    }
-}
 }

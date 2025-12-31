@@ -1922,6 +1922,46 @@ namespace MapGenLib
             }
         }
 
+        private static void ApplyHydrologyEdgeBleed(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int radius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float bleed = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
+            if (bleed <= CustomMathf.kEpsilon)
+            {
+                return;
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    if (x >= radius && x < width - radius && z >= radius && z < depth - radius)
+                    {
+                        continue;
+                    }
+
+                    float sum = 0f;
+                    int samples = 0;
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = CustomMathf.Clamp(x + dx, radius, width - radius - 1);
+                            int nz = CustomMathf.Clamp(z + dz, radius, depth - radius - 1);
+                            sum += hydrologyMask[nx, nz];
+                            samples++;
+                        }
+                    }
+
+                    float average = samples > 0 ? sum / samples : hydrologyMask[x, z];
+                    hydrologyMask[x, z] = hydrologyMask[x, z] * (1f - bleed) + average * bleed;
+                    flowAccumulation[x, z] = flowAccumulation[x, z] * (1f - bleed * 0.5f) + hydrologyMask[x, z] * bleed * 0.25f;
+                }
+            }
+        }
+
         private static void SmoothScalarField(float[,] field, int iterations, float blend)
         {
             int width = field.GetLength(0);
@@ -2962,6 +3002,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEdgeBleed(subWorldSize, hydrologyMask, flowAccumulation);
             CustomVector2[,] hydrologyGradient = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -4195,6 +4236,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEdgeBleed(subWorldSize, hydrologyMask, flowAccumulation);
             int basinSmoothIterations = CustomMathf.Max(1, LakeBasinSmoothIterations);
             float basinBlend = CustomMathf.Clamp(HydrologySmoothBlend + 0.08f, 0f, 0.95f);
             SmoothScalarField(hydrologyMask, basinSmoothIterations, basinBlend);
@@ -5068,6 +5110,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             FeatherHydrologyEdges(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            ApplyHydrologyEdgeBleed(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             float[,] caveCurvature = BuildHydrologyCurvatureField(caveHydrologyMask, caveFlowAccumulation);
             AddHydrologySupportColumns(subWorldBlockData, subWorldSize, caveStabilityField, caveHydrologyMask, caveFlowAccumulation);
@@ -5103,6 +5146,7 @@ namespace MapGenLib
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEdgeBleed(subWorldSize, hydrologyMask, flowAccumulation);
             CustomVector2[,] hydrologyGradientField = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -5141,6 +5185,11 @@ namespace MapGenLib
                     float supportBoost = 1f + waterTableBias * 0.35f + gradientStrength * 0.05f + curvatureBias * 0.08f;
                     float stability = saturation * supportBoost * suppression * CustomMathf.Clamp(moistureRetention, 0.25f, 1.15f);
                     stability *= 1f - (moisturePenalty + gradientPenalty * 0.15f) * 0.35f;
+                    if (x == 0 || z == 0 || x == subWorldSize.SizeX - 1 || z == subWorldSize.SizeZ - 1)
+                    {
+                        float edgePenalty = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight * 0.35f);
+                        stability *= 1f - CustomMathf.Clamp01(edgePenalty + hydrology * CaveMoistureRetentionWeight * 0.1f);
+                    }
                     field[x, z] = CustomMathf.Clamp01(stability);
                 }
             }

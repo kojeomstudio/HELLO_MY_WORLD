@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using GameServerApp.Utils;
 using GameServerApp.World;
+using GameServerApp.Models;
 
 namespace GameServerApp.World.Generation
 {
@@ -14,6 +16,7 @@ namespace GameServerApp.World.Generation
         private readonly CaveConfig _caveConfig;
         private readonly WaterConfig _waterConfig;
         private readonly LakeConfig _lakeConfig;
+        private readonly Random _random;
         
         public ImprovedWorldGeneration(WorldGenerationConfig config)
         {
@@ -21,6 +24,7 @@ namespace GameServerApp.World.Generation
             _caveConfig = config.Caves;
             _waterConfig = config.Water;
             _lakeConfig = config.Lakes;
+            _random = new Random((int)(config.Seed ^ 0x52AC1B));
         }
 
         /// <summary>
@@ -58,7 +62,7 @@ namespace GameServerApp.World.Generation
         private void GenerateEnhancedBaseTerrain(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
-            var worldManager = context.WorldManager;
+            var worldManager = context.Manager;
             
             // Use existing base terrain generation with enhancements
             worldManager.GenerateBaseTerrainInternal(context);
@@ -73,7 +77,6 @@ namespace GameServerApp.World.Generation
         private void ApplyEnhancedBiomeFeatures(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
-            var worldManager = context.WorldManager;
             
             for (int x = 0; x < 16; x++)
             {
@@ -107,8 +110,7 @@ namespace GameServerApp.World.Generation
         /// </summary>
         private void GenerateImprovedCaves(TerrainGenerationContext context)
         {
-            var caveGenerator = new ImprovedCaveGenerator(_caveConfig);
-            caveGenerator.GenerateCaves(context);
+            context.Manager.GenerateImprovedCavesInternal(context);
         }
 
         /// <summary>
@@ -116,8 +118,7 @@ namespace GameServerApp.World.Generation
         /// </summary>
         private void GenerateImprovedRivers(TerrainGenerationContext context)
         {
-            var riverGenerator = new ImprovedRiverGenerator(_waterConfig);
-            riverGenerator.GenerateRivers(context);
+            context.Manager.GenerateImprovedRiversInternal(context);
         }
 
         /// <summary>
@@ -125,8 +126,7 @@ namespace GameServerApp.World.Generation
         /// </summary>
         private void GenerateImprovedLakes(TerrainGenerationContext context)
         {
-            var lakeGenerator = new ImprovedLakeGenerator(_lakeConfig);
-            lakeGenerator.GenerateLakes(context);
+            context.Manager.GenerateImprovedLakesInternal(context);
         }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace GameServerApp.World.Generation
                 chunk.SetBlock(x, surfaceY, z, BlockType.Grass);
                 
                 // Occasionally add flowers or tall grass
-                if (UnityEngine.Random.value < 0.1f)
+                if (_random.NextDouble() < 0.1f)
                 {
                     chunk.SetBlock(x, surfaceY + 1, z, BlockType.TallGrass);
                 }
@@ -167,10 +167,10 @@ namespace GameServerApp.World.Generation
                 chunk.SetBlock(x, y, z, BlockType.Sand);
             }
 
-            // Add cacti occasionally
-            if (ShouldPlaceCactus(worldX, worldZ) && surfaceY + 1 < 256)
+            // Add desert shrubs occasionally
+            if (ShouldPlaceDesertShrub(worldX, worldZ) && surfaceY + 1 < 256)
             {
-                chunk.SetBlock(x, surfaceY + 1, z, BlockType.Cactus);
+                chunk.SetBlock(x, surfaceY + 1, z, BlockType.DeadBush);
             }
         }
 
@@ -200,9 +200,9 @@ namespace GameServerApp.World.Generation
             if (surfaceY <= 0) return;
 
             // Add underwater features
-            if (ShouldPlaceCoral(worldX, worldZ))
+            if (ShouldPlaceSeabedDeposit(worldX, worldZ))
             {
-                GenerateCoralFormation(chunk, x, z, surfaceY);
+                GenerateSeabedDeposit(chunk, x, z, surfaceY);
             }
         }
 
@@ -233,9 +233,9 @@ namespace GameServerApp.World.Generation
             return 2 + (int)(noise * 4);
         }
 
-        private bool ShouldPlaceCactus(int worldX, int worldZ)
+        private bool ShouldPlaceDesertShrub(int worldX, int worldZ)
         {
-            // Use noise to determine cactus placement
+            // Use noise to determine shrub placement
             var noise = SimplexNoise.Generate(worldX * 0.15, worldZ * 0.15, 0.01, 1, 1.0, 0.5, 34567);
             return noise > 0.8;
         }
@@ -250,8 +250,8 @@ namespace GameServerApp.World.Generation
         private void GenerateMineralVein(ChunkData chunk, int x, int z, int surfaceY)
         {
             // Generate small mineral vein
-            int veinLength = 3 + UnityEngine.Random.Range(0, 5);
-            int direction = UnityEngine.Random.Range(0, 4); // 0: +X, 1: -X, 2: +Z, 3: -Z
+            int veinLength = 3 + _random.Next(0, 5);
+            int direction = _random.Next(0, 4); // 0: +X, 1: -X, 2: +Z, 3: -Z
             
             for (int i = 0; i < veinLength; i++)
             {
@@ -268,7 +268,7 @@ namespace GameServerApp.World.Generation
                 
                 if (veinX >= 0 && veinX < 16 && veinZ >= 0 && veinZ < 16)
                 {
-                    int veinY = surfaceY - 2 - UnityEngine.Random.Range(0, 3);
+                    int veinY = surfaceY - 2 - _random.Next(0, 3);
                     if (veinY >= 0 && veinY < 256)
                     {
                         chunk.SetBlock(veinX, veinY, veinZ, BlockType.CoalOre);
@@ -277,21 +277,21 @@ namespace GameServerApp.World.Generation
             }
         }
 
-        private bool ShouldPlaceCoral(int worldX, int worldZ)
+        private bool ShouldPlaceSeabedDeposit(int worldX, int worldZ)
         {
-            // Use noise to determine coral placement
+            // Use noise to determine seabed deposit placement
             var noise = SimplexNoise.Generate(worldX * 0.12, worldZ * 0.12, 0.01, 1, 1.0, 0.5, 56789);
             return noise > 0.7;
         }
 
-        private void GenerateCoralFormation(ChunkData chunk, int x, int z, int surfaceY)
+        private void GenerateSeabedDeposit(ChunkData chunk, int x, int z, int surfaceY)
         {
-            // Generate small coral formation
-            int coralHeight = 1 + UnityEngine.Random.Range(0, 2);
+            // Generate small seabed clay formation
+            int depositHeight = 1 + _random.Next(0, 2);
             
-            for (int y = surfaceY + 1; y <= surfaceY + coralHeight && y < 256; y++)
+            for (int y = surfaceY + 1; y <= surfaceY + depositHeight && y < 256; y++)
             {
-                chunk.SetBlock(x, y, z, BlockType.Coral);
+                chunk.SetBlock(x, y, z, BlockType.Clay);
             }
         }
     }

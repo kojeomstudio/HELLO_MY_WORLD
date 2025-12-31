@@ -1,655 +1,251 @@
 using System;
+using GameServerApp.Utils;
+using GameServerApp.World;
 
 namespace GameServerApp.World.Generation
 {
     /// <summary>
-    /// Improved cave generation with enhanced algorithms
+    /// Hydrology-aware cave mask generator that suppresses rivers, seals chunk edges,
+    /// and biases support pillars toward saturated terrain.
     /// </summary>
-    public class ImprovedCaveGenerator
+    public sealed class ImprovedCaveGenerator
     {
-        private readonly CaveConfig _config;
-        private readonly Random _random;
+        private readonly CaveConfig config;
+        private readonly Random random;
+        private readonly double depthWeight;
 
         public ImprovedCaveGenerator(CaveConfig config, long worldSeed)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _random = new Random((int)worldSeed ^ 0x5A3C7B01);
+            this.config = config ?? throw new ArgumentNullException(nameof(config));
+            random = new Random((int)(worldSeed ^ 0x5A3C7B01));
+            depthWeight = Math.Clamp(
+                1.0 - (config.HydrologyStabilityWeight + config.FlowStabilityWeight + config.RoughnessStabilityWeight),
+                0.05,
+                0.45);
         }
 
-        /// <summary>
-        /// Build cave mask for specified area
-        /// </summary>
-        public bool[,,] BuildMask(int width, int depth, int height, int[,] heightMap, int seaLevel)
+        public bool[,,] BuildMask(
+            int chunkX,
+            int chunkZ,
+            int chunkSize,
+            int worldHeight,
+            int[,] heightMap,
+            float[,] hydrologyMask,
+            float[,]? riverMask,
+            int seaLevel)
         {
-            var mask = new bool[width, depth, height];
-            
-            // Generate primary cave tunnels
-            GeneratePrimaryTunnels(mask, width, depth, height, heightMap, seaLevel);
-            
-            // Generate secondary cave branches
-            GenerateSecondaryBranches(mask, width, depth, height, heightMap, seaLevel);
-            
-            // Generate caves and caverns
-            GenerateCaverns(mask, width, depth, height, heightMap, seaLevel);
-            
-            // Apply smoothing to cave edges
-            SmoothCaveEdges(mask, width, depth, height);
-            
+            var mask = new bool[chunkSize, worldHeight, chunkSize];
+            double horizontal = Math.Max(0.0001, config.HorizontalFrequency);
+            double vertical = Math.Max(0.0001, config.VerticalFrequency);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int surface = heightMap[x, z];
+                    if (surface <= 2)
+                    {
+                        continue;
+                    }
+
+                    float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double stability = ComputeColumnStability(surface, hydrology, riverPressure);
+
+                    for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
+                    {
+                        double depthFactor = 1.0 - (double)y / Math.Max(1, surface);
+                        double warpX = (chunkX * chunkSize + x) * horizontal;
+                        double warpZ = (chunkZ * chunkSize + z) * horizontal;
+                        double warpY = y * vertical;
+
+                        var warp = SimplexNoise.DomainWarp(
+                            warpX,
+                            warpZ + warpY,
+                            horizontal * 0.35,
+                            vertical * 0.6,
+                            4.0,
+                            2.5,
+                            random.Next());
+
+                        double primary = SimplexNoise.Generate(
+                            warpX + warp.dx,
+                            warpZ + warp.dz + warpY,
+                            1.0,
+                            3,
+                            1.0,
+                            0.55,
+                            random.Next());
+
+                        double secondary = PerlinNoise.Generate(
+                            warpX + 17.0,
+                            warpZ - 11.0,
+                            vertical * 0.5,
+                            2,
+                            1.0,
+                            0.6,
+                            random.Next());
+
+                        double density = (primary * 0.65) + (secondary * 0.35);
+                        double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight;
+                        double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
+                        double threshold = config.Threshold + moisturePenalty * 0.35 + config.FlowStabilityWeight * 0.2 + roughnessBias * 0.25;
+                        threshold -= depthFactor * depthWeight * 0.6;
+                        threshold = Math.Clamp(threshold, 0.22, 0.8);
+
+                        if (density > threshold && stability > 0.08)
+                        {
+                            mask[x, y, z] = true;
+                        }
+                    }
+                }
+            }
+
+            SmoothMask(mask, config.StabilitySmoothIterations, config.StabilitySmoothBlend);
+            AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
+            SealEdges(mask, config.EdgeSealStrength);
             return mask;
         }
 
-        /// <summary>
-        /// Generate primary cave tunnels
-        /// </summary>
-        private void GeneratePrimaryTunnels(bool[,,] mask, int width, int depth, int height, int[,] heightMap, int seaLevel)
+        private double ComputeColumnStability(int surface, float hydrology, float riverPressure)
         {
-            int tunnelCount = (int)(_config.TunnelDensity * width * depth / 1000.0);
-            
-            for (int i = 0; i < tunnelCount; i++)
-            {
-                // Random starting point
-                int startX = _random.Next(width);
-                int startZ = _random.Next(depth);
-                int startY = _random.Next(seaLevel, height - 10);
-                
-                // Generate tunnel path
-                GenerateTunnelPath(mask, width, depth, height, startX, startY, startZ, _config.TunnelLength, _config.TunnelRadius);
-            }
+            double waterBias = 1.0 - Math.Clamp(hydrology * config.HydrologyStabilityWeight, 0.0, 0.75);
+            double riverBias = 1.0 - Math.Clamp(riverPressure * config.RiverSuppressionWeight, 0.0, 0.9);
+            double ceilingBias = 1.0 - Math.Clamp((surface / 128.0) * config.CeilingStabilityWeight, 0.0, 0.35);
+            return Math.Clamp(waterBias * riverBias * (1.0 - ceilingBias * 0.35), 0.05, 1.25);
         }
 
-        /// <summary>
-        /// Generate a single tunnel path
-        /// </summary>
-        private void GenerateTunnelPath(bool[,,] mask, int width, int depth, int height, int startX, int startY, int startZ, int length, int radius)
+        private void SmoothMask(bool[,,] mask, int iterations, double blend)
         {
-            int x = startX;
-            int y = startY;
-            int z = startZ;
-            
-            // Random direction
-            double dx = (_random.NextDouble() - 0.5) * 2;
-            double dy = (_random.NextDouble() - 0.5) * 0.5;
-            double dz = (_random.NextDouble() - 0.5) * 2;
-            
-            // Normalize direction
-            double length = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            dx /= length;
-            dy /= length;
-            dz /= length;
-            
-            for (int step = 0; step < length; step++)
-            {
-                // Carve out tunnel at current position
-                CarveTunnelSection(mask, width, depth, height, x, y, z, radius);
-                
-                // Update position
-                x += (int)Math.Round(dx);
-                y += (int)Math.Round(dy);
-                z += (int)Math.Round(dz);
-                
-                // Add some randomness to direction
-                dx += (_random.NextDouble() - 0.5) * 0.2;
-                dy += (_random.NextDouble() - 0.5) * 0.1;
-                dz += (_random.NextDouble() - 0.5) * 0.2;
-                
-                // Renormalize direction
-                length = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-                dx /= length;
-                dy /= length;
-                dz /= length;
-                
-                // Check bounds
-                if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth)
-                    break;
-            }
-        }
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
 
-        /// <summary>
-        /// Carve out a tunnel section
-        /// </summary>
-        private void CarveTunnelSection(bool[,,] mask, int width, int depth, int height, int centerX, int centerY, int centerZ, int radius)
-        {
-            for (int x = -radius; x <= radius; x++)
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+
+            for (int iter = 0; iter < iterations; iter++)
             {
-                for (int y = -radius; y <= radius; y++)
+                var buffer = new bool[sizeX, sizeY, sizeZ];
+                for (int x = 0; x < sizeX; x++)
                 {
-                    for (int z = -radius; z <= radius; z++)
+                    for (int z = 0; z < sizeZ; z++)
                     {
-                        int px = centerX + x;
-                        int py = centerY + y;
-                        int pz = centerZ + z;
-                        
-                        if (px >= 0 && px < width && py >= 0 && py < height && pz >= 0 && pz < depth)
+                        for (int y = 1; y < sizeY - 1; y++)
                         {
-                            double distance = Math.Sqrt(x * x + y * y + z * z);
-                            if (distance <= radius)
+                            int neighbours = 0;
+                            for (int dx = -1; dx <= 1; dx++)
                             {
-                                mask[px, py, pz] = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Generate secondary cave branches
-        /// </summary>
-        private void GenerateSecondaryBranches(bool[,,] mask, int width, int depth, int height, int[,] heightMap, int seaLevel)
-        {
-            int branchCount = (int)(_config.BranchDensity * width * depth / 2000.0);
-            
-            for (int i = 0; i < branchCount; i++)
-            {
-                // Random starting point
-                int startX = _random.Next(width);
-                int startZ = _random.Next(depth);
-                int startY = _random.Next(seaLevel / 2, height - 5);
-                
-                // Generate branch path
-                GenerateTunnelPath(mask, width, depth, height, startX, startY, startZ, 
-                    _config.BranchLength, _config.BranchRadius);
-            }
-        }
-
-        /// <summary>
-        /// Generate caves and caverns
-        /// </summary>
-        private void GenerateCaverns(bool[,,] mask, int width, int depth, int height, int[,] heightMap, int seaLevel)
-        {
-            int cavernCount = (int)(_config.CavernDensity * width * depth / 5000.0);
-            
-            for (int i = 0; i < cavernCount; i++)
-            {
-                // Random center point
-                int centerX = _random.Next(width);
-                int centerZ = _random.Next(depth);
-                int centerY = _random.Next(seaLevel / 2, height - 10);
-                
-                // Generate cavern
-                GenerateCavern(mask, width, depth, height, centerX, centerY, centerZ, 
-                    _config.CavernRadius);
-            }
-        }
-
-        /// <summary>
-        /// Generate a single cavern
-        /// </summary>
-        private void GenerateCavern(bool[,,] mask, int width, int depth, int height, int centerX, int centerY, int centerZ, int radius)
-        {
-            for (int x = -radius; x <= radius; x++)
-            {
-                for (int y = -radius; y <= radius; y++)
-                {
-                    for (int z = -radius; z <= radius; z++)
-                    {
-                        int px = centerX + x;
-                        int py = centerY + y;
-                        int pz = centerZ + z;
-                        
-                        if (px >= 0 && px < width && py >= 0 && py < height && pz >= 0 && pz < depth)
-                        {
-                            double distance = Math.Sqrt(x * x + y * y + z * z);
-                            if (distance <= radius)
-                            {
-                                mask[px, py, pz] = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Apply smoothing to cave edges
-        /// </summary>
-        private void SmoothCaveEdges(bool[,,] mask, int width, int depth, int height)
-        {
-            var smoothedMask = new bool[width, depth, height];
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    for (int z = 0; z < depth; z++)
-                    {
-                        int solidCount = 0;
-                        int totalCount = 0;
-                        
-                        // Check neighboring cells
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                for (int dz = -1; dz <= 1; dz++)
+                                for (int dy = -1; dy <= 1; dy++)
                                 {
-                                    int nx = x + dx;
-                                    int ny = y + dy;
-                                    int nz = z + dz;
-                                    
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && nz >= 0 && nz < depth)
+                                    for (int dz = -1; dz <= 1; dz++)
                                     {
-                                        totalCount++;
-                                        if (!mask[nx, ny, nz])
-                                            solidCount++;
+                                        if (dx == 0 && dy == 0 && dz == 0)
+                                        {
+                                            continue;
+                                        }
+
+                                        int nx = x + dx;
+                                        int ny = y + dy;
+                                        int nz = z + dz;
+                                        if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ || ny < 0 || ny >= sizeY)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (mask[nx, ny, nz])
+                                        {
+                                            neighbours++;
+                                        }
                                     }
                                 }
                             }
-                        }
-                        
-                        // Apply smoothing threshold
-                        smoothedMask[x, y, z] = (solidCount / (double)totalCount) > 0.7;
-                    }
-                }
-            }
-            
-            // Copy smoothed values back
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    for (int z = 0; z < depth; z++)
-                    {
-                        mask[x, y, z] = smoothedMask[x, y, z];
-                    }
-                }
-            }
-        }
-    }
 
-    /// <summary>
-    /// Configuration for cave generation
-    /// </summary>
-    public class CaveConfig
-    {
-        public double TunnelDensity { get; set; } = 0.5;
-        public int TunnelLength { get; set; } = 50;
-        public int TunnelRadius { get; set; } = 3;
-        public double BranchDensity { get; set; } = 0.3;
-        public int BranchLength { get; set; } = 20;
-        public int BranchRadius { get; set; } = 2;
-        public double CavernDensity { get; set; } = 0.1;
-        public int CavernRadius { get; set; } = 8;
-    }
-}
-                        if (px >= 0 && px < width && py >= 0 && py < height && pz >= 0 && pz < depth)
-                        {
-                            double distance = Math.Sqrt(x * x + y * y + z * z);
-                            if (distance <= radius)
+                            bool carve = mask[x, y, z];
+                            if (neighbours >= 13)
                             {
-                                mask[px, py, pz] = true;
+                                buffer[x, y, z] = true;
+                            }
+                            else if (neighbours <= 3)
+                            {
+                                buffer[x, y, z] = false;
+                            }
+                            else
+                            {
+                                buffer[x, y, z] = blend > 0 ? neighbours >= 9 : carve;
                             }
                         }
                     }
                 }
+
+                Array.Copy(buffer, mask, buffer.Length);
             }
         }
 
-        /// <summary>
-        /// Apply smoothing to cave edges
-        /// </summary>
-        private void SmoothCaveEdges(bool[,,] mask, int width, int depth, int height)
+        private void AddSupportColumns(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, int seaLevel)
         {
-            var smoothedMask = new bool[width, depth, height];
-            
-            for (int x = 0; x < width; x++)
+            double chance = Math.Clamp(config.SupportPillarChance, 0.0, 1.0);
+            if (chance <= 0.0)
             {
-                for (int y = 0; y < height; y++)
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
                 {
-                    for (int z = 0; z < depth; z++)
+                    float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double pillarChance = chance * (1.0 + hydrology * config.SupportHydrationBias + river * config.SupportFlowBias);
+                    if (random.NextDouble() > pillarChance)
                     {
-                        int solidCount = 0;
-                        int totalCount = 0;
-                        
-                        // Check neighboring cells
-                        for (int dx = -1; dx <= 1; dx++)
+                        continue;
+                    }
+
+                    int baseY = Math.Max(1, seaLevel - 6);
+                    int height = random.Next(2, 6);
+                    for (int y = baseY; y < Math.Min(sizeY - 1, baseY + height); y++)
+                    {
+                        mask[x, y, z] = false;
+                    }
+                }
+            }
+        }
+
+        private void SealEdges(bool[,,] mask, double strength)
+        {
+            strength = Math.Clamp(strength, 0.0, 1.0);
+            if (strength <= 0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    if (x != 0 && z != 0 && x != sizeX - 1 && z != sizeZ - 1)
+                    {
+                        continue;
+                    }
+
+                    for (int y = 1; y < sizeY - 1; y++)
+                    {
+                        if (mask[x, y, z] && random.NextDouble() < strength)
                         {
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                for (int dz = -1; dz <= 1; dz++)
-                                {
-                                    int nx = x + dx;
-                                    int ny = y + dy;
-                                    int nz = z + dz;
-                                    
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && nz >= 0 && nz < depth)
-                                    {
-                                        totalCount++;
-                                        if (!mask[nx, ny, nz])
-                                            solidCount++;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Apply smoothing threshold
-                        smoothedMask[x, y, z] = (solidCount / (double)totalCount) > 0.7;
-                    }
-                }
-            }
-            
-            // Copy smoothed values back
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    for (int z = 0; z < depth; z++)
-                    {
-                        mask[x, y, z] = smoothedMask[x, y, z];
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Configuration for cave generation
-    /// </summary>
-    public class CaveConfig
-    {
-        public double TunnelDensity { get; set; } = 0.5;
-        public int TunnelLength { get; set; } = 50;
-        public int TunnelRadius { get; set; } = 3;
-        public double BranchDensity { get; set; } = 0.3;
-        public int BranchLength { get; set; } = 20;
-        public int BranchRadius { get; set; } = 2;
-        public double CavernDensity { get; set; } = 0.1;
-        public int CavernRadius { get; set; } = 8;
-    }
-}
-}
-                double t = steps > 0 ? (double)i / steps : 0;
-                int x = (int)Math.Round(x1 + (x2 - x1) * t);
-                int y = (int)Math.Round(y1 + (y2 - y1) * t);
-                int z = (int)Math.Round(z1 + (z2 - z1) * t);
-                
-                CarveCave(mask, width, height, depth, x, y, z, radius);
-            }
-        }
-    }
-}
-}
-                                Math.Pow(x - startX, 2) + 
-                                Math.Pow(y - startY, 2) + 
-                                Math.Pow(z - startZ, 2));
-                            
-                            if (distance < minDistance && distance > 3)
-                            {
-                                minDistance = distance;
-                                nearestX = x;
-                                nearestY = y;
-                                nearestZ = z;
-                            }
+                            mask[x, y, z] = false;
                         }
                     }
                 }
             }
-            
-            // Create tunnel to nearest air space
-            if (nearestX != -1)
-            {
-                CreateTunnel(mask, width, height, depth, startX, startY, startZ, nearestX, nearestY, nearestZ, 1.0);
-            }
-        }
-
-        /// <summary>
-        /// Create a tunnel between two points
-        /// </summary>
-        private void CreateTunnel(bool[,,] mask, int width, int height, int depth, int x1, int y1, int z1, int x2, int y2, int z2, double radius)
-        {
-            double distance = Math.Sqrt(
-                Math.Pow(x2 - x1, 2) + 
-                Math.Pow(y2 - y1, 2) + 
-                Math.Pow(z2 - z1, 2));
-            
-            int steps = (int)Math.Ceiling(distance);
-            
-            for (int i = 0; i <= steps; i++)
-            {
-                double t = steps > 0 ? (double)i / steps : 0;
-                int x = (int)Math.Round(x1 + (x2 - x1) * t);
-                int y = (int)Math.Round(y1 + (y2 - y1) * t);
-                int z = (int)Math.Round(z1 + (z2 - z1) * t);
-                
-                CarveCave(mask, width, height, depth, x, y, z, radius);
-            }
         }
     }
-}
-}
-                {
-                    for (int y = 5; y < 100; y++)
-                    {
-                        if (chunk.GetBlock(x, y, z) == BlockType.Air && (x != startX || y != startY || z != startZ))
-                        {
-                            double distance = Math.Sqrt(
-                                Math.Pow(x - startX, 2) + 
-                                Math.Pow(y - startY, 2) + 
-                                Math.Pow(z - startZ, 2));
-                            
-                            if (distance < minDistance && distance > 3)
-                            {
-                                minDistance = distance;
-                                nearestX = x;
-                                nearestY = y;
-                                nearestZ = z;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Create tunnel to nearest air space
-            if (nearestX != -1)
-            {
-                CreateTunnel(chunk, startX, startY, startZ, nearestX, nearestY, nearestZ, 1.0);
-            }
-        }
-
-        /// <summary>
-        /// Create a tunnel between two points
-        /// </summary>
-        private void CreateTunnel(ChunkData chunk, int x1, int y1, int z1, int x2, int y2, int z2, double radius)
-        {
-            double distance = Math.Sqrt(
-                Math.Pow(x2 - x1, 2) + 
-                Math.Pow(y2 - y1, 2) + 
-                Math.Pow(z2 - z1, 2));
-            
-            int steps = (int)Math.Ceiling(distance);
-            
-            for (int i = 0; i <= steps; i++)
-            {
-                double t = steps > 0 ? (double)i / steps : 0;
-                int x = (int)Math.Round(x1 + (x2 - x1) * t);
-                int y = (int)Math.Round(y1 + (y2 - y1) * t);
-                int z = (int)Math.Round(z1 + (z2 - z1) * t);
-                
-                CarveCave(chunk, x, y, z, radius);
-            }
-        }
-
-        /// <summary>
-        /// Create a stalactite hanging from the ceiling
-        /// </summary>
-        private void CreateStalactite(ChunkData chunk, int x, int y, int z, Random rand)
-        {
-            int length = 1 + rand.Next(3);
-            
-            for (int i = 0; i < length && y - i >= 0; i++)
-            {
-                if (chunk.GetBlock(x, y - i, z) == BlockType.Air)
-                {
-                    chunk.SetBlock(x, y - i, z, BlockType.Stone);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Create a stalagmite rising from the floor
-        /// </summary>
-        private void CreateStalagmite(ChunkData chunk, int x, int y, int z, Random rand)
-        {
-            int length = 1 + rand.Next(3);
-            
-            for (int i = 0; i < length && y + i < 256; i++)
-            {
-                if (chunk.GetBlock(x, y + i, z) == BlockType.Air)
-                {
-                    chunk.SetBlock(x, y + i, z, BlockType.Stone);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-    }
-}
-                }
-            }
-        }
-
-        /// <summary>
-        /// Check if a connection should be created at this position
-        /// </summary>
-        private bool ShouldCreateConnection(ChunkData chunk, int x, int y, int z, Random rand)
-        {
-            // Count adjacent air blocks
-            int airCount = 0;
-            
-            for (int dx = -1; dx <= 1; dx++)
-            {
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        if (dx == 0 && dy == 0 && dz == 0) continue;
-                        
-                        int nx = x + dx;
-                        int ny = y + dy;
-                        int nz = z + dz;
-                        
-                        if (nx >= 0 && nx < 16 && ny >= 0 && ny < 256 && nz >= 0 && nz < 16)
-                        {
-                            if (chunk.GetBlock(nx, ny, nz) == BlockType.Air)
-                                airCount++;
-                        }
-                    }
-                }
-            }
-            
-            // Create connection if this is an isolated air pocket
-            return airCount < 5 && rand.NextDouble() < 0.3;
-        }
-
-        /// <summary>
-        /// Create a connection tunnel
-        /// </summary>
-        private void CreateConnection(ChunkData chunk, int startX, int startY, int startZ, Random rand)
-        {
-            // Find nearest air space to connect to
-            int nearestX = -1, nearestY = -1, nearestZ = -1;
-            double minDistance = double.MaxValue;
-            
-            for (int x = 0; x < 16; x++)
-            {
-                for (int z = 0; z < 16; z++)
-                {
-                    for (int y = 5; y < 100; y++)
-                    {
-                        if (chunk.GetBlock(x, y, z) == BlockType.Air && (x != startX || y != startY || z != startZ))
-                        {
-                            double distance = Math.Sqrt(
-                                Math.Pow(x - startX, 2) + 
-                                Math.Pow(y - startY, 2) + 
-                                Math.Pow(z - startZ, 2));
-                            
-                            if (distance < minDistance && distance > 3)
-                            {
-                                minDistance = distance;
-                                nearestX = x;
-                                nearestY = y;
-                                nearestZ = z;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Create tunnel to nearest air space
-            if (nearestX != -1)
-            {
-                CreateTunnel(chunk, startX, startY, startZ, nearestX, nearestY, nearestZ, 1.0);
-            }
-        }
-
-        /// <summary>
-        /// Create a tunnel between two points
-        /// </summary>
-        private void CreateTunnel(ChunkData chunk, int x1, int y1, int z1, int x2, int y2, int z2, double radius)
-        {
-            double distance = Math.Sqrt(
-                Math.Pow(x2 - x1, 2) + 
-                Math.Pow(y2 - y1, 2) + 
-                Math.Pow(z2 - z1, 2));
-            
-            int steps = (int)Math.Ceiling(distance);
-            
-            for (int i = 0; i <= steps; i++)
-            {
-                double t = steps > 0 ? (double)i / steps : 0;
-                int x = (int)Math.Round(x1 + (x2 - x1) * t);
-                int y = (int)Math.Round(y1 + (y2 - y1) * t);
-                int z = (int)Math.Round(z1 + (z2 - z1) * t);
-                
-                CarveCave(chunk, x, y, z, radius);
-            }
-        }
-
-        /// <summary>
-        /// Create a stalactite hanging from the ceiling
-        /// </summary>
-        private void CreateStalactite(ChunkData chunk, int x, int y, int z, Random rand)
-        {
-            int length = 1 + rand.Next(3);
-            
-            for (int i = 0; i < length && y - i >= 0; i++)
-            {
-                if (chunk.GetBlock(x, y - i, z) == BlockType.Air)
-                {
-                    chunk.SetBlock(x, y - i, z, BlockType.Stone);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Create a stalagmite rising from the floor
-        /// </summary>
-        private void CreateStalagmite(ChunkData chunk, int x, int y, int z, Random rand)
-        {
-            int length = 1 + rand.Next(3);
-            
-            for (int i = 0; i < length && y + i < 256; i++)
-            {
-                if (chunk.GetBlock(x, y + i, z) == BlockType.Air)
-                {
-                    chunk.SetBlock(x, y + i, z, BlockType.Stone);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-    }
-}
 }

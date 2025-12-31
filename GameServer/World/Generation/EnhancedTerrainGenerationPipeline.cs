@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GameServerApp;
 using GameServerApp.Models;
 using GameServerApp.Utils;
 using Microsoft.Extensions.Logging;
@@ -82,13 +83,15 @@ namespace GameServerApp.World.Generation
             float[,]? lakeMask = enableLakes
                 ? improvedMasks?.Lakes ?? BuildLakeMask(chunkX, chunkZ, heightMap, riverMask)
                 : null;
+            float[,]? hydrologyMask = improvedMasks?.Hydrology;
+            float[,]? flowAccumulation = improvedMasks?.FlowAccumulation;
 
             if (caveMask != null)
             {
                 CarveCaves(chunk, caveMask, heightMap);
             }
 
-            ApplyHydrology(chunk, heightMap, riverMask, lakeMask);
+            ApplyHydrology(chunk, heightMap, riverMask, lakeMask, hydrologyMask, flowAccumulation);
             return chunk;
         }
 
@@ -357,8 +360,18 @@ namespace GameServerApp.World.Generation
             AddCaveSupports(chunk, caves);
         }
 
-        private void ApplyHydrology(ChunkData chunk, int[,] heightMap, float[,]? riverMask, float[,]? lakeMask)
+        private void ApplyHydrology(ChunkData chunk, int[,] heightMap, float[,]? riverMask, float[,]? lakeMask, float[,]? hydrologyMask = null, float[,]? flowMask = null)
         {
+            if (riverMask != null)
+            {
+                FeatherMaskEdges(riverMask, config.Water.RiverEdgeFeather, config.Water.RiverSeamFillStrength);
+            }
+
+            if (lakeMask != null)
+            {
+                FeatherMaskEdges(lakeMask, config.Water.HydrologySmoothBlend * 0.25, config.Water.HydrologySeamRelaxBlend * 0.5);
+            }
+
             for (int x = 0; x < chunkSize; x++)
             {
                 for (int z = 0; z < chunkSize; z++)
@@ -366,14 +379,16 @@ namespace GameServerApp.World.Generation
                     int surface = heightMap[x, z];
                     float river = riverMask != null ? riverMask[x, z] : 0f;
                     float lake = lakeMask != null ? lakeMask[x, z] : 0f;
+                    float hydrology = hydrologyMask != null ? hydrologyMask[x, z] : 0f;
+                    float flow = flowMask != null ? flowMask[x, z] : 0f;
 
                     bool hasRiver = river > config.Water.RiverCenterThreshold;
                     bool hasLake = lake > config.Lakes.ShorelineBlend;
-                    float wetland = Math.Max(river, lake);
+                    float wetland = Math.Max(Math.Max(river, lake), hydrology * (float)Math.Clamp(config.Water.RiparianSaturationBoost, 0.0, 1.0));
 
                     if (hasRiver)
                     {
-                        int depth = Math.Clamp((int)(config.Water.RiverDepth * river), 2, config.Water.RiverDepth + 2);
+                        int depth = Math.Clamp((int)(config.Water.RiverDepth * (river + hydrology * 0.5f + flow * 0.35f)), 2, config.Water.RiverDepth + 3);
                         for (int d = 0; d < depth; d++)
                         {
                             int y = Math.Max(bedrockLevel + 1, surface - d);
@@ -381,7 +396,7 @@ namespace GameServerApp.World.Generation
                         }
 
                         // Feather river banks to reduce jagged edges and surface seams
-                        int bankDepth = Math.Max(1, (int)(config.Water.RiverEdgeFeather * 4));
+                        int bankDepth = Math.Max(1, (int)(config.Water.RiverEdgeFeather * 4 + hydrology * 2));
                         for (int b = 0; b < bankDepth; b++)
                         {
                             int bankY = Math.Max(bedrockLevel + 1, surface - b);
@@ -431,9 +446,69 @@ namespace GameServerApp.World.Generation
                     if (!hasRiver && !hasLake && wetland > 0.35f && chunk.GetBlock(x, surface, z) == BlockType.Grass)
                     {
                         chunk.SetBlock(x, surface, z, BlockType.Dirt);
+                        if (hydrology > 0.55f && surface <= seaLevel + 1 && chunk.GetBlock(x, surface + 1, z) == BlockType.Air)
+                        {
+                            chunk.SetBlock(x, surface + 1, z, BlockType.Water);
+                        }
                     }
                 }
             }
+        }
+
+        private static void FeatherMaskEdges(float[,] mask, double feather, double seamFill)
+        {
+            feather = Math.Clamp(feather, 0.0, 1.0);
+            seamFill = Math.Clamp(seamFill, 0.0, 1.0);
+            if (feather <= 0.0 && seamFill <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var buffer = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    bool isEdge = x == 0 || z == 0 || x == sizeX - 1 || z == sizeZ - 1;
+                    if (!isEdge)
+                    {
+                        continue;
+                    }
+
+                    float centre = mask[x, z];
+                    float neighbour = TerrainMaskUtility.Clamp01(SampleInterior(mask, x, z));
+                    float blended = (float)(centre * (1.0 - feather) + neighbour * feather);
+                    buffer[x, z] = Math.Max(blended, centre * (float)(1.0 - seamFill));
+                }
+            }
+
+            Array.Copy(buffer, mask, buffer.Length);
+        }
+
+        private static float SampleInterior(float[,] field, int x, int z)
+        {
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            int cx = Math.Clamp(x, 1, sizeX - 2);
+            int cz = Math.Clamp(z, 1, sizeZ - 2);
+            float sum = 0f;
+            int count = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int nx = Math.Clamp(cx + dx, 1, sizeX - 2);
+                    int nz = Math.Clamp(cz + dz, 1, sizeZ - 2);
+                    sum += field[nx, nz];
+                    count++;
+                }
+            }
+
+            return count == 0 ? field[cx, cz] : sum / count;
         }
 
         private static void Smooth2D(float[,] field, int iterations, double blend)

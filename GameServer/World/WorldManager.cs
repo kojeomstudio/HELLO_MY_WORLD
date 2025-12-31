@@ -6,6 +6,7 @@ using GameServerApp.Models;
 using GameServerApp.World.Generation;
 using GameServerApp.World.Generation.Stages;
 using System.Numerics;
+using GameServerApp.Utils;
 
 namespace GameServerApp.World
 {
@@ -180,14 +181,14 @@ namespace GameServerApp.World
             _worldGenConfig = generationConfig ?? WorldGenerationConfig.Load(_worldSettings.WorldConfigPath);
             _worldId = worldId;
 
-            // 월드 시드 초기화: 제공된 시드 또는 데이터베이스에서 로드, 또는 새로 생성
+            // ?�드 ?�드 초기?? ?�공???�드 ?�는 ?�이?�베?�스?�서 로드, ?�는 ?�로 ?�성
             _worldSeed = worldSeed
                 ?? WorldSeedConfig.FromSeed((int)_worldSettings.WorldSeed)
                 ?? LoadWorldSeedFromDatabase()
                 ?? WorldSeedConfig.Random();
             SaveWorldSeedToDatabase();
 
-            // 시드를 사용하여 Random 초기화 (결정적 생성을 위함)
+            // ?�드�??�용?�여 Random 초기??(결정???�성???�함)
             _random = new Random(_worldSeed.Seed);
             _caveSettings = new CaveGenerationSettings
             {
@@ -759,7 +760,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선된 3D 동굴 생성 시스템 - 더 자연스럽고 다양한 동굴 구조
+        /// 개선??3D ?�굴 ?�성 ?�스??- ???�연?�럽�??�양???�굴 구조
         /// </summary>
         public void GenerateCavesInternal(TerrainGenerationContext context)
         {
@@ -778,19 +779,19 @@ namespace GameServerApp.World
             var hydrologyGradient = hydrologyField.HydrologyGradient;
             var riverField = GetRiverFieldCache(context);
             
-            // 메인 동굴 시스템 (기존 웜 방식 개선)
+            // 메인 ?�굴 ?�스??(기존 ??방식 개선)
             var caveStabilityField = BuildCaveStabilityField(context, surfaceCache, hydrologyMask, flowAccumulation, hydrologyGradient);
             SmoothScalarField(caveStabilityField, _caveStabilitySmoothIterations, _caveStabilitySmoothBlend);
 
               GenerateMainCaveSystem(context, chunk, rand, caveStabilityField);
 
-            // 소형 동굴방 추가
+            // ?�형 ?�굴�?추�?
             GenerateSmallCaveRooms(chunk, rand);
 
-            // 수직 동굴 (수직갱)
+            // ?�직 ?�굴 (?�직�?
             GenerateVerticalShafts(chunk, rand);
 
-            // 노이즈 기반 동굴층 추가 (연속성 보장)
+            // ?�이�?기반 ?�굴�?추�? (?�속??보장)
             GenerateNoiseCavePass(context, chunk, surfaceCache, caveStabilityField, erosionRiskField, hydrologyMask, flowAccumulation, hydrologyGradient);
             ApplyCaveHydrologyFeatures(context, chunk, surfaceCache, hydrologyMask);
             IntegrateKarstInlets(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
@@ -1879,11 +1880,11 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 메인 동굴 시스템 생성
+        /// 메인 ?�굴 ?�스???�성
         /// </summary>
         private void GenerateMainCaveSystem(TerrainGenerationContext context, ChunkData chunk, Random rand, double[,] caveStabilityField)
         {
-            int wormCount = 1 + rand.Next(3); // 1~3개의 메인 웜
+            int wormCount = 1 + rand.Next(3); // 1~3개의 메인 ??
             double radiusNoiseSeed = rand.NextDouble() * 1000.0;
             double directionalNoiseSeed = rand.NextDouble() * 500.0;
 
@@ -1896,16 +1897,16 @@ namespace GameServerApp.World
             for (int w = 0; w < wormCount; w++)
             {
                 double x = rand.Next(16);
-                double y = rand.Next(15, 55); // 더 깊은 지하부터
+                double y = rand.Next(15, 55); // ??깊�? 지?��???
                 double z = rand.Next(16);
-                int steps = 100 + rand.Next(80); // 더 긴 동굴
+                int steps = 100 + rand.Next(80); // ??�??�굴
                 double yaw = rand.NextDouble() * Math.PI * 2.0;
                 double pitch = (rand.NextDouble() - 0.5) * 0.4;
-                double baseRadius = 2.0 + rand.NextDouble() * 1.5; // 기본 반지름
+                double baseRadius = 2.0 + rand.NextDouble() * 1.5; // 기본 반�?�?
 
                 for (int s = 0; s < steps; s++)
                 {
-                    // 동적으로 변하는 반지름 (넓어지고 좁아지는 효과)
+                    // ?�적?�로 변?�는 반�?�?(?�어지�?좁아지???�과)
                     double stability = SampleField(caveStabilityField, x, z);
                     double radiusNoise = SimplexNoise.Generate(x + radiusNoiseSeed, z + radiusNoiseSeed, 0.12, 2, 1.0, 0.55, 55127);
                     double radiusTurbulence = Math.Sin(s * 0.1) * 0.8 + radiusNoise * 0.6;
@@ -1921,11 +1922,11 @@ namespace GameServerApp.World
                     int cy = (int)Math.Round(y);
                     int cz = (int)Math.Round(z);
                     
-                    // 동굴 조각하기
+                    // ?�굴 조각?�기
                     CarveSphere(chunk, cx, cy, cz, currentRadius);
                     
-                    // 가끔 큰 공간(방) 생성
-                    if (s > 20 && rand.NextDouble() < 0.05) // 5% 확률
+                    // 가????공간(�? ?�성
+                    if (s > 20 && rand.NextDouble() < 0.05) // 5% ?�률
                     {
                         CarveRoom(chunk, cx, cy, cz, 4 + rand.Next(4));
                         if (rand.NextDouble() < 0.35)
@@ -1934,13 +1935,13 @@ namespace GameServerApp.World
                         }
                     }
 
-                    // 이동
-                    double speed = 0.8 + rand.NextDouble() * 0.4; // 가변 속도
+                    // ?�동
+                    double speed = 0.8 + rand.NextDouble() * 0.4; // 가변 ?�도
                     x += Math.Cos(yaw) * speed;
                     z += Math.Sin(yaw) * speed;
                     y += Math.Sin(pitch) * 0.3;
 
-                    // 방향 변화 (더 자연스럽게)
+                    // 방향 변??(???�연?�럽�?
                     double directionalNoise = SimplexNoise.Generate(x + directionalNoiseSeed, y + directionalNoiseSeed, 0.05, 2, 1.0, 0.5, 91357);
                     double turnBias = 0.7 - stability * 0.35;
                     yaw += (rand.NextDouble() - 0.5) * 0.3 * turnBias + directionalNoise * 0.35;
@@ -1955,7 +1956,7 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 소형 동굴방들 생성
+        /// ?�형 ?�굴방들 ?�성
         /// </summary>
         private static int FloorDiv(int value, int divisor)
         {
@@ -2084,7 +2085,7 @@ namespace GameServerApp.World
 
         private void GenerateSmallCaveRooms(ChunkData chunk, Random rand)
         {
-            int roomCount = rand.Next(2, 6); // 2~5개의 소형 방
+            int roomCount = rand.Next(2, 6); // 2~5개의 ?�형 �?
             
             for (int i = 0; i < roomCount; i++)
             {
@@ -2098,11 +2099,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 수직 동굴 (갱도) 생성
+        /// ?�직 ?�굴 (갱도) ?�성
         /// </summary>
         private void GenerateVerticalShafts(ChunkData chunk, Random rand)
         {
-            if (rand.NextDouble() < 0.3) // 30% 확률로 수직갱 생성
+            if (rand.NextDouble() < 0.3) // 30% ?�률�??�직�??�성
             {
                 int shaftX = rand.Next(4, 12);
                 int shaftZ = rand.Next(4, 12);
@@ -2114,7 +2115,7 @@ namespace GameServerApp.World
                 {
                     CarveSphere(chunk, shaftX, y, shaftZ, shaftRadius);
                     
-                    // 가끔 측면 통로 생성
+                    // 가??측면 ?�로 ?�성
                     if (rand.NextDouble() < 0.1)
                     {
                         int sideLength = rand.Next(3, 8);
@@ -2165,8 +2166,8 @@ namespace GameServerApp.World
         private readonly CaveGenerationSettings _caveSettings;
 
         /// <summary>
-        /// 노이즈 기반 동굴층 - 연속된 노이즈 필드를 사용하여 청크 경계를 넘는 동굴을 형성한다.
-        /// 개선: 침수 동굴(Flooded Caves) 기능을 추가하여 특정 높이 이하, 그리고 수문학적 요인에 따라 물로 채워진 동굴을 생성합니다.
+        /// ?�이�?기반 ?�굴�?- ?�속???�이�??�드�??�용?�여 �?�� 경계�??�는 ?�굴???�성?�다.
+        /// 개선: 침수 ?�굴(Flooded Caves) 기능??추�??�여 ?�정 ?�이 ?�하, 그리�??�문?�적 ?�인???�라 물로 채워�??�굴???�성?�니??
         /// </summary>
         private void GenerateNoiseCavePass(
             TerrainGenerationContext context,
@@ -2203,14 +2204,14 @@ namespace GameServerApp.World
                     double warpedX = worldX + warp.dx;
                     double warpedZ = worldZ + warp.dz;
                     
-                    // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                    // 개선: ?�드코딩??�??�??_caveSettings ?�용
                     double horizontalNoise = SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.HorizontalFrequency, 4, 1.0, 0.55, 640371);
                     double secondaryNoise = SimplexNoise.Generate(warpedX * 1.35, warpedZ * 1.35, _caveSettings.HorizontalFrequency * 1.6, 2, 1.0, 0.5, 93217);
                     double ridged = SampleRidgedNoise(warpedX * 0.85, warpedZ * 0.85, _caveSettings.HorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
                     double striation = SimplexNoise.Generate(warpedX * 0.9, warpedZ * 0.9, _caveSettings.HorizontalFrequency * 1.1, 2, 1.0, 0.55, 128713) - 0.5;
                     double flowNoise = SimplexNoise.Generate(warpedX * 0.25 + 37.1, warpedZ * 0.25 - 11.4, _caveSettings.HorizontalFrequency * 0.4, 2, 1.0, 0.6, 87121) - 0.5;
 
-                    // 신규: 침수 동굴을 위한 노이즈 값 계산
+                    // ?�규: 침수 ?�굴???�한 ?�이�?�?계산
                     double floodedCaveNoise = NormalizeNoise(SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.FloodedCaveNoiseFrequency, 3, 1.0, 0.5, 488171));
 
                     for (int y = 8; y < 120; y++)
@@ -2242,7 +2243,7 @@ namespace GameServerApp.World
                         double aquifer = SimplexNoise.Generate(worldX, y, 0.0042, 2, 1.0, 0.58, 147113);
                         double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
                         double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
-                        // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                        // 개선: ?�드코딩??�??�??_caveSettings ?�용
                         double dynamicThreshold = _caveSettings.Threshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
                         double stability = SampleField(caveStabilityField, x, z);
                         dynamicThreshold -= (stability - 0.5) * 0.08;
@@ -2266,8 +2267,8 @@ namespace GameServerApp.World
                                 continue;
                             }
                             
-                            // 신규: 침수 동굴 로직
-                            // y좌표가 해수면보다 낮고, 침수 동굴 노이즈 값이 특정 임계값을 넘을 경우 동굴을 물로 채웁니다.
+                            // ?�규: 침수 ?�굴 로직
+                            // y좌표가 ?�수면보????��, 침수 ?�굴 ?�이�?값이 ?�정 ?�계값을 ?�을 경우 ?�굴??물로 채웁?�다.
                             double waterTableProximity = Math.Clamp((GlobalWaterLevel - y) / (double)GlobalWaterLevel, 0.0, 1.0);
                             double floodedCheck = floodedCaveNoise * (1.0 - _caveSettings.FloodedCaveProximityToWaterTableWeight) + 
                                                   waterTableProximity * _caveSettings.FloodedCaveProximityToWaterTableWeight +
@@ -2280,7 +2281,7 @@ namespace GameServerApp.World
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Water);
                             }
-                            // 개선: 하드코딩된 값 대신 _caveSettings 사용
+                            // 개선: ?�드코딩??�??�??_caveSettings ?�용
                             else if (density < Math.Min(_caveSettings.LavaThreshold, dynamicThreshold * 0.55) && y < 18)
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Lava);
@@ -2363,7 +2364,7 @@ namespace GameServerApp.World
                         int waterEnd = Math.Min(cavityTop - 1, sedimentY + poolDepth - 1);
                         for (int fillY = waterStart; fillY <= waterEnd; fillY++)
                         {
-                            // 여기서는 침수 동굴과 달리, 얕은 웅덩이만 생성하므로 기존 로직 유지
+                            // ?�기?�는 침수 ?�굴�??�리, ?��? ?�덩?�만 ?�성?��?�?기존 로직 ?��?
                             var fillBlock = fillY < GlobalWaterLevel - 4 ? BlockType.Water : BlockType.Air;
                             chunk.SetBlock(x, fillY, z, fillBlock);
                         }
@@ -2466,13 +2467,13 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 동굴방 조각하기
+        /// ?�굴�?조각?�기
         /// </summary>
         private void CarveRoom(ChunkData chunk, int centerX, int centerY, int centerZ, int size)
         {
             for (int dx = -size; dx <= size; dx++)
             {
-                for (int dy = -size/2; dy <= size/2; dy++) // 방은 수평적으로 더 넓게
+                for (int dy = -size/2; dy <= size/2; dy++) // 방�? ?�평?�으�????�게
                 {
                     for (int dz = -size; dz <= size; dz++)
                     {
@@ -2482,7 +2483,7 @@ namespace GameServerApp.World
                         
                         if (x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 1 && y < 255)
                         {
-                            double dist = Math.Sqrt(dx*dx + dy*dy*1.5 + dz*dz); // 수직 압축
+                            double dist = Math.Sqrt(dx*dx + dy*dy*1.5 + dz*dz); // ?�직 ?�축
                             if (dist <= size)
                             {
                                 var blockType = chunk.GetBlock(x, y, z);
@@ -2675,15 +2676,15 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선된 던전 생성 시스템 - 더 복잡하고 다양한 구조의 던전
+        /// 개선???�전 ?�성 ?�스??- ??복잡?�고 ?�양??구조???�전
         /// </summary>
         public void GenerateDungeonsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltDungeon);
-            if (rand.NextDouble() > 0.15) return; // 15% 확률로 증가
+            if (rand.NextDouble() > 0.15) return; // 15% ?�률�?증�?
 
-            // 던전 타입 결정
+            // ?�전 ?�??결정
             DungeonType dungeonType = (DungeonType)rand.Next(3);
             
             switch (dungeonType)
@@ -8221,7 +8222,7 @@ namespace GameServerApp.World
 
         
         /// <summary>
-        /// 던전 타입 열거형
+        /// ?�전 ?�???�거??
         /// </summary>
         private enum DungeonType
         {
@@ -8231,7 +8232,7 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 단순한 방 형태 던전
+        /// ?�순??�??�태 ?�전
         /// </summary>
         private void GenerateSimpleDungeon(ChunkData chunk, Random rand)
         {
@@ -8240,24 +8241,24 @@ namespace GameServerApp.World
             int roomDepth = 6 + rand.Next(4);
 
             int ox = rand.Next(2, 16 - roomWidth - 2);
-            int oy = rand.Next(15, 40); // 더 깊은 지하
+            int oy = rand.Next(15, 40); // ??깊�? 지??
             int oz = rand.Next(2, 16 - roomDepth - 2);
 
             BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
             
-            // 보물 상자 위치 (중앙)
+            // 보물 ?�자 ?�치 (중앙)
             int treasureX = ox + roomWidth / 2;
             int treasureZ = oz + roomDepth / 2;
-            // TODO: 보물 상자 블록 추가 시 사용
+            // TODO: 보물 ?�자 블록 추�? ???�용
             // chunk.SetBlock(treasureX, oy + 1, treasureZ, BlockType.Chest);
         }
         
         /// <summary>
-        /// 다중 방 던전
+        /// ?�중 �??�전
         /// </summary>
         private void GenerateMultiRoomDungeon(ChunkData chunk, Random rand)
         {
-            int roomCount = 2 + rand.Next(3); // 2~4개 방
+            int roomCount = 2 + rand.Next(3); // 2~4�?�?
             
             for (int i = 0; i < roomCount; i++)
             {
@@ -8271,7 +8272,7 @@ namespace GameServerApp.World
                 
                 BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
                 
-                // 방들 사이에 복도 연결 (간단한 버전)
+                // 방들 ?�이??복도 ?�결 (간단??버전)
                 if (i > 0)
                 {
                     ConnectRooms(chunk, ox + roomWidth/2, oy + 1, oz + roomDepth/2, rand);
@@ -8280,7 +8281,7 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 미로 형태 던전
+        /// 미로 ?�태 ?�전
         /// </summary>
         private void GenerateMazeDungeon(ChunkData chunk, Random rand)
         {
@@ -8289,7 +8290,7 @@ namespace GameServerApp.World
             int mazeY = rand.Next(20, 35);
             int mazeSize = 8; // 8x8 미로
             
-            // 간단한 미로 생성 (더 복잡한 알고리즘으로 확장 가능)
+            // 간단??미로 ?�성 (??복잡???�고리즘?�로 ?�장 가??
             for (int x = 0; x < mazeSize; x++)
             {
                 for (int z = 0; z < mazeSize; z++)
@@ -8299,17 +8300,17 @@ namespace GameServerApp.World
                     
                     if (worldX < 16 && worldZ < 16)
                     {
-                        // 체스판 패턴으로 벽과 통로 생성
+                        // 체스???�턴?�로 벽과 ?�로 ?�성
                         if ((x + z) % 2 == 0 || rand.NextDouble() < 0.3)
                         {
-                            // 통로
+                            // ?�로
                             chunk.SetBlock(worldX, mazeY, worldZ, BlockType.Air);
                             chunk.SetBlock(worldX, mazeY + 1, worldZ, BlockType.Air);
                             chunk.SetBlock(worldX, mazeY + 2, worldZ, BlockType.Air);
                         }
                         else
                         {
-                            // 벽
+                            // �?
                             for (int y = 0; y < 4; y++)
                             {
                                 chunk.SetBlock(worldX, mazeY + y, worldZ, BlockType.Cobblestone);
@@ -8321,11 +8322,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 던전 방 건설
+        /// ?�전 �?건설
         /// </summary>
         private void BuildDungeonRoom(ChunkData chunk, Random rand, int ox, int oy, int oz, int width, int height, int depth)
         {
-            // 내부 비우기
+            // ?��? 비우�?
             for (int x = ox + 1; x < ox + width - 1; x++)
             {
                 for (int y = oy + 1; y < oy + height - 1; y++)
@@ -8337,7 +8338,7 @@ namespace GameServerApp.World
                 }
             }
 
-            // 벽, 바닥, 천장 건설
+            // �? 바닥, 천장 건설
             for (int x = ox; x < ox + width; x++)
             {
                 for (int y = oy; y < oy + height; y++)
@@ -8349,7 +8350,7 @@ namespace GameServerApp.World
                                       y == oy || y == oy + height - 1);
                         if (isWall)
                         {
-                            // 다양한 재료 사용
+                            // ?�양???�료 ?�용
                             BlockType wallMaterial = GetDungeonWallMaterial(rand);
                             chunk.SetBlock(x, y, z, wallMaterial);
                         }
@@ -8357,14 +8358,14 @@ namespace GameServerApp.World
                 }
             }
 
-            // 입구 생성 (더 자연스럽게)
+            // ?�구 ?�성 (???�연?�럽�?
             CreateDungeonEntrance(chunk, ox, oy, oz, width, depth);
 
             DecorateDungeonInterior(chunk, ox, oy, oz, width, height, depth, rand);
         }
         
         /// <summary>
-        /// 던전 벽 재료 결정
+        /// ?�전 �??�료 결정
         /// </summary>
         private BlockType GetDungeonWallMaterial(Random rand)
         {
@@ -8373,11 +8374,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 던전 입구 생성
+        /// ?�전 ?�구 ?�성
         /// </summary>
         private void CreateDungeonEntrance(ChunkData chunk, int ox, int oy, int oz, int width, int depth)
         {
-            // 정면에 2x2 입구 생성
+            // ?�면??2x2 ?�구 ?�성
             for (int y = oy + 1; y < oy + 3; y++)
             {
                 for (int x = ox + width/2 - 1; x <= ox + width/2; x++)
@@ -8444,13 +8445,13 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 방들을 복도로 연결
+        /// 방들??복도�??�결
         /// </summary>
         private void ConnectRooms(ChunkData chunk, int x, int y, int z, Random rand)
         {
-            // 간단한 직선 복도 (더 복잡한 연결 로직으로 확장 가능)
+            // 간단??직선 복도 (??복잡???�결 로직?�로 ?�장 가??
             int corridorLength = rand.Next(3, 8);
-            int direction = rand.Next(4); // 0:북, 1:동, 2:남, 3:서
+            int direction = rand.Next(4); // 0:�? 1:?? 2:?? 3:??
             
             int[] dx = {0, 1, 0, -1};
             int[] dz = {-1, 0, 1, 0};
@@ -8490,22 +8491,22 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선된 광물 생성 시스템 - 더 현실적이고 균형 잡힌 분배
+        /// 개선??광물 ?�성 ?�스??- ???�실?�이�?균형 ?�힌 분배
         /// </summary>
         public void GenerateOresInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltOre);
 
-            // 각 광물별로 사실적인 깊이와 희귀성 설정
-            GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // 석탄: 언제나, 여러 층에서
-            GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // 철: 중간 깊이
-            GenerateOreType(chunk, rand, BlockType.GoldOre, 1, 25, 4, 3);       // 금: 깊은 곳
-            GenerateOreType(chunk, rand, BlockType.DiamondOre, 1, 16, 2, 2);    // 다이아몬드: 가장 깊은 곳
+            // �?광물별로 ?�실?�인 깊이?� ?��????�정
+            GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // ?�탄: ?�제?? ?�러 층에??
+            GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // �? 중간 깊이
+            GenerateOreType(chunk, rand, BlockType.GoldOre, 1, 25, 4, 3);       // �? 깊�? �?
+            GenerateOreType(chunk, rand, BlockType.DiamondOre, 1, 16, 2, 2);    // ?�이?�몬?? 가??깊�? �?
         }
         
         /// <summary>
-        /// 특정 광물 종류를 생성
+        /// ?�정 광물 종류�??�성
         /// </summary>
         private void GenerateOreType(ChunkData chunk, Random rand, BlockType oreType, 
             int minY, int maxY, int maxVeins, int maxVeinSize)
@@ -8518,34 +8519,34 @@ namespace GameServerApp.World
                 int centerY = rand.Next(minY, maxY + 1);
                 int centerZ = rand.Next(16);
                 
-                // 광맥 크기 결정
+                // 광맥 ?�기 결정
                 int veinSize = rand.Next(1, maxVeinSize + 1);
                 
-                // 광맥 모양 생성 (구형이 아닌 불규칙한 형태)
+                // 광맥 모양 ?�성 (구형???�닌 불규칙한 ?�태)
                 GenerateOreVein(chunk, rand, oreType, centerX, centerY, centerZ, veinSize);
             }
         }
         
         /// <summary>
-        /// 광맥을 불규칙한 형태로 생성
+        /// 광맥??불규칙한 ?�태�??�성
         /// </summary>
         private void GenerateOreVein(ChunkData chunk, Random rand, BlockType oreType, 
             int centerX, int centerY, int centerZ, int size)
         {
             var oreBlocks = new List<(int x, int y, int z)>();
             
-            // 시작점 추가
+            // ?�작??추�?
             oreBlocks.Add((centerX, centerY, centerZ));
             
-            // 주변으로 확산
+            // 주�??�로 ?�산
             for (int i = 0; i < size - 1; i++)
             {
                 if (oreBlocks.Count == 0) break;
                 
-                // 기존 광물 블록 중 무작위로 하나 선택
+                // 기존 광물 블록 �?무작?�로 ?�나 ?�택
                 var baseBlock = oreBlocks[rand.Next(oreBlocks.Count)];
                 
-                // 6방향 중 무작위로 확산
+                // 6방향 �?무작?�로 ?�산
                 var directions = new (int dx, int dy, int dz)[] 
                 {
                     (1, 0, 0), (-1, 0, 0), (0, 1, 0), 
@@ -8557,7 +8558,7 @@ namespace GameServerApp.World
                 int newY = baseBlock.y + direction.dy;
                 int newZ = baseBlock.z + direction.dz;
                 
-                // 범위 체크 및 중복 방지
+                // 범위 체크 �?중복 방�?
                 if (newX >= 0 && newX < 16 && newY >= 0 && newY < 256 && newZ >= 0 && newZ < 16)
                 {
                     if (!oreBlocks.Contains((newX, newY, newZ)))
@@ -8567,7 +8568,7 @@ namespace GameServerApp.World
                 }
             }
             
-            // 실제로 광물 블록 배치
+            // ?�제�?광물 블록 배치
             foreach (var (x, y, z) in oreBlocks)
             {
                 if (chunk.GetBlock(x, y, z) == BlockType.Stone)
@@ -8771,10 +8772,10 @@ namespace GameServerApp.World
             return (int.Parse(parts[0]), int.Parse(parts[1]));
         }
 
-        // === 마인크래프트 핸들러용 추가 메서드들 ===
+        // === 마인?�래?�트 ?�들?�용 추�? 메서?�들 ===
 
         /// <summary>
-        /// 특정 블록 정보 가져오기
+        /// ?�정 블록 ?�보 가?�오�?
         /// </summary>
         public async Task<Models.BlockData?> GetBlockAsync(int x, int y, int z)
         {
@@ -8794,7 +8795,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 블록 설정하기
+        /// 블록 ?�정?�기
         /// </summary>
         public async Task SetBlockAsync(Models.BlockData blockData)
         {
@@ -8808,7 +8809,7 @@ namespace GameServerApp.World
             {
                 chunk.SetBlock(localX, blockData.Y, localZ, (BlockType)blockData.BlockId);
                 
-                // 청크를 수정됨으로 표시
+                // �?���??�정?�으�??�시
                 var chunkKey = GetChunkKey(chunkX, chunkZ);
                 if (_loadedChunks.TryGetValue(chunkKey, out var loadedChunk))
                 {
@@ -8818,7 +8819,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 블록 제거하기
+        /// 블록 ?�거?�기
         /// </summary>
         public async Task RemoveBlockAsync(int x, int y, int z)
         {
@@ -8827,160 +8828,29 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 청크 내 엔티티들 가져오기
+        /// �?�� ???�티?�들 가?�오�?
         /// </summary>
         public async Task<List<Models.Entity>> GetEntitiesInChunk(int chunkX, int chunkZ)
         {
-            // TODO: 실제 구현에서는 데이터베이스에서 엔티티 조회
-            // 현재는 빈 리스트 반환
+            // TODO: ?�제 구현?�서???�이?�베?�스?�서 ?�티??조회
+            // ?�재??�?리스??반환
             return new List<Models.Entity>();
         }
+        public void GenerateImprovedCavesInternal(TerrainGenerationContext context)
+        {
+            GenerateCavesInternal(context);
+        }
+
+        public void GenerateImprovedRiversInternal(TerrainGenerationContext context)
+        {
+            GenerateRiversInternal(context);
+        }
+
+        public void GenerateImprovedLakesInternal(TerrainGenerationContext context)
+        {
+            GenerateLakesInternal(context);
+        }
+
     }
 
-    public static class SimplexNoise
-    {
-        public static (double dx, double dz) DomainWarp(double x, double z, double simplexFrequency, double perlinFrequency, double simplexAmplitude, double perlinAmplitude, int seed)
-        {
-            double simplexOffsetX = Generate(x, z, simplexFrequency, 3, 1.0, 0.5, seed) * simplexAmplitude;
-            double simplexOffsetZ = Generate(x + 37.0, z + 53.0, simplexFrequency, 3, 1.0, 0.5, seed ^ 0x5F5F5F5F) * simplexAmplitude;
-
-            double perlinOffsetX = PerlinNoise.Generate(x, z, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x00FF00FF) * perlinAmplitude;
-            double perlinOffsetZ = PerlinNoise.Generate(x + 17.0, z + 23.0, perlinFrequency, 2, 1.0, 0.55, seed ^ 0x7F00EF00) * perlinAmplitude;
-
-            return (simplexOffsetX + perlinOffsetX, simplexOffsetZ + perlinOffsetZ);
-        }
-
-        public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
-        {
-            var random = new Random(seed);
-            double total = 0;
-            double maxValue = 0;
-            
-            for (int i = 0; i < octaves; i++)
-            {
-                total += GenerateOctave(x * frequency, y * frequency, random) * amplitude;
-                maxValue += amplitude;
-                
-                frequency *= 2;
-                amplitude *= persistence;
-            }
-            
-            return total / maxValue;
-        }
-        
-        private static double GenerateOctave(double x, double y, Random random)
-        {
-            int xi = (int)Math.Floor(x) & 255;
-            int yi = (int)Math.Floor(y) & 255;
-            
-            double xf = x - Math.Floor(x);
-            double yf = y - Math.Floor(y);
-            
-            double u = Fade(xf);
-            double v = Fade(yf);
-            
-            var p = new int[512];
-            for (int i = 0; i < 256; i++)
-                p[i] = p[i + 256] = random.Next(256);
-            
-            int aa = p[p[xi] + yi];
-            int ab = p[p[xi] + yi + 1];
-            int ba = p[p[xi + 1] + yi];
-            int bb = p[p[xi + 1] + yi + 1];
-            
-            double x1 = Lerp(Grad(aa, xf, yf), Grad(ba, xf - 1, yf), u);
-            double x2 = Lerp(Grad(ab, xf, yf - 1), Grad(bb, xf - 1, yf - 1), u);
-            
-            return Lerp(x1, x2, v);
-        }
-        
-        private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
-        private static double Lerp(double a, double b, double t) => a + t * (b - a);
-        private static double Grad(int hash, double x, double y) => ((hash & 1) == 0 ? x : -x) + ((hash & 2) == 0 ? y : -y);
-    }
-
-    public static class PerlinNoise
-    {
-        public static double Generate(double x, double y, double frequency, int octaves, double amplitude, double persistence, int seed)
-        {
-            var random = new Random(seed);
-            var permutation = BuildPermutation(random);
-
-            double total = 0.0;
-            double maxValue = 0.0;
-            double currentFrequency = frequency;
-            double currentAmplitude = amplitude;
-
-            for (int i = 0; i < octaves; i++)
-            {
-                total += Perlin(permutation, x * currentFrequency, y * currentFrequency) * currentAmplitude;
-                maxValue += currentAmplitude;
-                currentFrequency *= 2.0;
-                currentAmplitude *= persistence;
-            }
-
-            return maxValue == 0 ? 0 : total / maxValue;
-        }
-
-        private static double Perlin(int[] permutation, double x, double y)
-        {
-            int xi = (int)Math.Floor(x) & 255;
-            int yi = (int)Math.Floor(y) & 255;
-
-            double xf = x - Math.Floor(x);
-            double yf = y - Math.Floor(y);
-
-            double u = Fade(xf);
-            double v = Fade(yf);
-
-            int aa = permutation[permutation[xi] + yi];
-            int ab = permutation[permutation[xi] + yi + 1];
-            int ba = permutation[permutation[xi + 1] + yi];
-            int bb = permutation[permutation[xi + 1] + yi + 1];
-
-            double x1 = Lerp(Grad(aa, xf, yf), Grad(ba, xf - 1, yf), u);
-            double x2 = Lerp(Grad(ab, xf, yf - 1), Grad(bb, xf - 1, yf - 1), u);
-
-            return Lerp(x1, x2, v);
-        }
-
-        private static int[] BuildPermutation(Random random)
-        {
-            var baseArray = new int[256];
-            for (int i = 0; i < 256; i++)
-            {
-                baseArray[i] = i;
-            }
-
-            for (int i = 255; i > 0; i--)
-            {
-                int swapIndex = random.Next(i + 1);
-                var temp = baseArray[i];
-                baseArray[i] = baseArray[swapIndex];
-                baseArray[swapIndex] = temp;
-            }
-
-            var permutation = new int[512];
-            for (int i = 0; i < 512; i++)
-            {
-                permutation[i] = baseArray[i & 255];
-            }
-
-            return permutation;
-        }
-
-
-        // ==================== Utility Methods ====================
-
-        private static double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
-        private static double Lerp(double a, double b, double t) => a + t * (b - a);
-
-        private static double Grad(int hash, double x, double y)
-        {
-            int h = hash & 7;
-            double u = h < 4 ? x : y;
-            double v = h < 4 ? y : x;
-            return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-        }
-    }
 }

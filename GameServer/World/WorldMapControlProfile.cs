@@ -347,5 +347,52 @@ namespace GameServerApp.World
                 Console.WriteLine($"[WorldMapControlProfile] Failed to write profile to '{path}': {ex.Message}");
             }
         }
+
+        public static WorldMapControlProfile? Load(string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+
+                var json = File.ReadAllText(path);
+                var profile = JsonSerializer.Deserialize<WorldMapControlProfile>(json, options);
+                if (profile != null && string.IsNullOrWhiteSpace(profile.ProfileHash))
+                {
+                    profile.ProfileHash = ComputeHash(profile);
+                }
+
+                return profile;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile] Failed to read '{path}': {ex.Message}");
+                return null;
+            }
+        }
+
+        public static WorldMapControlProfile LoadOrCreate(WorldGenerationConfig config, WorldSettings worldSettings)
+        {
+            var generated = WorldMapControlProfile.Create(config, worldSettings);
+            var existing = Load(config.MapControlProfilePath);
+
+            if (existing != null &&
+                string.Equals(existing.ProfileHash, generated.ProfileHash, StringComparison.OrdinalIgnoreCase) &&
+                existing.Version >= generated.Version)
+            {
+                return existing;
+            }
+
+            Save(generated, config.MapControlProfilePath);
+            return generated;
+        }
     }
 }

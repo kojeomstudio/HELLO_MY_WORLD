@@ -16,10 +16,10 @@
             "ChunkManager.cs"
           ],
           "improvements_needed": [
-            "Enhanced cave generation algorithms",
-            "Improved river flow patterns",
-            "Better lake basin formation",
-            "Multi-layered terrain noise"
+            "Hydrology edge bleed and flow smoothing shared with client previews",
+            "River and lake mask seam feathering with map-control validation",
+            "Cave stability pillars driven by hydrology and river suppression",
+            "Terrain mask diagnostics that feed the world-map-control profile hash"
           ]
         },
         {
@@ -126,11 +126,11 @@
             "ImprovedTerrainCoordinator"
           ],
           "improvements_needed": [
-            "Share profile hash to clients and validate alignment",
-            "Hydrology-aware river/lake carving with seam relaxation",
-            "Cave stability smoothing and edge sealing",
-            "Render-distance aware map texture sizing using chunkSize",
-            "Data-driven wetland and mouth smoothing"
+            "Auto-reload profile when hash/version drifts and clear preview caches",
+            "Hydrology-aware river/lake carving with seam relaxation reflected in profile hash",
+            "Expose seam-stabilized masks to Unity loaders to avoid preview drift",
+            "Document JSON knobs and profile generation flow for client/server parity",
+            "Render-distance aware map texture sizing using chunkSize and profile render distance"
           ]
         },
         {
@@ -146,7 +146,7 @@
             "ProtocolValidator"
           ],
           "improvements_needed": [
-            "Registry coverage checks for new packets",
+            "Descriptor binding coverage for required and optional packets",
             "Handler contract validation per message type",
             "Fingerprint/hash guardrails to catch stale bindings",
             "Surface-level self test during server startup"
@@ -495,7 +495,7 @@
       "authentication": "Secure authentication with encryption"
     }
   },
-  "last_updated": "2026-02-11T00:00:00Z",
-  "version": "1.2.0"
+  "last_updated": "2026-02-12T00:00:00Z",
+  "version": "1.3.0"
 }
 

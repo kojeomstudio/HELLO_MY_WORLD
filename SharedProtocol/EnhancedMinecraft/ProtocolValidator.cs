@@ -62,6 +62,7 @@ public static class ProtocolValidator
 
         ValidateUniqueBindings();
         ValidateRegistryDescriptors();
+        ValidateRequiredDescriptorBindings();
         ValidateDescriptorFiles();
         ValidateDescriptorAssemblies();
         ValidateRegistryCoverage();
@@ -103,6 +104,34 @@ public static class ProtocolValidator
             if (hasHandler && !hasDescriptor && !IsOptionalMessage(messageType))
             {
                 Console.WriteLine($"[Proto][WARN] Handler registered for '{messageType}' without a generated EnhancedMinecraft binding. Regenerate protobuf assets or update ProtocolRegistry.");
+            }
+        }
+    }
+
+    private static void ValidateRequiredDescriptorBindings()
+    {
+        foreach (var messageType in RequiredMessages)
+        {
+            if (!ProtocolRegistry.RegisteredDescriptors.Any(binding => binding.MessageType == messageType))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft message '{messageType}' is missing a descriptor binding. Regenerate protobuf assets so generated classes are reachable via using directives and ProtocolRegistry.");
+            }
+
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft registry could not create a prototype for '{messageType}'. Ensure generated protobuf classes are referenced and ProtocolRegistry factories return the generated types.");
+            }
+
+            string? descriptorFile = prototype.Descriptor?.File?.Name;
+            string? expectedFile = EnhancedMinecraftGameReflection.Descriptor?.Name;
+            if (!string.IsNullOrWhiteSpace(descriptorFile) &&
+                !string.IsNullOrWhiteSpace(expectedFile) &&
+                !string.Equals(descriptorFile, expectedFile, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft message '{messageType}' resolved from descriptor '{descriptorFile}', expected '{expectedFile}'. Update using directives or regenerate protobuf assets so server and Unity reference the same descriptor file.");
             }
         }
     }

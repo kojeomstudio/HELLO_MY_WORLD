@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GameServerApp;
 using GameServerApp.World.Generation;
 using Microsoft.Extensions.Logging;
 
@@ -54,7 +55,7 @@ namespace GameServerApp.World
             this.generationConfig = generationConfig ?? throw new ArgumentNullException(nameof(generationConfig));
 
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
-            controlProfile = WorldMapControlProfile.Create(generationConfig, worldSettings);
+            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
             WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));

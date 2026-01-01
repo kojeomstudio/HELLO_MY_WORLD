@@ -1,0 +1,1024 @@
+{
+  "worldGeneration": {
+    "seed": 0,
+    "worldType": "default",
+    "generateStructures": true,
+    "generateFeatures": true,
+    "chunkSize": 16,
+    "renderDistance": 10,
+    "simulationDistance": 12,
+    "maxWorldHeight": 256,
+    "minWorldHeight": -64
+  },
+  "terrain": {
+    "heightScale": 1.0,
+    "heightVariation": 0.5,
+    "roughness": 0.6,
+    "detail": 0.4,
+    "seaLevel": 63,
+    "caves": {
+      "enabled": true,
+      "density": 0.1,
+      "minHeight": -10,
+      "maxHeight": 40,
+      "size": 8,
+      "branching": 0.7,
+      "waterCaveChance": 0.05
+    },
+    "ravines": {
+      "enabled": true,
+      "density": 0.02,
+      "minHeight": 20,
+      "maxHeight": 70,
+      "width": 5,
+      "depth": 30,
+      "length": 100
+    },
+    "ores": {
+      "coal": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 128,
+        "veinSize": 16,
+        "veinsPerChunk": 20,
+        "frequency": 0.8
+      },
+      "iron": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 64,
+        "veinSize": 8,
+        "veinsPerChunk": 20,
+        "frequency": 0.6
+      },
+      "gold": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 32,
+        "veinSize": 8,
+        "veinsPerChunk": 2,
+        "frequency": 0.2
+      },
+      "diamond": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 16,
+        "veinSize": 7,
+        "veinsPerChunk": 1,
+        "frequency": 0.1
+      },
+      "redstone": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 16,
+        "veinSize": 7,
+        "veinsPerChunk": 8,
+        "frequency": 0.4
+      },
+      "lapis": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 32,
+        "veinSize": 6,
+        "veinsPerChunk": 1,
+        "frequency": 0.2
+      },
+      "emerald": {
+        "enabled": true,
+        "minHeight": 4,
+        "maxHeight": 32,
+        "veinSize": 5,
+        "veinsPerChunk": 1,
+        "frequency": 0.05
+      }
+    }
+  },
+  "water": {
+    "rivers": {
+      "enabled": true,
+      "frequency": 0.02,
+      "width": 4,
+      "depth": 3,
+      "meandering": 0.8,
+      "flowSpeed": 1.0
+    },
+    "lakes": {
+      "enabled": true,
+      "frequency": 0.01,
+      "minRadius": 20,
+      "maxRadius": 100,
+      "minDepth": 5,
+      "maxDepth": 30,
+      "shoreSmoothing": 0.7
+    },
+    "oceans": {
+      "enabled": true,
+      "temperatureThreshold": 0.5,
+      "depth": 30,
+      "floorType": "sand",
+      "generateKelp": true,
+      "generateSeagrass": true
+    }
+  },
+  "biomes": {
+    "temperatureScale": 1.0,
+    "humidityScale": 1.0,
+    "continentalnessScale": 0.25,
+    "erosionScale": 0.5,
+    "weirdnessScale": 0.5,
+    "biomes": [
+      {
+        "id": "plains",
+        "name": "Plains",
+        "temperature": 0.8,
+        "humidity": 0.4,
+        "color": "#7CBD6B",
+        "grassColor": "#91BD59",
+        "foliageColor": "#77AB2F",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "flowers", "grass"],
+        "treeTypes": ["oak", "birch"],
+        "flowerTypes": ["dandelion", "poppy", "oxeye_daisy", "azure_bluet"],
+        "grassDensity": 0.8
+      },
+      {
+        "id": "desert",
+        "name": "Desert",
+        "temperature": 2.0,
+        "humidity": 0.0,
+        "color": "#FA9418",
+        "grassColor": "#BFB755",
+        "foliageColor": "#AEA42A",
+        "waterColor": "#3F76E4",
+        "features": ["dead_bushes", "cacti"],
+        "treeTypes": [],
+        "flowerTypes": [],
+        "grassDensity": 0.0
+      },
+      {
+        "id": "forest",
+        "name": "Forest",
+        "temperature": 0.7,
+        "humidity": 0.8,
+        "color": "#229B1F",
+        "grassColor": "#79C05A",
+        "foliageColor": "#59AE30",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "flowers", "grass", "mushrooms"],
+        "treeTypes": ["oak", "birch", "oak_large"],
+        "flowerTypes": ["dandelion", "poppy", "oxeye_daisy", "azure_bluet", "tulip_orange", "tulip_pink", "tulip_red", "tulip_white"],
+        "grassDensity": 0.9
+      },
+      {
+        "id": "taiga",
+        "name": "Taiga",
+        "temperature": 0.25,
+        "humidity": 0.8,
+        "color": "#307B7E",
+        "grassColor": "#86B783",
+        "foliageColor": "#86B87F",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass", "mushrooms"],
+        "treeTypes": ["spruce", "spruce_large"],
+        "flowerTypes": [],
+        "grassDensity": 0.7
+      },
+      {
+        "id": "swamp",
+        "name": "Swamp",
+        "temperature": 0.8,
+        "humidity": 0.9,
+        "color": "#4A7C4C",
+        "grassColor": "#6A7039",
+        "foliageColor": "#6A7039",
+        "waterColor": "#617B64",
+        "features": ["trees", "lily_pads", "vines"],
+        "treeTypes": ["oak"],
+        "flowerTypes": [],
+        "grassDensity": 0.6
+      },
+      {
+        "id": "jungle",
+        "name": "Jungle",
+        "temperature": 0.95,
+        "humidity": 0.9,
+        "color": "#2C7A2C",
+        "grassColor": "#59C93C",
+        "foliageColor": "#30BB0B",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "melons", "cocoa", "vines", "bamboo"],
+        "treeTypes": ["jungle", "jungle_large"],
+        "flowerTypes": [],
+        "grassDensity": 0.8
+      },
+      {
+        "id": "snowy_tundra",
+        "name": "Snowy Tundra",
+        "temperature": 0.0,
+        "humidity": 0.5,
+        "color": "#FFFFFF",
+        "grassColor": "#80B497",
+        "foliageColor": "#60A17B",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass"],
+        "treeTypes": ["spruce"],
+        "flowerTypes": [],
+        "grassDensity": 0.4
+      },
+      {
+        "id": "savanna",
+        "name": "Savanna",
+        "temperature": 1.2,
+        "humidity": 0.0,
+        "color": "#BDB76B",
+        "grassColor": "#BFB755",
+        "foliageColor": "#AEA42A",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass"],
+        "treeTypes": ["acacia"],
+        "flowerTypes": [],
+        "grassDensity": 0.5
+      },
+      {
+        "id": "mushroom_fields",
+        "name": "Mushroom Fields",
+        "temperature": 0.9,
+        "humidity": 1.0,
+        "color": "#5C5C5C",
+        "grassColor": "#55C93F",
+        "foliageColor": "#2BBA0B",
+        "waterColor": "#3F76E4",
+        "features": ["mushrooms", "huge_mushrooms"],
+        "treeTypes": [],
+        "flowerTypes": [],
+        "grassDensity": 0.2
+      }
+    ]
+  },
+  "structures": {
+    "villages": {
+      "enabled": true,
+      "distance": 32,
+      "separation": 8,
+      "size": 6,
+      "minDistance": 8,
+      "maxDistance": 100,
+      "biomes": ["plains", "desert", "savanna", "taiga", "snowy_tundra"],
+      "houseTypes": [
+        {
+          "type": "house_small",
+          "weight": 8,
+          "minCount": 2,
+          "maxCount": 4
+        },
+        {
+          "type": "house_large",
+          "weight": 4,
+          "minCount": 0,
+          "maxCount": 2
+        },
+        {
+          "type": "church",
+          "weight": 3,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "library",
+          "weight": 2,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "blacksmith",
+          "weight": 3,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "butcher",
+          "weight": 2,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "farm",
+          "weight": 3,
+          "minCount": 2,
+          "maxCount": 4
+        }
+      ]
+    },
+    "dungeons": {
+      "enabled": true,
+      "frequency": 0.01,
+      "minHeight": 0,
+      "maxHeight": 50,
+      "minSize": 5,
+      "maxSize": 7,
+      "spawnerChance": 0.8,
+      "chestChance": 0.9,
+      "mobTypes": ["zombie", "skeleton", "spider", "creeper"]
+    },
+    "strongholds": {
+      "enabled": true,
+      "count": 3,
+      "distance": 32,
+      "spread": 3,
+      "structures": ["corridor", "library", "portal_room", "chest_corridor", "prison", "crossing", "room"]
+    },
+    "mineshafts": {
+      "enabled": true,
+      "frequency": 0.004,
+      "minHeight": 0,
+      "maxHeight": 50,
+      "maxBranches": 10,
+      "branchLength": 8
+    },
+    "nether_fortress": {
+      "enabled": true,
+      "frequency": 0.001,
+      "minHeight": 60,
+      "maxHeight": 120,
+      "minSize": 10,
+      "maxSize": 20,
+      "spawnerChance": 0.5
+    },
+    "ocean_monument": {
+      "enabled": true,
+      "frequency": 0.0005,
+      "minDepth": 20,
+      "maxDepth": 40,
+      "size": 58,
+      "spawnerChance": 0.8
+    },
+    "end_city": {
+      "enabled": true,
+      "frequency": 0.001,
+      "minHeight": 60,
+      "maxHeight": 80,
+      "size": 100,
+      "shipChance": 0.1
+    },
+    "woodland_mansion": {
+      "enabled": true,
+      "frequency": 0.0005,
+      "minHeight": 60,
+      "maxHeight": 80,
+      "size": 80,
+      "spawnerChance": 0.7
+    }
+  },
+  "trees": {
+    "oak": {
+      "enabled": true,
+      "minHeight": 4,
+      "maxHeight": 8,
+      "trunkWidth": 1,
+      "leafRadius": 3,
+      "biomes": ["plains", "forest", "swamp"]
+    },
+    "birch": {
+      "enabled": true,
+      "minHeight": 5,
+      "maxHeight": 7,
+      "trunkWidth": 1,
+      "leafRadius": 2,
+      "biomes": ["forest", "taiga"]
+    },
+    "spruce": {
+      "enabled": true,
+      "minHeight": 6,
+      "maxHeight": 10,
+      "trunkWidth": 1,
+      "leafRadius": 2,
+      "biomes": ["taiga", "snowy_tundra"]
+    },
+    "jungle": {
+      "enabled": true,
+      "minHeight": 8,
+      "maxHeight": 12,
+      "trunkWidth": 1,
+      "leafRadius": 4,
+      "biomes": ["jungle"],
+      "vines": true
+    },
+    "acacia": {
+      "enabled": true,
+      "minHeight": 5,
+      "maxHeight": 8,
+      "trunkWidth": 1,
+      "leafRadius": 3,
+      "biomes": ["savanna"]
+    },
+    "dark_oak": {
+      "enabled": true,
+      "minHeight": 6,
+      "maxHeight": 8,
+      "trunkWidth": 2,
+      "leafRadius": 3,
+      "biomes": ["forest", "mushroom_fields"]
+    }
+  },
+  "vegetation": {
+    "flowers": {
+      "enabled": true,
+      "density": 0.1,
+      "types": [
+        {
+          "id": "dandelion",
+          "name": "Dandelion",
+          "color": "#FFFF00",
+          "biomes": ["plains", "forest", "taiga", "mushroom_fields"]
+        },
+        {
+          "id": "poppy",
+          "name": "Poppy",
+          "color": "#FF0000",
+          "biomes": ["plains", "forest", "taiga"]
+        },
+        {
+          "id": "oxeye_daisy",
+          "name": "Oxeye Daisy",
+          "color": "#FFFFFF",
+          "biomes": ["taiga", "mushroom_fields"]
+        },
+        {
+          "id": "azure_bluet",
+          "name": "Azure Bluet",
+          "color": "#00FFFF",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_red",
+          "name": "Red Tulip",
+          "color": "#FF0000",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_orange",
+          "name": "Orange Tulip",
+          "color": "#FFA500",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_white",
+          "name": "White Tulip",
+          "color": "#FFFFFF",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_pink",
+          "name": "Pink Tulip",
+          "color": "#FFC0CB",
+          "biomes": ["plains", "forest"]
+        }
+      ]
+    },
+    "grass": {
+      "enabled": true,
+      "density": 0.8,
+      "types": [
+        {
+          "id": "tall_grass",
+          "name": "Tall Grass",
+          "height": 1.0,
+          "biomes": ["plains", "forest", "taiga", "mushroom_fields"]
+        },
+        {
+          "id": "fern",
+          "name": "Fern",
+          "height": 0.8,
+          "biomes": ["forest", "taiga", "jungle"]
+        }
+      ]
+    },
+    "mushrooms": {
+      "enabled": true,
+      "density": 0.05,
+      "types": [
+        {
+          "id": "brown_mushroom",
+          "name": "Brown Mushroom",
+          "biomes": ["forest", "taiga", "mushroom_fields", "swamp", "jungle"]
+        },
+        {
+          "id": "red_mushroom",
+          "name": "Red Mushroom",
+          "biomes": ["forest", "taiga", "mushroom_fields", "swamp", "jungle"]
+        }
+      ]
+    }
+  }
+}  "worldGeneration": {
+    "seed": 0,
+    "worldType": "default",
+    "generateStructures": true,
+    "generateFeatures": true,
+    "chunkSize": 16,
+    "renderDistance": 10,
+    "simulationDistance": 12,
+    "maxWorldHeight": 256,
+    "minWorldHeight": -64
+  },
+  "terrain": {
+    "heightScale": 1.0,
+    "heightVariation": 0.5,
+    "roughness": 0.6,
+    "detail": 0.4,
+    "seaLevel": 63,
+    "caves": {
+      "enabled": true,
+      "density": 0.1,
+      "minHeight": -10,
+      "maxHeight": 40,
+      "size": 8,
+      "branching": 0.7,
+      "waterCaveChance": 0.05
+    },
+    "ravines": {
+      "enabled": true,
+      "density": 0.02,
+      "minHeight": 20,
+      "maxHeight": 70,
+      "width": 5,
+      "depth": 30,
+      "length": 100
+    },
+    "ores": {
+      "coal": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 128,
+        "veinSize": 16,
+        "veinsPerChunk": 20,
+        "frequency": 0.8
+      },
+      "iron": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 64,
+        "veinSize": 8,
+        "veinsPerChunk": 20,
+        "frequency": 0.6
+      },
+      "gold": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 32,
+        "veinSize": 8,
+        "veinsPerChunk": 2,
+        "frequency": 0.2
+      },
+      "diamond": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 16,
+        "veinSize": 7,
+        "veinsPerChunk": 1,
+        "frequency": 0.1
+      },
+      "redstone": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 16,
+        "veinSize": 7,
+        "veinsPerChunk": 8,
+        "frequency": 0.4
+      },
+      "lapis": {
+        "enabled": true,
+        "minHeight": 0,
+        "maxHeight": 32,
+        "veinSize": 6,
+        "veinsPerChunk": 1,
+        "frequency": 0.2
+      },
+      "emerald": {
+        "enabled": true,
+        "minHeight": 4,
+        "maxHeight": 32,
+        "veinSize": 5,
+        "veinsPerChunk": 1,
+        "frequency": 0.05
+      }
+    }
+  },
+  "water": {
+    "rivers": {
+      "enabled": true,
+      "frequency": 0.02,
+      "width": 4,
+      "depth": 3,
+      "meandering": 0.8,
+      "flowSpeed": 1.0
+    },
+    "lakes": {
+      "enabled": true,
+      "frequency": 0.01,
+      "minRadius": 20,
+      "maxRadius": 100,
+      "minDepth": 5,
+      "maxDepth": 30,
+      "shoreSmoothing": 0.7
+    },
+    "oceans": {
+      "enabled": true,
+      "temperatureThreshold": 0.5,
+      "depth": 30,
+      "floorType": "sand",
+      "generateKelp": true,
+      "generateSeagrass": true
+    }
+  },
+  "biomes": {
+    "temperatureScale": 1.0,
+    "humidityScale": 1.0,
+    "continentalnessScale": 0.25,
+    "erosionScale": 0.5,
+    "weirdnessScale": 0.5,
+    "biomes": [
+      {
+        "id": "plains",
+        "name": "Plains",
+        "temperature": 0.8,
+        "humidity": 0.4,
+        "color": "#7CBD6B",
+        "grassColor": "#91BD59",
+        "foliageColor": "#77AB2F",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "flowers", "grass"],
+        "treeTypes": ["oak", "birch"],
+        "flowerTypes": ["dandelion", "poppy", "oxeye_daisy", "azure_bluet"],
+        "grassDensity": 0.8
+      },
+      {
+        "id": "desert",
+        "name": "Desert",
+        "temperature": 2.0,
+        "humidity": 0.0,
+        "color": "#FA9418",
+        "grassColor": "#BFB755",
+        "foliageColor": "#AEA42A",
+        "waterColor": "#3F76E4",
+        "features": ["dead_bushes", "cacti"],
+        "treeTypes": [],
+        "flowerTypes": [],
+        "grassDensity": 0.0
+      },
+      {
+        "id": "forest",
+        "name": "Forest",
+        "temperature": 0.7,
+        "humidity": 0.8,
+        "color": "#229B1F",
+        "grassColor": "#79C05A",
+        "foliageColor": "#59AE30",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "flowers", "grass", "mushrooms"],
+        "treeTypes": ["oak", "birch", "oak_large"],
+        "flowerTypes": ["dandelion", "poppy", "oxeye_daisy", "azure_bluet", "tulip_orange", "tulip_pink", "tulip_red", "tulip_white"],
+        "grassDensity": 0.9
+      },
+      {
+        "id": "taiga",
+        "name": "Taiga",
+        "temperature": 0.25,
+        "humidity": 0.8,
+        "color": "#307B7E",
+        "grassColor": "#86B783",
+        "foliageColor": "#86B87F",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass", "mushrooms"],
+        "treeTypes": ["spruce", "spruce_large"],
+        "flowerTypes": [],
+        "grassDensity": 0.7
+      },
+      {
+        "id": "swamp",
+        "name": "Swamp",
+        "temperature": 0.8,
+        "humidity": 0.9,
+        "color": "#4A7C4C",
+        "grassColor": "#6A7039",
+        "foliageColor": "#6A7039",
+        "waterColor": "#617B64",
+        "features": ["trees", "lily_pads", "vines"],
+        "treeTypes": ["oak"],
+        "flowerTypes": [],
+        "grassDensity": 0.6
+      },
+      {
+        "id": "jungle",
+        "name": "Jungle",
+        "temperature": 0.95,
+        "humidity": 0.9,
+        "color": "#2C7A2C",
+        "grassColor": "#59C93C",
+        "foliageColor": "#30BB0B",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "melons", "cocoa", "vines", "bamboo"],
+        "treeTypes": ["jungle", "jungle_large"],
+        "flowerTypes": [],
+        "grassDensity": 0.8
+      },
+      {
+        "id": "snowy_tundra",
+        "name": "Snowy Tundra",
+        "temperature": 0.0,
+        "humidity": 0.5,
+        "color": "#FFFFFF",
+        "grassColor": "#80B497",
+        "foliageColor": "#60A17B",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass"],
+        "treeTypes": ["spruce"],
+        "flowerTypes": [],
+        "grassDensity": 0.4
+      },
+      {
+        "id": "savanna",
+        "name": "Savanna",
+        "temperature": 1.2,
+        "humidity": 0.0,
+        "color": "#BDB76B",
+        "grassColor": "#BFB755",
+        "foliageColor": "#AEA42A",
+        "waterColor": "#3F76E4",
+        "features": ["trees", "grass"],
+        "treeTypes": ["acacia"],
+        "flowerTypes": [],
+        "grassDensity": 0.5
+      },
+      {
+        "id": "mushroom_fields",
+        "name": "Mushroom Fields",
+        "temperature": 0.9,
+        "humidity": 1.0,
+        "color": "#5C5C5C",
+        "grassColor": "#55C93F",
+        "foliageColor": "#2BBA0B",
+        "waterColor": "#3F76E4",
+        "features": ["mushrooms", "huge_mushrooms"],
+        "treeTypes": [],
+        "flowerTypes": [],
+        "grassDensity": 0.2
+      }
+    ]
+  },
+  "structures": {
+    "villages": {
+      "enabled": true,
+      "distance": 32,
+      "separation": 8,
+      "size": 6,
+      "minDistance": 8,
+      "maxDistance": 100,
+      "biomes": ["plains", "desert", "savanna", "taiga", "snowy_tundra"],
+      "houseTypes": [
+        {
+          "type": "house_small",
+          "weight": 8,
+          "minCount": 2,
+          "maxCount": 4
+        },
+        {
+          "type": "house_large",
+          "weight": 4,
+          "minCount": 0,
+          "maxCount": 2
+        },
+        {
+          "type": "church",
+          "weight": 3,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "library",
+          "weight": 2,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "blacksmith",
+          "weight": 3,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "butcher",
+          "weight": 2,
+          "minCount": 0,
+          "maxCount": 1
+        },
+        {
+          "type": "farm",
+          "weight": 3,
+          "minCount": 2,
+          "maxCount": 4
+        }
+      ]
+    },
+    "dungeons": {
+      "enabled": true,
+      "frequency": 0.01,
+      "minHeight": 0,
+      "maxHeight": 50,
+      "minSize": 5,
+      "maxSize": 7,
+      "spawnerChance": 0.8,
+      "chestChance": 0.9,
+      "mobTypes": ["zombie", "skeleton", "spider", "creeper"]
+    },
+    "strongholds": {
+      "enabled": true,
+      "count": 3,
+      "distance": 32,
+      "spread": 3,
+      "structures": ["corridor", "library", "portal_room", "chest_corridor", "prison", "crossing", "room"]
+    },
+    "mineshafts": {
+      "enabled": true,
+      "frequency": 0.004,
+      "minHeight": 0,
+      "maxHeight": 50,
+      "maxBranches": 10,
+      "branchLength": 8
+    },
+    "nether_fortress": {
+      "enabled": true,
+      "frequency": 0.001,
+      "minHeight": 60,
+      "maxHeight": 120,
+      "minSize": 10,
+      "maxSize": 20,
+      "spawnerChance": 0.5
+    },
+    "ocean_monument": {
+      "enabled": true,
+      "frequency": 0.0005,
+      "minDepth": 20,
+      "maxDepth": 40,
+      "size": 58,
+      "spawnerChance": 0.8
+    },
+    "end_city": {
+      "enabled": true,
+      "frequency": 0.001,
+      "minHeight": 60,
+      "maxHeight": 80,
+      "size": 100,
+      "shipChance": 0.1
+    },
+    "woodland_mansion": {
+      "enabled": true,
+      "frequency": 0.0005,
+      "minHeight": 60,
+      "maxHeight": 80,
+      "size": 80,
+      "spawnerChance": 0.7
+    }
+  },
+  "trees": {
+    "oak": {
+      "enabled": true,
+      "minHeight": 4,
+      "maxHeight": 8,
+      "trunkWidth": 1,
+      "leafRadius": 3,
+      "biomes": ["plains", "forest", "swamp"]
+    },
+    "birch": {
+      "enabled": true,
+      "minHeight": 5,
+      "maxHeight": 7,
+      "trunkWidth": 1,
+      "leafRadius": 2,
+      "biomes": ["forest", "taiga"]
+    },
+    "spruce": {
+      "enabled": true,
+      "minHeight": 6,
+      "maxHeight": 10,
+      "trunkWidth": 1,
+      "leafRadius": 2,
+      "biomes": ["taiga", "snowy_tundra"]
+    },
+    "jungle": {
+      "enabled": true,
+      "minHeight": 8,
+      "maxHeight": 12,
+      "trunkWidth": 1,
+      "leafRadius": 4,
+      "biomes": ["jungle"],
+      "vines": true
+    },
+    "acacia": {
+      "enabled": true,
+      "minHeight": 5,
+      "maxHeight": 8,
+      "trunkWidth": 1,
+      "leafRadius": 3,
+      "biomes": ["savanna"]
+    },
+    "dark_oak": {
+      "enabled": true,
+      "minHeight": 6,
+      "maxHeight": 8,
+      "trunkWidth": 2,
+      "leafRadius": 3,
+      "biomes": ["forest", "mushroom_fields"]
+    }
+  },
+  "vegetation": {
+    "flowers": {
+      "enabled": true,
+      "density": 0.1,
+      "types": [
+        {
+          "id": "dandelion",
+          "name": "Dandelion",
+          "color": "#FFFF00",
+          "biomes": ["plains", "forest", "taiga", "mushroom_fields"]
+        },
+        {
+          "id": "poppy",
+          "name": "Poppy",
+          "color": "#FF0000",
+          "biomes": ["plains", "forest", "taiga"]
+        },
+        {
+          "id": "oxeye_daisy",
+          "name": "Oxeye Daisy",
+          "color": "#FFFFFF",
+          "biomes": ["taiga", "mushroom_fields"]
+        },
+        {
+          "id": "azure_bluet",
+          "name": "Azure Bluet",
+          "color": "#00FFFF",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_red",
+          "name": "Red Tulip",
+          "color": "#FF0000",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_orange",
+          "name": "Orange Tulip",
+          "color": "#FFA500",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_white",
+          "name": "White Tulip",
+          "color": "#FFFFFF",
+          "biomes": ["plains", "forest"]
+        },
+        {
+          "id": "tulip_pink",
+          "name": "Pink Tulip",
+          "color": "#FFC0CB",
+          "biomes": ["plains", "forest"]
+        }
+      ]
+    },
+    "grass": {
+      "enabled": true,
+      "density": 0.8,
+      "types": [
+        {
+          "id": "tall_grass",
+          "name": "Tall Grass",
+          "height": 1.0,
+          "biomes": ["plains", "forest", "taiga", "mushroom_fields"]
+        },
+        {
+          "id": "fern",
+          "name": "Fern",
+          "height": 0.8,
+          "biomes": ["forest", "taiga", "jungle"]
+        }
+      ]
+    },
+    "mushrooms": {
+      "enabled": true,
+      "density": 0.05,
+      "types": [
+        {
+          "id": "brown_mushroom",
+          "name": "Brown Mushroom",
+          "biomes": ["forest", "taiga", "mushroom_fields", "swamp", "jungle"]
+        },
+        {
+          "id": "red_mushroom",
+          "name": "Red Mushroom",
+          "biomes": ["forest", "taiga", "mushroom_fields", "swamp", "jungle"]
+        }
+      ]
+    }
+  }
+}

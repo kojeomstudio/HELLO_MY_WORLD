@@ -99,7 +99,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Connects to the server asynchronously.
+        /// Connects to server asynchronously.
         /// </summary>
         public async Task<bool> ConnectAsync()
         {
@@ -132,7 +132,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Disconnects from the server.
+        /// Disconnects from server.
         /// </summary>
         public async Task DisconnectAsync()
         {
@@ -328,7 +328,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Called when data is received from the server.
+        /// Called when data is received from server.
         /// </summary>
         private void OnDataReceived(ArraySegment<byte> data)
         {
@@ -478,6 +478,32 @@ namespace Networking.Core
             LoginResponseReceived?.Invoke(response);
         }
 
+#if HMW_PROTO
+        private void OnMoveResponse(Game.Move.MoveResponse response)
+        {
+            Debug.Log($"Move response: Status={response.Status}, Position=({response.NewPosition.X}, {response.NewPosition.Y}, {response.NewPosition.Z})");
+            MoveResponseReceived?.Invoke(response);
+        }
+
+        private void OnChatMessage(Game.Chat.ChatMessage message)
+        {
+            Debug.Log($"Chat message: {message.Sender}: {message.Message}");
+            ChatMessageReceived?.Invoke(message);
+        }
+
+        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
+        {
+            Debug.Log($"Block change: ({broadcast.BlockPosition.X}, {broadcast.BlockPosition.Y}, {broadcast.BlockPosition.Z}) -> {broadcast.BlockType}");
+            BlockChangeBroadcastReceived?.Invoke(broadcast);
+        }
+
+        private void OnPingResponse(Game.Diag.PingResponse response)
+        {
+            Debug.Log($"Ping response: {response.ClientTimestamp} -> {response.ServerTimestamp}");
+            PingResponseReceived?.Invoke(response);
+        }
+#endif
+
         // Enhanced protocol handlers
         private void OnEntitySpawnNotification(EnhancedMinecraftProtocol.EntitySpawnNotification notification)
         {
@@ -540,8 +566,68 @@ namespace Networking.Core
         Whisper = 2,
         System = 3
     }
-}
+}
+                _transport.Received -= OnDataReceived;
+                
+                if (_transport is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chat message types
+    /// </summary>
+    public enum ChatType
+    {
+        Global = 0,
+        Local = 1,
         Whisper = 2,
         System = 3
     }
-}
+}
+}
+                
+                if (_transport is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chat message types
+    /// </summary>
+    public enum ChatType
+    {
+        Global = 0,
+        Local = 1,
+        Whisper = 2,
+        System = 3
+    }
+}
+}
+                
+                if (_transport is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chat message types
+    /// </summary>
+    public enum ChatType
+    {
+        Global = 0,
+        Local = 1,
+        Whisper = 2,
+        System = 3
+    }
+}
+

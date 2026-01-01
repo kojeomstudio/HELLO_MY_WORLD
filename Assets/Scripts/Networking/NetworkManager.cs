@@ -269,7 +269,8 @@ namespace Networking
             UpdateUI();
         }
 
-        private void OnMoveResponse(MoveResponse response)
+        #if HMW_PROTO
+        private void OnMoveResponse(Game.Move.MoveResponse response)
         {
             if (response.Success && response.NewPosition != null && playerTransform != null)
             {
@@ -284,7 +285,6 @@ namespace Networking
             }
         }
 
-        #if HMW_PROTO
         private void OnChatMessage(Game.Chat.ChatMessage message)
         {
             var chatType = (ChatType)message.Type;
@@ -307,11 +307,11 @@ namespace Networking
                 var pos = broadcast.BlockPosition;
                 Debug.Log($"Block changed by {broadcast.PlayerId}: ({pos.X}, {pos.Y}, {pos.Z}) -> Type {broadcast.BlockType}");
                 
-                // Apply to local world using ChunkManager
+                // Apply to local world using WorldManager
                 try
                 {
-                    var chunkManager = FindObjectOfType<ChunkManager>();
-                    if (chunkManager != null)
+                    var worldManager = FindObjectOfType<WorldManager>();
+                    if (worldManager != null)
                     {
                         // Convert world coordinates to chunk coordinates
                         int chunkX = Mathf.FloorToInt(pos.X / 16f);
@@ -320,8 +320,8 @@ namespace Networking
                         int blockY = Mathf.FloorToInt(pos.Y);
                         int blockZ = Mathf.FloorToInt(pos.Z) % 16;
                         
-                        // Apply block change to the chunk
-                        chunkManager.SetBlock(chunkX, chunkZ, blockX, blockY, blockZ, (byte)broadcast.BlockType);
+                        // Apply block change to world
+                        worldManager.SetBlock(chunkX, chunkZ, blockX, blockY, blockZ, (byte)broadcast.BlockType);
                     }
                 }
                 catch (System.Exception ex)
@@ -373,7 +373,3 @@ namespace Networking
         }
     }
 }
-        }
-    }
-}
-

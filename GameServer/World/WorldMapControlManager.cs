@@ -15,9 +15,10 @@ namespace GameServerApp.World
     public sealed class WorldMapControlManager
     {
         private readonly WorldMapControlSettings settings;
-        private readonly EnhancedTerrainGenerationPipeline pipeline;
+        private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;
         private readonly WorldGenerationConfig generationConfig;
+        private readonly WorldSettings worldSettings;
         private readonly ConcurrentDictionary<int, WorldMapProfile> profiles = new();
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
 
@@ -25,10 +26,10 @@ namespace GameServerApp.World
         {
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
             this.generationConfig = generationConfig ?? throw new ArgumentNullException(nameof(generationConfig));
-            if (worldSettings == null) throw new ArgumentNullException(nameof(worldSettings));
+            this.worldSettings = worldSettings ?? throw new ArgumentNullException(nameof(worldSettings));
 
-            pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
-            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
+            pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, this.worldSettings);
+            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
         }
 
         public Task<WorldMapResponse> HandleAsync(WorldMapRequest request)
@@ -61,7 +62,7 @@ namespace GameServerApp.World
 
         private async Task<WorldMapResponse> HandleInitialMapAsync(WorldMapRequest request)
         {
-            var currentProfile = EnsureProfile();
+            var currentProfile = EnsureProfile(out _);
             var profile = GetOrCreateProfile(request.PlayerId);
             var playerChunkX = (int)(request.PlayerX / 16);
             var playerChunkZ = (int)(request.PlayerZ / 16);
@@ -96,7 +97,7 @@ namespace GameServerApp.World
 
         private async Task<WorldMapResponse> HandleChunkUpdateAsync(WorldMapRequest request)
         {
-            var currentProfile = EnsureProfile();
+            var currentProfile = EnsureProfile(out bool profileChanged);
             var profile = GetOrCreateProfile(request.PlayerId);
             var updates = request.ChunkUpdates ?? new List<ChunkUpdate>();
             var chunkList = new List<ChunkData>();
@@ -113,6 +114,7 @@ namespace GameServerApp.World
             {
                 Success = true,
                 ControlProfileHash = currentProfile.ProfileHash,
+                ControlProfile = profileChanged ? currentProfile : null,
                 WorldMapData = new WorldMapData
                 {
                     Chunks = chunkList,
@@ -124,7 +126,7 @@ namespace GameServerApp.World
 
         private Task<WorldMapResponse> HandleProfileAsync(WorldMapRequest request, bool updateProfile)
         {
-            var currentProfile = EnsureProfile();
+            var currentProfile = EnsureProfile(out _);
             var profile = GetOrCreateProfile(request.PlayerId);
 
             if (updateProfile && request.ProfileUpdates != null)
@@ -159,13 +161,18 @@ namespace GameServerApp.World
             });
         }
 
-        private WorldMapControlProfile EnsureProfile()
+        private WorldMapControlProfile EnsureProfile(out bool profileChanged)
         {
+            profileChanged = false;
             var loaded = WorldMapControlProfileUtility.Load(generationConfig.MapControlProfilePath);
-            if (loaded != null && !string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+            if (loaded != null &&
+                (!string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase) ||
+                 loaded.Version > controlProfile.Version))
             {
                 controlProfile = loaded;
                 chunkCache.Clear();
+                pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+                profileChanged = true;
             }
 
             return controlProfile;

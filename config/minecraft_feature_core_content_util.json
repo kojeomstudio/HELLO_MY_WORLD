@@ -172,6 +172,25 @@
             "Regenerate world-map-control profiles when config versions increment",
             "Validate hydrology, lake, and cave knobs against streamed profile data"
           ]
+        },
+        {
+          "id": "core_010",
+          "name": "Terrain Mask Parity",
+          "description": "Share hydrology-aware cave, river, and lake masks between the dedicated server and Unity map previews",
+          "status": "in_progress",
+          "priority": "high",
+          "components": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/WorldManager.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+            "GameServer/World/WorldMapControlManager.cs",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "improvements_needed": [
+            "Reuse hydrology/flow masks for both server chunk carving and client previews",
+            "Reload map-control profiles and pipelines when profile hashes drift",
+            "Feather cave/river/lake seams near chunk borders using shared masks"
+          ]
         }
       ]
     },
@@ -454,7 +473,7 @@
     {
       "order": 1,
       "focus": "Align map-control profile and hydrology defaults",
-      "features": ["core_001", "core_007", "core_009"]
+      "features": ["core_001", "core_007", "core_009", "core_010"]
     },
     {
       "order": 2,
@@ -495,7 +514,7 @@
       "authentication": "Secure authentication with encryption"
     }
   },
-  "last_updated": "2026-02-12T00:00:00Z",
-  "version": "1.3.0"
+  "last_updated": "2026-02-13T00:00:00Z",
+  "version": "1.4.0"
 }
 

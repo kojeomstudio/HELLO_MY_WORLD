@@ -73,6 +73,7 @@ namespace Minecraft.World
             {
                 Debug.LogWarning($"[WorldMap] Map-control profile v{_mapControlProfile.Version} is older than config v{_worldConfig.MapControlProfileVersion}. Regenerating from config.");
                 _mapControlProfile = WorldMapControlProfile.FromConfig(_worldConfig);
+                ResetMapCache();
             }
 
             _profileHash = _mapControlProfile.ProfileHash;
@@ -120,6 +121,13 @@ namespace Minecraft.World
             {
                 showLakesToggle.isOn = _showLakes;
             }
+        }
+
+        private void ResetMapCache()
+        {
+            _loadedChunks.Clear();
+            _chunksToUpdate.Clear();
+            _lastMapUpdate = 0f;
         }
         
         private void InitializeBiomeColors()
@@ -437,7 +445,9 @@ namespace Minecraft.World
             _showRivers = profile.EnableRivers;
             _showLakes = profile.EnableLakes;
             ApplyToggleDefaults();
+            ResetMapCache();
             InitializeMapRendering();
+            UpdateMap();
         }
 
         private void ValidateProfileHash()

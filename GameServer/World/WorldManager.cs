@@ -26,6 +26,7 @@ namespace GameServerApp.World
         private readonly bool _useImprovedRivers;
         private readonly bool _useImprovedLakes;
         private readonly TerrainGenerationPipeline _terrainPipeline;
+        private readonly ImprovedTerrainCoordinator? _improvedCoordinator;
         private readonly WorldMapControlProfile _mapControlProfile;
         private readonly int _hydrologySmoothIterations;
         private readonly double _hydrologySmoothBlend;
@@ -300,6 +301,9 @@ namespace GameServerApp.World
 
             _mapControlProfile = WorldMapControlProfile.Create(_worldGenConfig, _worldSettings);
             WorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
+            _improvedCoordinator = (_useImprovedCaves || _useImprovedRivers || _useImprovedLakes)
+                ? new ImprovedTerrainCoordinator(_worldGenConfig, _worldSettings)
+                : null;
 
             Console.WriteLine($"[WorldManager] {_worldSeed} (config: {_worldGenConfig.SourcePath}, rivers: {_enableRivers}, lakes: {_enableLakes}, caves: {_enableCaves})");
             Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riparian={_riparianSmoothIterations}/{_riparianSmoothBlend:0.##}/boost={_riparianSaturationBoost:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/dir={_hydrologyDirectionalIterations}/{_hydrologyDirectionalBlend:0.##}/divClamp={_hydrologyFlowDivergenceClamp:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}/shelf={_lakeShelfDepth}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}/plug={_caveRiparianPlugDepth}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
@@ -8839,18 +8843,313 @@ namespace GameServerApp.World
         public void GenerateImprovedCavesInternal(TerrainGenerationContext context)
         {
             GenerateCavesInternal(context);
+
+            if (_improvedCoordinator == null)
+            {
+                return;
+            }
+
+            var chunk = context.Chunk;
+            var surfaceCache = BuildSurfaceCache(chunk);
+            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
+            if (masks.Caves != null)
+            {
+                ApplyImprovedCaveMask(chunk, surfaceCache, masks);
+            }
         }
 
         public void GenerateImprovedRiversInternal(TerrainGenerationContext context)
         {
             GenerateRiversInternal(context);
+
+            if (_improvedCoordinator == null)
+            {
+                return;
+            }
+
+            var chunk = context.Chunk;
+            var surfaceCache = BuildSurfaceCache(chunk);
+            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
+            ApplyImprovedRiverMask(context, chunk, surfaceCache, masks);
         }
 
         public void GenerateImprovedLakesInternal(TerrainGenerationContext context)
         {
             GenerateLakesInternal(context);
+
+            if (_improvedCoordinator == null)
+            {
+                return;
+            }
+
+            var chunk = context.Chunk;
+            var surfaceCache = BuildSurfaceCache(chunk);
+            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
+            ApplyImprovedLakeMask(chunk, surfaceCache, masks);
         }
 
+        private void ApplyImprovedCaveMask(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Caves == null)
+            {
+                return;
+            }
+
+            var hydrology = masks.Hydrology;
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    int surface = surfaceCache[x, z];
+                    if (surface <= bedrockLevel + 1)
+                    {
+                        continue;
+                    }
+
+                    int maxY = Math.Min(surface - 1, 255);
+                    for (int y = Math.Max(bedrockLevel + 1, 1); y < maxY; y++)
+                    {
+                        if (!masks.Caves[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Bedrock)
+                        {
+                            continue;
+                        }
+
+                        bool flooded = y < GlobalWaterLevel - 4 && hydrology[x, z] > 0.6f;
+                        chunk.SetBlock(x, y, z, flooded ? BlockType.Water : BlockType.Air);
+                    }
+                }
+            }
+
+            ApplyRiparianPlugs(chunk, surfaceCache, hydrology);
+        }
+
+        private void ApplyRiparianPlugs(ChunkData chunk, int[,] surfaceCache, float[,] hydrology)
+        {
+            int plugDepth = Math.Max(0, _caveRiparianPlugDepth);
+            if (plugDepth <= 0)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    if (hydrology[x, z] < 0.6f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    int maxDepth = Math.Min(plugDepth, Math.Max(1, surface - bedrockLevel));
+                    for (int depth = 0; depth < maxDepth; depth++)
+                    {
+                        int y = Math.Max(bedrockLevel + 1, surface - depth);
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Stone);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyImprovedRiverMask(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Rivers == null)
+            {
+                return;
+            }
+
+            var hydrology = masks.Hydrology;
+            var flow = masks.FlowAccumulation;
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float intensity = masks.Rivers[x, z];
+                    if (intensity <= _worldGenConfig.Water.RiverCenterThreshold * 0.85f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= 0)
+                    {
+                        surface = FindSurfaceLevel(chunk, x, z);
+                        if (surface <= 0)
+                        {
+                            continue;
+                        }
+
+                        surfaceCache[x, z] = surface;
+                    }
+
+                    int riverSurface = Math.Min(surface, GlobalWaterLevel);
+                    double normalized = Math.Clamp(intensity / Math.Max(0.0001, _worldGenConfig.Water.RiverBankThreshold), 0.0, 1.0);
+                    double channelPressure = Math.Clamp(intensity + hydrology[x, z] * 0.25 + flow[x, z] * 0.15, 0.0, 1.6);
+                    var flowDir = EstimateFlowDirection(surfaceCache, x, z);
+                    CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, channelPressure, flowDir);
+                }
+            }
+        }
+
+        private void ApplyImprovedLakeMask(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Lakes == null)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            var hydrology = masks.Hydrology;
+            var riverMask = masks.Rivers;
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float lake = masks.Lakes[x, z];
+                    if (lake <= _worldGenConfig.Lakes.ShorelineBlend * 0.5f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= bedrockLevel)
+                    {
+                        continue;
+                    }
+
+                    int maxDepth = Math.Clamp(_worldGenConfig.Lakes.MaxDepth, _worldGenConfig.Lakes.MinDepth, 32);
+                    int depth = Math.Clamp(
+                        (int)Math.Round(_worldGenConfig.Lakes.MinDepth + lake * (_worldGenConfig.Lakes.MaxDepth - _worldGenConfig.Lakes.MinDepth)),
+                        _worldGenConfig.Lakes.MinDepth,
+                        maxDepth);
+
+                    for (int d = 0; d < depth; d++)
+                    {
+                        int y = Math.Max(bedrockLevel + 1, surface - d);
+                        chunk.SetBlock(x, y, z, BlockType.Water);
+                    }
+
+                    int shelfDepth = Math.Clamp(_worldGenConfig.Lakes.ShelfDepth, 1, depth);
+                    for (int s = 0; s < shelfDepth; s++)
+                    {
+                        int bankY = Math.Max(bedrockLevel + 1, surface - s);
+                        var block = chunk.GetBlock(x, bankY, z);
+                        if (block == BlockType.Grass || block == BlockType.Dirt)
+                        {
+                            chunk.SetBlock(x, bankY, z, BlockType.Sand);
+                        }
+                    }
+
+                    ApplyWetlandPadding(chunk, surfaceCache, x, z, hydrology[x, z]);
+                    if (riverMask != null && riverMask[x, z] > _worldGenConfig.Water.RiverCenterThreshold)
+                    {
+                        var flowDir = EstimateFlowDirection(surfaceCache, x, z);
+                        int riverSurface = Math.Min(surface, GlobalWaterLevel);
+                        CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, riverMask[x, z], riverMask[x, z], flowDir);
+                    }
+                }
+            }
+        }
+
+        private void ApplyWetlandPadding(ChunkData chunk, int[,] surfaceCache, int x, int z, float hydrologyValue)
+        {
+            if (hydrologyValue < _worldGenConfig.Lakes.WetlandSaturationThreshold)
+            {
+                return;
+            }
+
+            int radius = Math.Max(0, _worldGenConfig.Lakes.WetlandBufferRadius);
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= 16 || nz >= 16)
+                    {
+                        continue;
+                    }
+
+                    int neighbourSurface = surfaceCache[nx, nz];
+                    if (neighbourSurface <= 0)
+                    {
+                        neighbourSurface = FindSurfaceLevel(chunk, nx, nz);
+                        if (neighbourSurface <= 0)
+                        {
+                            continue;
+                        }
+
+                        surfaceCache[nx, nz] = neighbourSurface;
+                    }
+
+                    var block = chunk.GetBlock(nx, neighbourSurface, nz);
+                    if (block == BlockType.Grass)
+                    {
+                        chunk.SetBlock(nx, neighbourSurface, nz, BlockType.Dirt);
+                        if (hydrologyValue > 0.8f && chunk.GetBlock(nx, neighbourSurface + 1, nz) == BlockType.Air)
+                        {
+                            chunk.SetBlock(nx, neighbourSurface + 1, nz, BlockType.Water);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static Vector2 EstimateFlowDirection(int[,] surfaceCache, int x, int z)
+        {
+            int sizeX = surfaceCache.GetLength(0);
+            int sizeZ = surfaceCache.GetLength(1);
+            int current = surfaceCache[x, z];
+            int bestDrop = 0;
+            Vector2 dir = Vector2.Zero;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int drop = current - surfaceCache[nx, nz];
+                    if (drop > bestDrop)
+                    {
+                        bestDrop = drop;
+                        dir = new Vector2(dx, dz);
+                    }
+                }
+            }
+
+            if (dir == Vector2.Zero)
+            {
+                return Vector2.UnitX;
+            }
+
+            return Vector2.Normalize(dir);
+        }
     }
 
 }

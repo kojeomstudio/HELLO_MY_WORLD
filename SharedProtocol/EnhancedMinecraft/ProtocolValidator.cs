@@ -64,6 +64,7 @@ public static class ProtocolValidator
         ValidateRegistryDescriptors();
         ValidateRequiredDescriptorBindings();
         ValidateDescriptorFiles();
+        ValidatePrototypeDescriptorFiles();
         ValidateDescriptorAssemblies();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
@@ -439,6 +440,39 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.DescriptorName}' resolved from '{descriptorFile}', expected '{expectedFile}'. Regenerate protobuf assets so server and Unity reference the same generated file.");
+            }
+        }
+    }
+
+    private static void ValidatePrototypeDescriptorFiles()
+    {
+        string expectedFile = EnhancedMinecraftGameReflection.Descriptor.Name ?? string.Empty;
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(binding.MessageType, out IMessage prototype))
+            {
+                continue;
+            }
+
+            string descriptorFile = prototype.Descriptor?.File?.Name ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(descriptorFile))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' did not expose a descriptor file. Regenerate protobuf assets and ensure using directives point at the generated DTOs.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(expectedFile) &&
+                !string.Equals(descriptorFile, expectedFile, StringComparison.OrdinalIgnoreCase))
+            {
+                string mismatch = $"EnhancedMinecraft contract '{binding.MessageType}' resolved from descriptor file '{descriptorFile}', expected '{expectedFile}'.";
+                if (IsOptionalMessage(binding.MessageType))
+                {
+                    Console.WriteLine($"[Proto][WARN] {mismatch} Regenerate protobuf assets and update using references before promoting this packet to required.");
+                }
+                else
+                {
+                    throw new InvalidOperationException($"{mismatch} Regenerate protobuf assets so server and Unity share the same generated EnhancedMinecraft DTOs.");
+                }
             }
         }
     }

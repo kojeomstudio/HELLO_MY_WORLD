@@ -18,6 +18,7 @@ namespace GameWorld
         [Header("Profile")]
         [SerializeField] private string profileFileName = "world-map-control.json";
         [SerializeField] private bool enableDebugLogging = true;
+        [SerializeField] private float profileReloadIntervalSeconds = 5f;
 
         [Header("Streaming")]
         [SerializeField] private Transform playerTransform;
@@ -28,6 +29,8 @@ namespace GameWorld
         private EnhancedTerrainGenerator generator = null!;
         private CancellationTokenSource cancellation = null!;
         private SemaphoreSlim buildSemaphore = null!;
+        private DateTime lastProfileCheckUtc;
+        private DateTime lastProfileWriteUtc;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
@@ -36,6 +39,7 @@ namespace GameWorld
         {
             LoadProfile();
             generator = new EnhancedTerrainGenerator(profile);
+            lastProfileCheckUtc = DateTime.UtcNow;
             cancellation = new CancellationTokenSource();
             buildSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrentChunkBuilds));
             _ = ProcessQueueAsync(cancellation.Token);
@@ -55,6 +59,7 @@ namespace GameWorld
                 return;
             }
 
+            MaybeReloadProfile();
             EnqueueAroundPlayer();
             UnloadDistantChunks();
         }
@@ -63,10 +68,63 @@ namespace GameWorld
         {
             var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
             profile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
+            lastProfileWriteUtc = File.Exists(profilePath) ? File.GetLastWriteTimeUtc(profilePath) : DateTime.MinValue;
 
             if (enableDebugLogging)
             {
                 Debug.Log($"[WorldMapController] Loaded profile hash={profile.ProfileHash} from {profilePath}");
+            }
+        }
+
+        private void MaybeReloadProfile()
+        {
+            if (profileReloadIntervalSeconds <= 0f)
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if ((now - lastProfileCheckUtc).TotalSeconds < profileReloadIntervalSeconds)
+            {
+                return;
+            }
+
+            lastProfileCheckUtc = now;
+            var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
+
+            try
+            {
+                if (!File.Exists(profilePath))
+                {
+                    return;
+                }
+
+                var writeTime = File.GetLastWriteTimeUtc(profilePath);
+                if (writeTime <= lastProfileWriteUtc)
+                {
+                    return;
+                }
+
+                var newProfile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
+                if (!string.Equals(newProfile.ProfileHash, profile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    profile = newProfile;
+                    generator = new EnhancedTerrainGenerator(profile);
+                    loadedChunks.Clear();
+                    if (enableDebugLogging)
+                    {
+                        Debug.Log($"[WorldMapController] Reloaded profile hash={profile.ProfileHash} (updated {writeTime:o})");
+                    }
+                }
+
+                lastProfileWriteUtc = writeTime;
+            }
+            catch (Exception ex)
+            {
+                if (enableDebugLogging)
+                {
+                    Debug.LogWarning($"[WorldMapController] Failed to reload profile: {ex.Message}");
+                }
             }
         }
 

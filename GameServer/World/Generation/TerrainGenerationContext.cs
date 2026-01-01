@@ -1,148 +1,81 @@
+using System;
+using System.Collections.Generic;
+using GameServerApp;
 using GameServerApp.World;
 
 namespace GameServerApp.World.Generation
 {
     /// <summary>
-    /// Context object passed between terrain generation stages
+    /// Shared context passed between terrain stages. Holds chunk references,
+    /// cached masks (caves/rivers/lakes), and data-driven configuration.
     /// </summary>
-    public class TerrainGenerationContext
+    public sealed class TerrainGenerationContext
     {
-        /// <summary>
-        /// The chunk being generated
-        /// </summary>
-        public ChunkData Chunk { get; set; }
+        private readonly Dictionary<string, object> metadata = new();
 
-        /// <summary>
-        /// The X coordinate of the chunk
-        /// </summary>
-        public int ChunkX { get; set; }
+        public TerrainGenerationContext(
+            WorldManager manager,
+            ChunkData chunk,
+            int chunkX,
+            int chunkZ,
+            WorldGenerationConfig? config = null,
+            WorldSettings? worldSettings = null,
+            long? worldSeed = null)
+        {
+            Manager = manager ?? throw new ArgumentNullException(nameof(manager));
+            Chunk = chunk ?? throw new ArgumentNullException(nameof(chunk));
+            ChunkX = chunkX;
+            ChunkZ = chunkZ;
+            Config = config;
+            WorldSettings = worldSettings;
+            WorldSeed = worldSeed ?? worldSettings?.WorldSeed ?? config?.Seed ?? 0;
+        }
 
-        /// <summary>
-        /// The Z coordinate of the chunk
-        /// </summary>
-        public int ChunkZ { get; set; }
+        public WorldManager Manager { get; }
+        public ChunkData Chunk { get; }
+        public int ChunkX { get; }
+        public int ChunkZ { get; }
+        public WorldGenerationConfig? Config { get; }
+        public WorldSettings? WorldSettings { get; }
+        public long WorldSeed { get; }
 
-        /// <summary>
-        /// The height map for the chunk
-        /// </summary>
-        public int[,] HeightMap { get; set; }
-
-        /// <summary>
-        /// The biome map for the chunk
-        /// </summary>
-        public int[,] BiomeMap { get; set; }
-
-        /// <summary>
-        /// The cave mask for the chunk
-        /// </summary>
+        public int[,]? HeightMap { get; set; }
+        public int[,]? BiomeMap { get; set; }
         public bool[,,]? CaveMask { get; set; }
-
-        /// <summary>
-        /// The river mask for the chunk
-        /// </summary>
         public float[,]? RiverMask { get; set; }
-
-        /// <summary>
-        /// The lake mask for the chunk
-        /// </summary>
         public float[,]? LakeMask { get; set; }
-
-        /// <summary>
-        /// The hydrology mask for the chunk
-        /// </summary>
         public float[,]? HydrologyMask { get; set; }
-
-        /// <summary>
-        /// The flow accumulation mask for the chunk
-        /// </summary>
         public float[,]? FlowAccumulation { get; set; }
 
-        /// <summary>
-        /// The world generation configuration
-        /// </summary>
-        public WorldGenerationConfig Config { get; set; }
+        public void SetMetadata(string key, object value)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Key must be provided", nameof(key));
+            metadata[key] = value ?? throw new ArgumentNullException(nameof(value));
+        }
 
-        /// <summary>
-        /// The world seed
-        /// </summary>
-        public long WorldSeed { get; set; }
+        public bool TryGetMetadata<T>(string key, out T value)
+        {
+            if (metadata.TryGetValue(key, out var stored) && stored is T typed)
+            {
+                value = typed;
+                return true;
+            }
 
-        /// <summary>
-        /// The world settings
-        /// </summary>
-        public WorldSettings WorldSettings { get; set; }
-    }
-}
-namespace GameServerApp.World.Generation
-{
-    /// <summary>
-    /// Context object passed between terrain generation stages
-    /// </summary>
-    public class TerrainGenerationContext
-    {
-        /// <summary>
-        /// The chunk being generated
-        /// </summary>
-        public ChunkData Chunk { get; set; }
+            value = default!;
+            return false;
+        }
 
-        /// <summary>
-        /// The X coordinate of the chunk
-        /// </summary>
-        public int ChunkX { get; set; }
+        public T GetOrAddMetadata<T>(string key, Func<T> factory)
+        {
+            if (TryGetMetadata<T>(key, out var existing))
+            {
+                return existing;
+            }
 
-        /// <summary>
-        /// The Z coordinate of the chunk
-        /// </summary>
-        public int ChunkZ { get; set; }
-
-        /// <summary>
-        /// The height map for the chunk
-        /// </summary>
-        public int[,] HeightMap { get; set; }
-
-        /// <summary>
-        /// The biome map for the chunk
-        /// </summary>
-        public int[,] BiomeMap { get; set; }
-
-        /// <summary>
-        /// The cave mask for the chunk
-        /// </summary>
-        public bool[,,]? CaveMask { get; set; }
-
-        /// <summary>
-        /// The river mask for the chunk
-        /// </summary>
-        public float[,]? RiverMask { get; set; }
-
-        /// <summary>
-        /// The lake mask for the chunk
-        /// </summary>
-        public float[,]? LakeMask { get; set; }
-
-        /// <summary>
-        /// The hydrology mask for the chunk
-        /// </summary>
-        public float[,]? HydrologyMask { get; set; }
-
-        /// <summary>
-        /// The flow accumulation mask for the chunk
-        /// </summary>
-        public float[,]? FlowAccumulation { get; set; }
-
-        /// <summary>
-        /// The world generation configuration
-        /// </summary>
-        public WorldGenerationConfig Config { get; set; }
-
-        /// <summary>
-        /// The world seed
-        /// </summary>
-        public long WorldSeed { get; set; }
-
-        /// <summary>
-        /// The world settings
-        /// </summary>
-        public WorldSettings WorldSettings { get; set; }
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            var created = factory();
+            metadata[key] = created!;
+            return created;
+        }
     }
 }

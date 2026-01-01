@@ -5,6 +5,8 @@ using UnityEngine;
 using Google.Protobuf;
 using Game.Auth;
 using GameProtocol;
+using EnhancedMinecraftProtocol.Manifest;
+using SharedProtocol.EnhancedMinecraft;
 #if HMW_PROTO
 using Game.Move;
 #endif
@@ -58,7 +60,8 @@ namespace Networking.Core
         private void InitializeClient()
         {
             if (_isInitialized) return;
-            
+
+            ValidateProtocolContracts();
             _transport = new TcpNetworkTransport();
             _transport.ConnectionStatusChanged += OnConnectionStatusChanged;
             _transport.Received += OnDataReceived;
@@ -80,6 +83,19 @@ namespace Networking.Core
             
             _isInitialized = true;
             Debug.Log("ProtobufNetworkClient initialized");
+        }
+
+        private void ValidateProtocolContracts()
+        {
+            try
+            {
+                ProtocolStandardization.ValidateProtocolImplementation();
+                EnhancedProtoManifest.AssertFingerprint();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ProtobufNetworkClient] Protobuf contract validation warning: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -529,4 +545,3 @@ namespace Networking.Core
         System = 3
     }
 }
-

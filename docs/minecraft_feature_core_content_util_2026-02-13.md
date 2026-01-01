@@ -1,30 +1,24 @@
-# Minecraft Feature Matrix — 2026-02-13
+# Core/Content/Utility rollout (2026-02-13)
 
-## Core
-- World Generation (core_001): hydrology-aware terrain masks with biome-aware carving and seam smoothing.
-- Networking & Protocol (core_002): Google.Protobuf pipeline with handler validation and descriptor fingerprinting.
-- World Map Control & Hydrology Sync (core_007): hashed map-control profile shared between server and Unity previews.
-- EnhancedMinecraft Protocol Validation (core_008): registry coverage, parser binding checks, descriptor/assembly guards.
-- World Config & Map Control Parity (core_009): keep StreamingAssets/world and map-control JSON aligned with server knobs.
-- Terrain Mask Parity (core_010): reuse improved hydrology/flow masks across server chunk generation and map previews; reload pipelines when profile hashes drift.
+Source of truth: `config/minecraft_feature_core_content_util_2026-02-13.json`. The JSON lists the same items with component paths for automation.
 
-## Content
-- Items & Equipment (content_001): tools/armor/weapons with tiering and durability.
-- Crafting System (content_002): hand/workbench/furnace crafting backed by JSON recipes.
-- Mobs & Entities (content_003): basic entity spawning with planned AI and drops.
-- Structures & Buildings (content_004): planned villages, dungeons, mineshafts, and blueprint-driven builds.
-- World Features (content_005): biomes, weather/day-night, future dimensions/portals.
-- Ores & Resources (content_006): JSON-driven ore distribution and vein generation.
+## Core (sequential order)
+1. **World generation parity** — keep caves/rivers/lakes aligned across server (`WorldManager`, enhanced pipeline) and Unity previews (`ImprovedTerrainGenerator`, `WorldMapController`), driven by `config/world.json`.
+2. **Map control profile sync** — hash + versioned `world_map_control_profile.json` shared with Unity controllers so chunk streaming and hydrology smoothing stay consistent.
+3. **Protobuf protocol validation** — ensure EnhancedMinecraft DTOs are registered and fingerprints match via `ProtocolStandardization` + `EnhancedProtoManifest` on both runtimes.
+4. **Chunk streaming & residency** — enforce render/simulation distance in `MinecraftChunkHandler`/`WorldManager` and Unity chunk managers.
 
-## Utilities
-- User Interface (util_001): HUD, inventory UI, map toggles, accessibility backlog.
-- Server Management (util_002): console, auth, permissions, monitoring/backups roadmap.
-- Development Tools (util_003): debugging/config editors, planned world/editor tooling.
-- Data Management (util_004): JSON configs, SQLite persistence, validation and backup goals.
-- Performance & Optimization (util_005): chunk loading, multithreading, bandwidth/rendering/memory optimizations.
+## Content (sequential order)
+1. **Block interaction & inventory** — synchronized block edits and inventory state (`WorldBlockHandler`, `InventoryHandler`, Unity modify/inventory managers).
+2. **Crafting & furnace flows** — recipe/furnace validation on the server with matching Unity crafting/furnace UIs.
+3. **Survival systems** — hunger/health ticks driven by server handlers with HUD updates in `HealthHungerSystem`.
+4. **Entity sync & combat** — AI/combat packet handling (`AIHandlers`, `PlayerAttackHandler`) mirrored in `RemoteEntityManager` and world-time controllers.
 
-## Execution Order (current)
-1) Align map-control profile and hydrology defaults (core_001, core_007, core_009, core_010)  
-2) Protocol validation and packet registry hardening (core_002, core_008)  
-3) Content balance after terrain/protocol changes (content_001, content_003, content_006)  
-4) Utility polish and tooling (util_001, util_005)
+## Utility (sequential order)
+1. **Config/profile sync** — JSON-first configs (`world.json`, `world_map_control_profile.json`, `server-config.json`) validated in `ServerConfig`/`ConfigValidator` and mirrored by Unity `WorldConfigFile`.
+2. **Protobuf asset pipeline** — regenerate `.proto` assets (`scripts/generate_proto.ps1`) and keep `SharedProtocol` + `Assets/Generated/Protobuf` in lockstep.
+3. **Logging & monitoring** — lightweight logging/perf monitors on the server with client-side network diagnostics (`GameNetworkManager`, `MessageDispatcher`).
+
+Notes:
+- All items are data-driven (JSON + proto) and should be kept in sync when updating configs or schemas.
+- New work should start at the top of each list before proceeding to later items to preserve sequencing.

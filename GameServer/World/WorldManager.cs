@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using GameServerApp;
 using GameServerApp.Database;
@@ -123,6 +123,8 @@ namespace GameServerApp.World
         private const string HydrologyFieldCacheKey = "terrain.hydrology";
         private const string RiparianSaturationCacheKey = "terrain.riparianSaturation";
         private const string RiparianSaturationWithRiverCacheKey = "terrain.riparianSaturation.river";
+        private const string SurfaceCacheKey = "terrain.surfaceCache";
+        private const string ImprovedMaskCacheKey = "terrain.improvedMasks";
         private static double NoiseCaveHorizontalFrequency = 0.0026;
         private static double NoiseCaveVerticalFrequency = 0.018;
         private static double NoiseCaveThreshold = 0.42;
@@ -182,14 +184,14 @@ namespace GameServerApp.World
             _worldGenConfig = generationConfig ?? WorldGenerationConfig.Load(_worldSettings.WorldConfigPath);
             _worldId = worldId;
 
-            // ?�드 ?�드 초기?? ?�공???�드 ?�는 ?�이?�베?�스?�서 로드, ?�는 ?�로 ?�성
+            // ?붾뱶 ?쒕뱶 珥덇린?? ?쒓났???쒕뱶 ?먮뒗 ?곗씠?곕쿋?댁뒪?먯꽌 濡쒕뱶, ?먮뒗 ?덈줈 ?앹꽦
             _worldSeed = worldSeed
                 ?? WorldSeedConfig.FromSeed((int)_worldSettings.WorldSeed)
                 ?? LoadWorldSeedFromDatabase()
                 ?? WorldSeedConfig.Random();
             SaveWorldSeedToDatabase();
 
-            // ?�드�??�용?�여 Random 초기??(결정???�성???�함)
+            // ?쒕뱶瑜??ъ슜?섏뿬 Random 珥덇린??(寃곗젙???앹꽦???꾪븿)
             _random = new Random(_worldSeed.Seed);
             _caveSettings = new CaveGenerationSettings
             {
@@ -500,7 +502,7 @@ namespace GameServerApp.World
         private async Task<ChunkData> GenerateChunk(int chunkX, int chunkZ)
         {
             var chunk = new ChunkData(chunkX, chunkZ);
-            var context = new TerrainGenerationContext(this, chunk, chunkX, chunkZ);
+            var context = new TerrainGenerationContext(this, chunk, chunkX, chunkZ, _worldGenConfig, _worldSettings, _worldSeed.Seed);
             _terrainPipeline.Execute(context);
             return chunk;
         }
@@ -764,7 +766,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선??3D ?�굴 ?�성 ?�스??- ???�연?�럽�??�양???�굴 구조
+        /// 媛쒖꽑??3D ?숆뎬 ?앹꽦 ?쒖뒪??- ???먯뿰?ㅻ읇怨??ㅼ뼇???숆뎬 援ъ“
         /// </summary>
         public void GenerateCavesInternal(TerrainGenerationContext context)
         {
@@ -783,19 +785,19 @@ namespace GameServerApp.World
             var hydrologyGradient = hydrologyField.HydrologyGradient;
             var riverField = GetRiverFieldCache(context);
             
-            // 메인 ?�굴 ?�스??(기존 ??방식 개선)
+            // 硫붿씤 ?숆뎬 ?쒖뒪??(湲곗〈 ??諛⑹떇 媛쒖꽑)
             var caveStabilityField = BuildCaveStabilityField(context, surfaceCache, hydrologyMask, flowAccumulation, hydrologyGradient);
             SmoothScalarField(caveStabilityField, _caveStabilitySmoothIterations, _caveStabilitySmoothBlend);
 
               GenerateMainCaveSystem(context, chunk, rand, caveStabilityField);
 
-            // ?�형 ?�굴�?추�?
+            // ?뚰삎 ?숆뎬諛?異붽?
             GenerateSmallCaveRooms(chunk, rand);
 
-            // ?�직 ?�굴 (?�직�?
+            // ?섏쭅 ?숆뎬 (?섏쭅媛?
             GenerateVerticalShafts(chunk, rand);
 
-            // ?�이�?기반 ?�굴�?추�? (?�속??보장)
+            // ?몄씠利?湲곕컲 ?숆뎬痢?異붽? (?곗냽??蹂댁옣)
             GenerateNoiseCavePass(context, chunk, surfaceCache, caveStabilityField, erosionRiskField, hydrologyMask, flowAccumulation, hydrologyGradient);
             ApplyCaveHydrologyFeatures(context, chunk, surfaceCache, hydrologyMask);
             IntegrateKarstInlets(context, chunk, surfaceCache, hydrologyMask, flowAccumulation, riverField);
@@ -1884,11 +1886,11 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 메인 ?�굴 ?�스???�성
+        /// 硫붿씤 ?숆뎬 ?쒖뒪???앹꽦
         /// </summary>
         private void GenerateMainCaveSystem(TerrainGenerationContext context, ChunkData chunk, Random rand, double[,] caveStabilityField)
         {
-            int wormCount = 1 + rand.Next(3); // 1~3개의 메인 ??
+            int wormCount = 1 + rand.Next(3); // 1~3媛쒖쓽 硫붿씤 ??
             double radiusNoiseSeed = rand.NextDouble() * 1000.0;
             double directionalNoiseSeed = rand.NextDouble() * 500.0;
 
@@ -1901,16 +1903,16 @@ namespace GameServerApp.World
             for (int w = 0; w < wormCount; w++)
             {
                 double x = rand.Next(16);
-                double y = rand.Next(15, 55); // ??깊�? 지?��???
+                double y = rand.Next(15, 55); // ??源딆? 吏?섎???
                 double z = rand.Next(16);
-                int steps = 100 + rand.Next(80); // ??�??�굴
+                int steps = 100 + rand.Next(80); // ??湲??숆뎬
                 double yaw = rand.NextDouble() * Math.PI * 2.0;
                 double pitch = (rand.NextDouble() - 0.5) * 0.4;
-                double baseRadius = 2.0 + rand.NextDouble() * 1.5; // 기본 반�?�?
+                double baseRadius = 2.0 + rand.NextDouble() * 1.5; // 湲곕낯 諛섏?由?
 
                 for (int s = 0; s < steps; s++)
                 {
-                    // ?�적?�로 변?�는 반�?�?(?�어지�?좁아지???�과)
+                    // ?숈쟻?쇰줈 蹂?섎뒗 諛섏?由?(?볦뼱吏怨?醫곸븘吏???④낵)
                     double stability = SampleField(caveStabilityField, x, z);
                     double radiusNoise = SimplexNoise.Generate(x + radiusNoiseSeed, z + radiusNoiseSeed, 0.12, 2, 1.0, 0.55, 55127);
                     double radiusTurbulence = Math.Sin(s * 0.1) * 0.8 + radiusNoise * 0.6;
@@ -1926,11 +1928,11 @@ namespace GameServerApp.World
                     int cy = (int)Math.Round(y);
                     int cz = (int)Math.Round(z);
                     
-                    // ?�굴 조각?�기
+                    // ?숆뎬 議곌컖?섍린
                     CarveSphere(chunk, cx, cy, cz, currentRadius);
                     
-                    // 가????공간(�? ?�성
-                    if (s > 20 && rand.NextDouble() < 0.05) // 5% ?�률
+                    // 媛????怨듦컙(諛? ?앹꽦
+                    if (s > 20 && rand.NextDouble() < 0.05) // 5% ?뺣쪧
                     {
                         CarveRoom(chunk, cx, cy, cz, 4 + rand.Next(4));
                         if (rand.NextDouble() < 0.35)
@@ -1939,20 +1941,20 @@ namespace GameServerApp.World
                         }
                     }
 
-                    // ?�동
-                    double speed = 0.8 + rand.NextDouble() * 0.4; // 가변 ?�도
+                    // ?대룞
+                    double speed = 0.8 + rand.NextDouble() * 0.4; // 媛蹂 ?띾룄
                     x += Math.Cos(yaw) * speed;
                     z += Math.Sin(yaw) * speed;
                     y += Math.Sin(pitch) * 0.3;
 
-                    // 방향 변??(???�연?�럽�?
+                    // 諛⑺뼢 蹂??(???먯뿰?ㅻ읇寃?
                     double directionalNoise = SimplexNoise.Generate(x + directionalNoiseSeed, y + directionalNoiseSeed, 0.05, 2, 1.0, 0.5, 91357);
                     double turnBias = 0.7 - stability * 0.35;
                     yaw += (rand.NextDouble() - 0.5) * 0.3 * turnBias + directionalNoise * 0.35;
                     pitch += (rand.NextDouble() - 0.5) * 0.15 + directionalNoise * 0.18;
                     pitch = Math.Clamp(pitch, -0.7, 0.7);
 
-                    // 범위 체크
+                    // 踰붿쐞 泥댄겕
                     if (x < 0 || x > 15 || z < 0 || z > 15) break;
                     if (y < 5 || y > 100) break;
                 }
@@ -1960,7 +1962,7 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// ?�형 ?�굴방들 ?�성
+        /// ?뚰삎 ?숆뎬諛⑸뱾 ?앹꽦
         /// </summary>
         private static int FloorDiv(int value, int divisor)
         {
@@ -2089,7 +2091,7 @@ namespace GameServerApp.World
 
         private void GenerateSmallCaveRooms(ChunkData chunk, Random rand)
         {
-            int roomCount = rand.Next(2, 6); // 2~5개의 ?�형 �?
+            int roomCount = rand.Next(2, 6); // 2~5媛쒖쓽 ?뚰삎 諛?
             
             for (int i = 0; i < roomCount; i++)
             {
@@ -2103,11 +2105,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// ?�직 ?�굴 (갱도) ?�성
+        /// ?섏쭅 ?숆뎬 (媛깅룄) ?앹꽦
         /// </summary>
         private void GenerateVerticalShafts(ChunkData chunk, Random rand)
         {
-            if (rand.NextDouble() < 0.3) // 30% ?�률�??�직�??�성
+            if (rand.NextDouble() < 0.3) // 30% ?뺣쪧濡??섏쭅媛??앹꽦
             {
                 int shaftX = rand.Next(4, 12);
                 int shaftZ = rand.Next(4, 12);
@@ -2119,7 +2121,7 @@ namespace GameServerApp.World
                 {
                     CarveSphere(chunk, shaftX, y, shaftZ, shaftRadius);
                     
-                    // 가??측면 ?�로 ?�성
+                    // 媛??痢〓㈃ ?듬줈 ?앹꽦
                     if (rand.NextDouble() < 0.1)
                     {
                         int sideLength = rand.Next(3, 8);
@@ -2170,8 +2172,8 @@ namespace GameServerApp.World
         private readonly CaveGenerationSettings _caveSettings;
 
         /// <summary>
-        /// ?�이�?기반 ?�굴�?- ?�속???�이�??�드�??�용?�여 �?�� 경계�??�는 ?�굴???�성?�다.
-        /// 개선: 침수 ?�굴(Flooded Caves) 기능??추�??�여 ?�정 ?�이 ?�하, 그리�??�문?�적 ?�인???�라 물로 채워�??�굴???�성?�니??
+        /// ?몄씠利?湲곕컲 ?숆뎬痢?- ?곗냽???몄씠利??꾨뱶瑜??ъ슜?섏뿬 泥?겕 寃쎄퀎瑜??섎뒗 ?숆뎬???뺤꽦?쒕떎.
+        /// 媛쒖꽑: 移⑥닔 ?숆뎬(Flooded Caves) 湲곕뒫??異붽??섏뿬 ?뱀젙 ?믪씠 ?댄븯, 洹몃━怨??섎Ц?숈쟻 ?붿씤???곕씪 臾쇰줈 梨꾩썙吏??숆뎬???앹꽦?⑸땲??
         /// </summary>
         private void GenerateNoiseCavePass(
             TerrainGenerationContext context,
@@ -2208,14 +2210,14 @@ namespace GameServerApp.World
                     double warpedX = worldX + warp.dx;
                     double warpedZ = worldZ + warp.dz;
                     
-                    // 개선: ?�드코딩??�??�??_caveSettings ?�용
+                    // 媛쒖꽑: ?섎뱶肄붾뵫??媛????_caveSettings ?ъ슜
                     double horizontalNoise = SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.HorizontalFrequency, 4, 1.0, 0.55, 640371);
                     double secondaryNoise = SimplexNoise.Generate(warpedX * 1.35, warpedZ * 1.35, _caveSettings.HorizontalFrequency * 1.6, 2, 1.0, 0.5, 93217);
                     double ridged = SampleRidgedNoise(warpedX * 0.85, warpedZ * 0.85, _caveSettings.HorizontalFrequency * 1.25, 3, 1.0, 0.5, 91357);
                     double striation = SimplexNoise.Generate(warpedX * 0.9, warpedZ * 0.9, _caveSettings.HorizontalFrequency * 1.1, 2, 1.0, 0.55, 128713) - 0.5;
                     double flowNoise = SimplexNoise.Generate(warpedX * 0.25 + 37.1, warpedZ * 0.25 - 11.4, _caveSettings.HorizontalFrequency * 0.4, 2, 1.0, 0.6, 87121) - 0.5;
 
-                    // ?�규: 침수 ?�굴???�한 ?�이�?�?계산
+                    // ?좉퇋: 移⑥닔 ?숆뎬???꾪븳 ?몄씠利?媛?怨꾩궛
                     double floodedCaveNoise = NormalizeNoise(SimplexNoise.Generate(warpedX, warpedZ, _caveSettings.FloodedCaveNoiseFrequency, 3, 1.0, 0.5, 488171));
 
                     for (int y = 8; y < 120; y++)
@@ -2247,7 +2249,7 @@ namespace GameServerApp.World
                         double aquifer = SimplexNoise.Generate(worldX, y, 0.0042, 2, 1.0, 0.58, 147113);
                         double liquidity = Math.Clamp((GlobalWaterLevel - y) / 28.0, 0.0, 1.0);
                         double flowBias = Math.Clamp((flowNoise + 0.5) * 0.5 + liquidity * 0.5, 0.0, 1.0);
-                        // 개선: ?�드코딩??�??�??_caveSettings ?�용
+                        // 媛쒖꽑: ?섎뱶肄붾뵫??媛????_caveSettings ?ъ슜
                         double dynamicThreshold = _caveSettings.Threshold - liquidity * 0.08 + aquifer * 0.02 - flowBias * 0.015;
                         double stability = SampleField(caveStabilityField, x, z);
                         dynamicThreshold -= (stability - 0.5) * 0.08;
@@ -2271,8 +2273,8 @@ namespace GameServerApp.World
                                 continue;
                             }
                             
-                            // ?�규: 침수 ?�굴 로직
-                            // y좌표가 ?�수면보????��, 침수 ?�굴 ?�이�?값이 ?�정 ?�계값을 ?�을 경우 ?�굴??물로 채웁?�다.
+                            // ?좉퇋: 移⑥닔 ?숆뎬 濡쒖쭅
+                            // y醫뚰몴媛 ?댁닔硫대낫????퀬, 移⑥닔 ?숆뎬 ?몄씠利?媛믪씠 ?뱀젙 ?꾧퀎媛믪쓣 ?섏쓣 寃쎌슦 ?숆뎬??臾쇰줈 梨꾩썎?덈떎.
                             double waterTableProximity = Math.Clamp((GlobalWaterLevel - y) / (double)GlobalWaterLevel, 0.0, 1.0);
                             double floodedCheck = floodedCaveNoise * (1.0 - _caveSettings.FloodedCaveProximityToWaterTableWeight) + 
                                                   waterTableProximity * _caveSettings.FloodedCaveProximityToWaterTableWeight +
@@ -2285,7 +2287,7 @@ namespace GameServerApp.World
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Water);
                             }
-                            // 개선: ?�드코딩??�??�??_caveSettings ?�용
+                            // 媛쒖꽑: ?섎뱶肄붾뵫??媛????_caveSettings ?ъ슜
                             else if (density < Math.Min(_caveSettings.LavaThreshold, dynamicThreshold * 0.55) && y < 18)
                             {
                                 chunk.SetBlock(x, y, z, BlockType.Lava);
@@ -2368,7 +2370,7 @@ namespace GameServerApp.World
                         int waterEnd = Math.Min(cavityTop - 1, sedimentY + poolDepth - 1);
                         for (int fillY = waterStart; fillY <= waterEnd; fillY++)
                         {
-                            // ?�기?�는 침수 ?�굴�??�리, ?��? ?�덩?�만 ?�성?��?�?기존 로직 ?��?
+                            // ?ш린?쒕뒗 移⑥닔 ?숆뎬怨??щ━, ?뺤? ?낅뜦?대쭔 ?앹꽦?섎?濡?湲곗〈 濡쒖쭅 ?좎?
                             var fillBlock = fillY < GlobalWaterLevel - 4 ? BlockType.Water : BlockType.Air;
                             chunk.SetBlock(x, fillY, z, fillBlock);
                         }
@@ -2471,13 +2473,13 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// ?�굴�?조각?�기
+        /// ?숆뎬諛?議곌컖?섍린
         /// </summary>
         private void CarveRoom(ChunkData chunk, int centerX, int centerY, int centerZ, int size)
         {
             for (int dx = -size; dx <= size; dx++)
             {
-                for (int dy = -size/2; dy <= size/2; dy++) // 방�? ?�평?�으�????�게
+                for (int dy = -size/2; dy <= size/2; dy++) // 諛⑹? ?섑룊?곸쑝濡????볤쾶
                 {
                     for (int dz = -size; dz <= size; dz++)
                     {
@@ -2487,7 +2489,7 @@ namespace GameServerApp.World
                         
                         if (x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 1 && y < 255)
                         {
-                            double dist = Math.Sqrt(dx*dx + dy*dy*1.5 + dz*dz); // ?�직 ?�축
+                            double dist = Math.Sqrt(dx*dx + dy*dy*1.5 + dz*dz); // ?섏쭅 ?뺤텞
                             if (dist <= size)
                             {
                                 var blockType = chunk.GetBlock(x, y, z);
@@ -2680,15 +2682,15 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선???�전 ?�성 ?�스??- ??복잡?�고 ?�양??구조???�전
+        /// 媛쒖꽑???섏쟾 ?앹꽦 ?쒖뒪??- ??蹂듭옟?섍퀬 ?ㅼ뼇??援ъ“???섏쟾
         /// </summary>
         public void GenerateDungeonsInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltDungeon);
-            if (rand.NextDouble() > 0.15) return; // 15% ?�률�?증�?
+            if (rand.NextDouble() > 0.15) return; // 15% ?뺣쪧濡?利앷?
 
-            // ?�전 ?�??결정
+            // ?섏쟾 ???寃곗젙
             DungeonType dungeonType = (DungeonType)rand.Next(3);
             
             switch (dungeonType)
@@ -3006,6 +3008,35 @@ namespace GameServerApp.World
                     cache.Intensity[x, z] = cache.Intensity[x, z] * (1.0 - blend) + projected * blend;
                 }
             }
+        }
+
+        private int[,] GetOrBuildSurfaceCache(TerrainGenerationContext context)
+        {
+            return context.GetOrAddMetadata(SurfaceCacheKey, () =>
+            {
+                var cache = BuildSurfaceCache(context.Chunk);
+                context.HeightMap = cache;
+                return cache;
+            });
+        }
+
+        private TerrainMaskResult? GetOrBuildImprovedMasks(TerrainGenerationContext context, int[,] surfaceCache)
+        {
+            if (_improvedCoordinator == null)
+            {
+                return null;
+            }
+
+            return context.GetOrAddMetadata(ImprovedMaskCacheKey, () =>
+            {
+                var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
+                context.CaveMask = masks.Caves;
+                context.RiverMask = masks.Rivers;
+                context.LakeMask = masks.Lakes;
+                context.HydrologyMask = masks.Hydrology;
+                context.FlowAccumulation = masks.FlowAccumulation;
+                return masks;
+            });
         }
 
         private int[,] BuildSurfaceCache(ChunkData chunk)
@@ -8226,7 +8257,7 @@ namespace GameServerApp.World
 
         
         /// <summary>
-        /// ?�전 ?�???�거??
+        /// ?섏쟾 ????닿굅??
         /// </summary>
         private enum DungeonType
         {
@@ -8236,7 +8267,7 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// ?�순??�??�태 ?�전
+        /// ?⑥닚??諛??뺥깭 ?섏쟾
         /// </summary>
         private void GenerateSimpleDungeon(ChunkData chunk, Random rand)
         {
@@ -8245,24 +8276,24 @@ namespace GameServerApp.World
             int roomDepth = 6 + rand.Next(4);
 
             int ox = rand.Next(2, 16 - roomWidth - 2);
-            int oy = rand.Next(15, 40); // ??깊�? 지??
+            int oy = rand.Next(15, 40); // ??源딆? 吏??
             int oz = rand.Next(2, 16 - roomDepth - 2);
 
             BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
             
-            // 보물 ?�자 ?�치 (중앙)
+            // 蹂대Ъ ?곸옄 ?꾩튂 (以묒븰)
             int treasureX = ox + roomWidth / 2;
             int treasureZ = oz + roomDepth / 2;
-            // TODO: 보물 ?�자 블록 추�? ???�용
+            // TODO: 蹂대Ъ ?곸옄 釉붾줉 異붽? ???ъ슜
             // chunk.SetBlock(treasureX, oy + 1, treasureZ, BlockType.Chest);
         }
         
         /// <summary>
-        /// ?�중 �??�전
+        /// ?ㅼ쨷 諛??섏쟾
         /// </summary>
         private void GenerateMultiRoomDungeon(ChunkData chunk, Random rand)
         {
-            int roomCount = 2 + rand.Next(3); // 2~4�?�?
+            int roomCount = 2 + rand.Next(3); // 2~4媛?諛?
             
             for (int i = 0; i < roomCount; i++)
             {
@@ -8276,7 +8307,7 @@ namespace GameServerApp.World
                 
                 BuildDungeonRoom(chunk, rand, ox, oy, oz, roomWidth, roomHeight, roomDepth);
                 
-                // 방들 ?�이??복도 ?�결 (간단??버전)
+                // 諛⑸뱾 ?ъ씠??蹂듬룄 ?곌껐 (媛꾨떒??踰꾩쟾)
                 if (i > 0)
                 {
                     ConnectRooms(chunk, ox + roomWidth/2, oy + 1, oz + roomDepth/2, rand);
@@ -8285,16 +8316,16 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// 미로 ?�태 ?�전
+        /// 誘몃줈 ?뺥깭 ?섏쟾
         /// </summary>
         private void GenerateMazeDungeon(ChunkData chunk, Random rand)
         {
             int startX = rand.Next(2, 6);
             int startZ = rand.Next(2, 6);
             int mazeY = rand.Next(20, 35);
-            int mazeSize = 8; // 8x8 미로
+            int mazeSize = 8; // 8x8 誘몃줈
             
-            // 간단??미로 ?�성 (??복잡???�고리즘?�로 ?�장 가??
+            // 媛꾨떒??誘몃줈 ?앹꽦 (??蹂듭옟???뚭퀬由ъ쬁?쇰줈 ?뺤옣 媛??
             for (int x = 0; x < mazeSize; x++)
             {
                 for (int z = 0; z < mazeSize; z++)
@@ -8304,17 +8335,17 @@ namespace GameServerApp.World
                     
                     if (worldX < 16 && worldZ < 16)
                     {
-                        // 체스???�턴?�로 벽과 ?�로 ?�성
+                        // 泥댁뒪???⑦꽩?쇰줈 踰쎄낵 ?듬줈 ?앹꽦
                         if ((x + z) % 2 == 0 || rand.NextDouble() < 0.3)
                         {
-                            // ?�로
+                            // ?듬줈
                             chunk.SetBlock(worldX, mazeY, worldZ, BlockType.Air);
                             chunk.SetBlock(worldX, mazeY + 1, worldZ, BlockType.Air);
                             chunk.SetBlock(worldX, mazeY + 2, worldZ, BlockType.Air);
                         }
                         else
                         {
-                            // �?
+                            // 踰?
                             for (int y = 0; y < 4; y++)
                             {
                                 chunk.SetBlock(worldX, mazeY + y, worldZ, BlockType.Cobblestone);
@@ -8326,11 +8357,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// ?�전 �?건설
+        /// ?섏쟾 諛?嫄댁꽕
         /// </summary>
         private void BuildDungeonRoom(ChunkData chunk, Random rand, int ox, int oy, int oz, int width, int height, int depth)
         {
-            // ?��? 비우�?
+            // ?대? 鍮꾩슦湲?
             for (int x = ox + 1; x < ox + width - 1; x++)
             {
                 for (int y = oy + 1; y < oy + height - 1; y++)
@@ -8342,7 +8373,7 @@ namespace GameServerApp.World
                 }
             }
 
-            // �? 바닥, 천장 건설
+            // 踰? 諛붾떏, 泥쒖옣 嫄댁꽕
             for (int x = ox; x < ox + width; x++)
             {
                 for (int y = oy; y < oy + height; y++)
@@ -8354,7 +8385,7 @@ namespace GameServerApp.World
                                       y == oy || y == oy + height - 1);
                         if (isWall)
                         {
-                            // ?�양???�료 ?�용
+                            // ?ㅼ뼇???щ즺 ?ъ슜
                             BlockType wallMaterial = GetDungeonWallMaterial(rand);
                             chunk.SetBlock(x, y, z, wallMaterial);
                         }
@@ -8362,14 +8393,14 @@ namespace GameServerApp.World
                 }
             }
 
-            // ?�구 ?�성 (???�연?�럽�?
+            // ?낃뎄 ?앹꽦 (???먯뿰?ㅻ읇寃?
             CreateDungeonEntrance(chunk, ox, oy, oz, width, depth);
 
             DecorateDungeonInterior(chunk, ox, oy, oz, width, height, depth, rand);
         }
         
         /// <summary>
-        /// ?�전 �??�료 결정
+        /// ?섏쟾 踰??щ즺 寃곗젙
         /// </summary>
         private BlockType GetDungeonWallMaterial(Random rand)
         {
@@ -8378,11 +8409,11 @@ namespace GameServerApp.World
         }
         
         /// <summary>
-        /// ?�전 ?�구 ?�성
+        /// ?섏쟾 ?낃뎄 ?앹꽦
         /// </summary>
         private void CreateDungeonEntrance(ChunkData chunk, int ox, int oy, int oz, int width, int depth)
         {
-            // ?�면??2x2 ?�구 ?�성
+            // ?뺣㈃??2x2 ?낃뎄 ?앹꽦
             for (int y = oy + 1; y < oy + 3; y++)
             {
                 for (int x = ox + width/2 - 1; x <= ox + width/2; x++)
@@ -8449,13 +8480,13 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 방들??복도�??�결
+        /// 諛⑸뱾??蹂듬룄濡??곌껐
         /// </summary>
         private void ConnectRooms(ChunkData chunk, int x, int y, int z, Random rand)
         {
-            // 간단??직선 복도 (??복잡???�결 로직?�로 ?�장 가??
+            // 媛꾨떒??吏곸꽑 蹂듬룄 (??蹂듭옟???곌껐 濡쒖쭅?쇰줈 ?뺤옣 媛??
             int corridorLength = rand.Next(3, 8);
-            int direction = rand.Next(4); // 0:�? 1:?? 2:?? 3:??
+            int direction = rand.Next(4); // 0:遺? 1:?? 2:?? 3:??
             
             int[] dx = {0, 1, 0, -1};
             int[] dz = {-1, 0, 1, 0};
@@ -8495,22 +8526,22 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 개선??광물 ?�성 ?�스??- ???�실?�이�?균형 ?�힌 분배
+        /// 媛쒖꽑??愿묐Ъ ?앹꽦 ?쒖뒪??- ???꾩떎?곸씠怨?洹좏삎 ?≫엺 遺꾨같
         /// </summary>
         public void GenerateOresInternal(TerrainGenerationContext context)
         {
             var chunk = context.Chunk;
             var rand = GetChunkRandom(context.ChunkX, context.ChunkZ, SaltOre);
 
-            // �?광물별로 ?�실?�인 깊이?� ?��????�정
-            GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // ?�탄: ?�제?? ?�러 층에??
-            GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // �? 중간 깊이
-            GenerateOreType(chunk, rand, BlockType.GoldOre, 1, 25, 4, 3);       // �? 깊�? �?
-            GenerateOreType(chunk, rand, BlockType.DiamondOre, 1, 16, 2, 2);    // ?�이?�몬?? 가??깊�? �?
+            // 媛?愿묐Ъ蹂꾨줈 ?ъ떎?곸씤 源딆씠? ?ш????ㅼ젙
+            GenerateOreType(chunk, rand, BlockType.CoalOre, 5, 50, 12, 6);      // ?앺깂: ?몄젣?? ?щ윭 痢듭뿉??
+            GenerateOreType(chunk, rand, BlockType.IronOre, 1, 40, 8, 4);       // 泥? 以묎컙 源딆씠
+            GenerateOreType(chunk, rand, BlockType.GoldOre, 1, 25, 4, 3);       // 湲? 源딆? 怨?
+            GenerateOreType(chunk, rand, BlockType.DiamondOre, 1, 16, 2, 2);    // ?ㅼ씠?꾨が?? 媛??源딆? 怨?
         }
         
         /// <summary>
-        /// ?�정 광물 종류�??�성
+        /// ?뱀젙 愿묐Ъ 醫낅쪟瑜??앹꽦
         /// </summary>
         private void GenerateOreType(ChunkData chunk, Random rand, BlockType oreType, 
             int minY, int maxY, int maxVeins, int maxVeinSize)
@@ -8523,34 +8554,34 @@ namespace GameServerApp.World
                 int centerY = rand.Next(minY, maxY + 1);
                 int centerZ = rand.Next(16);
                 
-                // 광맥 ?�기 결정
+                // 愿묐㎘ ?ш린 寃곗젙
                 int veinSize = rand.Next(1, maxVeinSize + 1);
                 
-                // 광맥 모양 ?�성 (구형???�닌 불규칙한 ?�태)
+                // 愿묐㎘ 紐⑥뼇 ?앹꽦 (援ы삎???꾨땶 遺덇퇋移숉븳 ?뺥깭)
                 GenerateOreVein(chunk, rand, oreType, centerX, centerY, centerZ, veinSize);
             }
         }
         
         /// <summary>
-        /// 광맥??불규칙한 ?�태�??�성
+        /// 愿묐㎘??遺덇퇋移숉븳 ?뺥깭濡??앹꽦
         /// </summary>
         private void GenerateOreVein(ChunkData chunk, Random rand, BlockType oreType, 
             int centerX, int centerY, int centerZ, int size)
         {
             var oreBlocks = new List<(int x, int y, int z)>();
             
-            // ?�작??추�?
+            // ?쒖옉??異붽?
             oreBlocks.Add((centerX, centerY, centerZ));
             
-            // 주�??�로 ?�산
+            // 二쇰??쇰줈 ?뺤궛
             for (int i = 0; i < size - 1; i++)
             {
                 if (oreBlocks.Count == 0) break;
                 
-                // 기존 광물 블록 �?무작?�로 ?�나 ?�택
+                // 湲곗〈 愿묐Ъ 釉붾줉 以?臾댁옉?꾨줈 ?섎굹 ?좏깮
                 var baseBlock = oreBlocks[rand.Next(oreBlocks.Count)];
                 
-                // 6방향 �?무작?�로 ?�산
+                // 6諛⑺뼢 以?臾댁옉?꾨줈 ?뺤궛
                 var directions = new (int dx, int dy, int dz)[] 
                 {
                     (1, 0, 0), (-1, 0, 0), (0, 1, 0), 
@@ -8562,7 +8593,7 @@ namespace GameServerApp.World
                 int newY = baseBlock.y + direction.dy;
                 int newZ = baseBlock.z + direction.dz;
                 
-                // 범위 체크 �?중복 방�?
+                // 踰붿쐞 泥댄겕 諛?以묐났 諛⑹?
                 if (newX >= 0 && newX < 16 && newY >= 0 && newY < 256 && newZ >= 0 && newZ < 16)
                 {
                     if (!oreBlocks.Contains((newX, newY, newZ)))
@@ -8572,7 +8603,7 @@ namespace GameServerApp.World
                 }
             }
             
-            // ?�제�?광물 블록 배치
+            // ?ㅼ젣濡?愿묐Ъ 釉붾줉 諛곗튂
             foreach (var (x, y, z) in oreBlocks)
             {
                 if (chunk.GetBlock(x, y, z) == BlockType.Stone)
@@ -8776,10 +8807,10 @@ namespace GameServerApp.World
             return (int.Parse(parts[0]), int.Parse(parts[1]));
         }
 
-        // === 마인?�래?�트 ?�들?�용 추�? 메서?�들 ===
+        // === 留덉씤?щ옒?꾪듃 ?몃뱾?ъ슜 異붽? 硫붿꽌?쒕뱾 ===
 
         /// <summary>
-        /// ?�정 블록 ?�보 가?�오�?
+        /// ?뱀젙 釉붾줉 ?뺣낫 媛?몄삤湲?
         /// </summary>
         public async Task<Models.BlockData?> GetBlockAsync(int x, int y, int z)
         {
@@ -8799,7 +8830,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 블록 ?�정?�기
+        /// 釉붾줉 ?ㅼ젙?섍린
         /// </summary>
         public async Task SetBlockAsync(Models.BlockData blockData)
         {
@@ -8813,7 +8844,7 @@ namespace GameServerApp.World
             {
                 chunk.SetBlock(localX, blockData.Y, localZ, (BlockType)blockData.BlockId);
                 
-                // �?���??�정?�으�??�시
+                // 泥?겕瑜??섏젙?⑥쑝濡??쒖떆
                 var chunkKey = GetChunkKey(chunkX, chunkZ);
                 if (_loadedChunks.TryGetValue(chunkKey, out var loadedChunk))
                 {
@@ -8823,7 +8854,7 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// 블록 ?�거?�기
+        /// 釉붾줉 ?쒓굅?섍린
         /// </summary>
         public async Task RemoveBlockAsync(int x, int y, int z)
         {
@@ -8832,29 +8863,23 @@ namespace GameServerApp.World
         }
 
         /// <summary>
-        /// �?�� ???�티?�들 가?�오�?
+        /// 泥?겕 ???뷀떚?곕뱾 媛?몄삤湲?
         /// </summary>
         public async Task<List<Models.Entity>> GetEntitiesInChunk(int chunkX, int chunkZ)
         {
-            // TODO: ?�제 구현?�서???�이?�베?�스?�서 ?�티??조회
-            // ?�재??�?리스??반환
+            // TODO: ?ㅼ젣 援ы쁽?먯꽌???곗씠?곕쿋?댁뒪?먯꽌 ?뷀떚??議고쉶
+            // ?꾩옱??鍮?由ъ뒪??諛섑솚
             return new List<Models.Entity>();
         }
         public void GenerateImprovedCavesInternal(TerrainGenerationContext context)
         {
             GenerateCavesInternal(context);
 
-            if (_improvedCoordinator == null)
+            var surfaceCache = GetOrBuildSurfaceCache(context);
+            var masks = GetOrBuildImprovedMasks(context, surfaceCache);
+            if (masks?.Caves != null)
             {
-                return;
-            }
-
-            var chunk = context.Chunk;
-            var surfaceCache = BuildSurfaceCache(chunk);
-            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
-            if (masks.Caves != null)
-            {
-                ApplyImprovedCaveMask(chunk, surfaceCache, masks);
+                ApplyImprovedCaveMask(context.Chunk, surfaceCache, masks);
             }
         }
 
@@ -8862,35 +8887,29 @@ namespace GameServerApp.World
         {
             GenerateRiversInternal(context);
 
-            if (_improvedCoordinator == null)
+            var surfaceCache = GetOrBuildSurfaceCache(context);
+            var masks = GetOrBuildImprovedMasks(context, surfaceCache);
+            if (masks != null)
             {
-                return;
+                ApplyImprovedRiverMask(context, context.Chunk, surfaceCache, masks);
             }
-
-            var chunk = context.Chunk;
-            var surfaceCache = BuildSurfaceCache(chunk);
-            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
-            ApplyImprovedRiverMask(context, chunk, surfaceCache, masks);
         }
 
         public void GenerateImprovedLakesInternal(TerrainGenerationContext context)
         {
             GenerateLakesInternal(context);
 
-            if (_improvedCoordinator == null)
+            var surfaceCache = GetOrBuildSurfaceCache(context);
+            var masks = GetOrBuildImprovedMasks(context, surfaceCache);
+            if (masks != null)
             {
-                return;
+                ApplyImprovedLakeMask(context.Chunk, surfaceCache, masks);
             }
-
-            var chunk = context.Chunk;
-            var surfaceCache = BuildSurfaceCache(chunk);
-            var masks = _improvedCoordinator.GenerateMasks(context.ChunkX, context.ChunkZ, surfaceCache, 16);
-            ApplyImprovedLakeMask(chunk, surfaceCache, masks);
         }
 
         private void ApplyImprovedCaveMask(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
         {
-            if (masks.Caves == null)
+            if (masks.Caves == null || masks.Hydrology == null)
             {
                 return;
             }
@@ -8966,13 +8985,13 @@ namespace GameServerApp.World
 
         private void ApplyImprovedRiverMask(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
         {
-            if (masks.Rivers == null)
+            if (masks.Rivers == null || masks.Hydrology == null)
             {
                 return;
             }
 
             var hydrology = masks.Hydrology;
-            var flow = masks.FlowAccumulation;
+            var flow = masks.FlowAccumulation ?? new float[16, 16];
 
             for (int x = 0; x < 16; x++)
             {
@@ -9007,7 +9026,7 @@ namespace GameServerApp.World
 
         private void ApplyImprovedLakeMask(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
         {
-            if (masks.Lakes == null)
+            if (masks.Lakes == null || masks.Hydrology == null)
             {
                 return;
             }

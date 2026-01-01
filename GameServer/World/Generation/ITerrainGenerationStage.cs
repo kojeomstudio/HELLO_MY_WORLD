@@ -1,40 +1,21 @@
-using GameServerApp.World;
+using System;
 
 namespace GameServerApp.World.Generation
 {
     /// <summary>
-    /// Interface for terrain generation pipeline stages
+    /// Contract for ordered terrain generation pipeline stages.
     /// </summary>
     public interface ITerrainGenerationStage
     {
         /// <summary>
-        /// Name of the generation stage
+        /// Human-readable stage name for logging and diagnostics.
         /// </summary>
         string Name { get; }
 
         /// <summary>
-        /// Execute the generation stage
+        /// Execute the stage against the supplied terrain context.
         /// </summary>
-        /// <param name="context">The terrain generation context</param>
-        void Execute(TerrainGenerationContext context);
-    }
-}
-namespace GameServerApp.World.Generation
-{
-    /// <summary>
-    /// Interface for terrain generation pipeline stages
-    /// </summary>
-    public interface ITerrainGenerationStage
-    {
-        /// <summary>
-        /// Name of the generation stage
-        /// </summary>
-        string Name { get; }
-
-        /// <summary>
-        /// Execute the generation stage
-        /// </summary>
-        /// <param name="context">The terrain generation context</param>
+        /// <param name="context">Shared generation context.</param>
         void Execute(TerrainGenerationContext context);
     }
 }

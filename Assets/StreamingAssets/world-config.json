@@ -5,7 +5,7 @@
   "WorldHeight": 256,
   "ChunkSize": 16,
   "RenderDistance": 10,
-  "SimulationDistance": 8,
+  "SimulationDistance": 12,
   "MapControlProfilePath": "world-map-control.json",
   "MapControlProfileVersion": 1,
   "TerrainGeneration": {

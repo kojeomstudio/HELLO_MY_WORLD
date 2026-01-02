@@ -76,6 +76,7 @@ public class WorldMapControlProfileData
     public int lakeOutflowCarveDepth;
     public int lakeBasinSmoothIterations;
     public int lakeShelfDepth;
+    public int lakeMaxRadius;
     public int lakeWetlandBufferRadius;
     public float lakeRiverProximitySuppression;
     public float lakeInflowBlendWeight;
@@ -174,6 +175,7 @@ public sealed class WorldMapControlProfile
     public int LakeOutflowCarveDepth { get; private set; }
     public int LakeBasinSmoothIterations { get; private set; }
     public int LakeShelfDepth { get; private set; }
+    public int LakeMaxRadius { get; private set; }
     public int LakeWetlandBufferRadius { get; private set; }
     public float LakeRiverProximitySuppression { get; private set; }
     public float LakeInflowBlendWeight { get; private set; }
@@ -310,6 +312,7 @@ public sealed class WorldMapControlProfile
                 lakeOutflowCarveDepth = Mathf.Max(1, lakes.OutflowCarveDepth),
                 lakeBasinSmoothIterations = Mathf.Max(0, lakes.LakeBasinSmoothIterations),
                 lakeShelfDepth = Mathf.Max(0, lakes.ShelfDepth),
+                lakeMaxRadius = Mathf.Max(1, lakes.MaxRadius),
                 lakeWetlandBufferRadius = Mathf.Max(0, lakes.WetlandBufferRadius),
                 lakeRiverProximitySuppression = Mathf.Clamp01(lakes.RiverProximitySuppression),
                 lakeInflowBlendWeight = Mathf.Clamp01(water.LakeInflowBlendWeight),
@@ -414,6 +417,7 @@ public sealed class WorldMapControlProfile
             LakeOutflowCarveDepth = data.lakeOutflowCarveDepth,
             LakeBasinSmoothIterations = data.lakeBasinSmoothIterations,
             LakeShelfDepth = data.lakeShelfDepth,
+            LakeMaxRadius = data.lakeMaxRadius,
             LakeWetlandBufferRadius = data.lakeWetlandBufferRadius,
             LakeRiverProximitySuppression = data.lakeRiverProximitySuppression,
             LakeInflowBlendWeight = data.lakeInflowBlendWeight,
@@ -511,6 +515,7 @@ public sealed class WorldMapControlProfile
             .Append(data.lakeOutflowCarveDepth).Append('|')
             .Append(data.lakeBasinSmoothIterations).Append('|')
             .Append(data.lakeShelfDepth).Append('|')
+            .Append(data.lakeMaxRadius).Append('|')
             .Append(data.lakeWetlandBufferRadius).Append('|')
             .Append(data.lakeRiverProximitySuppression).Append('|')
             .Append(data.lakeInflowBlendWeight).Append('|')

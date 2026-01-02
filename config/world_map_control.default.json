@@ -1,0 +1,19 @@
+{
+  "Seed": 13371337,
+  "ViewDistance": 10,
+  "MaxConcurrentChunkGenerations": 4,
+  "UpdateBatchSize": 24,
+  "UpdateIntervalMs": 100,
+  "DefaultRenderDistance": 10,
+  "DefaultMapScale": 1,
+  "DefaultShowCoordinates": true,
+  "DefaultShowBiomeInfo": true,
+  "DefaultTerrainQuality": 2,
+  "DefaultWaterQuality": 2,
+  "DefaultVegetationQuality": 2,
+  "DefaultFogEnabled": true,
+  "DefaultShadowEnabled": true,
+  "DefaultMaxChunkUpdatesPerFrame": 12,
+  "DefaultChunkLOD": 2,
+  "DefaultUnloadDistance": 12
+}

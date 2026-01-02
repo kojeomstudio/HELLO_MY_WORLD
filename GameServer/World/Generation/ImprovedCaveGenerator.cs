@@ -51,6 +51,7 @@ namespace GameServerApp.World.Generation
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure);
+                    double wetnessRetention = hydrology * config.MoistureRetentionWeight;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -87,10 +88,11 @@ namespace GameServerApp.World.Generation
                             random.Next());
 
                         double density = (primary * 0.65) + (secondary * 0.35);
-                        double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight;
+                        double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight + wetnessRetention * 0.35;
                         double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
                         double threshold = config.Threshold + moisturePenalty * 0.35 + config.FlowStabilityWeight * 0.2 + roughnessBias * 0.25;
                         threshold -= depthFactor * depthWeight * 0.6;
+                        threshold += wetnessRetention * 0.15;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)
@@ -102,6 +104,7 @@ namespace GameServerApp.World.Generation
             }
 
             SmoothMask(mask, config.StabilitySmoothIterations, config.StabilitySmoothBlend);
+            PlugRiparianCaves(mask, hydrologyMask, riverMask, seaLevel);
             AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
             SealEdges(mask, config.EdgeSealStrength);
             return mask;
@@ -184,7 +187,7 @@ namespace GameServerApp.World.Generation
 
         private void AddSupportColumns(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, int seaLevel)
         {
-            double chance = Math.Clamp(config.SupportPillarChance, 0.0, 1.0);
+            double chance = Math.Clamp(config.SupportPillarChance * config.SupportDensity, 0.0, 1.0);
             if (chance <= 0.0)
             {
                 return;
@@ -209,6 +212,39 @@ namespace GameServerApp.World.Generation
                     int baseY = Math.Max(1, seaLevel - 6);
                     int height = random.Next(2, 6);
                     for (int y = baseY; y < Math.Min(sizeY - 1, baseY + height); y++)
+                    {
+                        mask[x, y, z] = false;
+                    }
+                }
+            }
+        }
+
+        private void PlugRiparianCaves(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, int seaLevel)
+        {
+            if (config.RiparianPlugDepth <= 0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int plugTop = Math.Min(sizeY - 2, Math.Max(2, seaLevel));
+            int plugBottom = Math.Max(1, plugTop - config.RiparianPlugDepth);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    float wetness = Math.Max(hydrology, river);
+                    if (wetness < 0.35f)
+                    {
+                        continue;
+                    }
+
+                    for (int y = plugBottom; y <= plugTop; y++)
                     {
                         mask[x, y, z] = false;
                     }

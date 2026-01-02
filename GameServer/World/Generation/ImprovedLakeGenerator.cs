@@ -46,12 +46,15 @@ namespace GameServerApp.World.Generation
                     double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
                     double reliefPenalty = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
+                    int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+                    double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
 
                     double wetness = hydrology * 0.65 + flow * 0.35;
                     double weight = (basinNoise * 0.45) + (rimNoise * 0.25) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= riverSuppression * 0.5;
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
+                    weight *= 0.75 + radiusFalloff * 0.25;
 
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1;
                     if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - lakeConfig.MaxDepth)
@@ -63,7 +66,7 @@ namespace GameServerApp.World.Generation
 
             TerrainMaskUtility.Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, waterConfig.HydrologySmoothBlend);
             TerrainMaskUtility.RelaxEdges(lakes, waterConfig.HydrologySeamRelaxIterations, waterConfig.HydrologySeamRelaxBlend);
-            ApplyWetlandBuffer(lakes, lakeConfig.WetlandBufferRadius, lakeConfig.ShorelineBlend);
+            ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             return lakes;
         }
 

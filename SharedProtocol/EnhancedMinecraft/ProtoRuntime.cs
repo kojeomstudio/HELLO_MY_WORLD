@@ -27,6 +27,7 @@ public static class ProtoRuntime
             }
 
             ProtocolValidator.ValidateEnhancedContracts();
+            ProtoFingerprint.AssertDescriptorFingerprint();
             ProtoDiagnostics.LogSummary();
             _initialized = true;
         }

@@ -82,6 +82,7 @@ namespace GameServerApp.World
         public int LakeOutflowCarveDepth { get; set; }
         public int LakeBasinSmoothIterations { get; set; }
         public int LakeShelfDepth { get; set; }
+        public int LakeMaxRadius { get; set; }
         public int LakeWetlandBufferRadius { get; set; }
         public double LakeRiverProximitySuppression { get; set; }
         public double LakeInflowBlendWeight { get; set; }
@@ -188,6 +189,7 @@ namespace GameServerApp.World
                 LakeOutflowCarveDepth = Math.Max(1, config.Lakes.OutflowCarveDepth),
                 LakeBasinSmoothIterations = Math.Max(0, config.Lakes.LakeBasinSmoothIterations),
                 LakeShelfDepth = Math.Max(0, config.Lakes.ShelfDepth),
+                LakeMaxRadius = Math.Max(1, config.Lakes.MaxRadius),
                 LakeWetlandBufferRadius = Math.Max(0, config.Lakes.WetlandBufferRadius),
                 LakeRiverProximitySuppression = config.Lakes.RiverProximitySuppression,
                 LakeInflowBlendWeight = config.Water.LakeInflowBlendWeight,
@@ -291,6 +293,7 @@ namespace GameServerApp.World
                 .Append(profile.LakeOutflowCarveDepth).Append('|')
                 .Append(profile.LakeBasinSmoothIterations).Append('|')
                 .Append(profile.LakeShelfDepth).Append('|')
+                .Append(profile.LakeMaxRadius).Append('|')
                 .Append(profile.LakeWetlandBufferRadius).Append('|')
                 .Append(profile.LakeRiverProximitySuppression).Append('|')
                 .Append(profile.LakeInflowBlendWeight).Append('|')

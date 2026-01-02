@@ -388,7 +388,8 @@ namespace GameServerApp.World.Generation
 
                     if (hasRiver)
                     {
-                        int depth = Math.Clamp((int)(config.Water.RiverDepth * (river + hydrology * 0.5f + flow * 0.35f)), 2, config.Water.RiverDepth + 3);
+                        float saturation = Math.Max(river, hydrology);
+                        int depth = Math.Clamp((int)(config.Water.RiverDepth * (river + hydrology * 0.5f + flow * 0.35f + saturation * 0.15f)), 2, config.Water.RiverDepth + 3);
                         for (int d = 0; d < depth; d++)
                         {
                             int y = Math.Max(bedrockLevel + 1, surface - d);
@@ -409,10 +410,22 @@ namespace GameServerApp.World.Generation
 
                         ErodeRiverBanks(chunk, x, z, surface, bankDepth, config.Water.RiverBankErosionWeight);
                         ApplyRiverMouthBlend(chunk, x, z, surface, config.Water.RiverMouthSmoothRadius);
+                        if (surface <= seaLevel + config.Water.RiverMouthSmoothRadius && config.Water.RiverDeltaWetlandStrength > 0)
+                        {
+                            int deltaDepth = Math.Max(1, (int)(config.Water.RiverDeltaWetlandStrength * 2));
+                            for (int d = 0; d < deltaDepth; d++)
+                            {
+                                int dy = Math.Max(bedrockLevel + 1, surface - d);
+                                if (chunk.GetBlock(x, dy, z) == BlockType.Grass)
+                                {
+                                    chunk.SetBlock(x, dy, z, BlockType.Sand);
+                                }
+                            }
+                        }
                     }
                     else if (hasLake)
                     {
-                        int depth = Math.Clamp((int)(config.Lakes.MaxDepth * lake), config.Lakes.MinDepth, config.Lakes.MaxDepth);
+                        int depth = Math.Clamp((int)(config.Lakes.MaxDepth * (lake + hydrology * 0.25f)), config.Lakes.MinDepth, config.Lakes.MaxDepth);
                         int shelfDepth = Math.Clamp(config.Lakes.ShelfDepth, 1, depth);
 
                         for (int d = 0; d < depth; d++)
@@ -431,6 +444,15 @@ namespace GameServerApp.World.Generation
                         }
 
                         ApplyWetlandRing(chunk, x, z, surface, config.Lakes.WetlandBufferRadius);
+                    }
+                    else if ((hydrology > 0.6f || flow > 0.85f) && chunk.GetBlock(x, surface, z) == BlockType.Grass)
+                    {
+                        int shallowDepth = Math.Max(1, (int)Math.Min(config.Water.RiverDepth, (hydrology + flow) * 2f));
+                        for (int d = 0; d < shallowDepth; d++)
+                        {
+                            int y = Math.Max(bedrockLevel + 1, surface - d);
+                            chunk.SetBlock(x, y, z, BlockType.Water);
+                        }
                     }
 
                     // Ensure sea level fill for low terrain

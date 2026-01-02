@@ -55,6 +55,16 @@ namespace GameServerApp
                     return 1;
                 }
             }
+
+            if (args.Contains("--generate-map-profile"))
+            {
+                var config = ServerConfig.LoadFromFile();
+                EnsureWorldMapProfile(config);
+                var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
+                var profile = WorldMapControlProfileUtility.Load(worldGenConfig.MapControlProfilePath);
+                Console.WriteLine($"Generated world map control profile at '{worldGenConfig.MapControlProfilePath}' (hash: {profile?.ProfileHash ?? "unknown"}).");
+                return 0;
+            }
             
             Console.WriteLine("\nChoose an option:");
             Console.WriteLine("1. Start Enhanced Minecraft Server");

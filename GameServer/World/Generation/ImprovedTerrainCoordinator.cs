@@ -80,8 +80,11 @@ namespace GameServerApp.World.Generation
             double clampRange = Math.Max(1, config.Water.HydrologyWaterTableClampRange);
             double clampWeight = Math.Clamp(config.Water.HydrologyWaterTableClampWeight, 0.0, 1.0);
             double slopeWeight = Math.Clamp(config.Water.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
+            double slopePenaltyWeight = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
             double curvatureWeight = Math.Clamp(config.Water.HydrologyCurvatureWeight, 0.0, 1.5);
             double varianceClamp = Math.Clamp(config.Water.HydrologyVarianceClamp, 0.0, 2.0);
+            double shorePush = Math.Max(0.1, config.Water.HydrologyShorePush);
 
             for (int x = 0; x < size; x++)
             {
@@ -90,8 +93,10 @@ namespace GameServerApp.World.Generation
                     int surface = heightMap[x, z];
                     double distance = Math.Max(0, surface - seaLevel);
                     double waterBias = 1.0 - Math.Clamp(distance / clampRange, 0.0, 1.0);
+                    double shoreBoost = Math.Exp(-distance / shorePush);
                     double slopePenalty = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
-                    double stability = 1.0 - Math.Clamp(slopePenalty * slopeWeight / 6.0, 0.0, 0.6);
+                    double stability = 1.0 - Math.Clamp(slopePenalty * (slopeWeight + slopePenaltyWeight * 0.1) / 6.0, 0.0, 0.7);
+                    double gradientDamp = 1.0 - Math.Clamp(slopePenalty * gradientWeight / Math.Max(1.0, config.Water.HydrologyGradientClamp * 8.0), 0.0, 0.35);
                     double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * curvatureWeight * 0.08;
                     double warpedNoise = SimplexNoise.Generate(
                         (x + 17) * config.Water.HydrologyWarpFrequency,
@@ -101,8 +106,8 @@ namespace GameServerApp.World.Generation
                         config.Water.HydrologyWarpAmplitude * 0.15,
                         0.6,
                         (int)(worldSeed ^ 0x6611));
-                    double baseline = Math.Clamp(waterBias * clampWeight * stability, 0.0, 1.0);
-                    baseline = Math.Clamp(baseline + warpedNoise * 0.05 - curvature, 0.0, 1.2);
+                    double baseline = Math.Clamp(waterBias * clampWeight * stability * gradientDamp, 0.0, 1.0);
+                    baseline = Math.Clamp(baseline + warpedNoise * 0.05 + shoreBoost * 0.05 - curvature, 0.0, 1.2);
                     hydrology[x, z] = (float)baseline;
                 }
             }
@@ -116,6 +121,13 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeStabilityIterations,
                 config.Water.HydrologyEdgeStabilityWeight,
                 config.Water.HydrologyEdgeFluxBlend);
+            TerrainMaskUtility.ApplyEdgeFlowLocks(
+                heightMap,
+                hydrology,
+                config.Water.HydrologyEdgeBlendRadius,
+                config.Water.HydrologyEdgeFlowLockWeight,
+                config.Water.HydrologyEdgeFlowBias,
+                config.Water.HydrologyEdgeTangentWeight);
             TerrainMaskUtility.ClampVariance(hydrology, varianceClamp);
             TerrainMaskUtility.RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return hydrology;
@@ -155,7 +167,8 @@ namespace GameServerApp.World.Generation
 
                     double hydrologyBoost = hydrology[x, z] * config.Water.HydrologyFlowGain;
                     double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * config.Water.HydrologyCurvatureWeight * 0.1;
-                    double scaled = (accumulation * (1.0 - persistence)) + hydrologyBoost;
+                    double continuity = 1.0 + hydrology[x, z] * config.Water.HydrologyContinuityWeight;
+                    double scaled = ((accumulation * (1.0 - persistence)) + hydrologyBoost) * continuity;
                     scaled *= 1.0 - Math.Clamp(curvature, 0.0, 0.6);
                     scaled *= 1.0 - Math.Clamp(gradientMagnitude * config.Water.HydrologyGradientSlopeWeight * 0.05, 0.0, 0.35);
                     double clampMax = Math.Max(2.5, divergenceClamp * 12.0);
@@ -171,6 +184,13 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeStabilityIterations,
                 config.Water.HydrologyEdgeStabilityWeight,
                 config.Water.HydrologyEdgeFluxBlend);
+            TerrainMaskUtility.ApplyEdgeFlowLocks(
+                heightMap,
+                flow,
+                config.Water.HydrologyEdgeBlendRadius,
+                config.Water.HydrologyEdgeFlowLockWeight,
+                config.Water.HydrologyEdgeFlowBias,
+                config.Water.HydrologyEdgeTangentWeight);
             TerrainMaskUtility.RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
         }
@@ -358,6 +378,59 @@ namespace GameServerApp.World.Generation
                             buffer[nx, nz] = Math.Max(buffer[nx, nz], influence);
                         }
                     }
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        public static void ApplyEdgeFlowLocks(int[,] heightMap, float[,] field, int radius, double lockWeight, double flowBias, double tangentWeight)
+        {
+            radius = Math.Max(1, radius);
+            lockWeight = Math.Clamp(lockWeight, 0.0, 1.0);
+            flowBias = Math.Clamp(flowBias, 0.0, 1.0);
+            tangentWeight = Math.Clamp(tangentWeight, 0.0, 1.0);
+            if (lockWeight <= 0.0 && flowBias <= 0.0 && tangentWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    double blend = lockWeight * (1.0 - edgeDistance / (double)radius);
+                    if (blend <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int nx = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int nz = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    float downhillValue = field[nx, nz];
+
+                    int tx = Math.Clamp(x - downhill.Z, 0, sizeX - 1);
+                    int tz = Math.Clamp(z + downhill.X, 0, sizeZ - 1);
+                    float tangentValue = field[tx, tz];
+
+                    float interior = SampleInterior(field, x, z);
+                    double flowAligned = field[x, z] * (1.0 - flowBias) + downhillValue * flowBias;
+                    double tangentAligned = field[x, z] * (1.0 - tangentWeight) + tangentValue * tangentWeight;
+                    double locked = (flowAligned * 0.6) + (tangentAligned * 0.4);
+                    double blended = field[x, z] * (1.0 - blend) + interior * (blend * 0.3) + locked * (blend * 0.7);
+
+                    buffer[x, z] = (float)Math.Clamp(blended, 0.0, Math.Max(1.5, field[x, z] + 0.35));
                 }
             }
 

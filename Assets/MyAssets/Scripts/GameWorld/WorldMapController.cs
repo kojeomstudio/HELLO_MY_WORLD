@@ -31,6 +31,7 @@ namespace GameWorld
         private SemaphoreSlim buildSemaphore = null!;
         private DateTime lastProfileCheckUtc;
         private DateTime lastProfileWriteUtc;
+        private WorldConfig worldConfig = null!;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
@@ -38,7 +39,8 @@ namespace GameWorld
         private void Awake()
         {
             LoadProfile();
-            generator = new EnhancedTerrainGenerator(profile);
+            worldConfig = WorldConfig.Instance;
+            generator = new EnhancedTerrainGenerator(profile, worldConfig);
             lastProfileCheckUtc = DateTime.UtcNow;
             cancellation = new CancellationTokenSource();
             buildSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrentChunkBuilds));
@@ -109,7 +111,7 @@ namespace GameWorld
                 if (!string.Equals(newProfile.ProfileHash, profile.ProfileHash, StringComparison.OrdinalIgnoreCase))
                 {
                     profile = newProfile;
-                    generator = new EnhancedTerrainGenerator(profile);
+                    generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
                     if (enableDebugLogging)
                     {
@@ -212,11 +214,11 @@ namespace GameWorld
             }
         }
 
-        private static Vector2Int WorldToChunk(Vector3 position)
+        private Vector2Int WorldToChunk(Vector3 position)
         {
-            const int chunkSize = 16;
-            int cx = Mathf.FloorToInt(position.x / chunkSize);
-            int cz = Mathf.FloorToInt(position.z / chunkSize);
+            int size = profile != null ? Math.Max(1, profile.ChunkSize) : 16;
+            int cx = Mathf.FloorToInt(position.x / size);
+            int cz = Mathf.FloorToInt(position.z / size);
             return new Vector2Int(cx, cz);
         }
     }
@@ -227,12 +229,21 @@ namespace GameWorld
     public sealed class EnhancedTerrainGenerator
     {
         private readonly WorldMapControlProfile profile;
+        private readonly WorldConfig worldConfig;
         private readonly System.Random random;
+        private readonly int chunkSize;
+        private readonly int worldHeight;
+        private readonly int seaLevel;
 
-        public EnhancedTerrainGenerator(WorldMapControlProfile profile)
+        public EnhancedTerrainGenerator(WorldMapControlProfile profile, WorldConfig worldConfig)
         {
             this.profile = profile ?? throw new ArgumentNullException(nameof(profile));
-            random = new System.Random(profile.ProfileHash.GetHashCode());
+            this.worldConfig = worldConfig ?? throw new ArgumentNullException(nameof(worldConfig));
+            chunkSize = Mathf.Max(1, profile.ChunkSize);
+            worldHeight = Mathf.Max(1, worldConfig.WorldHeight);
+            seaLevel = Mathf.Clamp(worldConfig.Terrain.SeaLevel, 4, worldHeight - 4);
+            int seed = worldConfig.Seed != 0 ? worldConfig.Seed : profile.ProfileHash.GetHashCode();
+            random = new System.Random(seed);
         }
 
         public Task<ChunkData> GenerateChunkAsync(Vector2Int chunkPos, CancellationToken token)
@@ -242,126 +253,305 @@ namespace GameWorld
 
         private ChunkData GenerateChunk(Vector2Int chunkPos)
         {
-            var chunk = new ChunkData(profile.ChunkSize, chunkPos.x, chunkPos.y, profile.GlobalWaterLevel);
-            BuildHeightMap(chunk);
-            BuildCaves(chunk);
-            BuildRivers(chunk);
-            BuildLakes(chunk);
+            var chunk = new ChunkData(chunkSize, chunkPos.x, chunkPos.y, worldHeight, profile.GlobalWaterLevel);
+            var heightMap = BuildHeightMap(chunkPos);
+            var hydrology = BuildHydrologyMask(heightMap);
+            var flow = BuildFlowMask(heightMap, hydrology);
+
+            var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
+            var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, riverMask) : new float[chunkSize, chunkSize];
+            var caveMask = profile.EnableCaves ? BuildCaveMask(chunkPos, heightMap, hydrology, riverMask) : new bool[chunkSize, worldHeight, chunkSize];
+
+            ApplyHydrologyToHeight(heightMap, riverMask, lakeMask, hydrology, flow);
+
+            CopyField(heightMap, chunk.HeightMap);
+            CopyField(hydrology, chunk.HydrologyMask);
+            CopyField(flow, chunk.FlowMask);
+            CopyField(riverMask, chunk.RiverMask);
+            CopyField(lakeMask, chunk.LakeMask);
+            CopyField(caveMask, chunk.CaveMask);
             return chunk;
         }
 
-        private void BuildHeightMap(ChunkData chunk)
+        private int[,] BuildHeightMap(Vector2Int chunkPos)
         {
-            for (int x = 0; x < chunk.Size; x++)
+            var heightMap = new int[chunkSize, chunkSize];
+            var terrain = worldConfig.Terrain;
+            double noiseScale = 1.0 / Math.Max(terrain.NoiseScale, 1.0);
+
+            for (int x = 0; x < chunkSize; x++)
             {
-                for (int z = 0; z < chunk.Size; z++)
+                for (int z = 0; z < chunkSize; z++)
                 {
-                    int worldX = chunk.ChunkX * chunk.Size + x;
-                    int worldZ = chunk.ChunkZ * chunk.Size + z;
+                    int worldX = chunkPos.x * chunkSize + x;
+                    int worldZ = chunkPos.y * chunkSize + z;
 
-                    float continental = Mathf.PerlinNoise(worldX * 0.003f, worldZ * 0.003f);
-                    float macro = Mathf.PerlinNoise(worldX * 0.007f, worldZ * 0.007f);
-                    float detail = Mathf.PerlinNoise(worldX * 0.017f, worldZ * 0.017f);
+                    float continental = Mathf.PerlinNoise(worldX * (float)(noiseScale * 0.25f), worldZ * (float)(noiseScale * 0.25f));
+                    float macro = Mathf.PerlinNoise(worldX * (float)(noiseScale * 0.5f) + 77f, worldZ * (float)(noiseScale * 0.5f) + 19f);
+                    float detail = Mathf.PerlinNoise(worldX * (float)(noiseScale * terrain.Lacunarity) + 13f, worldZ * (float)(noiseScale * terrain.Lacunarity) + 29f);
 
-                    float blended = continental * 0.6f + macro * 0.3f + detail * 0.1f;
-                    int height = Mathf.Clamp(Mathf.RoundToInt(profile.GlobalWaterLevel + blended * 32f), 4, 250);
-                    chunk.HeightMap[x, z] = height;
+                    float blended = continental * 0.55f + macro * 0.3f + detail * 0.15f;
+                    float baseHeight = terrain.PlainBaseHeight + blended * (float)terrain.NoiseAmplitude;
+                    heightMap[x, z] = Mathf.Clamp(Mathf.RoundToInt(baseHeight), 1, worldHeight - 4);
                 }
             }
+
+            return heightMap;
         }
 
-        private void BuildCaves(ChunkData chunk)
+        private bool[,,] BuildCaveMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] riverMask)
         {
-            if (!profile.EnableCaves)
-            {
-                return;
-            }
+            var mask = new bool[chunkSize, worldHeight, chunkSize];
+            double horizontal = Math.Max(0.0001, worldConfig.Caves.HorizontalFrequency);
+            double vertical = Math.Max(0.0001, worldConfig.Caves.VerticalFrequency);
 
-            for (int x = 0; x < chunk.Size; x++)
+            for (int x = 0; x < chunkSize; x++)
             {
-                for (int z = 0; z < chunk.Size; z++)
+                for (int z = 0; z < chunkSize; z++)
                 {
-                    int columnHeight = chunk.HeightMap[x, z];
-                    for (int y = 4; y < columnHeight; y++)
+                    int surface = heightMap[x, z];
+                    float hydrologySample = hydrology[x, z];
+                    float riverPressure = riverMask != null ? riverMask[x, z] : 0f;
+                    double wetnessRetention = hydrologySample * worldConfig.Caves.MoistureRetentionWeight;
+
+                    for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
-                        float warpX = Mathf.PerlinNoise((chunk.ChunkX * chunk.Size + x) * profile.HydrologyWarpFrequency, y * 0.03f) * profile.HydrologyWarpAmplitude;
-                        float warpZ = Mathf.PerlinNoise((chunk.ChunkZ * chunk.Size + z) * profile.HydrologyWarpFrequency, y * 0.03f + 37f) * profile.HydrologyWarpAmplitude;
+                        double depthFactor = 1.0 - (double)y / Math.Max(1, surface);
+                        double warpX = (chunkPos.x * chunkSize + x) * horizontal;
+                        double warpZ = (chunkPos.y * chunkSize + z) * horizontal;
+                        double warpY = y * vertical;
 
-                        float noise = Mathf.PerlinNoise(
-                            (chunk.ChunkX * chunk.Size + x + warpX) * 0.035f,
-                            (chunk.ChunkZ * chunk.Size + z + warpZ + y * 0.05f));
+                        double noise = Mathf.PerlinNoise((float)(warpX + warpY), (float)(warpZ + warpY));
+                        double roughnessBias = Mathf.PerlinNoise((float)(warpX * 0.8), (float)(warpZ * 0.8)) * worldConfig.Caves.RoughnessStabilityWeight;
+                        double moisturePenalty = hydrologySample * worldConfig.Caves.HydrologyStabilityWeight + riverPressure * worldConfig.Caves.RiverSuppressionWeight + wetnessRetention * 0.35;
+                        double threshold = worldConfig.Caves.Threshold + moisturePenalty * 0.35 + worldConfig.Caves.FlowStabilityWeight * 0.2 + roughnessBias * 0.25;
+                        threshold -= depthFactor * profile.CaveDepthWeight * 0.6;
+                        threshold += wetnessRetention * 0.15;
+                        threshold = Math.Clamp(threshold, 0.22, 0.8);
 
-                        float threshold = 0.55f - profile.CaveDepthWeight * 0.25f;
                         if (noise > threshold)
                         {
-                            chunk.CaveMask[x, y, z] = true;
+                            mask[x, y, z] = true;
                         }
                     }
                 }
             }
+
+            Smooth2D(mask, worldConfig.Caves.StabilitySmoothIterations, worldConfig.Caves.StabilitySmoothBlend);
+            ApplyEdgeSeal(mask, worldConfig.Caves.EdgeSealStrength);
+            ApplyRiparianPlugs(mask, hydrology, riverMask, worldConfig.Caves.RiparianPlugDepth);
+            AddSupportColumns(mask, hydrology, riverMask);
+            return mask;
         }
 
-        private void BuildRivers(ChunkData chunk)
+        private float[,] BuildRiverMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow)
         {
-            if (!profile.EnableRivers)
-            {
-                return;
-            }
+            var mask = new float[chunkSize, chunkSize];
+            double noiseScale = Math.Max(0.0001, profile.RiverNoiseScale);
 
-            for (int x = 0; x < chunk.Size; x++)
+            for (int x = 0; x < chunkSize; x++)
             {
-                for (int z = 0; z < chunk.Size; z++)
+                for (int z = 0; z < chunkSize; z++)
                 {
-                    int worldX = chunk.ChunkX * chunk.Size + x;
-                    int worldZ = chunk.ChunkZ * chunk.Size + z;
-
+                    int worldX = chunkPos.x * chunkSize + x;
+                    int worldZ = chunkPos.y * chunkSize + z;
                     float warp = Mathf.PerlinNoise(worldX * profile.HydrologyWarpFrequency, worldZ * profile.HydrologyWarpFrequency);
-                    float riverNoise = Mathf.PerlinNoise(worldX * profile.RiverNoiseScale + warp, worldZ * profile.RiverNoiseScale + warp * 0.5f);
-                    float intensity = 1f - Mathf.Abs(riverNoise - 0.5f) * 2f;
+                    double baseNoise = Math.Abs(Mathf.PerlinNoise((float)(worldX * noiseScale + warp), (float)(worldZ * noiseScale + warp * 0.5f)) - 0.5f) * 2.0;
 
-                    if (intensity > profile.RiverCenterThreshold)
-                    {
-                        chunk.RiverMask[x, z] = intensity;
-                        int depth = Mathf.Clamp(Mathf.CeilToInt(profile.RiverDepth * intensity), 2, profile.RiverDepth + 2);
-                        chunk.HeightMap[x, z] = Mathf.Max(chunk.HeightMap[x, z] - depth, profile.GlobalWaterLevel - depth);
-                    }
+                    double hydrologySample = hydrology[x, z];
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double gradient = ComputeSlope(heightMap, x, z);
+                    double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
+
+                    double riverMask = profile.RiverBankThreshold - baseNoise;
+                    double pressure = Math.Max(0.0, riverMask);
+                    pressure *= 1.0 + hydrologySample * profile.HydrologyContinuityWeight;
+                    pressure *= 1.0 + flowSample * profile.RiverFlowAlignmentWeight;
+                    pressure *= 1.0 - Math.Clamp(gradient * profile.RiverGradientPenalty * 0.08, 0.0, 0.45);
+                    pressure *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight, 0.0, 0.35);
+
+                    double headwater = 1.0 - Math.Clamp(flowSample * profile.RiverHeadwaterStabilityWeight, 0.0, 0.65);
+                    pressure *= 1.0 + headwater * 0.1;
+                    double deltaBlend = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, profile.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
+                    pressure *= 1.0 + deltaBlend * profile.RiverDeltaWetlandStrength * 0.5;
+
+                    mask[x, z] = Mathf.Clamp((float)pressure, 0f, 1.35f);
                 }
             }
 
-            Smooth2D(chunk.RiverMask, profile.RiverIntensitySmoothIterations, profile.RiverIntensitySmoothBlend);
+            Smooth2D(mask, profile.RiverIntensitySmoothIterations, profile.RiverIntensitySmoothBlend);
+            StabilizeEdges(mask, profile.HydrologyEdgeBlendRadius, 1, profile.RiverEdgeFeather, profile.RiverSeamFillStrength);
+            return mask;
         }
 
-        private void BuildLakes(ChunkData chunk)
+        private float[,] BuildLakeMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask)
         {
-            if (!profile.EnableLakes)
-            {
-                return;
-            }
+            var lakes = new float[chunkSize, chunkSize];
 
-            for (int x = 0; x < chunk.Size; x++)
+            for (int x = 0; x < chunkSize; x++)
             {
-                for (int z = 0; z < chunk.Size; z++)
+                for (int z = 0; z < chunkSize; z++)
                 {
-                    float riverIntensity = chunk.RiverMask[x, z];
-                    if (riverIntensity > profile.LakeRiverProximitySuppression)
+                    float riverPressure = riverMask[x, z];
+                    if (riverPressure > profile.LakeRiverProximitySuppression)
                     {
                         continue;
                     }
 
-                    int worldX = chunk.ChunkX * chunk.Size + x;
-                    int worldZ = chunk.ChunkZ * chunk.Size + z;
-                    float noise = Mathf.PerlinNoise(worldX * 0.01f, worldZ * 0.01f) + profile.LakeSpawnWeightBias;
+                    int worldX = chunkPos.x * chunkSize + x;
+                    int worldZ = chunkPos.y * chunkSize + z;
 
-                    if (noise > profile.LakeWetlandSaturationThreshold)
+                    double basinNoise = Mathf.PerlinNoise(worldX * 0.004f, worldZ * 0.004f);
+                    double rimNoise = Mathf.PerlinNoise(worldX * 0.009f + 31f, worldZ * 0.009f + 17f);
+                    double hydrologySample = hydrology[x, z];
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double reliefPenalty = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
+                    int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+                    double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, profile.LakeMaxRadius), 0.0, 1.0);
+
+                    double wetness = hydrologySample * 0.65 + flowSample * 0.35;
+                    double weight = (basinNoise * 0.45) + (rimNoise * 0.25) + wetness * 0.4 + profile.LakeSpawnWeightBias;
+                    weight -= slope * profile.LakeRimErosionWeight * 0.05;
+                    weight -= riverPressure * 0.5;
+                    weight -= reliefPenalty * profile.RiverReliefPenaltyWeight;
+                    weight *= 0.75 + radiusFalloff * 0.25;
+
+                    if (weight > profile.LakeWetlandSaturationThreshold && heightMap[x, z] > seaLevel - worldConfig.Lakes.MaxDepth)
                     {
-                        chunk.LakeMask[x, z] = noise;
-                        int depth = Mathf.Clamp(Mathf.CeilToInt(profile.LakeShelfDepth + noise * profile.LakeOutflowCarveDepth), 1, profile.LakeOutflowCarveDepth + 2);
-                        chunk.HeightMap[x, z] = Mathf.Max(chunk.HeightMap[x, z] - depth, profile.GlobalWaterLevel - depth);
+                        lakes[x, z] = Mathf.Clamp01((float)weight);
                     }
                 }
             }
 
-            Smooth2D(chunk.LakeMask, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
+            Smooth2D(lakes, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
+            RelaxEdges(lakes, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
+            ApplyRiparianBuffer(lakes, Math.Min(profile.LakeWetlandBufferRadius, profile.LakeMaxRadius), profile.LakeShorelineBlend);
+            return lakes;
+        }
+
+        private void ApplyHydrologyToHeight(int[,] heightMap, float[,] riverMask, float[,] lakeMask, float[,] hydrology, float[,] flow)
+        {
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    float river = riverMask[x, z];
+                    float lake = lakeMask[x, z];
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    int surface = heightMap[x, z];
+                    bool hasRiver = river > profile.RiverCenterThreshold;
+                    bool hasLake = lake > profile.LakeShorelineBlend;
+
+                    if (hasRiver)
+                    {
+                        int depth = Mathf.Clamp(Mathf.RoundToInt(profile.RiverDepth * (river + hydro * 0.5f + flowValue * 0.35f)), 2, profile.RiverDepth + 3);
+                        heightMap[x, z] = Mathf.Max(surface - depth, seaLevel - depth);
+                    }
+                    else if (hasLake)
+                    {
+                        int depth = Mathf.Clamp(Mathf.RoundToInt(profile.LakeShelfDepth + lake * profile.LakeOutflowCarveDepth + hydro * 2f), profile.LakeOutflowCarveDepth, Mathf.Max(profile.LakeShelfDepth, profile.LakeOutflowCarveDepth + profile.LakeWetlandBufferRadius));
+                        heightMap[x, z] = Mathf.Max(surface - depth, seaLevel - depth);
+                    }
+                    else if (hydro > 0.65f && flowValue > 0.35f)
+                    {
+                        int depth = Mathf.Clamp(Mathf.CeilToInt((hydro + flowValue) * 2f), 1, profile.LakeOutflowCarveDepth);
+                        heightMap[x, z] = Mathf.Max(surface - depth, seaLevel - depth);
+                    }
+                }
+            }
+        }
+
+        private float[,] BuildHydrologyMask(int[,] heightMap)
+        {
+            var hydrology = new float[chunkSize, chunkSize];
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int surface = heightMap[x, z];
+                    double distance = Math.Max(0, surface - profile.GlobalWaterLevel);
+                    double waterBias = 1.0 - Math.Clamp(distance / Math.Max(1.0, profile.HydrologyWaterTableClampRange), 0.0, 1.0);
+                    double shoreBoost = Math.Exp(-distance / Math.Max(0.1, profile.HydrologyShorePush));
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double stability = 1.0 - Math.Clamp(slope * (profile.HydrologyWaterTableSlopeWeight + profile.HydrologySlopePenalty * 0.1) / 6.0, 0.0, 0.7);
+                    double gradientDamp = 1.0 - Math.Clamp(slope * profile.HydrologyGradientWeight / Math.Max(1.0, profile.HydrologyGradientClamp * 8.0f), 0.0, 0.35);
+                    double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * profile.HydrologyCurvatureWeight * 0.08;
+                    double warp = Mathf.PerlinNoise((x + 17) * profile.HydrologyWarpFrequency, (z + 31) * profile.HydrologyWarpFrequency) * profile.HydrologyWarpAmplitude * 0.02;
+                    double baseline = Math.Clamp(waterBias * profile.HydrologyWaterTableClampWeight * stability * gradientDamp, 0.0, 1.0);
+                    baseline = Math.Clamp(baseline + warp + shoreBoost * 0.05 - curvature, 0.0, 1.2);
+                    hydrology[x, z] = Mathf.Clamp01((float)baseline);
+                }
+            }
+
+            Smooth2D(hydrology, profile.HydrologySmoothIterations, profile.HydrologySmoothBlend);
+            DirectionalSmooth(heightMap, hydrology, profile.HydrologyDirectionalIterations, profile.HydrologyDirectionalBlend);
+            ApplyRiparianBuffer(hydrology, profile.RiparianBufferRadius, profile.RiparianSaturationBoost);
+            StabilizeEdges(hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
+            ApplyEdgeFlowLocks(heightMap, hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
+            ClampVariance(hydrology, profile.HydrologyVarianceClamp);
+            RelaxEdges(hydrology, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
+            return hydrology;
+        }
+
+        private float[,] BuildFlowMask(int[,] heightMap, float[,] hydrology)
+        {
+            var flow = new float[chunkSize, chunkSize];
+            double persistence = Math.Clamp(profile.HydrologyFlowPersistence, 0.0f, 1.0f);
+            double divergenceClamp = Math.Clamp(profile.HydrologyFlowDivergenceClamp, 0.1f, 1.5f);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    double accumulation = 0.0;
+                    double current = heightMap[x, z];
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    double gradientMagnitude = Math.Sqrt(downhill.x * downhill.x + downhill.y * downhill.y);
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                            {
+                                continue;
+                            }
+
+                            double neighbor = heightMap[nx, nz];
+                            if (neighbor < current)
+                            {
+                                accumulation += (current - neighbor) * 0.25;
+                            }
+                        }
+                    }
+
+                    double hydrologyBoost = hydrology[x, z] * profile.HydrologyFlowGain;
+                    double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * profile.HydrologyCurvatureWeight * 0.1;
+                    double continuity = 1.0 + hydrology[x, z] * profile.HydrologyContinuityWeight;
+                    double scaled = ((accumulation * (1.0 - persistence)) + hydrologyBoost) * continuity;
+                    scaled *= 1.0 - Math.Clamp(curvature, 0.0, 0.6);
+                    scaled *= 1.0 - Math.Clamp(gradientMagnitude * profile.HydrologyGradientSlopeWeight * 0.05, 0.0, 0.35);
+                    double clampMax = Math.Max(2.5, divergenceClamp * 12.0);
+                    flow[x, z] = Mathf.Clamp((float)scaled, 0f, (float)clampMax);
+                }
+            }
+
+            Smooth2D(flow, profile.HydrologySmoothIterations, profile.HydrologySmoothBlend);
+            DirectionalSmooth(heightMap, flow, profile.HydrologyDirectionalIterations, profile.HydrologyDirectionalBlend);
+            StabilizeEdges(flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
+            ApplyEdgeFlowLocks(heightMap, flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
+            RelaxEdges(flow, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
+            return flow;
         }
 
         private static void Smooth2D(float[,] field, int iterations, float blend)
@@ -410,6 +600,512 @@ namespace GameWorld
                 Array.Copy(buffer, field, buffer.Length);
             }
         }
+
+        private static void Smooth2D(bool[,,] field, int iterations, double blend)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            int sizeX = field.GetLength(0);
+            int sizeY = field.GetLength(1);
+            int sizeZ = field.GetLength(2);
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                var buffer = new bool[sizeX, sizeY, sizeZ];
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        for (int y = 1; y < sizeY - 1; y++)
+                        {
+                            int neighbours = 0;
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                for (int dy = -1; dy <= 1; dy++)
+                                {
+                                    for (int dz = -1; dz <= 1; dz++)
+                                    {
+                                        if (dx == 0 && dy == 0 && dz == 0)
+                                        {
+                                            continue;
+                                        }
+
+                                        int nx = x + dx;
+                                        int ny = y + dy;
+                                        int nz = z + dz;
+                                        if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ || ny < 0 || ny >= sizeY)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (field[nx, ny, nz])
+                                        {
+                                            neighbours++;
+                                        }
+                                    }
+                                }
+                            }
+
+                            bool carve = field[x, y, z];
+                            if (neighbours >= 13)
+                            {
+                                buffer[x, y, z] = true;
+                            }
+                            else if (neighbours <= 3)
+                            {
+                                buffer[x, y, z] = false;
+                            }
+                            else
+                            {
+                                buffer[x, y, z] = blend > 0 ? neighbours >= 9 : carve;
+                            }
+                        }
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private static void DirectionalSmooth(int[,] heightMap, float[,] field, int iterations, float blend)
+        {
+            iterations = Mathf.Max(0, iterations);
+            blend = Mathf.Clamp01(blend);
+            if (iterations == 0 || blend <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        var downhill = ComputeDownhillVector(heightMap, x, z);
+                        int nx = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                        int nz = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+                        float neighbour = field[nx, nz];
+                        buffer[x, z] = field[x, z] * (1f - blend) + neighbour * blend;
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private static void RelaxEdges(float[,] field, int iterations, float blend)
+        {
+            iterations = Mathf.Max(0, iterations);
+            blend = Mathf.Clamp01(blend);
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        if (x > 0 && x < sizeX - 1 && z > 0 && z < sizeZ - 1)
+                        {
+                            continue;
+                        }
+
+                        float neighbour = SampleInterior(field, x, z);
+                        field[x, z] = field[x, z] * (1f - blend) + neighbour * blend;
+                    }
+                }
+            }
+        }
+
+        private static void StabilizeEdges(float[,] field, int radius, int iterations, float weight, float fluxBlend)
+        {
+            radius = Math.Max(1, radius);
+            iterations = Math.Max(0, iterations);
+            weight = Mathf.Clamp01(weight);
+            fluxBlend = Mathf.Clamp01(fluxBlend);
+            if (iterations == 0 || weight <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        bool isEdge = x < radius || z < radius || x >= sizeX - radius || z >= sizeZ - radius;
+                        if (!isEdge)
+                        {
+                            buffer[x, z] = field[x, z];
+                            continue;
+                        }
+
+                        float interior = SampleInterior(field, x, z);
+                        double blend = weight * (1.0 - Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z)) / (double)radius);
+                        double stabilised = field[x, z] * (1.0 - blend) + interior * blend;
+                        buffer[x, z] = (float)(stabilised * (1.0 - fluxBlend) + interior * fluxBlend);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private static void ApplyEdgeFlowLocks(int[,] heightMap, float[,] field, int radius, float lockWeight, float flowBias, float tangentWeight)
+        {
+            radius = Math.Max(1, radius);
+            lockWeight = Mathf.Clamp01(lockWeight);
+            flowBias = Mathf.Clamp01(flowBias);
+            tangentWeight = Mathf.Clamp01(tangentWeight);
+            if (lockWeight <= 0.0f && flowBias <= 0.0f && tangentWeight <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance >= radius)
+                    {
+                        continue;
+                    }
+
+                    double blend = lockWeight * (1.0 - edgeDistance / (double)radius);
+                    if (blend <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int nx = Math.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int nz = Math.Clamp(z + downhill.y, 0, sizeZ - 1);
+                    float downhillValue = field[nx, nz];
+
+                    int tx = Math.Clamp(x - downhill.y, 0, sizeX - 1);
+                    int tz = Math.Clamp(z + downhill.x, 0, sizeZ - 1);
+                    float tangentValue = field[tx, tz];
+
+                    float interior = SampleInterior(field, x, z);
+                    double flowAligned = field[x, z] * (1.0 - flowBias) + downhillValue * flowBias;
+                    double tangentAligned = field[x, z] * (1.0 - tangentWeight) + tangentValue * tangentWeight;
+                    double locked = (flowAligned * 0.6) + (tangentAligned * 0.4);
+                    double blended = field[x, z] * (1.0 - blend) + interior * (blend * 0.3) + locked * (blend * 0.7);
+
+                    buffer[x, z] = (float)Math.Clamp(blended, 0.0, Math.Max(1.5, field[x, z] + 0.35));
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void ApplyRiparianBuffer(float[,] field, int radius, float saturationBoost)
+        {
+            radius = Math.Max(0, radius);
+            saturationBoost = Mathf.Clamp(saturationBoost, 0.0f, 2.0f);
+            if (radius == 0 || saturationBoost <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float centre = field[x, z];
+                    if (centre <= 0f)
+                    {
+                        continue;
+                    }
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                            {
+                                continue;
+                            }
+
+                            double distance = Math.Sqrt(dx * dx + dz * dz);
+                            if (distance > radius + 0.001)
+                            {
+                                continue;
+                            }
+
+                            float influence = Mathf.Clamp01(centre * saturationBoost * (1.0f - (float)distance / (radius + 0.001f)));
+                            buffer[nx, nz] = Math.Max(buffer[nx, nz], influence);
+                        }
+                    }
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void ClampVariance(float[,] field, float clamp)
+        {
+            clamp = Mathf.Clamp(clamp, 0.0f, 2.0f);
+            if (clamp <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float centre = field[x, z];
+                    float interior = SampleInterior(field, x, z);
+                    buffer[x, z] = Mathf.Clamp01(centre * (1.0f - clamp * 0.5f) + interior * (clamp * 0.5f));
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private void ApplyEdgeSeal(bool[,,] mask, double strength)
+        {
+            strength = Math.Clamp(strength, 0.0, 1.0);
+            if (strength <= 0)
+            {
+                return;
+            }
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    if (x != 0 && z != 0 && x != chunkSize - 1 && z != chunkSize - 1)
+                    {
+                        continue;
+                    }
+
+                    for (int y = 1; y < worldHeight - 1; y++)
+                    {
+                        if (mask[x, y, z] && random.NextDouble() < strength)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyRiparianPlugs(bool[,,] mask, float[,] hydrologyMask, float[,] riverMask, int plugDepth)
+        {
+            if (plugDepth <= 0)
+            {
+                return;
+            }
+
+            int plugTop = Math.Min(worldHeight - 2, Math.Max(2, seaLevel));
+            int plugBottom = Math.Max(1, plugTop - plugDepth);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    float hydrology = Mathf.Clamp01(hydrologyMask[x, z]);
+                    float river = riverMask != null ? Mathf.Clamp01(riverMask[x, z]) : 0f;
+                    float wetness = Mathf.Max(hydrology, river);
+                    if (wetness < 0.35f)
+                    {
+                        continue;
+                    }
+
+                    for (int y = plugBottom; y <= plugTop; y++)
+                    {
+                        mask[x, y, z] = false;
+                    }
+                }
+            }
+        }
+
+        private void AddSupportColumns(bool[,,] mask, float[,] hydrologyMask, float[,] riverMask)
+        {
+            double chance = Math.Clamp(worldConfig.Caves.SupportPillarChance * worldConfig.Caves.SupportDensity, 0.0, 1.0);
+            if (chance <= 0.0)
+            {
+                return;
+            }
+
+            for (int x = 1; x < chunkSize - 1; x++)
+            {
+                for (int z = 1; z < chunkSize - 1; z++)
+                {
+                    float hydrology = Mathf.Clamp01(hydrologyMask[x, z]);
+                    float river = riverMask != null ? Mathf.Clamp01(riverMask[x, z]) : 0f;
+                    double pillarChance = chance * (1.0 + hydrology * worldConfig.Caves.SupportHydrationBias + river * worldConfig.Caves.SupportFlowBias);
+                    if (random.NextDouble() > pillarChance)
+                    {
+                        continue;
+                    }
+
+                    int baseY = Math.Max(1, seaLevel - 6);
+                    int height = random.Next(2, 6);
+                    for (int y = baseY; y < Math.Min(worldHeight - 1, baseY + height); y++)
+                    {
+                        mask[x, y, z] = false;
+                    }
+                }
+            }
+        }
+
+        private static float ComputeSlope(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int center = heightMap[x, z];
+            int east = heightMap[Math.Min(sizeX - 1, x + 1), z];
+            int north = heightMap[x, Math.Min(sizeZ - 1, z + 1)];
+            double dx = center - east;
+            double dz = center - north;
+            return (float)Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        private static float SampleCurvature(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int center = heightMap[x, z];
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(sizeX - 1, x + 1), z];
+            int forward = heightMap[x, Math.Min(sizeZ - 1, z + 1)];
+            int back = heightMap[x, Math.Max(0, z - 1)];
+            double laplacian = (left + right + forward + back - 4 * center) / 4.0;
+            return (float)laplacian;
+        }
+
+        private static Vector2Int ComputeDownhillVector(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int center = heightMap[x, z];
+            int bestDrop = 0;
+            int bestX = 0;
+            int bestZ = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= sizeX || nz < 0 || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int drop = center - heightMap[nx, nz];
+                    if (drop > bestDrop)
+                    {
+                        bestDrop = drop;
+                        bestX = dx;
+                        bestZ = dz;
+                    }
+                }
+            }
+
+            return new Vector2Int(bestX, bestZ);
+        }
+
+        private static float SampleInterior(float[,] field, int x, int z)
+        {
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            int cx = Math.Clamp(x, 1, sizeX - 2);
+            int cz = Math.Clamp(z, 1, sizeZ - 2);
+            float sum = 0f;
+            int count = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int nx = Math.Clamp(cx + dx, 1, sizeX - 2);
+                    int nz = Math.Clamp(cz + dz, 1, sizeZ - 2);
+                    sum += field[nx, nz];
+                    count++;
+                }
+            }
+
+            return count == 0 ? field[cx, cz] : sum / count;
+        }
+
+        private static void CopyField(int[,] source, int[,] target)
+        {
+            int sizeX = source.GetLength(0);
+            int sizeZ = source.GetLength(1);
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    target[x, z] = source[x, z];
+                }
+            }
+        }
+
+        private static void CopyField(float[,] source, float[,] target)
+        {
+            int sizeX = source.GetLength(0);
+            int sizeZ = source.GetLength(1);
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    target[x, z] = source[x, z];
+                }
+            }
+        }
+
+        private static void CopyField(bool[,,] source, bool[,,] target)
+        {
+            int sizeX = source.GetLength(0);
+            int sizeY = source.GetLength(1);
+            int sizeZ = source.GetLength(2);
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int y = 0; y < sizeY; y++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        target[x, y, z] = source[x, y, z];
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -420,24 +1116,30 @@ namespace GameWorld
         public int ChunkX { get; }
         public int ChunkZ { get; }
         public int Size { get; }
+        public int WorldHeight { get; }
         public int WaterLevel { get; }
 
         public int[,] HeightMap { get; }
         public bool[,,] CaveMask { get; }
         public float[,] RiverMask { get; }
         public float[,] LakeMask { get; }
+        public float[,] HydrologyMask { get; }
+        public float[,] FlowMask { get; }
 
-        public ChunkData(int size, int chunkX, int chunkZ, int waterLevel)
+        public ChunkData(int size, int chunkX, int chunkZ, int worldHeight, int waterLevel)
         {
             Size = size;
             ChunkX = chunkX;
             ChunkZ = chunkZ;
+            WorldHeight = worldHeight;
             WaterLevel = waterLevel;
 
             HeightMap = new int[size, size];
-            CaveMask = new bool[size, 256, size];
+            CaveMask = new bool[size, worldHeight, size];
             RiverMask = new float[size, size];
             LakeMask = new float[size, size];
+            HydrologyMask = new float[size, size];
+            FlowMask = new float[size, size];
         }
     }
 }

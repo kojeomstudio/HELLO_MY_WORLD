@@ -35,6 +35,7 @@ namespace GameServerApp.World.Generation
             {
                 for (int z = 0; z < chunkSize; z++)
                 {
+                    int height = heightMap[x, z];
                     double worldX = chunkX * chunkSize + x;
                     double worldZ = chunkZ * chunkSize + z;
                     double baseNoise = Math.Abs(SimplexNoise.Generate(
@@ -61,6 +62,8 @@ namespace GameServerApp.World.Generation
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
+                    double deltaBlend = 1.0 - Math.Clamp(Math.Abs(height - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
+                    pressure *= 1.0 + deltaBlend * config.RiverDeltaWetlandStrength * 0.5;
 
                     mask[x, z] = (float)Math.Clamp(pressure, 0.0, 1.35);
                 }

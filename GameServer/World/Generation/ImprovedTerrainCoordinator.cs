@@ -51,6 +51,7 @@ namespace GameServerApp.World.Generation
             int size = Math.Min(Math.Max(1, sizeOverride), chunkSize);
             var hydrology = BuildHydrologyMask(heightMap, size);
             var flow = BuildFlowAccumulation(heightMap, hydrology, size);
+            BlendHydrologyWithFlow(hydrology, flow);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, seaLevel)
@@ -61,7 +62,7 @@ namespace GameServerApp.World.Generation
                 : null;
 
             bool[,,]? caveMask = config.Caves.EnableCaves
-                ? caveGenerator.BuildMask(chunkX, chunkZ, size, worldHeight, heightMap, hydrology, riverMask, seaLevel)
+                ? caveGenerator.BuildMask(chunkX, chunkZ, size, worldHeight, heightMap, hydrology, flow, riverMask, seaLevel)
                 : null;
 
             return new TerrainMaskResult
@@ -193,6 +194,33 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeTangentWeight);
             TerrainMaskUtility.RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
+        }
+
+        private void BlendHydrologyWithFlow(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double flowBlend = Math.Clamp(config.Water.HydrologyContinuityWeight * 0.35, 0.05, 0.45);
+            double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeFlowLockWeight * 0.5, 0.0, 0.45);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    double normalizedFlow = Math.Clamp(flowValue / Math.Max(1.0, config.Water.RiverDepth), 0.0, 1.0);
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFactor = edgeBlend * Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double blend = Math.Clamp(flowBlend + edgeFactor, 0.0, 0.9);
+
+                    hydrology[x, z] = (float)Math.Clamp(hydro * (1.0 - blend) + normalizedFlow * blend, 0.0, 1.0);
+                }
+            }
+
+            TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
         }
 
         private static double SampleCurvature(int[,] heightMap, int x, int z)

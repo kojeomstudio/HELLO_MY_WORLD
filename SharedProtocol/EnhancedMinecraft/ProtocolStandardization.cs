@@ -4,6 +4,7 @@ using System.Reflection;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
+using SharedProtocol;
 using Proto = EnhancedMinecraftProtocol;
 
 namespace SharedProtocol.EnhancedMinecraft
@@ -58,6 +59,28 @@ namespace SharedProtocol.EnhancedMinecraft
                 issues.Add($"Enhanced contract validation failed: {ex.Message}");
             }
 
+            try
+            {
+                ValidateParsers();
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"Parser validation failed: {ex.Message}");
+            }
+
+            try
+            {
+                var runtimeFingerprint = ProtoFingerprint.ComputeFingerprint();
+                if (!string.Equals(ProtoFingerprint.DescriptorFingerprint, runtimeFingerprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    issues.Add($"Descriptor fingerprint drift detected: manifest={ProtoFingerprint.DescriptorFingerprint} runtime={runtimeFingerprint}. Regenerate EnhancedMinecraft protobuf DTOs or update references.");
+                }
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"Descriptor fingerprint check failed: {ex.Message}");
+            }
+
             foreach (var messageType in RequiredMessages)
             {
                 if (!ProtocolRegistry.IsRegistered(messageType))
@@ -69,6 +92,22 @@ namespace SharedProtocol.EnhancedMinecraft
             if (issues.Count > 0)
             {
                 throw new InvalidOperationException("Protocol implementation validation failed:\n" + string.Join("\n", issues));
+            }
+        }
+
+        private static void ValidateParsers()
+        {
+            foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+            {
+                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+                {
+                    throw new InvalidOperationException($"Failed to create prototype for '{messageType}'. Ensure generated classes are referenced by ProtocolRegistry.");
+                }
+
+                if (prototype.Descriptor?.Parser == null)
+                {
+                    throw new InvalidOperationException($"Missing Google.Protobuf parser for '{messageType}' ({prototype.Descriptor?.Name}). Ensure using directives reference the generated DTOs and regenerate protobuf assets if needed.");
+                }
             }
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using GameServerApp;
 using GameServerApp.Configuration;
@@ -17,10 +18,12 @@ namespace GameServerApp.World
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;
-        private readonly WorldGenerationConfig generationConfig;
+        private WorldGenerationConfig generationConfig;
         private readonly WorldSettings worldSettings;
         private readonly ConcurrentDictionary<int, WorldMapProfile> profiles = new();
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
+        private readonly int maxCachedChunks;
+        private DateTime worldConfigWriteTime;
 
         public WorldMapControlManager(WorldMapControlSettings settings, WorldGenerationConfig generationConfig, WorldSettings worldSettings)
         {
@@ -30,6 +33,8 @@ namespace GameServerApp.World
 
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, this.worldSettings);
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
+            worldConfigWriteTime = GetWriteTime(this.generationConfig.SourcePath);
+            maxCachedChunks = Math.Max(this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance, this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
         }
 
         public Task<WorldMapResponse> HandleAsync(WorldMapRequest request)
@@ -164,6 +169,7 @@ namespace GameServerApp.World
         private WorldMapControlProfile EnsureProfile(out bool profileChanged)
         {
             profileChanged = false;
+            MaybeReloadGenerationConfig(ref profileChanged);
             var loaded = WorldMapControlProfileUtility.Load(generationConfig.MapControlProfilePath);
             if (loaded != null &&
                 (!string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase) ||
@@ -188,7 +194,65 @@ namespace GameServerApp.World
 
             var generated = await pipeline.GenerateChunkAsync(chunkX, chunkZ);
             chunkCache[key] = generated;
+            EnforceCacheBudget();
             return generated;
+        }
+
+        private void MaybeReloadGenerationConfig(ref bool profileChanged)
+        {
+            if (string.IsNullOrWhiteSpace(generationConfig.SourcePath) || !File.Exists(generationConfig.SourcePath))
+            {
+                return;
+            }
+
+            var writeTime = GetWriteTime(generationConfig.SourcePath);
+            if (writeTime <= worldConfigWriteTime)
+            {
+                return;
+            }
+
+            var reloaded = WorldGenerationConfig.Load(generationConfig.SourcePath);
+            reloaded.MapControlProfilePath = generationConfig.MapControlProfilePath;
+            generationConfig = reloaded;
+            worldConfigWriteTime = writeTime;
+            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
+            pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+            chunkCache.Clear();
+            profileChanged = true;
+        }
+
+        private void EnforceCacheBudget()
+        {
+            int overBudget = chunkCache.Count - maxCachedChunks;
+            if (overBudget <= 0)
+            {
+                return;
+            }
+
+            foreach (var key in chunkCache.Keys)
+            {
+                if (overBudget <= 0)
+                {
+                    break;
+                }
+
+                if (chunkCache.TryRemove(key, out _))
+                {
+                    overBudget--;
+                }
+            }
+        }
+
+        private static DateTime GetWriteTime(string path)
+        {
+            try
+            {
+                return File.GetLastWriteTimeUtc(path);
+            }
+            catch
+            {
+                return DateTime.MinValue;
+            }
         }
     }
 

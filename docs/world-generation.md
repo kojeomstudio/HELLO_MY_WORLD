@@ -25,6 +25,14 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - Unity now uses `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs` to read `Assets/StreamingAssets/world-map-control.json`, build preview chunks (height/cave/river/lake masks) with the same knobs, and unload distant previews as the player moves.
 - EnhancedMinecraft handlers now validate their generated protobuf contracts during construction (`ProtocolValidator.ValidateMessageContract`) so stale protobuf bindings are caught before chunk payloads are serialized.
 
+## 2026-01-02 Flow-Coupled Hydrology & Outflows
+
+- Hydrology masks now blend with flow accumulation (edge-weighted) before downstream passes consume them (`ImprovedTerrainCoordinator.BlendHydrologyWithFlow` + Unity mirror in `WorldMapController`). This keeps rivers/lakes/caves aligned at chunk seams.
+- Cave carving uses flow pressure and edge falloff to suppress cavities under active channels while retaining dry interiors (`ImprovedCaveGenerator`, Unity `BuildCaveMask`).
+- Rivers apply downhill anisotropy and seam-aware hydrology pulls to stay coherent across chunk borders (`ImprovedRiverGenerator`, Unity `BuildRiverMask`).
+- Lakes gain inflow weighting plus downhill outflow hints so wetlands and shelf carving follow natural drainage (`ImprovedLakeGenerator`, Unity `BuildLakeMask`).
+- World map control manager reloads `world.json` profile writes and bounds cached preview chunks, resetting the terrain pipeline when configs change (`WorldMapControlManager`).
+
 ## 2026-02-10 Hydrology Seam Buffers & Wetland Stability
 
 - Riparian saturation now dilates across chunk edges (`Water.RiparianBufferRadius`) so rivers/lakes/caves share a softer wetness mask before carving and sealing.

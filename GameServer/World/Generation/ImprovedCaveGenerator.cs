@@ -31,6 +31,7 @@ namespace GameServerApp.World.Generation
             int worldHeight,
             int[,] heightMap,
             float[,] hydrologyMask,
+            float[,] flowMask,
             float[,]? riverMask,
             int seaLevel)
         {
@@ -49,8 +50,10 @@ namespace GameServerApp.World.Generation
                     }
 
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
-                    double stability = ComputeColumnStability(surface, hydrology, riverPressure);
+                    double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
+                    double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor);
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -90,9 +93,11 @@ namespace GameServerApp.World.Generation
                         double density = (primary * 0.65) + (secondary * 0.35);
                         double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight + wetnessRetention * 0.35;
                         double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
-                        double threshold = config.Threshold + moisturePenalty * 0.35 + config.FlowStabilityWeight * 0.2 + roughnessBias * 0.25;
+                        double flowPenalty = flow * config.FlowStabilityWeight;
+                        double threshold = config.Threshold + moisturePenalty * 0.35 + flowPenalty * 0.35 + roughnessBias * 0.25;
                         threshold -= depthFactor * depthWeight * 0.6;
                         threshold += wetnessRetention * 0.15;
+                        threshold += edgeFactor * config.EdgeSealStrength * 0.35;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)
@@ -110,12 +115,21 @@ namespace GameServerApp.World.Generation
             return mask;
         }
 
-        private double ComputeColumnStability(int surface, float hydrology, float riverPressure)
+        private double ComputeColumnStability(int surface, float hydrology, float riverPressure, float flowPressure, double edgeFactor)
         {
             double waterBias = 1.0 - Math.Clamp(hydrology * config.HydrologyStabilityWeight, 0.0, 0.75);
             double riverBias = 1.0 - Math.Clamp(riverPressure * config.RiverSuppressionWeight, 0.0, 0.9);
+            double flowBias = 1.0 - Math.Clamp(flowPressure * config.FlowStabilityWeight, 0.0, 0.85);
             double ceilingBias = 1.0 - Math.Clamp((surface / 128.0) * config.CeilingStabilityWeight, 0.0, 0.35);
-            return Math.Clamp(waterBias * riverBias * (1.0 - ceilingBias * 0.35), 0.05, 1.25);
+            double edgeBias = 1.0 - Math.Clamp(edgeFactor * config.EdgeSealStrength, 0.0, 0.45);
+            return Math.Clamp(waterBias * riverBias * flowBias * (1.0 - ceilingBias * 0.35) * edgeBias, 0.05, 1.25);
+        }
+
+        private static double ComputeEdgeFalloff(int x, int z, int chunkSize)
+        {
+            int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+            int maxRadius = Math.Max(1, chunkSize / 2);
+            return 1.0 - Math.Clamp(edgeDistance / (double)maxRadius, 0.0, 1.0);
         }
 
         private void SmoothMask(bool[,,] mask, int iterations, double blend)

@@ -51,11 +51,14 @@ namespace GameServerApp.World.Generation
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
                     double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
                     pressure *= 1.0 + hydrology * config.HydrologyContinuityWeight;
                     pressure *= 1.0 + flow * config.RiverFlowAlignmentWeight;
+                    pressure *= 1.0 + directionality * config.RiverAnisotropyWeight * 0.2;
                     pressure *= 1.0 - Math.Clamp(gradient * config.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
 
@@ -64,6 +67,7 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + headwater * 0.1;
                     double deltaBlend = 1.0 - Math.Clamp(Math.Abs(height - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
                     pressure *= 1.0 + deltaBlend * config.RiverDeltaWetlandStrength * 0.5;
+                    pressure = ApplyEdgeBlend(pressure, hydrologyMask[x, z], x, z, chunkSize);
 
                     mask[x, z] = (float)Math.Clamp(pressure, 0.0, 1.35);
                 }
@@ -72,6 +76,21 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private double ApplyEdgeBlend(double pressure, float hydrology, int x, int z, int chunkSize)
+        {
+            int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+            int edgeRadius = Math.Max(1, config.HydrologyEdgeBlendRadius);
+            if (edgeDistance >= edgeRadius)
+            {
+                return pressure;
+            }
+
+            double blend = 1.0 - edgeDistance / (double)(edgeRadius + 1);
+            double seamFill = Math.Clamp(config.RiverSeamFillStrength, 0.0, 1.0);
+            double hydrologyPull = hydrology * seamFill * blend;
+            return pressure * (1.0 - hydrologyPull) + hydrologyPull;
         }
 
         private static void FeatherEdges(float[,] mask, double feather, double seamFill)

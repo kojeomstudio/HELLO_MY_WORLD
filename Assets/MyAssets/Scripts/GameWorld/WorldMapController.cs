@@ -31,6 +31,8 @@ namespace GameWorld
         private SemaphoreSlim buildSemaphore = null!;
         private DateTime lastProfileCheckUtc;
         private DateTime lastProfileWriteUtc;
+        private DateTime lastConfigWriteUtc;
+        private string configPath = null!;
         private WorldConfig worldConfig = null!;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
@@ -39,6 +41,8 @@ namespace GameWorld
         private void Awake()
         {
             LoadProfile();
+            configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
+            lastConfigWriteUtc = File.Exists(configPath) ? File.GetLastWriteTimeUtc(configPath) : DateTime.MinValue;
             worldConfig = WorldConfig.Instance;
             generator = new EnhancedTerrainGenerator(profile, worldConfig);
             lastProfileCheckUtc = DateTime.UtcNow;
@@ -92,6 +96,25 @@ namespace GameWorld
             }
 
             lastProfileCheckUtc = now;
+            bool generatorReloaded = false;
+            if (!string.IsNullOrEmpty(configPath))
+            {
+                var configWrite = File.Exists(configPath) ? File.GetLastWriteTimeUtc(configPath) : DateTime.MinValue;
+                if (configWrite > lastConfigWriteUtc)
+                {
+                    WorldConfig.ForceReload();
+                    worldConfig = WorldConfig.Instance;
+                    lastConfigWriteUtc = configWrite;
+                    generator = new EnhancedTerrainGenerator(profile, worldConfig);
+                    loadedChunks.Clear();
+                    generatorReloaded = true;
+                    if (enableDebugLogging)
+                    {
+                        Debug.Log($"[WorldMapController] Reloaded world-config and generator (updated {configWrite:o})");
+                    }
+                }
+            }
+
             var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
 
             try
@@ -117,6 +140,10 @@ namespace GameWorld
                     {
                         Debug.Log($"[WorldMapController] Reloaded profile hash={profile.ProfileHash} (updated {writeTime:o})");
                     }
+                }
+                else if (generatorReloaded && enableDebugLogging)
+                {
+                    Debug.Log($"[WorldMapController] World config changed; reused profile hash={profile.ProfileHash}");
                 }
 
                 lastProfileWriteUtc = writeTime;
@@ -316,7 +343,9 @@ namespace GameWorld
                     float riverPressure = riverMask != null ? riverMask[x, z] : 0f;
                     double wetnessRetention = hydrologySample * worldConfig.Caves.MoistureRetentionWeight;
                     double edgeFactor = ComputeEdgeFalloff(x, z);
-                    double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor);
+                    double hydrologyGradient = Math.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
+                    double seamStability = 1.0 - Math.Clamp(hydrologyGradient * worldConfig.Caves.EdgeSealStrength, 0.0, 0.45);
+                    double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor) * seamStability;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -333,6 +362,7 @@ namespace GameWorld
                         threshold -= depthFactor * profile.CaveDepthWeight * 0.6;
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * worldConfig.Caves.EdgeSealStrength * 0.35;
+                        threshold += Math.Clamp(hydrologyGradient * (worldConfig.Caves.EdgeSealStrength + worldConfig.Caves.HydrologyStabilityWeight * 0.25f), 0.0, 0.35);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (noise > threshold && stability > 0.08)
@@ -371,6 +401,8 @@ namespace GameWorld
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     var downhill = ComputeDownhillVector(heightMap, x, z);
                     double directionality = (Math.Abs(downhill.x) + Math.Abs(downhill.y)) * 0.5;
+                    double flowAlignment = 1.0 + Math.Clamp(flowSample * profile.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
+                    double seamStitch = 1.0 + Math.Clamp((SampleInterior(hydrology, x, z) - hydrologySample) * profile.HydrologyEdgeFluxBlend, -0.35, 0.35);
 
                     double riverMask = profile.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
@@ -379,6 +411,7 @@ namespace GameWorld
                     pressure *= 1.0 + directionality * profile.RiverAnisotropyWeight * 0.2;
                     pressure *= 1.0 - Math.Clamp(gradient * profile.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight, 0.0, 0.35);
+                    pressure *= flowAlignment * seamStitch;
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = SampleInterior(flow, x, z) / 6.0;
@@ -398,6 +431,7 @@ namespace GameWorld
             }
 
             Smooth2D(mask, profile.RiverIntensitySmoothIterations, profile.RiverIntensitySmoothBlend);
+            DirectionalSmooth(heightMap, mask, Math.Max(1, profile.HydrologyDirectionalIterations), profile.HydrologyDirectionalBlend * 0.35f);
             StabilizeEdges(mask, profile.HydrologyEdgeBlendRadius, 1, profile.RiverEdgeFeather, profile.RiverSeamFillStrength);
             return mask;
         }
@@ -448,9 +482,13 @@ namespace GameWorld
                     double weight = (basinNoise * 0.45) + (rimNoise * 0.25) + wetness * 0.4 + profile.LakeSpawnWeightBias;
                     weight += inflowBlend * 0.35;
                     weight -= slope * profile.LakeRimErosionWeight * 0.05;
+                    double hydrologyGradient = Math.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
+                    weight -= hydrologyGradient * profile.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverPressure * 0.5;
                     weight -= reliefPenalty * profile.RiverReliefPenaltyWeight;
                     weight *= 0.75 + radiusFalloff * 0.25;
+                    double seamCushion = 1.0 + Math.Clamp((SampleInterior(hydrology, x, z) - hydrologySample) * profile.HydrologyEdgeFluxBlend, -0.2, 0.3);
+                    weight *= seamCushion;
 
                     if (weight > profile.LakeWetlandSaturationThreshold && heightMap[x, z] > seaLevel - worldConfig.Lakes.MaxDepth)
                     {
@@ -460,6 +498,8 @@ namespace GameWorld
             }
 
             Smooth2D(lakes, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
+            StitchEdges(lakes, profile.HydrologySeamRelaxBlend * 0.65f);
+            FillBasins(lakes, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.35f), Math.Max(1, profile.HydrologySeamRelaxIterations));
             RelaxEdges(lakes, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             ApplyRiparianBuffer(lakes, Math.Min(profile.LakeWetlandBufferRadius, profile.LakeMaxRadius), profile.LakeShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flow, profile.LakeInflowBlendWeight, profile.LakeOutflowCarveDepth);
@@ -583,6 +623,8 @@ namespace GameWorld
             ApplyRiparianBuffer(hydrology, profile.RiparianBufferRadius, profile.RiparianSaturationBoost);
             StabilizeEdges(hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
             ApplyEdgeFlowLocks(heightMap, hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
+            FillBasins(hydrology, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.5f), Math.Max(1, profile.HydrologySeamRelaxIterations));
+            StitchEdges(hydrology, profile.HydrologySeamRelaxBlend * 0.65f);
             ClampVariance(hydrology, profile.HydrologyVarianceClamp);
             RelaxEdges(hydrology, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return hydrology;
@@ -642,6 +684,8 @@ namespace GameWorld
             DirectionalSmooth(heightMap, flow, profile.HydrologyDirectionalIterations, profile.HydrologyDirectionalBlend);
             StabilizeEdges(flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
             ApplyEdgeFlowLocks(heightMap, flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
+            FillBasins(flow, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.35f), Math.Max(1, profile.HydrologySeamRelaxIterations));
+            StitchEdges(flow, profile.HydrologySeamRelaxBlend * 0.65f);
             RelaxEdges(flow, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return flow;
         }
@@ -680,6 +724,11 @@ namespace GameWorld
             }
 
             ClampVariance(hydrology, profile.HydrologyVarianceClamp);
+            ApplyFlowShadow(
+                hydrology,
+                flow,
+                Mathf.Max(0.05f, profile.HydrologyContinuityWeight * 0.35f),
+                Mathf.Max(0.01f, profile.HydrologyGradientWeight * 0.15f));
         }
 
         private static void Smooth2D(float[,] field, int iterations, float blend)
@@ -849,6 +898,105 @@ namespace GameWorld
                     }
                 }
             }
+        }
+
+        private static void StitchEdges(float[,] field, float blend)
+        {
+            blend = Mathf.Clamp01(blend);
+            if (blend <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    bool isEdge = x == 0 || z == 0 || x == sizeX - 1 || z == sizeZ - 1;
+                    if (!isEdge)
+                    {
+                        continue;
+                    }
+
+                    float interior = SampleInterior(field, x, z);
+                    buffer[x, z] = field[x, z] * (1f - blend) + interior * blend;
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void FillBasins(float[,] field, float strength, int iterations)
+        {
+            strength = Mathf.Clamp01(strength);
+            iterations = Mathf.Max(0, iterations);
+            if (strength <= 0.0f || iterations == 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float value = field[x, z];
+                        float neighbour = SampleInterior(field, x, z);
+                        if (value >= neighbour)
+                        {
+                            buffer[x, z] = value;
+                            continue;
+                        }
+
+                        float delta = (neighbour - value) * strength * 0.5f;
+                        buffer[x, z] = Mathf.Clamp01(value + delta);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private static void ApplyFlowShadow(float[,] hydrology, float[,] flow, float weight, float slopeWeight)
+        {
+            weight = Mathf.Clamp01(weight);
+            slopeWeight = Mathf.Clamp01(slopeWeight);
+            if (weight <= 0.0f && slopeWeight <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var buffer = (float[,])hydrology.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float flowShadow = Mathf.Clamp((flowValue + neighbourFlow) * 0.5f * weight, 0f, 0.6f);
+
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float slopeShadow = Mathf.Clamp(Mathf.Abs(hydro - neighbourHydro) * slopeWeight, 0f, 0.35f);
+
+                    float dampened = hydro * (1f - flowShadow * 0.35f - slopeShadow * 0.35f) + neighbourHydro * (flowShadow * 0.2f);
+                    buffer[x, z] = Mathf.Clamp01(dampened);
+                }
+            }
+
+            Array.Copy(buffer, hydrology, buffer.Length);
         }
 
         private static void StabilizeEdges(float[,] field, int radius, int iterations, float weight, float fluxBlend)

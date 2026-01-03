@@ -136,6 +136,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeFlowLockWeight,
                 config.Water.HydrologyEdgeFlowBias,
                 config.Water.HydrologyEdgeTangentWeight);
+            TerrainMaskUtility.FillBasins(
+                hydrology,
+                Math.Max(0.05, config.Water.HydrologyEdgeStabilityWeight * 0.5),
+                Math.Max(1, config.Water.HydrologySeamRelaxIterations));
+            TerrainMaskUtility.StitchEdges(hydrology, config.Water.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.ClampVariance(hydrology, varianceClamp);
             TerrainMaskUtility.RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return hydrology;
@@ -199,6 +204,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeFlowLockWeight,
                 config.Water.HydrologyEdgeFlowBias,
                 config.Water.HydrologyEdgeTangentWeight);
+            TerrainMaskUtility.FillBasins(
+                flow,
+                Math.Max(0.05, config.Water.HydrologyEdgeStabilityWeight * 0.35),
+                Math.Max(1, config.Water.HydrologySeamRelaxIterations));
+            TerrainMaskUtility.StitchEdges(flow, config.Water.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
         }
@@ -237,6 +247,11 @@ namespace GameServerApp.World.Generation
             }
 
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
+            TerrainMaskUtility.ApplyFlowShadow(
+                hydrology,
+                flow,
+                Math.Max(0.05, config.Water.HydrologyContinuityWeight * 0.35),
+                Math.Max(0.01, config.Water.HydrologyGradientWeight * 0.15));
         }
 
         private static double SampleCurvature(int[,] heightMap, int x, int z)
@@ -529,6 +544,105 @@ namespace GameServerApp.World.Generation
                     }
                 }
             }
+        }
+
+        public static void StitchEdges(float[,] field, double blend)
+        {
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    bool isEdge = x == 0 || z == 0 || x == sizeX - 1 || z == sizeZ - 1;
+                    if (!isEdge)
+                    {
+                        continue;
+                    }
+
+                    float interior = SampleInterior(field, x, z);
+                    buffer[x, z] = (float)(field[x, z] * (1.0 - blend) + interior * blend);
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        public static void FillBasins(float[,] field, double strength, int iterations)
+        {
+            strength = Math.Clamp(strength, 0.0, 1.0);
+            iterations = Math.Max(0, iterations);
+            if (strength <= 0.0 || iterations == 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float value = field[x, z];
+                        float neighbour = SampleInterior(field, x, z);
+                        if (value >= neighbour)
+                        {
+                            buffer[x, z] = value;
+                            continue;
+                        }
+
+                        double delta = (neighbour - value) * strength * 0.5;
+                        buffer[x, z] = Clamp01(value + (float)delta);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        public static void ApplyFlowShadow(float[,] hydrology, float[,] flow, double weight, double slopeWeight)
+        {
+            weight = Math.Clamp(weight, 0.0, 1.0);
+            slopeWeight = Math.Clamp(slopeWeight, 0.0, 1.0);
+            if (weight <= 0.0 && slopeWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var buffer = (float[,])hydrology.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    double flowShadow = Math.Clamp((flowValue + neighbourFlow) * 0.5 * weight, 0.0, 0.6);
+
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    double slopeShadow = Math.Clamp(Math.Abs(hydro - neighbourHydro) * slopeWeight, 0.0, 0.35);
+
+                    double dampened = hydro * (1.0 - flowShadow * 0.35 - slopeShadow * 0.35) + neighbourHydro * (flowShadow * 0.2);
+                    buffer[x, z] = Clamp01(dampened);
+                }
+            }
+
+            Array.Copy(buffer, hydrology, buffer.Length);
         }
 
         public static float SampleInterior(float[,] field, int x, int z)

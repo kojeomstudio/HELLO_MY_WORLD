@@ -80,6 +80,15 @@ namespace SharedProtocol.EnhancedMinecraft
 
             try
             {
+                ValidateDescriptorFileName(issues);
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"Descriptor filename validation failed: {ex.Message}");
+            }
+
+            try
+            {
                 var runtimeFingerprint = ProtoFingerprint.ComputeFingerprint();
                 if (!string.Equals(ProtoFingerprint.DescriptorFingerprint, runtimeFingerprint, StringComparison.OrdinalIgnoreCase))
                 {
@@ -130,6 +139,23 @@ namespace SharedProtocol.EnhancedMinecraft
             if (missingDescriptors.Length > 0)
             {
                 issues.Add($"Descriptor bindings missing for: {string.Join(", ", missingDescriptors)}. Regenerate EnhancedMinecraft protobuf DTOs or update ProtocolRegistry to keep parsers and descriptors aligned.");
+            }
+        }
+
+        private static void ValidateDescriptorFileName(ICollection<string> issues)
+        {
+            string? descriptorName = EnhancedMinecraftGameReflection.Descriptor?.Name;
+            const string expectedName = "enhanced_minecraft_game.proto";
+
+            if (string.IsNullOrWhiteSpace(descriptorName))
+            {
+                issues.Add("EnhancedMinecraft descriptor name is missing; regenerate proto assets.");
+                return;
+            }
+
+            if (!string.Equals(descriptorName, expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add($"EnhancedMinecraft descriptor expected '{expectedName}' but loaded '{descriptorName}'. Ensure using directives point at the generated EnhancedMinecraftGame descriptors and discard stale .proto outputs.");
             }
         }
 

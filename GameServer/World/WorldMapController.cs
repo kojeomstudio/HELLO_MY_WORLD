@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GameServerApp;
@@ -34,14 +35,19 @@ namespace GameServerApp.World
     {
         private readonly ILogger<WorldMapController> logger;
         private readonly WorldSettings worldSettings;
-        private readonly WorldGenerationConfig generationConfig;
-        private readonly EnhancedTerrainGenerationPipeline pipeline;
-        private readonly WorldMapControlProfile controlProfile;
+        private WorldGenerationConfig generationConfig;
+        private EnhancedTerrainGenerationPipeline pipeline;
+        private WorldMapControlProfile controlProfile;
+        private readonly string profilePath;
+        private readonly string worldConfigPath;
+        private DateTime profileWriteTime;
+        private DateTime worldConfigWriteTime;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
         private readonly ConcurrentDictionary<Vector2Int, DateTime> accessTimes = new();
         private readonly Timer cleanupTimer;
+        private readonly object reloadLock = new();
 
         public WorldMapControlProfile ControlProfile => controlProfile;
 
@@ -54,9 +60,18 @@ namespace GameServerApp.World
             this.worldSettings = worldSettings ?? throw new ArgumentNullException(nameof(worldSettings));
             this.generationConfig = generationConfig ?? throw new ArgumentNullException(nameof(generationConfig));
 
-            pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
-            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
-            WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
+            profilePath = string.IsNullOrWhiteSpace(this.generationConfig.MapControlProfilePath)
+                ? "config/world_map_control_profile.json"
+                : this.generationConfig.MapControlProfilePath;
+            worldConfigPath = string.IsNullOrWhiteSpace(this.generationConfig.SourcePath)
+                ? "config/world.json"
+                : this.generationConfig.SourcePath;
+
+            pipeline = new EnhancedTerrainGenerationPipeline(this.generationConfig, worldSettings, logger);
+            controlProfile = WorldMapControlProfileUtility.LoadOrCreate(this.generationConfig, worldSettings);
+            WorldMapControlProfileUtility.Save(controlProfile, profilePath);
+            profileWriteTime = GetWriteTime(profilePath);
+            worldConfigWriteTime = GetWriteTime(worldConfigPath);
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
             cleanupTimer = new Timer(_ => CleanupOldChunks(), null, cleanupInterval, cleanupInterval);
@@ -69,6 +84,7 @@ namespace GameServerApp.World
 
         public async Task<ChunkData> GetChunkAsync(int chunkX, int chunkZ, CancellationToken cancellationToken = default)
         {
+            MaybeReloadProfile();
             var pos = new Vector2Int(chunkX, chunkZ);
             accessTimes[pos] = DateTime.UtcNow;
 
@@ -178,6 +194,59 @@ namespace GameServerApp.World
             catch (Exception ex)
             {
                 logger.LogError(ex, "[WorldMapController] Chunk cleanup failed");
+            }
+        }
+
+        private void MaybeReloadProfile()
+        {
+            bool reloadNeeded = false;
+
+            lock (reloadLock)
+            {
+                DateTime currentWorldWrite = GetWriteTime(worldConfigPath);
+                if (currentWorldWrite > worldConfigWriteTime)
+                {
+                    generationConfig = WorldGenerationConfig.Load(worldConfigPath);
+                    worldConfigWriteTime = currentWorldWrite;
+                    reloadNeeded = true;
+                }
+
+                DateTime currentProfileWrite = GetWriteTime(profilePath);
+                if (currentProfileWrite > profileWriteTime)
+                {
+                    var loaded = WorldMapControlProfileUtility.Load(profilePath);
+                    if (loaded != null && !string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        controlProfile = loaded;
+                        reloadNeeded = true;
+                    }
+
+                    profileWriteTime = currentProfileWrite;
+                }
+
+                if (reloadNeeded)
+                {
+                    pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
+                    loadedChunks.Clear();
+                    generationTasks.Clear();
+                    accessTimes.Clear();
+                    logger.LogInformation(
+                        "[WorldMapController] Reloaded map-control profile hash={Hash} (config updated: {ConfigPath})",
+                        controlProfile.ProfileHash,
+                        worldConfigPath);
+                }
+            }
+        }
+
+        private static DateTime GetWriteTime(string path)
+        {
+            try
+            {
+                return File.GetLastWriteTimeUtc(path);
+            }
+            catch
+            {
+                return DateTime.MinValue;
             }
         }
     }

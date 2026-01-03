@@ -53,7 +53,9 @@ namespace GameServerApp.World.Generation
                     float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
-                    double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor);
+                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
+                    double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -98,6 +100,7 @@ namespace GameServerApp.World.Generation
                         threshold -= depthFactor * depthWeight * 0.6;
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * config.EdgeSealStrength * 0.35;
+                        threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)

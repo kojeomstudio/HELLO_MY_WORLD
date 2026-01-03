@@ -14,6 +14,11 @@ namespace Minecraft.Core
         private static WorldConfig _instance;
         public static WorldConfig Instance => _instance ??= LoadConfig();
 
+        public static void ForceReload()
+        {
+            _instance = LoadConfig();
+        }
+
         public string WorldName { get; private set; }
         public int Seed { get; private set; }
         public string GameMode { get; private set; }

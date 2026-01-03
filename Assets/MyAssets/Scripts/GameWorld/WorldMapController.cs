@@ -354,6 +354,7 @@ namespace GameWorld
         {
             var mask = new float[chunkSize, chunkSize];
             double noiseScale = Math.Max(0.0001, profile.RiverNoiseScale);
+            double confluenceBoost = Math.Clamp(profile.RiverConfluenceBoost, 0.0, 2.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -378,6 +379,13 @@ namespace GameWorld
                     pressure *= 1.0 + directionality * profile.RiverAnisotropyWeight * 0.2;
                     pressure *= 1.0 - Math.Clamp(gradient * profile.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight, 0.0, 0.35);
+                    if (confluenceBoost > 0.0)
+                    {
+                        double neighbourFlow = SampleInterior(flow, x, z) / 6.0;
+                        double tributary = Math.Clamp((flowSample + neighbourFlow) * 0.5, 0.0, 1.0);
+                        double hydrologyAssist = hydrologySample * 0.5;
+                        pressure *= 1.0 + (tributary + hydrologyAssist) * confluenceBoost * 0.35;
+                    }
 
                     double headwater = 1.0 - Math.Clamp(flowSample * profile.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
@@ -454,7 +462,7 @@ namespace GameWorld
             Smooth2D(lakes, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
             RelaxEdges(lakes, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             ApplyRiparianBuffer(lakes, Math.Min(profile.LakeWetlandBufferRadius, profile.LakeMaxRadius), profile.LakeShorelineBlend);
-            ApplyOutflowChannels(lakes, heightMap, flow, profile.LakeInflowBlendWeight);
+            ApplyOutflowChannels(lakes, heightMap, flow, profile.LakeInflowBlendWeight, profile.LakeOutflowCarveDepth);
             return lakes;
         }
 
@@ -491,10 +499,11 @@ namespace GameWorld
             }
         }
 
-        private void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, float inflowBlendWeight)
+        private void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, float inflowBlendWeight, int outflowDepth)
         {
             inflowBlendWeight = Mathf.Clamp01(inflowBlendWeight);
-            if (inflowBlendWeight <= 0f)
+            outflowDepth = Mathf.Max(1, outflowDepth);
+            if (inflowBlendWeight <= 0f && outflowDepth <= 0)
             {
                 return;
             }
@@ -516,10 +525,24 @@ namespace GameWorld
                         continue;
                     }
 
-                    int nx = Mathf.Clamp(x + downhill.x, 0, chunkSize - 1);
-                    int nz = Mathf.Clamp(z + downhill.y, 0, chunkSize - 1);
-                    float flowInfluence = Mathf.Clamp01(flow[x, z] * inflowBlendWeight);
-                    buffer[nx, nz] = Mathf.Max(buffer[nx, nz], lakeStrength * 0.5f + flowInfluence * 0.35f);
+                    int currentX = x;
+                    int currentZ = z;
+                    float channelStrength = lakeStrength;
+
+                    for (int step = 0; step < outflowDepth; step++)
+                    {
+                        currentX = Mathf.Clamp(currentX + downhill.x, 0, chunkSize - 1);
+                        currentZ = Mathf.Clamp(currentZ + downhill.y, 0, chunkSize - 1);
+
+                        float flowInfluence = Mathf.Clamp01(flow[currentX, currentZ] * inflowBlendWeight);
+                        float blended = Mathf.Max(channelStrength * 0.65f, lakeStrength * 0.35f);
+                        buffer[currentX, currentZ] = Mathf.Max(buffer[currentX, currentZ], blended + flowInfluence * 0.5f);
+
+                        if (downhill == Vector2Int.zero)
+                        {
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -547,6 +570,12 @@ namespace GameWorld
                     baseline = Math.Clamp(baseline + warp + shoreBoost * 0.05 - curvature, 0.0, 1.2);
                     hydrology[x, z] = Mathf.Clamp01((float)baseline);
                 }
+            }
+
+            float varianceBlend = Mathf.Clamp01(profile.HydrologyVarianceBlend);
+            if (varianceBlend > 0f)
+            {
+                BlendInterior(hydrology, varianceBlend);
             }
 
             Smooth2D(hydrology, profile.HydrologySmoothIterations, profile.HydrologySmoothBlend);
@@ -623,6 +652,7 @@ namespace GameWorld
             int sizeZ = hydrology.GetLength(1);
             float flowBlend = Mathf.Clamp(profile.HydrologyContinuityWeight * 0.35f, 0.05f, 0.45f);
             float edgeBlend = Mathf.Clamp(profile.HydrologyEdgeFlowLockWeight * 0.5f, 0.0f, 0.45f);
+            float confluenceBoost = Mathf.Clamp(profile.RiverConfluenceBoost, 0f, 2f);
             int edgeRadius = Mathf.Max(1, profile.HydrologyEdgeBlendRadius);
 
             for (int x = 0; x < sizeX; x++)
@@ -632,12 +662,20 @@ namespace GameWorld
                     float hydro = hydrology[x, z];
                     float flowValue = flow[x, z];
                     float normalizedFlow = Mathf.Clamp(flowValue / Mathf.Max(1f, profile.RiverDepth), 0f, 1f);
+                    float neighbourFlow = SampleInterior(flow, x, z) / Mathf.Max(1f, profile.RiverDepth);
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
                     float edgeFactor = edgeBlend * Mathf.Clamp01(1f - edgeDistance / (float)(edgeRadius + 1));
                     float blend = Mathf.Clamp(flowBlend + edgeFactor, 0f, 0.9f);
 
-                    hydrology[x, z] = Mathf.Clamp01(hydro * (1f - blend) + normalizedFlow * blend);
+                    float confluence = confluenceBoost > 0f
+                        ? (neighbourFlow * 0.5f + neighbourHydro * 0.25f) * confluenceBoost
+                        : 0f;
+
+                    float blended = hydro * (1f - blend) + normalizedFlow * blend;
+                    blended *= 1f + confluence;
+                    hydrology[x, z] = Mathf.Clamp(blended, 0f, 1.25f);
                 }
             }
 
@@ -974,6 +1012,30 @@ namespace GameWorld
                     float centre = field[x, z];
                     float interior = SampleInterior(field, x, z);
                     buffer[x, z] = Mathf.Clamp01(centre * (1.0f - clamp * 0.5f) + interior * (clamp * 0.5f));
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void BlendInterior(float[,] field, float blend)
+        {
+            blend = Mathf.Clamp01(blend);
+            if (blend <= 0.0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float interior = SampleInterior(field, x, z);
+                    buffer[x, z] = field[x, z] * (1f - blend) + interior * blend;
                 }
             }
 

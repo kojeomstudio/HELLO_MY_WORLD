@@ -13,7 +13,9 @@
     "MinWidth": 2,
     "MaxWidth": 8,
     "DeltaFertility": 0.6,
-    "EnableTributaries": true
+    "EnableTributaries": true,
+    "ConfluenceBoost": 0.35,
+    "VarianceBlend": 0.2
   },
   "Lakes": {
     "DepthVariation": 0.5,
@@ -21,37 +23,9 @@
     "MinDepth": 3,
     "MaxDepth": 12,
     "IslandChance": 0.05,
-    "EnableOutflow": true
-  },
-  "Terrain": {
-    "BiomeTransitionSmoothing": 0.3,
-    "DetailNoiseOctaves": 2,
-    "DetailNoiseStrength": 0.15,
-    "EnableSeamlessChunks": true
-  }
-}  "Caves": {
-    "ConnectivityThreshold": 0.3,
-    "TunnelWidth": 0.15,
-    "MinTunnelHeight": 2,
-    "LavaPoolChance": 0.08,
-    "WaterPoolChance": 0.12,
-    "EnableMultiLevel": true
-  },
-  "Water": {
-    "MeanderStrength": 0.7,
-    "WidthVariation": 0.4,
-    "MinWidth": 2,
-    "MaxWidth": 8,
-    "DeltaFertility": 0.6,
-    "EnableTributaries": true
-  },
-  "Lakes": {
-    "DepthVariation": 0.5,
-    "ShoreComplexity": 0.3,
-    "MinDepth": 3,
-    "MaxDepth": 12,
-    "IslandChance": 0.05,
-    "EnableOutflow": true
+    "EnableOutflow": true,
+    "OutflowCarveDepth": 3,
+    "WetlandBufferRadius": 2
   },
   "Terrain": {
     "BiomeTransitionSmoothing": 0.3,

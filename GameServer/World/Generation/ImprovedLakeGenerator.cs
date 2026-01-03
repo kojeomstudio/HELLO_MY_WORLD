@@ -69,7 +69,7 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, waterConfig.HydrologySmoothBlend);
             TerrainMaskUtility.RelaxEdges(lakes, waterConfig.HydrologySeamRelaxIterations, waterConfig.HydrologySeamRelaxBlend);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
-            ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight);
+            ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth);
             return lakes;
         }
 
@@ -118,10 +118,11 @@ namespace GameServerApp.World.Generation
             Array.Copy(buffer, field, buffer.Length);
         }
 
-        private static void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, double inflowBlendWeight)
+        private static void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, double inflowBlendWeight, int outflowDepth)
         {
             inflowBlendWeight = Math.Clamp(inflowBlendWeight, 0.0, 1.0);
-            if (inflowBlendWeight <= 0.0)
+            outflowDepth = Math.Max(1, outflowDepth);
+            if (inflowBlendWeight <= 0.0 && outflowDepth <= 0)
             {
                 return;
             }
@@ -146,10 +147,24 @@ namespace GameServerApp.World.Generation
                         continue;
                     }
 
-                    int nx = Math.Clamp(x + downhill.X, 0, sizeX - 1);
-                    int nz = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
-                    float flowInfluence = TerrainMaskUtility.Clamp01(flow[x, z] * (float)inflowBlendWeight);
-                    buffer[nx, nz] = Math.Max(buffer[nx, nz], lakeStrength * 0.5f + flowInfluence * 0.35f);
+                    int currentX = x;
+                    int currentZ = z;
+                    float channelStrength = lakeStrength;
+
+                    for (int step = 0; step < outflowDepth; step++)
+                    {
+                        currentX = Math.Clamp(currentX + downhill.X, 0, sizeX - 1);
+                        currentZ = Math.Clamp(currentZ + downhill.Z, 0, sizeZ - 1);
+
+                        float flowInfluence = TerrainMaskUtility.Clamp01(flow[currentX, currentZ] * (float)inflowBlendWeight);
+                        float blended = Math.Max(channelStrength * 0.65f, lakeStrength * 0.35f);
+                        buffer[currentX, currentZ] = Math.Max(buffer[currentX, currentZ], blended + flowInfluence * 0.5f);
+
+                        if (downhill == (0, 0))
+                        {
+                            break;
+                        }
+                    }
                 }
             }
 

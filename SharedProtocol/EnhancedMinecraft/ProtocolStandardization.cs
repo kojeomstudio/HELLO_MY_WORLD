@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
@@ -70,6 +71,15 @@ namespace SharedProtocol.EnhancedMinecraft
 
             try
             {
+                ValidateDescriptorCoverage(issues);
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"Descriptor coverage check failed: {ex.Message}");
+            }
+
+            try
+            {
                 var runtimeFingerprint = ProtoFingerprint.ComputeFingerprint();
                 if (!string.Equals(ProtoFingerprint.DescriptorFingerprint, runtimeFingerprint, StringComparison.OrdinalIgnoreCase))
                 {
@@ -108,6 +118,18 @@ namespace SharedProtocol.EnhancedMinecraft
                 {
                     throw new InvalidOperationException($"Missing Google.Protobuf parser for '{messageType}' ({prototype.Descriptor?.Name}). Ensure using directives reference the generated DTOs and regenerate protobuf assets if needed.");
                 }
+            }
+        }
+
+        private static void ValidateDescriptorCoverage(ICollection<string> issues)
+        {
+            var missingDescriptors = ProtocolRegistry.RegisteredMessageTypes
+                .Where(type => !ProtocolRegistry.RegisteredDescriptors.Any(binding => binding.MessageType == type))
+                .ToArray();
+
+            if (missingDescriptors.Length > 0)
+            {
+                issues.Add($"Descriptor bindings missing for: {string.Join(", ", missingDescriptors)}. Regenerate EnhancedMinecraft protobuf DTOs or update ProtocolRegistry to keep parsers and descriptors aligned.");
             }
         }
 

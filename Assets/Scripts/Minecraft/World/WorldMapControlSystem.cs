@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Minecraft.World
 {
@@ -549,9 +552,13 @@ namespace Minecraft.World
             return hashSource.GetHashCode().ToString("X");
         }
         
+#if UNITY_EDITOR
         private void OnGUI()
         {
-            if (!showControlPanel) return;
+            if (!showControlPanel)
+            {
+                return;
+            }
             
             GUILayout.BeginArea(new Rect(10, 10, 300, 600));
             GUILayout.BeginVertical("box");
@@ -585,6 +592,7 @@ namespace Minecraft.World
             GUILayout.EndVertical();
             GUILayout.EndArea();
         }
+#endif
         
         private void OnDestroy()
         {
@@ -1801,5 +1809,4 @@ namespace Minecraft.World
         public bool UseImprovedRivers { get; set; }
         public bool UseImprovedLakes { get; set; }
     }
-}
 }

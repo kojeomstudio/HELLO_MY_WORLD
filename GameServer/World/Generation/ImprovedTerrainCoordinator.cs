@@ -87,6 +87,8 @@ namespace GameServerApp.World.Generation
             double varianceClamp = Math.Clamp(config.Water.HydrologyVarianceClamp, 0.0, 2.0);
             double shorePush = Math.Max(0.1, config.Water.HydrologyShorePush);
 
+            double varianceBlend = Math.Clamp(config.Water.HydrologyVarianceBlend, 0.0, 1.0);
+
             for (int x = 0; x < size; x++)
             {
                 for (int z = 0; z < size; z++)
@@ -111,6 +113,11 @@ namespace GameServerApp.World.Generation
                     baseline = Math.Clamp(baseline + warpedNoise * 0.05 + shoreBoost * 0.05 - curvature, 0.0, 1.2);
                     hydrology[x, z] = (float)baseline;
                 }
+            }
+
+            if (varianceBlend > 0.0)
+            {
+                TerrainMaskUtility.BlendInterior(hydrology, varianceBlend);
             }
 
             TerrainMaskUtility.Smooth2D(hydrology, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
@@ -203,6 +210,7 @@ namespace GameServerApp.World.Generation
             double flowBlend = Math.Clamp(config.Water.HydrologyContinuityWeight * 0.35, 0.05, 0.45);
             double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeFlowLockWeight * 0.5, 0.0, 0.45);
             int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double confluenceBoost = Math.Clamp(config.Water.RiverConfluenceBoost, 0.0, 2.0);
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -211,12 +219,20 @@ namespace GameServerApp.World.Generation
                     float hydro = hydrology[x, z];
                     float flowValue = flow[x, z];
                     double normalizedFlow = Math.Clamp(flowValue / Math.Max(1.0, config.Water.RiverDepth), 0.0, 1.0);
+                    double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / Math.Max(1.0, config.Water.RiverDepth);
+                    double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
                     double edgeFactor = edgeBlend * Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
                     double blend = Math.Clamp(flowBlend + edgeFactor, 0.0, 0.9);
 
-                    hydrology[x, z] = (float)Math.Clamp(hydro * (1.0 - blend) + normalizedFlow * blend, 0.0, 1.0);
+                    double confluence = confluenceBoost > 0.0
+                        ? (neighbourFlow * 0.5 + neighbourHydro * 0.25) * confluenceBoost
+                        : 0.0;
+
+                    double blended = hydro * (1.0 - blend) + normalizedFlow * blend;
+                    blended *= 1.0 + confluence;
+                    hydrology[x, z] = (float)Math.Clamp(blended, 0.0, 1.25);
                 }
             }
 
@@ -515,7 +531,7 @@ namespace GameServerApp.World.Generation
             }
         }
 
-        private static float SampleInterior(float[,] field, int x, int z)
+        public static float SampleInterior(float[,] field, int x, int z)
         {
             int sizeX = field.GetLength(0);
             int sizeZ = field.GetLength(1);
@@ -536,6 +552,30 @@ namespace GameServerApp.World.Generation
             }
 
             return count == 0 ? field[cx, cz] : sum / count;
+        }
+
+        public static void BlendInterior(float[,] field, double blend)
+        {
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float interior = SampleInterior(field, x, z);
+                    buffer[x, z] = (float)(field[x, z] * (1.0 - blend) + interior * blend);
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
         }
 
         public static (int X, int Z) ComputeDownhillVector(int[,] heightMap, int x, int z)

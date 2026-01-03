@@ -30,6 +30,7 @@ namespace GameServerApp.World.Generation
             var mask = new float[chunkSize, chunkSize];
             double noiseScale = Math.Max(0.0001, config.RiverNoiseScale);
             double reliefPenalty = Math.Clamp(config.RiverReliefPenaltyWeight, 0.0, 1.0);
+            double confluenceBoost = Math.Clamp(config.RiverConfluenceBoost, 0.0, 2.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -61,6 +62,13 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + directionality * config.RiverAnisotropyWeight * 0.2;
                     pressure *= 1.0 - Math.Clamp(gradient * config.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
+                    if (confluenceBoost > 0.0)
+                    {
+                        double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
+                        double tributaryPressure = Math.Clamp((flow + neighbourFlow) * 0.5, 0.0, 1.0);
+                        double hydrologyAssist = hydrology * 0.5;
+                        pressure *= 1.0 + (tributaryPressure + hydrologyAssist) * confluenceBoost * 0.35;
+                    }
 
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);

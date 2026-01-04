@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "profileHash": "dcfcc367f1ad22eafd1415585da0f6118e1cab7b2299d38d717dfb3780c956e7",
+  "profileHash": "f1a4035964f23570faa4d64ac3d76ed3cd5d37eb2f8f9d0f3834a42858be7a90",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-01-02T06:44:05.7474741Z",
+  "generatedAtUtc": "2026-01-04T06:25:49.1203509Z",
   "chunkSize": 16,
-  "renderDistance": 10,
+  "renderDistance": 12,
   "simulationDistance": 12,
   "globalWaterLevel": 62,
   "hydrologyGradientStabilityIterations": 1,

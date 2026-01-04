@@ -89,6 +89,15 @@ namespace SharedProtocol.EnhancedMinecraft
 
             try
             {
+                ValidateDescriptorOrigin(issues);
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"Descriptor origin validation failed: {ex.Message}");
+            }
+
+            try
+            {
                 var runtimeFingerprint = ProtoFingerprint.ComputeFingerprint();
                 if (!string.Equals(ProtoFingerprint.DescriptorFingerprint, runtimeFingerprint, StringComparison.OrdinalIgnoreCase))
                 {
@@ -156,6 +165,40 @@ namespace SharedProtocol.EnhancedMinecraft
             if (!string.Equals(descriptorName, expectedName, StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add($"EnhancedMinecraft descriptor expected '{expectedName}' but loaded '{descriptorName}'. Ensure using directives point at the generated EnhancedMinecraftGame descriptors and discard stale .proto outputs.");
+            }
+        }
+
+        private static void ValidateDescriptorOrigin(ICollection<string> issues)
+        {
+            var expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name;
+
+            foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+            {
+                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+                {
+                    issues.Add($"Failed to create prototype for '{messageType}' during origin validation.");
+                    continue;
+                }
+
+                var descriptor = prototype.Descriptor;
+                if (descriptor == null)
+                {
+                    issues.Add($"Descriptor missing for '{messageType}' during origin validation.");
+                    continue;
+                }
+
+                var clrType = descriptor.ClrType;
+                var clrAssembly = clrType?.Assembly?.GetName().Name;
+                if (!string.IsNullOrWhiteSpace(clrAssembly) && !string.Equals(clrAssembly, expectedAssembly, StringComparison.Ordinal))
+                {
+                    issues.Add($"Message {messageType} resolved from assembly '{clrAssembly}' instead of '{expectedAssembly}'. Check using directives and regenerate EnhancedMinecraftProtocol DTOs.");
+                }
+
+                var namespaceCandidate = descriptor.File?.Package ?? clrType?.Namespace ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(namespaceCandidate) && !namespaceCandidate.StartsWith(nameof(EnhancedMinecraftProtocol), StringComparison.Ordinal))
+                {
+                    issues.Add($"Message {messageType} uses namespace '{namespaceCandidate}', expected prefix '{nameof(EnhancedMinecraftProtocol)}'. Ensure handlers reference the generated EnhancedMinecraftProtocol classes.");
+                }
             }
         }
 

@@ -41,6 +41,14 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - Cave ceilings reinforce near saturated/riparian spans (`Caves.CeilingStabilityWeight`), reducing skylight collapses where water tables or rivers meet shallow caves.
 - These knobs are serialized into `config/world_map_control_profile.json` and mirrored to `Assets/StreamingAssets/world-map-control.json`; regenerate the profile hash when tweaking values.
 
+## 2026-02-16 Flow-Shadow Hydrology & Meander Stability
+
+- Hydrology masks now apply a flow-shadow pass (blending flow accumulation with hydrology gradients) before cave/river/lake carving on server (`ImprovedTerrainCoordinator`) and Unity previews (`EnhancedTerrainGenerator`, MapGeneratorLib smoothing), reducing flooded seams.
+- Rivers pick up meander jitter driven by the existing hydrology warp noise so channel pressure varies smoothly while remaining stitched across chunk edges (`ImprovedRiverGenerator`, Unity `BuildRiverMask`).
+- Lakes weigh rim noise and hydrology gradients more heavily and damp spawn weight in high-flow spans, producing more stable shore complexity and cleaner wetlands/outflows (`ImprovedLakeGenerator`, Unity `BuildLakeMask`).
+- Caves factor flow-shadow stability and hydrology gradients into their thresholds and support pillar bias to avoid saturated ceilings while keeping moisture-biased pillars (`ImprovedCaveGenerator`, Unity `BuildCaveMask`).
+- Enhanced terrain overrides were refreshed to match the new tuning (`config/enhanced-terrain-config.json`, `Assets/StreamingAssets/enhanced-terrain-config.json`); keep StreamingAssets copies mirrored with the server config.
+
 ## Configuration
 
 - Server boot now loads hydrology and cave/lake tuning from `config/world.json` via `WorldGenerationConfig` (path controlled by `World.WorldConfigPath` in `server-config.json`). Rivers, lakes, and noise-cave thresholds/flags can be toggled without recompiling.

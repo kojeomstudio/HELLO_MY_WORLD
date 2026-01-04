@@ -1603,6 +1603,52 @@ namespace MapGenLib
                 Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
                 Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
             }
+
+            ApplyFlowShadowMask(hydrologyMask, flowAccumulation);
+        }
+
+        private static float SampleInterior(float[,] field, int x, int z)
+        {
+            int width = field.GetLength(0);
+            int depth = field.GetLength(1);
+            int cx = CustomMathf.Clamp(x, 1, width - 2);
+            int cz = CustomMathf.Clamp(z, 1, depth - 2);
+            float sum = 0f;
+            int count = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int nx = CustomMathf.Clamp(cx + dx, 1, width - 2);
+                    int nz = CustomMathf.Clamp(cz + dz, 1, depth - 2);
+                    sum += field[nx, nz];
+                    count++;
+                }
+            }
+
+            return count == 0 ? field[cx, cz] : sum / count;
+        }
+
+        private static void ApplyFlowShadowMask(float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            float weight = CustomMathf.Clamp01(HydrologyContinuityWeight * 0.45f + HydrologyEdgeStabilityWeight * 0.25f);
+            float slopeWeight = CustomMathf.Clamp01(HydrologyGradientSlopeWeight * 0.2f + HydrologyEdgeVarianceClamp * 0.35f);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float hydro = hydrologyMask[x, z];
+                    float flow = flowAccumulation[x, z];
+                    float neighborHydro = SampleInterior(hydrologyMask, x, z);
+                    float hydrologyGradient = CustomMathf.Abs(neighborHydro - hydro);
+                    float flowShadow = CustomMathf.Clamp((flow / 12f) * weight + hydrologyGradient * slopeWeight * 0.5f, 0f, 0.6f);
+                    hydrologyMask[x, z] = CustomMathf.Clamp(hydro * (1f - flowShadow * 0.35f) + neighborHydro * flowShadow * 0.35f, 0f, 1.25f);
+                }
+            }
         }
 
         private static void RelaxHydrologySeams(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
@@ -2727,10 +2773,12 @@ namespace MapGenLib
             float baseNoise = Noise.GetNoise(sampleX, 0, sampleZ);
             float detailNoise = Noise.GetNoise(sampleX * 0.35f, 0, sampleZ * 0.35f);
             float ridgeNoise = Noise.GetNoise(sampleX * 1.6f, 0, sampleZ * 1.6f);
+            float meanderNoise = CustomMathf.Abs(Noise.GetNoise(sampleX * 0.65f + 19f, 0, sampleZ * 0.65f - 11f));
 
             float riverMask = CustomMathf.Abs(baseNoise - 0.5f);
             riverMask = riverMask * (0.58f + 0.25f * ridgeNoise) - 0.045f * CustomMathf.Abs(detailNoise);
-            riverMask = CustomMathf.Max(riverMask, 0.0f);
+            float meanderFactor = 1f + meanderNoise * CustomMathf.Clamp(HydrologyWarpAmplitude * 0.02f, 0.05f, 0.2f);
+            riverMask = CustomMathf.Max(riverMask * meanderFactor - meanderNoise * 0.015f, 0.0f);
 
             flowDir = ComputeRiverFlowDirection(sampleX, sampleZ);
             return riverMask;

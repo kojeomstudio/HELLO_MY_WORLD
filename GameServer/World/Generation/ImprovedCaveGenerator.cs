@@ -55,7 +55,10 @@ namespace GameServerApp.World.Generation
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
                     double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
+                    double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
+                    double stabilityPenalty = Math.Clamp(flowShadow * 0.35 + hydrologyGradient * 0.25 + riverPressure * 0.25, 0.0, 0.75);
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
+                    stability *= 1.0 - stabilityPenalty * 0.4;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -101,6 +104,8 @@ namespace GameServerApp.World.Generation
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * config.EdgeSealStrength * 0.35;
                         threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
+                        threshold += stabilityPenalty * 0.25;
+                        threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)
@@ -220,7 +225,8 @@ namespace GameServerApp.World.Generation
                 {
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
                     float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
-                    double pillarChance = chance * (1.0 + hydrology * config.SupportHydrationBias + river * config.SupportFlowBias);
+                    double gradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double pillarChance = chance * (1.0 + hydrology * config.SupportHydrationBias + river * config.SupportFlowBias + gradient * 0.15);
                     if (random.NextDouble() > pillarChance)
                     {
                         continue;

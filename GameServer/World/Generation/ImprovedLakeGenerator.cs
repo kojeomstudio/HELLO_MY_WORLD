@@ -49,18 +49,25 @@ namespace GameServerApp.World.Generation
                     double reliefPenalty = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
                     double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
+                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double flowShadow = Math.Clamp(
+                        flow * waterConfig.HydrologyContinuityWeight * 0.25 +
+                        hydrologyGradient * waterConfig.HydrologyEdgeVarianceClamp * 0.35,
+                        0.0,
+                        0.6);
 
                     double wetness = hydrology * 0.65 + flow * 0.35;
-                    double weight = (basinNoise * 0.45) + (rimNoise * 0.25) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
-                    weight += inflowBlend * 0.35;
+                    double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
+                    double weight = (basinNoise * 0.42) + (rimNoise * rimWeight) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
+                    weight += inflowBlend * 0.35 * (1.0 - flowShadow * 0.5);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
-                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverSuppression * 0.5;
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
                     weight *= 0.75 + radiusFalloff * 0.25;
                     double seamCushion = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion;
+                    weight *= 1.0 - flowShadow * 0.35;
 
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1;
                     if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - lakeConfig.MaxDepth)

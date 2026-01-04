@@ -182,6 +182,15 @@ namespace GameServerApp.World.Generation
                     double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * config.Water.HydrologyCurvatureWeight * 0.1;
                     double continuity = 1.0 + hydrology[x, z] * config.Water.HydrologyContinuityWeight;
                     double scaled = ((accumulation * (1.0 - persistence)) + hydrologyBoost) * continuity;
+                    double meanderNoise = Math.Abs(SimplexNoise.Generate(
+                        (x + 17 + worldSeed % 997) * config.Water.HydrologyWarpFrequency * 12.0,
+                        (z - 31 + worldSeed % 883) * config.Water.HydrologyWarpFrequency * 12.0,
+                        1.0,
+                        2,
+                        Math.Max(0.1, config.Water.HydrologyWarpAmplitude * 0.02),
+                        0.55,
+                        (int)(worldSeed ^ 0x5FFF)));
+                    scaled *= 1.0 + meanderNoise * Math.Clamp(config.Water.HydrologyVarianceBlend, 0.0, 1.0) * 0.15;
                     scaled *= 1.0 - Math.Clamp(curvature, 0.0, 0.6);
                     scaled *= 1.0 - Math.Clamp(gradientMagnitude * config.Water.HydrologyGradientSlopeWeight * 0.05, 0.0, 0.35);
                     double clampMax = Math.Max(2.5, divergenceClamp * 12.0);
@@ -221,6 +230,14 @@ namespace GameServerApp.World.Generation
             double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeFlowLockWeight * 0.5, 0.0, 0.45);
             int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
             double confluenceBoost = Math.Clamp(config.Water.RiverConfluenceBoost, 0.0, 2.0);
+            double flowShadowWeight = Math.Clamp(
+                config.Water.HydrologyContinuityWeight * 0.45 + config.Water.HydrologyEdgeStabilityWeight * 0.25,
+                0.05,
+                0.65);
+            double flowShadowSlopeWeight = Math.Clamp(
+                config.Water.HydrologyGradientSlopeWeight * 0.2 + config.Water.HydrologyEdgeVarianceClamp * 0.35,
+                0.01,
+                0.55);
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -231,27 +248,27 @@ namespace GameServerApp.World.Generation
                     double normalizedFlow = Math.Clamp(flowValue / Math.Max(1.0, config.Water.RiverDepth), 0.0, 1.0);
                     double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / Math.Max(1.0, config.Water.RiverDepth);
                     double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double hydrologyGradient = Math.Abs(neighbourHydro - hydro);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
                     double edgeFactor = edgeBlend * Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
                     double blend = Math.Clamp(flowBlend + edgeFactor, 0.0, 0.9);
 
                     double confluence = confluenceBoost > 0.0
-                        ? (neighbourFlow * 0.5 + neighbourHydro * 0.25) * confluenceBoost
+                        ? (neighbourFlow * 0.5 + neighbourHydro * 0.25 + hydrologyGradient * 0.15) * confluenceBoost
                         : 0.0;
 
+                    double flowShadow = Math.Clamp((normalizedFlow + neighbourFlow) * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight * 0.5, 0.0, 0.6);
                     double blended = hydro * (1.0 - blend) + normalizedFlow * blend;
+                    blended = blended * (1.0 - flowShadow * 0.35) + neighbourHydro * flowShadow * 0.35;
                     blended *= 1.0 + confluence;
                     hydrology[x, z] = (float)Math.Clamp(blended, 0.0, 1.25);
                 }
             }
 
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
-            TerrainMaskUtility.ApplyFlowShadow(
-                hydrology,
-                flow,
-                Math.Max(0.05, config.Water.HydrologyContinuityWeight * 0.35),
-                Math.Max(0.01, config.Water.HydrologyGradientWeight * 0.15));
+            TerrainMaskUtility.ApplyFlowShadow(hydrology, flow, flowShadowWeight, flowShadowSlopeWeight);
+            TerrainMaskUtility.StitchEdges(hydrology, Math.Min(0.65, config.Water.HydrologySeamRelaxBlend * 0.85));
         }
 
         private static double SampleCurvature(int[,] heightMap, int x, int z)

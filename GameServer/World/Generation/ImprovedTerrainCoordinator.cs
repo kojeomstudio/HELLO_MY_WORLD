@@ -51,7 +51,7 @@ namespace GameServerApp.World.Generation
             int size = Math.Min(Math.Max(1, sizeOverride), chunkSize);
             var hydrology = BuildHydrologyMask(heightMap, size);
             var flow = BuildFlowAccumulation(heightMap, hydrology, size);
-            BlendHydrologyWithFlow(hydrology, flow);
+            BlendHydrologyWithFlow(heightMap, hydrology, flow);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, seaLevel)
@@ -222,7 +222,7 @@ namespace GameServerApp.World.Generation
             return flow;
         }
 
-        private void BlendHydrologyWithFlow(float[,] hydrology, float[,] flow)
+        private void BlendHydrologyWithFlow(int[,] heightMap, float[,] hydrology, float[,] flow)
         {
             int sizeX = hydrology.GetLength(0);
             int sizeZ = hydrology.GetLength(1);
@@ -238,6 +238,9 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyGradientSlopeWeight * 0.2 + config.Water.HydrologyEdgeVarianceClamp * 0.35,
                 0.01,
                 0.55);
+            double directionalBias = Math.Clamp(config.Water.HydrologyDirectionalBlend * 0.5, 0.0, 0.5);
+
+            var buffer = (float[,])hydrology.Clone();
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -254,18 +257,33 @@ namespace GameServerApp.World.Generation
                     double edgeFactor = edgeBlend * Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
                     double blend = Math.Clamp(flowBlend + edgeFactor, 0.0, 0.9);
 
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    double directionalHydro = hydrology[downX, downZ];
+                    double directionalFlow = Math.Clamp(flow[downX, downZ] / Math.Max(1.0, config.Water.RiverDepth), 0.0, 1.0);
+                    double directionalWeight = Math.Clamp((Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * directionalBias + directionalFlow * 0.2, 0.0, 0.45);
+
                     double confluence = confluenceBoost > 0.0
                         ? (neighbourFlow * 0.5 + neighbourHydro * 0.25 + hydrologyGradient * 0.15) * confluenceBoost
                         : 0.0;
 
-                    double flowShadow = Math.Clamp((normalizedFlow + neighbourFlow) * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight * 0.5, 0.0, 0.6);
+                    double flowShadow = Math.Clamp(
+                        (normalizedFlow + neighbourFlow) * flowShadowWeight +
+                        hydrologyGradient * flowShadowSlopeWeight * 0.5 +
+                        directionalFlow * flowShadowWeight * 0.15,
+                        0.0,
+                        0.7);
+
                     double blended = hydro * (1.0 - blend) + normalizedFlow * blend;
                     blended = blended * (1.0 - flowShadow * 0.35) + neighbourHydro * flowShadow * 0.35;
+                    blended = blended * (1.0 - directionalWeight) + directionalHydro * directionalWeight;
                     blended *= 1.0 + confluence;
-                    hydrology[x, z] = (float)Math.Clamp(blended, 0.0, 1.25);
+                    buffer[x, z] = (float)Math.Clamp(blended, 0.0, 1.25);
                 }
             }
 
+            Array.Copy(buffer, hydrology, buffer.Length);
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
             TerrainMaskUtility.ApplyFlowShadow(hydrology, flow, flowShadowWeight, flowShadowSlopeWeight);
             TerrainMaskUtility.StitchEdges(hydrology, Math.Min(0.65, config.Water.HydrologySeamRelaxBlend * 0.85));

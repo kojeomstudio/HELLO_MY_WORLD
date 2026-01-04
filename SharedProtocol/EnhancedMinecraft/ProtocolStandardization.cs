@@ -136,6 +136,18 @@ namespace SharedProtocol.EnhancedMinecraft
                 {
                     throw new InvalidOperationException($"Missing Google.Protobuf parser for '{messageType}' ({prototype.Descriptor?.Name}). Ensure using directives reference the generated DTOs and regenerate protobuf assets if needed.");
                 }
+
+                var serialized = prototype.ToByteArray();
+                var parsed = prototype.Descriptor.Parser.ParseFrom(serialized);
+                if (parsed == null || parsed.Descriptor == null)
+                {
+                    throw new InvalidOperationException($"Parser round-trip failed for '{messageType}'. Verify EnhancedMinecraftProtocol generated DTOs are referenced and up to date.");
+                }
+
+                if (!string.Equals(parsed.Descriptor.Name, prototype.Descriptor.Name, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException($"Descriptor name drift for '{messageType}': expected {prototype.Descriptor.Name}, parsed {parsed.Descriptor.Name}. Check using directives and regenerate protobuf outputs.");
+                }
             }
         }
 

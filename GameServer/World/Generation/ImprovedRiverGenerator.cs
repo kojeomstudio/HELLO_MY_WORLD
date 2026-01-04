@@ -63,10 +63,16 @@ namespace GameServerApp.World.Generation
                     double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
                     double flowAlignment = 1.0 + Math.Clamp(flow * config.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
                     double seamStitch = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrologyMask[x, z]) * config.HydrologyEdgeFluxBlend, -0.35, 0.35);
-                    double flowShadow = Math.Clamp(flow * config.HydrologyContinuityWeight * 0.25, 0.0, 0.35);
+                    double flowShadow = Math.Clamp(
+                        flow * config.HydrologyContinuityWeight * 0.25 +
+                        hydrologyGradient * config.HydrologyEdgeVarianceClamp * 0.35,
+                        0.0,
+                        0.6);
+                    double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
@@ -77,11 +83,12 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
                     pressure *= flowAlignment * seamStitch * meanderFactor;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
+                    pressure *= seamGuard;
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                         double tributaryPressure = Math.Clamp((flow + neighbourFlow) * 0.5, 0.0, 1.0);
-                        double hydrologyAssist = hydrology * 0.5;
+                        double hydrologyAssist = hydrology * 0.5 + hydrologyGradient * 0.15;
                         pressure *= 1.0 + (tributaryPressure + hydrologyAssist) * confluenceBoost * 0.35;
                     }
 

@@ -54,9 +54,11 @@ namespace GameServerApp.World.Generation
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
                     double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double flowGradient = Math.Abs(TerrainMaskUtility.SampleInterior(flowMask, x, z) - flow);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
+                    seamStability *= 1.0 - Math.Clamp(flowGradient * config.EdgeSealStrength * 0.35, 0.0, 0.35);
                     double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
-                    double stabilityPenalty = Math.Clamp(flowShadow * 0.35 + hydrologyGradient * 0.25 + riverPressure * 0.25, 0.0, 0.75);
+                    double stabilityPenalty = Math.Clamp(flowShadow * 0.35 + hydrologyGradient * 0.25 + riverPressure * 0.25 + flowGradient * 0.25, 0.0, 0.85);
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
                     stability *= 1.0 - stabilityPenalty * 0.4;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight;
@@ -104,6 +106,7 @@ namespace GameServerApp.World.Generation
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * config.EdgeSealStrength * 0.35;
                         threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
+                        threshold += Math.Clamp(flowGradient * config.EdgeSealStrength * 0.2, 0.0, 0.2);
                         threshold += stabilityPenalty * 0.25;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);

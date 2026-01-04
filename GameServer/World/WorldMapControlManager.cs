@@ -171,9 +171,23 @@ namespace GameServerApp.World
             profileChanged = false;
             MaybeReloadGenerationConfig(ref profileChanged);
             var loaded = WorldMapControlProfileUtility.Load(generationConfig.MapControlProfilePath);
-            if (loaded != null &&
-                (!string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase) ||
-                 loaded.Version > controlProfile.Version))
+
+            bool configNewerThanProfile = GetWriteTime(generationConfig.SourcePath) > GetWriteTime(generationConfig.MapControlProfilePath);
+            bool profileHashDrift = loaded != null &&
+                !string.Equals(loaded.ProfileHash, WorldMapControlProfileUtility.ComputeHash(loaded), StringComparison.OrdinalIgnoreCase);
+
+            if (loaded == null || configNewerThanProfile || profileHashDrift)
+            {
+                controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
+                WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
+                chunkCache.Clear();
+                pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+                profileChanged = true;
+                return controlProfile;
+            }
+
+            if (!string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase) ||
+                loaded.Version > controlProfile.Version)
             {
                 controlProfile = loaded;
                 chunkCache.Clear();

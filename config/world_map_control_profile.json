@@ -2,7 +2,7 @@
   "version": 1,
   "profileHash": "f1a4035964f23570faa4d64ac3d76ed3cd5d37eb2f8f9d0f3834a42858be7a90",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-01-04T06:25:49.1203509Z",
+  "generatedAtUtc": "2026-01-04T12:23:11.5662397Z",
   "chunkSize": 16,
   "renderDistance": 12,
   "simulationDistance": 12,

@@ -1,19 +1,18 @@
-## Minecraft core/content/util rollout (2026-02-16)
-- Source of truth: `config/minecraft_feature_core_content_util_2026-02-16.json` (phased ordering + owners).
-- Data-driven world/protocol: keep `config/world.json`, `config/world_map_control_profile.json`, enhanced-terrain tuning, and Unity StreamingAssets (world + map-control + enhanced) in sync with hash validation + hot reload.
-- Ownership split: server worldgen/protocol in `GameServer/World/*` + `SharedProtocol/EnhancedMinecraft/*`; client previews/network in `Assets/MyAssets/Scripts/GameWorld/*`, `Assets/Scripts/Minecraft/*`, and `MapGeneratorLib/...`.
+## Minecraft core/content/util rollout (2026-01-04)
+- Source of truth: `config/minecraft_feature_core_content_util_2026-01-04.json` (phased ordering + owners).
+- Focus: directional flow-shadow hydrology, seam-safe river/lake/cave masks, map-control profile drift guards, and parser round-trip validation.
 
 ### Core (order)
-1. `core.hydrology_flow_shadow` – flow-shadow hydrology/flow masks that feed caves/rivers/lakes with variance damping.
-2. `core.worldmap_control` – map-control/world/enhanced JSON stay hashed across server + Unity StreamingAssets with reload on drift.
-3. `core.protocol_guard` – registry + parser + fingerprint + descriptor-origin validation before handlers wire up.
+1. `core.flow_shadow_directional` — Downhill-aware hydrology + flow shadows that keep caves/rivers/lakes stitched across chunks.
+2. `core.worldmap_profile_guard` — Hash/regenerate world-map control profiles when `world.json` changes on server or StreamingAssets.
+3. `core.protocol_parser_guard` — Parser/descriptor round-trip checks to catch stale EnhancedMinecraftProtocol bindings.
 
 ### Content (order)
-1. `content.river_meanders` – flow-shadowed river pressure with meander jitter, confluence boosts, and seam feathering.
-2. `content.lake_shore_complexity` – shoreline complexity + wetland padding + downhill outflows tied to shared hydrology masks.
-3. `content.cave_resilience` – hydrology/flow-dampened cave thresholds with moisture-biased supports.
+1. `content.river_seam_flow` — Gradient-aware river pressure with seam guards and tributary boosts.
+2. `content.lake_wetland_guard` — Shoreline jitter + hydrology-gradient dampening for lakes with downhill outflows.
+3. `content.cave_flow_resilience` — Flow-gradient penalties and seam-aware stability smoothing for caves near rivers/wetlands.
 
 ### Utility (order)
-1. `util.config_profiles` – JSON-first world/map-control/enhanced configs mirrored to StreamingAssets with hash parity.
-2. `util.proto_ci` – descriptor origin + registry/parser coverage gates for EnhancedMinecraft protobufs.
-3. `util.tests_builds` – dotnet builds + protobuf smoke validation for SharedProtocol/GameServer.
+1. `util.config_parity` — Mirror world/map-control JSON between server config and StreamingAssets with hashes.
+2. `util.proto_validation` — Run `ProtocolStandardization` parser/descriptor checks and `scripts/verify_protobuf.ps1`.
+3. `util.build_tests` — `dotnet build` for SharedProtocol/GameServer and protobuf smoke validation.

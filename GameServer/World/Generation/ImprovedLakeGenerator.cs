@@ -55,6 +55,15 @@ namespace GameServerApp.World.Generation
                         hydrologyGradient * waterConfig.HydrologyEdgeVarianceClamp * 0.35,
                         0.0,
                         0.6);
+                    double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.35, 0.0, 0.5);
+                    double shorelineJitter = Math.Abs(SimplexNoise.Generate(
+                        worldX * 0.0025 + 7.0,
+                        worldZ * 0.0025 - 13.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        random.Next())) * lakeConfig.ShorelineBlend * 0.25;
 
                     double wetness = hydrology * 0.65 + flow * 0.35;
                     double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
@@ -64,9 +73,10 @@ namespace GameServerApp.World.Generation
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverSuppression * 0.5;
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
+                    weight += shorelineJitter * (1.0 - flowShadow * 0.5);
                     weight *= 0.75 + radiusFalloff * 0.25;
                     double seamCushion = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
-                    weight *= seamCushion;
+                    weight *= seamCushion * seamGuard;
                     weight *= 1.0 - flowShadow * 0.35;
 
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1;

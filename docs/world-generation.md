@@ -49,6 +49,14 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - Caves factor flow-shadow stability and hydrology gradients into their thresholds and support pillar bias to avoid saturated ceilings while keeping moisture-biased pillars (`ImprovedCaveGenerator`, Unity `BuildCaveMask`).
 - Enhanced terrain overrides were refreshed to match the new tuning (`config/enhanced-terrain-config.json`, `Assets/StreamingAssets/enhanced-terrain-config.json`); keep StreamingAssets copies mirrored with the server config.
 
+## 2026-01-04 Directional Flow Shadows & Profile Drift Guards
+
+- Hydrology/flow blending now samples downhill vectors and applies edge flow shadows before stitching seams, keeping masks continuous across chunks (`ImprovedTerrainCoordinator`, Unity `EnhancedTerrainGenerator`, `WorldMapController`).
+- Rivers pick up hydrology-gradient seam guards and tributary boosts, while lakes add shoreline jitter, relief penalties, and wetland dampening around high-flow spans (`ImprovedRiverGenerator`, `ImprovedLakeGenerator`, Unity mirrors).
+- Caves include flow-gradient stability penalties alongside hydrology gradients to avoid saturated ceilings at chunk borders (`ImprovedCaveGenerator`, Unity `BuildCaveMask`).
+- World map control profiles regenerate when `world.json` or StreamingAssets drift so previews and server pipelines share the same hashed profile (`WorldMapControlManager`, Unity `WorldMapController`).
+- `ProtocolStandardization.ValidateParsers()` now round-trips EnhancedMinecraft parsers/descriptors to surface stale generated bindings earlier.
+
 ## Configuration
 
 - Server boot now loads hydrology and cave/lake tuning from `config/world.json` via `WorldGenerationConfig` (path controlled by `World.WorldConfigPath` in `server-config.json`). Rivers, lakes, and noise-cave thresholds/flags can be toggled without recompiling.

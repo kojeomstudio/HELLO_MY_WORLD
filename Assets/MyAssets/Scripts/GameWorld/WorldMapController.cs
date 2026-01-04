@@ -34,6 +34,7 @@ namespace GameWorld
         private DateTime lastConfigWriteUtc;
         private string configPath = null!;
         private WorldConfig worldConfig = null!;
+        private string lastProfileHash = string.Empty;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
@@ -75,6 +76,7 @@ namespace GameWorld
             var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
             profile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
             lastProfileWriteUtc = File.Exists(profilePath) ? File.GetLastWriteTimeUtc(profilePath) : DateTime.MinValue;
+            lastProfileHash = profile.ProfileHash;
 
             if (enableDebugLogging)
             {
@@ -95,6 +97,7 @@ namespace GameWorld
                 return;
             }
 
+            var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
             lastProfileCheckUtc = now;
             bool generatorReloaded = false;
             if (!string.IsNullOrEmpty(configPath))
@@ -105,17 +108,23 @@ namespace GameWorld
                     WorldConfig.ForceReload();
                     worldConfig = WorldConfig.Instance;
                     lastConfigWriteUtc = configWrite;
+                    var expectedProfile = WorldMapControlProfile.FromConfig(worldConfig);
+                    bool profileStale = !string.Equals(expectedProfile.ProfileHash, lastProfileHash, StringComparison.OrdinalIgnoreCase);
+                    bool profileOlderThanConfig = File.Exists(profilePath) && File.GetLastWriteTimeUtc(profilePath) < configWrite;
+
+                    profile = profileStale || profileOlderThanConfig ? expectedProfile : profile;
+                    lastProfileHash = profile.ProfileHash;
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
                     generatorReloaded = true;
                     if (enableDebugLogging)
                     {
-                        Debug.Log($"[WorldMapController] Reloaded world-config and generator (updated {configWrite:o})");
+                        Debug.Log(profileStale || profileOlderThanConfig
+                            ? $"[WorldMapController] Reloaded world-config and rebuilt profile hash={profile.ProfileHash} (config updated {configWrite:o})"
+                            : $"[WorldMapController] Reloaded world-config and generator (updated {configWrite:o})");
                     }
                 }
             }
-
-            var profilePath = Path.Combine(Application.streamingAssetsPath, profileFileName);
 
             try
             {
@@ -136,6 +145,7 @@ namespace GameWorld
                     profile = newProfile;
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
+                    lastProfileHash = profile.ProfileHash;
                     if (enableDebugLogging)
                     {
                         Debug.Log($"[WorldMapController] Reloaded profile hash={profile.ProfileHash} (updated {writeTime:o})");
@@ -284,7 +294,7 @@ namespace GameWorld
             var heightMap = BuildHeightMap(chunkPos);
             var hydrology = BuildHydrologyMask(heightMap);
             var flow = BuildFlowMask(heightMap, hydrology);
-            BlendHydrologyWithFlow(hydrology, flow);
+            BlendHydrologyWithFlow(heightMap, hydrology, flow);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, riverMask) : new float[chunkSize, chunkSize];
@@ -690,7 +700,7 @@ namespace GameWorld
             return flow;
         }
 
-        private void BlendHydrologyWithFlow(float[,] hydrology, float[,] flow)
+        private void BlendHydrologyWithFlow(int[,] heightMap, float[,] hydrology, float[,] flow)
         {
             int sizeX = hydrology.GetLength(0);
             int sizeZ = hydrology.GetLength(1);
@@ -698,6 +708,11 @@ namespace GameWorld
             float edgeBlend = Mathf.Clamp(profile.HydrologyEdgeFlowLockWeight * 0.5f, 0.0f, 0.45f);
             float confluenceBoost = Mathf.Clamp(profile.RiverConfluenceBoost, 0f, 2f);
             int edgeRadius = Mathf.Max(1, profile.HydrologyEdgeBlendRadius);
+            float flowShadowWeight = Mathf.Max(0.05f, profile.HydrologyContinuityWeight * 0.45f + profile.HydrologyEdgeStabilityWeight * 0.25f);
+            float flowShadowSlopeWeight = Mathf.Max(0.01f, profile.HydrologyGradientWeight * 0.2f + profile.HydrologyEdgeVarianceClamp * 0.35f);
+            float directionalBias = Mathf.Clamp(profile.HydrologyDirectionalBlend * 0.5f, 0f, 0.5f);
+
+            var buffer = (float[,])hydrology.Clone();
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -708,21 +723,39 @@ namespace GameWorld
                     float normalizedFlow = Mathf.Clamp(flowValue / Mathf.Max(1f, profile.RiverDepth), 0f, 1f);
                     float neighbourFlow = SampleInterior(flow, x, z) / Mathf.Max(1f, profile.RiverDepth);
                     float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float hydrologyGradient = Mathf.Abs(neighbourHydro - hydro);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
                     float edgeFactor = edgeBlend * Mathf.Clamp01(1f - edgeDistance / (float)(edgeRadius + 1));
                     float blend = Mathf.Clamp(flowBlend + edgeFactor, 0f, 0.9f);
 
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int downZ = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+                    float directionalHydro = hydrology[downX, downZ];
+                    float directionalFlow = Mathf.Clamp(flow[downX, downZ] / Mathf.Max(1f, profile.RiverDepth), 0f, 1f);
+                    float directionalWeight = Mathf.Clamp((Mathf.Abs(downhill.x) + Mathf.Abs(downhill.y)) * directionalBias + directionalFlow * 0.2f, 0f, 0.45f);
+
                     float confluence = confluenceBoost > 0f
-                        ? (neighbourFlow * 0.5f + neighbourHydro * 0.25f) * confluenceBoost
+                        ? (neighbourFlow * 0.5f + neighbourHydro * 0.25f + hydrologyGradient * 0.15f) * confluenceBoost
                         : 0f;
 
+                    float flowShadow = Mathf.Clamp(
+                        (normalizedFlow + neighbourFlow) * flowShadowWeight +
+                        hydrologyGradient * flowShadowSlopeWeight * 0.5f +
+                        directionalFlow * flowShadowWeight * 0.15f,
+                        0f,
+                        0.7f);
+
                     float blended = hydro * (1f - blend) + normalizedFlow * blend;
+                    blended = blended * (1f - flowShadow * 0.35f) + neighbourHydro * flowShadow * 0.35f;
+                    blended = blended * (1f - directionalWeight) + directionalHydro * directionalWeight;
                     blended *= 1f + confluence;
-                    hydrology[x, z] = Mathf.Clamp(blended, 0f, 1.25f);
+                    buffer[x, z] = Mathf.Clamp(blended, 0f, 1.25f);
                 }
             }
 
+            Array.Copy(buffer, hydrology, buffer.Length);
             ClampVariance(hydrology, profile.HydrologyVarianceClamp);
             ApplyFlowShadow(
                 hydrology,

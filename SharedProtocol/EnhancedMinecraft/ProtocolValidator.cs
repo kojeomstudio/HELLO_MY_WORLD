@@ -66,6 +66,7 @@ public static class ProtocolValidator
         ValidateDescriptorFiles();
         ValidatePrototypeDescriptorFiles();
         ValidateDescriptorAssemblies();
+        ValidateDescriptorNamespaces();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
         ValidateRegistryBindingNames();
@@ -492,6 +493,25 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
+            }
+        }
+    }
+
+    private static void ValidateDescriptorNamespaces()
+    {
+        string expectedNamespace = typeof(EnhancedMinecraftGameReflection).Namespace ?? "EnhancedMinecraftProtocol";
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryResolveContractType(binding.MessageType, out var contractType) || contractType == null)
+            {
+                continue;
+            }
+
+            string contractNamespace = contractType.Namespace ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(contractNamespace) || !contractNamespace.Contains(expectedNamespace, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' resolved from namespace '{contractNamespace}', expected to include '{expectedNamespace}'. Regenerate protobuf assets or update using directives so generated DTOs remain reachable.");
             }
         }
     }

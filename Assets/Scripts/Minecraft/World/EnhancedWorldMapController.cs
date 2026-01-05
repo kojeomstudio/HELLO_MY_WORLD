@@ -37,6 +37,10 @@ namespace Minecraft.World
         private bool _showCaves = true;
         private bool _showRivers = true;
         private bool _showLakes = true;
+        private string _profilePath = string.Empty;
+        private string _worldConfigPath = string.Empty;
+        private DateTime _profileWriteTime;
+        private DateTime _worldConfigWriteTime;
         
         // Map rendering
         private RenderTexture _mapRenderTexture;
@@ -66,14 +70,28 @@ namespace Minecraft.World
         private void InitializeConfiguration()
         {
             _worldConfig = WorldConfig.Instance;
+            _worldConfigPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
+            if (!File.Exists(_worldConfigPath))
+            {
+                _worldConfigPath = string.Empty;
+            }
+            else
+            {
+                _worldConfigWriteTime = File.GetLastWriteTimeUtc(_worldConfigPath);
+            }
 
-            string profilePath = ResolveProfilePath();
-            _mapControlProfile = WorldMapControlProfile.LoadFromFile(profilePath, _worldConfig);
+            _profilePath = ResolveProfilePath();
+            _mapControlProfile = WorldMapControlProfile.LoadFromFile(_profilePath, _worldConfig);
             if (_mapControlProfile.Version < _worldConfig.MapControlProfileVersion)
             {
                 Debug.LogWarning($"[WorldMap] Map-control profile v{_mapControlProfile.Version} is older than config v{_worldConfig.MapControlProfileVersion}. Regenerating from config.");
                 _mapControlProfile = WorldMapControlProfile.FromConfig(_worldConfig);
                 ResetMapCache();
+            }
+
+            if (File.Exists(_profilePath))
+            {
+                _profileWriteTime = File.GetLastWriteTimeUtc(_profilePath);
             }
 
             _profileHash = _mapControlProfile.ProfileHash;
@@ -202,6 +220,7 @@ namespace Minecraft.World
         
         private void Update()
         {
+            MaybeReloadProfile();
             // Update map at intervals
             if (Time.time - _lastMapUpdate > MAP_UPDATE_INTERVAL)
             {
@@ -455,6 +474,49 @@ namespace Minecraft.World
             if (string.IsNullOrWhiteSpace(_profileHash))
             {
                 Debug.LogWarning("[WorldMap] Map-control profile hash missing; verify server exported config/world_map_control_profile.json.");
+            }
+        }
+
+        private void MaybeReloadProfile()
+        {
+            try
+            {
+                bool configReloaded = false;
+                if (!string.IsNullOrEmpty(_worldConfigPath))
+                {
+                    var write = File.GetLastWriteTimeUtc(_worldConfigPath);
+                    if (write > _worldConfigWriteTime)
+                    {
+                        _worldConfigWriteTime = write;
+                        WorldConfig.ForceReload();
+                        _worldConfig = WorldConfig.Instance;
+                        configReloaded = true;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(_profilePath) && File.Exists(_profilePath))
+                {
+                    var profileWrite = File.GetLastWriteTimeUtc(_profilePath);
+                    if (profileWrite > _profileWriteTime || configReloaded)
+                    {
+                        var profile = WorldMapControlProfile.LoadFromFile(_profilePath, _worldConfig);
+                        if (profile.Version < _worldConfig.MapControlProfileVersion)
+                        {
+                            profile = WorldMapControlProfile.FromConfig(_worldConfig);
+                        }
+
+                        if (!string.Equals(profile.ProfileHash, _profileHash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ApplyServerProfile(profile);
+                        }
+
+                        _profileWriteTime = profileWrite;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldMap] Failed to reload map-control profile: {ex.Message}");
             }
         }
         

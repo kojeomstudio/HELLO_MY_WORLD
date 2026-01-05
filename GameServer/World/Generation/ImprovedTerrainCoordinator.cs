@@ -228,17 +228,15 @@ namespace GameServerApp.World.Generation
             int sizeZ = hydrology.GetLength(1);
             double flowBlend = Math.Clamp(config.Water.HydrologyContinuityWeight * 0.35, 0.05, 0.45);
             double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeFlowLockWeight * 0.5, 0.0, 0.45);
-            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            int edgeRadius = Math.Max(
+                1,
+                Math.Max(config.Water.HydrologyEdgeBlendRadius, config.Water.HydrologyWatershedStitchRadius));
+            int watershedRadius = Math.Max(1, config.Water.HydrologyWatershedStitchRadius);
             double confluenceBoost = Math.Clamp(config.Water.RiverConfluenceBoost, 0.0, 2.0);
-            double flowShadowWeight = Math.Clamp(
-                config.Water.HydrologyContinuityWeight * 0.45 + config.Water.HydrologyEdgeStabilityWeight * 0.25,
-                0.05,
-                0.65);
-            double flowShadowSlopeWeight = Math.Clamp(
-                config.Water.HydrologyGradientSlopeWeight * 0.2 + config.Water.HydrologyEdgeVarianceClamp * 0.35,
-                0.01,
-                0.55);
+            double flowShadowWeight = Math.Clamp(config.Water.HydrologyFlowShadowWeight, 0.0, 1.0);
+            double flowShadowSlopeWeight = Math.Clamp(config.Water.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
             double directionalBias = Math.Clamp(config.Water.HydrologyDirectionalBlend * 0.5, 0.0, 0.5);
+            double watershedBlend = Math.Clamp(config.Water.HydrologyWatershedStitchWeight, 0.0, 1.0);
 
             var buffer = (float[,])hydrology.Clone();
 
@@ -254,7 +252,8 @@ namespace GameServerApp.World.Generation
                     double hydrologyGradient = Math.Abs(neighbourHydro - hydro);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
-                    double edgeFactor = edgeBlend * Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double edgeFalloff = Math.Clamp(1.0 - edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double edgeFactor = edgeBlend * edgeFalloff + watershedBlend * edgeFalloff * 0.5;
                     double blend = Math.Clamp(flowBlend + edgeFactor, 0.0, 0.9);
 
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
@@ -284,6 +283,13 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, hydrology, buffer.Length);
+            TerrainMaskUtility.BlendWatershedEdges(
+                heightMap,
+                hydrology,
+                flow,
+                watershedRadius,
+                watershedBlend,
+                flowShadowWeight);
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
             TerrainMaskUtility.ApplyFlowShadow(hydrology, flow, flowShadowWeight, flowShadowSlopeWeight);
             TerrainMaskUtility.StitchEdges(hydrology, Math.Min(0.65, config.Water.HydrologySeamRelaxBlend * 0.85));
@@ -725,6 +731,60 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, field, buffer.Length);
+        }
+
+        public static void BlendWatershedEdges(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            int radius,
+            double blendWeight,
+            double flowAnchorWeight)
+        {
+            radius = Math.Max(0, radius);
+            blendWeight = Math.Clamp(blendWeight, 0.0, 1.0);
+            flowAnchorWeight = Math.Clamp(flowAnchorWeight, 0.0, 1.0);
+            if (radius <= 0 || blendWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > radius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(radius + 1);
+                    double blend = blendWeight * falloff;
+
+                    float interiorHydro = SampleInterior(hydroCopy, x, z);
+                    float interiorFlow = SampleInterior(flowCopy, x, z);
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    float downhillHydro = hydroCopy[downX, downZ];
+                    float downhillFlow = flowCopy[downX, downZ];
+
+                    double flowAnchor = Math.Clamp((flowCopy[x, z] + interiorFlow + downhillFlow) / 3.0, 0.0, 8.0);
+                    flowAnchor = Math.Clamp(flowAnchor * flowAnchorWeight, 0.0, 4.0);
+
+                    double targetHydro = interiorHydro * 0.55 + downhillHydro * 0.25 + flowAnchor * 0.1 + hydroCopy[x, z] * 0.1;
+                    double targetFlow = interiorFlow * 0.5 + downhillFlow * 0.25 + flowAnchor * 0.25;
+
+                    hydrology[x, z] = Clamp01(hydroCopy[x, z] * (1.0 - blend) + targetHydro * blend);
+                    flow[x, z] = (float)Math.Clamp(flowCopy[x, z] * (1.0 - blend * 0.5) + targetFlow * blend, 0.0, Math.Max(2.5, targetFlow * 1.5 + 0.5));
+                }
+            }
         }
 
         public static (int X, int Z) ComputeDownhillVector(int[,] heightMap, int x, int z)

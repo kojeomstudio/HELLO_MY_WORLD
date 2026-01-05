@@ -152,11 +152,15 @@ namespace Minecraft.Core
         public float HydrologyShorePush = 5.0f;
         public float HydrologySlopePenalty = 6.0f;
         public float HydrologyFlowGain = 0.5f;
+        public float HydrologyFlowShadowWeight = 0.45f;
+        public float HydrologyFlowShadowSlopeWeight = 0.35f;
         public float HydrologyContinuityWeight = 0.35f;
         public float HydrologyEdgeFlowBias = 0.35f;
         public float HydrologyEdgeTangentWeight = 0.45f;
         public float HydrologyEdgeFlowLockWeight = 0.38f;
         public int HydrologyEdgeBlendRadius = 3;
+        public int HydrologyWatershedStitchRadius = 2;
+        public float HydrologyWatershedStitchWeight = 0.42f;
         public int HydrologyEdgeStabilityIterations = 1;
         public float HydrologyEdgeStabilityWeight = 0.32f;
         public float HydrologyEdgeVarianceClamp = 0.32f;
@@ -251,6 +255,7 @@ namespace Minecraft.Core
         public float SupportPillarChance = 0.28f;
         public int RiparianPlugDepth = 2;
         public float CaveCeilingStabilityWeight = 0.35f;
+        public float CeilingMoistureWeight = 0.28f;
     }
 
     [Serializable]
@@ -299,6 +304,7 @@ namespace Minecraft.Core
         public float WetlandSaturationThreshold = 0.55f;
         public int OutflowCarveDepth = 2;
         public int WetlandBufferRadius = 2;
+        public float FlowSeepageWeight = 0.25f;
     }
 
     // Configuration wrappers for type safety and easier access
@@ -346,11 +352,15 @@ namespace Minecraft.Core
         public float HydrologyShorePush { get; }
         public float HydrologySlopePenalty { get; }
         public float HydrologyFlowGain { get; }
+        public float HydrologyFlowShadowWeight { get; }
+        public float HydrologyFlowShadowSlopeWeight { get; }
         public float HydrologyContinuityWeight { get; }
         public float HydrologyEdgeFlowBias { get; }
         public float HydrologyEdgeTangentWeight { get; }
         public float HydrologyEdgeFlowLockWeight { get; }
         public int HydrologyEdgeBlendRadius { get; }
+        public int HydrologyWatershedStitchRadius { get; }
+        public float HydrologyWatershedStitchWeight { get; }
         public int HydrologyEdgeStabilityIterations { get; }
         public float HydrologyEdgeStabilityWeight { get; }
         public float HydrologyEdgeVarianceClamp { get; }
@@ -411,11 +421,15 @@ namespace Minecraft.Core
             HydrologyShorePush = data.HydrologyShorePush;
             HydrologySlopePenalty = data.HydrologySlopePenalty;
             HydrologyFlowGain = data.HydrologyFlowGain;
+            HydrologyFlowShadowWeight = data.HydrologyFlowShadowWeight;
+            HydrologyFlowShadowSlopeWeight = data.HydrologyFlowShadowSlopeWeight;
             HydrologyContinuityWeight = data.HydrologyContinuityWeight;
             HydrologyEdgeFlowBias = data.HydrologyEdgeFlowBias;
             HydrologyEdgeTangentWeight = data.HydrologyEdgeTangentWeight;
             HydrologyEdgeFlowLockWeight = data.HydrologyEdgeFlowLockWeight;
             HydrologyEdgeBlendRadius = data.HydrologyEdgeBlendRadius;
+            HydrologyWatershedStitchRadius = data.HydrologyWatershedStitchRadius;
+            HydrologyWatershedStitchWeight = data.HydrologyWatershedStitchWeight;
             HydrologyEdgeStabilityIterations = data.HydrologyEdgeStabilityIterations;
             HydrologyEdgeStabilityWeight = data.HydrologyEdgeStabilityWeight;
             HydrologyEdgeVarianceClamp = data.HydrologyEdgeVarianceClamp;
@@ -510,6 +524,7 @@ namespace Minecraft.Core
         public float SupportPillarChance { get; }
         public int RiparianPlugDepth { get; }
         public float CaveCeilingStabilityWeight { get; }
+        public float CeilingMoistureWeight { get; }
 
         public CaveConfig(CaveData data)
         {
@@ -553,6 +568,7 @@ namespace Minecraft.Core
             SupportPillarChance = data.SupportPillarChance;
             RiparianPlugDepth = data.RiparianPlugDepth;
             CaveCeilingStabilityWeight = data.CaveCeilingStabilityWeight;
+            CeilingMoistureWeight = data.CeilingMoistureWeight;
         }
     }
 
@@ -609,6 +625,7 @@ namespace Minecraft.Core
         public float WetlandSaturationThreshold { get; }
         public int OutflowCarveDepth { get; }
         public int WetlandBufferRadius { get; }
+        public float FlowSeepageWeight { get; }
 
         public LakeConfig(LakeData data)
         {
@@ -623,6 +640,7 @@ namespace Minecraft.Core
             WetlandSaturationThreshold = data.WetlandSaturationThreshold;
             OutflowCarveDepth = data.OutflowCarveDepth;
             WetlandBufferRadius = data.WetlandBufferRadius;
+            FlowSeepageWeight = data.FlowSeepageWeight;
         }
     }
 }

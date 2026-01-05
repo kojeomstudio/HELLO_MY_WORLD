@@ -175,8 +175,9 @@ namespace GameServerApp.World
             bool configNewerThanProfile = GetWriteTime(generationConfig.SourcePath) > GetWriteTime(generationConfig.MapControlProfilePath);
             bool profileHashDrift = loaded != null &&
                 !string.Equals(loaded.ProfileHash, WorldMapControlProfileUtility.ComputeHash(loaded), StringComparison.OrdinalIgnoreCase);
+            bool versionMismatch = loaded != null && generationConfig.MapControlProfileVersion > loaded.Version;
 
-            if (loaded == null || configNewerThanProfile || profileHashDrift)
+            if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch)
             {
                 controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
                 WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);

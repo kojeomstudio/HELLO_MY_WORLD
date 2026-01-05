@@ -38,6 +38,7 @@ namespace GameServerApp.World.Generation
             var mask = new bool[chunkSize, worldHeight, chunkSize];
             double horizontal = Math.Max(0.0001, config.HorizontalFrequency);
             double vertical = Math.Max(0.0001, config.VerticalFrequency);
+            double ceilingMoistureWeight = Math.Clamp(config.CeilingMoistureWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -60,7 +61,9 @@ namespace GameServerApp.World.Generation
                     double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
                     double stabilityPenalty = Math.Clamp(flowShadow * 0.35 + hydrologyGradient * 0.25 + riverPressure * 0.25 + flowGradient * 0.25, 0.0, 0.85);
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
+                    double ceilingMoisturePenalty = Math.Clamp(hydrology * ceilingMoistureWeight + flow * ceilingMoistureWeight * 0.5 + hydrologyGradient * ceilingMoistureWeight * 0.25, 0.0, 1.0);
                     stability *= 1.0 - stabilityPenalty * 0.4;
+                    stability *= 1.0 - ceilingMoisturePenalty * 0.25;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -108,6 +111,7 @@ namespace GameServerApp.World.Generation
                         threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
                         threshold += Math.Clamp(flowGradient * config.EdgeSealStrength * 0.2, 0.0, 0.2);
                         threshold += stabilityPenalty * 0.25;
+                        threshold += ceilingMoisturePenalty * 0.2;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 

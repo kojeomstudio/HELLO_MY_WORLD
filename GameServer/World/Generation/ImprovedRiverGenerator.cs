@@ -31,6 +31,10 @@ namespace GameServerApp.World.Generation
             double noiseScale = Math.Max(0.0001, config.RiverNoiseScale);
             double reliefPenalty = Math.Clamp(config.RiverReliefPenaltyWeight, 0.0, 1.0);
             double confluenceBoost = Math.Clamp(config.RiverConfluenceBoost, 0.0, 2.0);
+            double flowShadowWeight = Math.Clamp(config.HydrologyFlowShadowWeight, 0.0, 1.0);
+            double flowShadowSlopeWeight = Math.Clamp(config.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
+            double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
+            int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -68,10 +72,11 @@ namespace GameServerApp.World.Generation
                     double flowAlignment = 1.0 + Math.Clamp(flow * config.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
                     double seamStitch = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrologyMask[x, z]) * config.HydrologyEdgeFluxBlend, -0.35, 0.35);
                     double flowShadow = Math.Clamp(
-                        flow * config.HydrologyContinuityWeight * 0.25 +
-                        hydrologyGradient * config.HydrologyEdgeVarianceClamp * 0.35,
+                        flow * flowShadowWeight +
+                        hydrologyGradient * flowShadowSlopeWeight * 0.5 +
+                        seamStitch * flowShadowWeight * 0.25,
                         0.0,
-                        0.6);
+                        0.75);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
@@ -97,6 +102,17 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + headwater * 0.1;
                     double deltaBlend = 1.0 - Math.Clamp(Math.Abs(height - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
                     pressure *= 1.0 + deltaBlend * config.RiverDeltaWetlandStrength * 0.5;
+                    int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
+                    double edgeRepair = watershedBlend * edgeFalloff;
+                    if (edgeRepair > 0.0)
+                    {
+                        double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
+                        double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                        double seamAnchor = hydrology * 0.35 + neighbourHydro * 0.35 + neighbourFlow * 0.3;
+                        pressure = pressure * (1.0 - edgeRepair * 0.35) + seamAnchor * edgeRepair * 0.5;
+                        pressure = Math.Max(pressure, seamAnchor * edgeRepair * 0.25);
+                    }
                     pressure = ApplyEdgeBlend(pressure, hydrologyMask[x, z], x, z, chunkSize);
 
                     mask[x, z] = (float)Math.Clamp(pressure, 0.0, 1.35);

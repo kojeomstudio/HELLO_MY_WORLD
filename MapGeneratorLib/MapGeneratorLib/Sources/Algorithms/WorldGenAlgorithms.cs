@@ -112,11 +112,15 @@ namespace MapGenLib
         public static float HydrologyShorePush = 5f;
         public static float HydrologySlopePenalty = 6f;
         public static float HydrologyFlowGain = 0.5f;
+        public static float HydrologyFlowShadowWeight = 0.45f;
+        public static float HydrologyFlowShadowSlopeWeight = 0.35f;
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyEdgeFlowBias = 0.35f;
         public static float HydrologyEdgeTangentWeight = 0.45f;
         public static float HydrologyEdgeFlowLockWeight = 0.38f;
         public static int HydrologyEdgeBlendRadius = 3;
+        public static int HydrologyWatershedStitchRadius = 2;
+        public static float HydrologyWatershedStitchWeight = 0.42f;
         public static int HydrologyEdgeStabilityIterations = 1;
         public static float HydrologyEdgeStabilityWeight = 0.32f;
         public static float HydrologyEdgeVarianceClamp = 0.32f;
@@ -152,6 +156,7 @@ namespace MapGenLib
         public static float LakeShorelineBlend = 0.66f;
         public static int LakeBasinSmoothIterations = 2;
         public static int LakeWetlandBufferRadius = 2;
+        public static float LakeFlowSeepageWeight = 0.25f;
         public static float RiverNoiseScale = 0.015f;
         public static int RiverDepth = 6;
         public static int RiverIntensitySmoothIterations = 3;
@@ -182,6 +187,7 @@ namespace MapGenLib
         public static int OutflowCarveDepth = 2;
         public static int LakeShelfDepth = 2;
         public static int CaveRiparianPlugDepth = 2;
+        public static float CaveCeilingMoistureWeight = 0.28f;
 
         public struct TerrainValue
         {
@@ -2201,9 +2207,12 @@ namespace MapGenLib
         {
             int maxX = subWorldSize.SizeX - 1;
             int maxZ = subWorldSize.SizeZ - 1;
-            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            int edgeRadius = CustomMathf.Max(1, CustomMathf.Max(HydrologyEdgeBlendRadius, HydrologyWatershedStitchRadius));
             int sampleRadius = CustomMathf.Max(1, edgeRadius);
             float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
+            float flowShadowWeight = CustomMathf.Clamp01(HydrologyFlowShadowWeight);
+            float flowShadowSlopeWeight = CustomMathf.Clamp01(HydrologyFlowShadowSlopeWeight);
+            float watershedBlend = CustomMathf.Clamp01(HydrologyWatershedStitchWeight);
             float interiorHydro = ComputeInteriorAverage(hydrologyMask, edgeRadius);
             float interiorFlow = ComputeInteriorAverage(flowAccumulation, edgeRadius);
 
@@ -2277,16 +2286,24 @@ namespace MapGenLib
                     float neighborFlow = neighborWeightTotal > 0f
                         ? neighborFlowSum / neighborWeightTotal
                         : flowAccumulation[x, z];
+                    float hydrologyGradient = CustomMathf.Abs(neighborHydrology - hydrologyMask[x, z]);
                     float anchorNoise = Noise.GetNoise((x + 19.5f) / 72f, 0, (z - 11.5f) / 72f);
                     float anchorHydrology = CustomMathf.Clamp01(0.55f + (anchorNoise - 0.5f) * 0.9f + falloff * 0.05f);
                     float baseHydrology = (hydrologyMask[x, z] * (2.2f + falloff * 0.4f) + neighborHydrology * (1.6f + falloff * 0.5f) + anchorHydrology * (0.45f + falloff * 0.15f)) / (4.25f + falloff * 1.05f);
                     float blendedHydrology = hydrologyMask[x, z] * (1f - ringBlend) + baseHydrology * ringBlend;
+                    float flowShadow = CustomMathf.Clamp01(((flowAccumulation[x, z] + neighborFlow) * 0.5f * flowShadowWeight) + hydrologyGradient * flowShadowSlopeWeight * 0.35f);
+                    float seamAnchor = hydrologyMask[x, z] * 0.35f + neighborHydrology * 0.35f + neighborFlow * 0.3f;
+                    blendedHydrology = CustomMathf.Lerp(blendedHydrology, neighborHydrology, flowShadow * 0.25f);
+                    blendedHydrology = CustomMathf.Lerp(blendedHydrology, seamAnchor, watershedBlend * falloff * 0.5f);
                     blendedHydrology = ClampEdgeVariance(blendedHydrology, interiorHydro, HydrologyEdgeVarianceClamp);
                     hydrologyMask[x, z] = CustomMathf.Clamp01(blendedHydrology);
 
                     float anchorFlow = CustomMathf.Clamp(anchorHydrology * 0.9f + CustomMathf.Abs(anchorNoise - 0.5f) * 1.35f, 0f, 8f);
                     float baseFlow = (flowAccumulation[x, z] * CustomMathf.Lerp(1.1f, 1.55f, flowPersistence) + neighborFlow * (0.85f + 0.15f * flowPersistence) + anchorFlow * (0.45f + falloff * 0.1f)) / (2.4f + flowPersistence * 0.35f + falloff * 0.1f);
                     float blendedFlow = flowAccumulation[x, z] * (1f - ringBlend) + baseFlow * ringBlend;
+                    float flowAnchor = CustomMathf.Clamp((flowAccumulation[x, z] + neighborFlow + anchorFlow) / 3f, 0f, 8f);
+                    blendedFlow = CustomMathf.Lerp(blendedFlow, flowAnchor, flowShadow * 0.25f);
+                    blendedFlow = CustomMathf.Lerp(blendedFlow, seamAnchor, watershedBlend * falloff * 0.35f);
                     blendedFlow = ClampEdgeVariance(blendedFlow, interiorFlow, HydrologyEdgeVarianceClamp * 1.25f, 0.05f);
                     flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, 8f);
                 }
@@ -4210,7 +4227,8 @@ namespace MapGenLib
                     float shelterBias = CustomMathf.Clamp01((subWorldSize.SizeY - surface) / (float)subWorldSize.SizeY);
                     float erosion = CustomMathf.Clamp01(erosionRiskField[x, z]);
                     float erosionPenalty = CustomMathf.Clamp01(erosion * 0.6f);
-                    float score = hydrology * 0.45f + accumulation * 0.3f + bowlStrength * 0.3f + altitudeBias * 0.2f + shelterBias * 0.1f;
+                    float seepage = (hydrology + accumulation) * CustomMathf.Clamp01(LakeFlowSeepageWeight);
+                    float score = hydrology * 0.45f + accumulation * 0.3f + bowlStrength * 0.3f + altitudeBias * 0.2f + shelterBias * 0.1f + seepage * 0.25f;
                     score -= CustomMathf.Clamp01(relief / 18f) * 0.2f;
                     score -= erosionPenalty * 0.25f;
                     heatmap[x, z] = CustomMathf.Clamp01(score);
@@ -5232,7 +5250,9 @@ namespace MapGenLib
                     float suppression = 1f - CaveRiverSuppressionWeight * (1f - riverPressure);
                     float supportBoost = 1f + waterTableBias * 0.35f + gradientStrength * 0.05f + curvatureBias * 0.08f;
                     float stability = saturation * supportBoost * suppression * CustomMathf.Clamp(moistureRetention, 0.25f, 1.15f);
+                    float ceilingMoisturePenalty = CustomMathf.Clamp01(hydrology * CaveCeilingMoistureWeight + flow * CaveCeilingMoistureWeight * 0.5f + gradientStrength * CaveCeilingMoistureWeight * 0.15f);
                     stability *= 1f - (moisturePenalty + gradientPenalty * 0.15f) * 0.35f;
+                    stability *= 1f - ceilingMoisturePenalty * 0.25f;
                     if (x == 0 || z == 0 || x == subWorldSize.SizeX - 1 || z == subWorldSize.SizeZ - 1)
                     {
                         float edgePenalty = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight * 0.35f);

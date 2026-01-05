@@ -32,11 +32,15 @@
     "HydrologyShorePush": 5.0,
     "HydrologySlopePenalty": 6.0,
     "HydrologyFlowGain": 0.5,
+    "HydrologyFlowShadowWeight": 0.45,
+    "HydrologyFlowShadowSlopeWeight": 0.35,
     "HydrologyContinuityWeight": 0.35,
     "HydrologyEdgeFlowBias": 0.35,
     "HydrologyEdgeTangentWeight": 0.45,
     "HydrologyEdgeFlowLockWeight": 0.38,
     "HydrologyEdgeBlendRadius": 3,
+    "HydrologyWatershedStitchRadius": 2,
+    "HydrologyWatershedStitchWeight": 0.42,
     "HydrologyEdgeStabilityIterations": 1,
     "HydrologyEdgeStabilityWeight": 0.32,
     "HydrologyEdgeVarianceClamp": 0.32,
@@ -127,7 +131,8 @@
     "EdgeSealStrength": 0.45,
     "SupportPillarChance": 0.28,
     "RiparianPlugDepth": 2,
-    "CeilingStabilityWeight": 0.35
+    "CeilingStabilityWeight": 0.35,
+    "CeilingMoistureWeight": 0.28
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -187,6 +192,7 @@
     "RiverProximitySuppression": 0.35,
     "WetlandSaturationThreshold": 0.55,
     "OutflowCarveDepth": 2,
-    "WetlandBufferRadius": 2
+    "WetlandBufferRadius": 2,
+    "FlowSeepageWeight": 0.25
   }
 }

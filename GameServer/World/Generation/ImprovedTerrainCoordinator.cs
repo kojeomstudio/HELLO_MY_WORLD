@@ -52,6 +52,7 @@ namespace GameServerApp.World.Generation
             var hydrology = BuildHydrologyMask(heightMap, size);
             var flow = BuildFlowAccumulation(heightMap, hydrology, size);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
+            HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, seaLevel)
@@ -293,6 +294,69 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
             TerrainMaskUtility.ApplyFlowShadow(hydrology, flow, flowShadowWeight, flowShadowSlopeWeight);
             TerrainMaskUtility.StitchEdges(hydrology, Math.Min(0.65, config.Water.HydrologySeamRelaxBlend * 0.85));
+        }
+
+        private void HarmonizeHydrologyWithSurface(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double edgeClamp = Math.Clamp(config.Water.HydrologyEdgeVarianceClamp, 0.0, 1.0);
+            double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
+            double stabilityWeight = Math.Clamp(config.Water.HydrologyEdgeStabilityWeight, 0.0, 1.0);
+            double flowPersistence = Math.Clamp(config.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double curvatureWeight = Math.Clamp(config.Water.HydrologyCurvatureWeight, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double clampMax = Math.Max(2.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
+                    double hydrologyGradient = Math.Abs(neighbourHydro - hydro);
+                    double flowGradient = Math.Abs(neighbourFlow - flowValue);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * curvatureWeight * 0.05;
+
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    double downhillHydro = hydrology[downX, downZ];
+                    double downhillFlow = flow[downX, downZ];
+
+                    double edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBlend = 1.0 - Math.Clamp(edgeDistance / (edgeRadius + 1.0), 0.0, 1.0);
+
+                    double stability = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * stabilityWeight, 0.0, 0.55);
+                    stability *= 1.0 - Math.Clamp(slope / Math.Max(1.0, slopePenalty * 1.1), 0.0, 0.55);
+
+                    double anchorHydro = hydro * (0.6 + flowPersistence * 0.25) + neighbourHydro * 0.25 + neighbourFlow * 0.15;
+                    double directionalAnchor = downhillHydro * 0.25 + downhillFlow * 0.15;
+                    double blend = Math.Clamp(
+                        hydrologyGradient * (0.35 + gradientWeight * 0.35) +
+                        flowGradient * 0.15 +
+                        edgeBlend * 0.35 +
+                        curvature, 0.0, 0.85);
+
+                    double harmonized = (anchorHydro + directionalAnchor) * stability;
+                    double anchoredHydro = hydro * (1.0 - blend) + harmonized * blend;
+                    double edgeAnchor = hydro * (1.0 - edgeBlend * edgeClamp) + neighbourHydro * edgeBlend * edgeClamp;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                        anchoredHydro * (1.0 - edgeBlend * 0.35) + edgeAnchor * edgeBlend * 0.35,
+                        0.0,
+                        1.25));
+
+                    double flowAnchor = hydrology[x, z] * 0.5 + flowValue * (0.5 + flowPersistence * 0.2);
+                    flow[x, z] = (float)Math.Clamp(
+                        flowValue * (1.0 - blend * 0.35) + flowAnchor * blend * 0.35,
+                        0.0,
+                        clampMax);
+                }
+            }
         }
 
         private static double SampleCurvature(int[,] heightMap, int x, int z)

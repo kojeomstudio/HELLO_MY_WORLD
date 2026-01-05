@@ -2540,6 +2540,137 @@ namespace MapGenLib
             }
         }
 
+        private static void HarmonizeHydrologyWithSurface(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (surfaceCache == null || hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int sizeX = subWorldSize.SizeX;
+            int sizeZ = subWorldSize.SizeZ;
+            float edgeClamp = CustomMathf.Clamp01(HydrologyEdgeVarianceClamp);
+            float gradientWeight = CustomMathf.Clamp01(HydrologyGradientWeight);
+            float stabilityWeight = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
+            float flowPersistence = CustomMathf.Clamp01(HydrologyFlowPersistence);
+            float slopePenalty = CustomMathf.Max(0f, HydrologySlopePenalty);
+            float curvatureWeight = CustomMathf.Clamp(HydrologyCurvatureWeight, 0f, 1.5f);
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float clampMax = CustomMathf.Max(2.5f, HydrologyFlowDivergenceClamp * 12f);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrologyMask[x, z];
+                    float flow = flowAccumulation[x, z];
+                    float neighbourHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                    float neighbourFlow = SampleHydrologyAverage(flowAccumulation, x, z);
+                    float hydrologyGradient = CustomMathf.Abs(neighbourHydro - hydro);
+                    float flowGradient = CustomMathf.Abs(neighbourFlow - flow);
+                    float slope = SampleSurfaceSlope(surfaceCache, x, z);
+                    float curvature = CustomMathf.Abs(SampleSurfaceCurvature(surfaceCache, x, z)) * curvatureWeight * 0.05f;
+
+                    CustomVector2 downhill = ComputeSurfaceDownhillVector(surfaceCache, x, z);
+                    int downX = CustomMathf.Clamp(x + (int)downhill.x, 0, sizeX - 1);
+                    int downZ = CustomMathf.Clamp(z + (int)downhill.y, 0, sizeZ - 1);
+
+                    float edgeDistance = CustomMathf.Min(
+                        CustomMathf.Min(x, z),
+                        CustomMathf.Min(sizeX - 1 - x, sizeZ - 1 - z));
+                    float edgeBlend = 1f - CustomMathf.Clamp01(edgeDistance / CustomMathf.Max(1f, (float)edgeRadius));
+
+                    float stability = 1f - CustomMathf.Clamp01((hydrologyGradient + flowGradient) * stabilityWeight);
+                    stability *= 1f - CustomMathf.Clamp01(slope / CustomMathf.Max(1f, slopePenalty * 1.1f));
+
+                    float anchorHydro = hydro * (0.6f + flowPersistence * 0.25f) + neighbourHydro * 0.25f + neighbourFlow * 0.15f;
+                    float directionalAnchor = hydrologyMask[downX, downZ] * 0.25f + flowAccumulation[downX, downZ] * 0.15f;
+                    float blend = CustomMathf.Clamp01(
+                        hydrologyGradient * (0.35f + gradientWeight * 0.35f) +
+                        flowGradient * 0.15f +
+                        edgeBlend * 0.35f +
+                        curvature);
+
+                    float harmonized = (anchorHydro + directionalAnchor) * stability;
+                    float anchoredHydro = hydro * (1f - blend) + harmonized * blend;
+                    float edgeAnchor = hydro * (1f - edgeBlend * edgeClamp) + neighbourHydro * edgeBlend * edgeClamp;
+                    hydrologyMask[x, z] = CustomMathf.Clamp(
+                        anchoredHydro * (1f - edgeBlend * 0.35f) + edgeAnchor * edgeBlend * 0.35f,
+                        0f,
+                        1.25f);
+
+                    float flowAnchor = hydrologyMask[x, z] * 0.5f + flow * (0.5f + flowPersistence * 0.2f);
+                    flowAccumulation[x, z] = CustomMathf.Clamp(
+                        flow * (1f - blend * 0.35f) + flowAnchor * blend * 0.35f,
+                        0f,
+                        clampMax);
+                }
+            }
+        }
+
+        private static float SampleSurfaceSlope(int[,] surfaceCache, int x, int z)
+        {
+            int sizeX = surfaceCache.GetLength(0);
+            int sizeZ = surfaceCache.GetLength(1);
+            int center = surfaceCache[x, z];
+            int east = surfaceCache[CustomMathf.Min(sizeX - 1, x + 1), z];
+            int north = surfaceCache[x, CustomMathf.Min(sizeZ - 1, z + 1)];
+            float dx = center - east;
+            float dz = center - north;
+            return CustomMathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        private static float SampleSurfaceCurvature(int[,] surfaceCache, int x, int z)
+        {
+            int sizeX = surfaceCache.GetLength(0);
+            int sizeZ = surfaceCache.GetLength(1);
+            int center = surfaceCache[x, z];
+            int left = surfaceCache[CustomMathf.Max(0, x - 1), z];
+            int right = surfaceCache[CustomMathf.Min(sizeX - 1, x + 1), z];
+            int forward = surfaceCache[x, CustomMathf.Min(sizeZ - 1, z + 1)];
+            int back = surfaceCache[x, CustomMathf.Max(0, z - 1)];
+            float laplacian = (left + right + forward + back - 4 * center) / 4f;
+            return laplacian;
+        }
+
+        private static CustomVector2 ComputeSurfaceDownhillVector(int[,] surfaceCache, int x, int z)
+        {
+            int sizeX = surfaceCache.GetLength(0);
+            int sizeZ = surfaceCache.GetLength(1);
+            int center = surfaceCache[x, z];
+            int bestDrop = 0;
+            int bestX = 0;
+            int bestZ = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= sizeX || nz < 0 || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int drop = center - surfaceCache[nx, nz];
+                    if (drop > bestDrop)
+                    {
+                        bestDrop = drop;
+                        bestX = dx;
+                        bestZ = dz;
+                    }
+                }
+            }
+
+            return new CustomVector2(bestX, bestZ);
+        }
+
         private static void ClampHydrologyToWaterTable(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, int[,] surfaceCache)
         {
             if (HydrologyWaterTableClampWeight <= 0f || HydrologyWaterTableClampRange <= 0 || hydrologyMask == null || flowAccumulation == null)
@@ -3063,6 +3194,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
@@ -4297,6 +4429,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -5171,6 +5304,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             SmoothHydrologyFields(caveHydrologyMask, caveFlowAccumulation);
             NormalizeHydrologyRange(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             RelaxHydrologySeams(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
@@ -5207,6 +5341,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -8033,6 +8168,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -8154,6 +8290,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             StabilizeHydrologyWithCurvature(subWorldSize, hydrologyMask, flowAccumulation, hydrologyCurvature);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             var rand = new Random((subWorldSize.SizeX * 73856093) ^ (subWorldSize.SizeZ * 19349663) ^ 0xCAV3);
 
@@ -8317,6 +8454,7 @@ namespace MapGenLib
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             StabilizeHydrologyWithCurvature(subWorldSize, hydrologyMask, flowAccumulation, hydrologyCurvature);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
+            HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
 
             for (int x = 1; x < subWorldSize.SizeX - 1; x++)

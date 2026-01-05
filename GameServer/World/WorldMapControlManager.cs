@@ -24,6 +24,7 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
+        private string generationSignature;
 
         public WorldMapControlManager(WorldMapControlSettings settings, WorldGenerationConfig generationConfig, WorldSettings worldSettings)
         {
@@ -35,6 +36,7 @@ namespace GameServerApp.World
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
             worldConfigWriteTime = GetWriteTime(this.generationConfig.SourcePath);
             maxCachedChunks = Math.Max(this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance, this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
+            generationSignature = ComputeGenerationSignature();
         }
 
         public Task<WorldMapResponse> HandleAsync(WorldMapRequest request)
@@ -91,6 +93,7 @@ namespace GameServerApp.World
                 Success = true,
                 ControlProfile = currentProfile,
                 ControlProfileHash = currentProfile.ProfileHash,
+                GenerationSignature = generationSignature,
                 WorldMapData = new WorldMapData
                 {
                     Chunks = chunks,
@@ -119,6 +122,7 @@ namespace GameServerApp.World
             {
                 Success = true,
                 ControlProfileHash = currentProfile.ProfileHash,
+                GenerationSignature = generationSignature,
                 ControlProfile = profileChanged ? currentProfile : null,
                 WorldMapData = new WorldMapData
                 {
@@ -162,6 +166,7 @@ namespace GameServerApp.World
             {
                 Success = true,
                 ControlProfileHash = currentProfile.ProfileHash,
+                GenerationSignature = generationSignature,
                 PlayerProfile = profile
             });
         }
@@ -184,6 +189,7 @@ namespace GameServerApp.World
                 chunkCache.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
+                generationSignature = ComputeGenerationSignature();
                 return controlProfile;
             }
 
@@ -196,6 +202,7 @@ namespace GameServerApp.World
                 profileChanged = true;
             }
 
+            generationSignature = ComputeGenerationSignature();
             return controlProfile;
         }
 
@@ -234,6 +241,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
             chunkCache.Clear();
             profileChanged = true;
+            generationSignature = ComputeGenerationSignature();
         }
 
         private void EnforceCacheBudget()
@@ -268,6 +276,11 @@ namespace GameServerApp.World
             {
                 return DateTime.MinValue;
             }
+        }
+
+        private string ComputeGenerationSignature()
+        {
+            return $"{generationConfig.WorldName}:{worldSettings.WorldSeed}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.Water.GlobalWaterLevel}:{controlProfile?.ProfileHash ?? "no-profile"}:{worldConfigWriteTime.Ticks}";
         }
     }
 
@@ -306,6 +319,7 @@ namespace GameServerApp.World
         public WorldMapProfile? PlayerProfile { get; set; }
         public WorldMapControlProfile? ControlProfile { get; set; }
         public string ControlProfileHash { get; set; } = string.Empty;
+        public string GenerationSignature { get; set; } = string.Empty;
     }
 
     public sealed class WorldMapData

@@ -74,6 +74,7 @@ public static class ProtocolValidator
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
         ValidateActionDescriptors();
+        ValidatePlayerStateDescriptors();
         ValidateWorldControlDescriptors();
         ValidateServerStatusDescriptors();
         ValidateEntityDescriptors();
@@ -205,6 +206,52 @@ public static class ProtocolValidator
 
         var actionResult = RequireDescriptor(nameof(ActionResult));
         EnsureFields(actionResult, "updated_items", "applied_effects", "health_change", "hunger_change", "experience_change", "particle_effect", "sound_effect");
+    }
+
+    private static void ValidatePlayerStateDescriptors()
+    {
+        var playerInfo = RequireDescriptor(nameof(PlayerInfo));
+        EnsureFields(
+            playerInfo,
+            "player_id",
+            "username",
+            "position",
+            "rotation",
+            "level",
+            "experience",
+            "experience_progress",
+            "health",
+            "max_health",
+            "hunger",
+            "max_hunger",
+            "saturation",
+            "game_mode",
+            "inventory",
+            "selected_slot",
+            "active_effects",
+            "stats");
+
+        var stats = RequireDescriptor(nameof(PlayerStats));
+        EnsureFields(stats, "blocks_mined", "blocks_placed", "distance_walked", "monsters_killed", "deaths", "play_time_ticks");
+
+        var inventory = RequireDescriptor(nameof(PlayerInventory));
+        EnsureFields(
+            inventory,
+            "main_inventory",
+            "hotbar",
+            "helmet",
+            "chestplate",
+            "leggings",
+            "boots",
+            "offhand",
+            "crafting_result",
+            "crafting_input");
+
+        var slot = RequireDescriptor(nameof(InventorySlot));
+        EnsureFields(slot, "slot_id", "item_stack");
+
+        var itemStack = RequireDescriptor(nameof(ItemStack));
+        EnsureFields(itemStack, "item_id", "item_name", "count", "durability", "max_durability", "enchantments", "nbt_data", "item_type", "rarity");
     }
 
     private static void ValidateWorldControlDescriptors()

@@ -35,6 +35,7 @@ namespace GameWorld
         private string configPath = null!;
         private WorldConfig worldConfig = null!;
         private string lastProfileHash = string.Empty;
+        private string lastProfileSignature = string.Empty;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
@@ -77,6 +78,7 @@ namespace GameWorld
             profile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
             lastProfileWriteUtc = File.Exists(profilePath) ? File.GetLastWriteTimeUtc(profilePath) : DateTime.MinValue;
             lastProfileHash = profile.ProfileHash;
+            lastProfileSignature = ComputeGenerationSignature(profile, worldConfig ?? WorldConfig.Instance);
 
             if (enableDebugLogging)
             {
@@ -114,6 +116,7 @@ namespace GameWorld
 
                     profile = profileStale || profileOlderThanConfig ? expectedProfile : profile;
                     lastProfileHash = profile.ProfileHash;
+                    lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
                     generatorReloaded = true;
@@ -146,6 +149,7 @@ namespace GameWorld
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
                     lastProfileHash = profile.ProfileHash;
+                    lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
                     if (enableDebugLogging)
                     {
                         Debug.Log($"[WorldMapController] Reloaded profile hash={profile.ProfileHash} (updated {writeTime:o})");
@@ -163,6 +167,18 @@ namespace GameWorld
                 if (enableDebugLogging)
                 {
                     Debug.LogWarning($"[WorldMapController] Failed to reload profile: {ex.Message}");
+                }
+            }
+
+            var generationSignature = ComputeGenerationSignature(profile, worldConfig);
+            if (!string.Equals(generationSignature, lastProfileSignature, StringComparison.Ordinal))
+            {
+                lastProfileSignature = generationSignature;
+                generator = new EnhancedTerrainGenerator(profile, worldConfig);
+                loadedChunks.Clear();
+                if (enableDebugLogging)
+                {
+                    Debug.Log($"[WorldMapController] Regenerated map preview generator for signature={generationSignature}");
                 }
             }
         }
@@ -295,6 +311,7 @@ namespace GameWorld
             var hydrology = BuildHydrologyMask(heightMap);
             var flow = BuildFlowMask(heightMap, hydrology);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
+            HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, riverMask) : new float[chunkSize, chunkSize];
@@ -309,6 +326,11 @@ namespace GameWorld
             CopyField(lakeMask, chunk.LakeMask);
             CopyField(caveMask, chunk.CaveMask);
             return chunk;
+        }
+
+        private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
+        {
+            return $"{config.WorldHeight}:{config.Seed}:{controlProfile.ProfileHash}:{controlProfile.ChunkSize}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)
@@ -762,6 +784,67 @@ namespace GameWorld
                 flow,
                 Mathf.Max(0.05f, profile.HydrologyContinuityWeight * 0.35f),
                 Mathf.Max(0.01f, profile.HydrologyGradientWeight * 0.15f));
+        }
+
+        private void HarmonizeHydrologyWithSurface(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            float edgeClamp = Mathf.Clamp01(profile.HydrologyEdgeVarianceClamp);
+            float gradientWeight = Mathf.Clamp01(profile.HydrologyGradientWeight);
+            float stabilityWeight = Mathf.Clamp01(profile.HydrologyEdgeStabilityWeight);
+            float flowPersistence = Mathf.Clamp01(profile.HydrologyFlowPersistence);
+            float slopePenalty = Mathf.Max(0.0f, profile.HydrologySlopePenalty);
+            float curvatureWeight = Mathf.Clamp01(profile.HydrologyCurvatureWeight);
+            int edgeRadius = Mathf.Max(1, profile.HydrologyEdgeBlendRadius);
+            float clampMax = Mathf.Max(2.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float hydrologyGradient = Mathf.Abs(neighbourHydro - hydro);
+                    float flowGradient = Mathf.Abs(neighbourFlow - flowValue);
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float curvature = Mathf.Abs(SampleCurvature(heightMap, x, z)) * curvatureWeight * 0.05f;
+
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int downZ = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+
+                    float edgeDistance = Mathf.Min(Mathf.Min(x, sizeX - 1 - x), Mathf.Min(z, sizeZ - 1 - z));
+                    float edgeBlend = 1f - Mathf.Clamp01(edgeDistance / (edgeRadius + 1f));
+
+                    float stability = 1f - Mathf.Clamp01((hydrologyGradient + flowGradient) * stabilityWeight);
+                    stability *= 1f - Mathf.Clamp01(slope / Mathf.Max(1f, slopePenalty * 1.1f));
+
+                    float anchorHydro = hydro * (0.6f + flowPersistence * 0.25f) + neighbourHydro * 0.25f + neighbourFlow * 0.15f;
+                    float directionalAnchor = hydrology[downX, downZ] * 0.25f + flow[downX, downZ] * 0.15f;
+                    float blend = Mathf.Clamp01(
+                        hydrologyGradient * (0.35f + gradientWeight * 0.35f) +
+                        flowGradient * 0.15f +
+                        edgeBlend * 0.35f +
+                        curvature);
+
+                    float harmonized = (anchorHydro + directionalAnchor) * stability;
+                    float anchoredHydro = hydro * (1f - blend) + harmonized * blend;
+                    float edgeAnchor = hydro * (1f - edgeBlend * edgeClamp) + neighbourHydro * edgeBlend * edgeClamp;
+                    hydrology[x, z] = Mathf.Clamp(
+                        anchoredHydro * (1f - edgeBlend * 0.35f) + edgeAnchor * edgeBlend * 0.35f,
+                        0f,
+                        1.25f);
+
+                    float flowAnchor = hydrology[x, z] * 0.5f + flowValue * (0.5f + flowPersistence * 0.2f);
+                    flow[x, z] = Mathf.Clamp(
+                        flowValue * (1f - blend * 0.35f) + flowAnchor * blend * 0.35f,
+                        0f,
+                        clampMax);
+                }
+            }
         }
 
         private static void Smooth2D(float[,] field, int iterations, float blend)

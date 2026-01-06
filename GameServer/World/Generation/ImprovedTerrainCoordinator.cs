@@ -138,6 +138,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeFlowLockWeight,
                 config.Water.HydrologyEdgeFlowBias,
                 config.Water.HydrologyEdgeTangentWeight);
+            TerrainMaskUtility.ApplyGradientStability(
+                hydrology,
+                config.Water.HydrologyGradientStabilityIterations,
+                config.Water.HydrologyGradientStabilityBlend,
+                config.Water.HydrologyGradientClamp);
             TerrainMaskUtility.FillBasins(
                 hydrology,
                 Math.Max(0.05, config.Water.HydrologyEdgeStabilityWeight * 0.5),
@@ -208,6 +213,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeStabilityIterations,
                 config.Water.HydrologyEdgeStabilityWeight,
                 config.Water.HydrologyEdgeFluxBlend);
+            TerrainMaskUtility.ApplyGradientStability(
+                flow,
+                config.Water.HydrologyGradientStabilityIterations,
+                config.Water.HydrologyGradientStabilityBlend,
+                config.Water.HydrologyGradientClamp);
             TerrainMaskUtility.ApplyEdgeFlowLocks(
                 heightMap,
                 flow,
@@ -852,6 +862,46 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, field, buffer.Length);
+        }
+
+        public static void ApplyGradientStability(float[,] field, int iterations, double blend, double gradientClamp)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            gradientClamp = Math.Max(0.0001, gradientClamp);
+            if (iterations == 0 || blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float centre = field[x, z];
+                        float interior = SampleInterior(field, x, z);
+                        double gradient = Math.Abs(centre - interior);
+                        double weight = Math.Clamp(gradient / gradientClamp, 0.0, 1.0) * blend;
+                        if (weight <= 0.0)
+                        {
+                            buffer[x, z] = centre;
+                            continue;
+                        }
+
+                        double stabilised = centre * (1.0 - weight) + interior * weight;
+                        double clampMax = Math.Max(Math.Max(centre, interior) + gradientClamp * 0.5, 1.0);
+                        buffer[x, z] = (float)Math.Clamp(stabilised, 0.0, clampMax);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
         }
 
         public static void BlendWatershedEdges(

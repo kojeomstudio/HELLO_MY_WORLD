@@ -331,7 +331,7 @@ namespace GameWorld
 
         private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
         {
-            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}";
+            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)
@@ -679,6 +679,7 @@ namespace GameWorld
             ApplyRiparianBuffer(hydrology, profile.RiparianBufferRadius, profile.RiparianSaturationBoost);
             StabilizeEdges(hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
             ApplyEdgeFlowLocks(heightMap, hydrology, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
+            ApplyGradientStability(hydrology, profile.HydrologyGradientStabilityIterations, profile.HydrologyGradientStabilityBlend, profile.HydrologyGradientClamp);
             FillBasins(hydrology, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.5f), Math.Max(1, profile.HydrologySeamRelaxIterations));
             StitchEdges(hydrology, profile.HydrologySeamRelaxBlend * 0.65f);
             ClampVariance(hydrology, profile.HydrologyVarianceClamp);
@@ -739,6 +740,7 @@ namespace GameWorld
             Smooth2D(flow, profile.HydrologySmoothIterations, profile.HydrologySmoothBlend);
             DirectionalSmooth(heightMap, flow, profile.HydrologyDirectionalIterations, profile.HydrologyDirectionalBlend);
             StabilizeEdges(flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeStabilityIterations, profile.HydrologyEdgeStabilityWeight, profile.HydrologyEdgeFluxBlend);
+            ApplyGradientStability(flow, profile.HydrologyGradientStabilityIterations, profile.HydrologyGradientStabilityBlend, profile.HydrologyGradientClamp);
             ApplyEdgeFlowLocks(heightMap, flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
             FillBasins(flow, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.35f), Math.Max(1, profile.HydrologySeamRelaxIterations));
             StitchEdges(flow, profile.HydrologySeamRelaxBlend * 0.65f);
@@ -1380,6 +1382,46 @@ namespace GameWorld
             }
 
             Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void ApplyGradientStability(float[,] field, int iterations, float blend, float gradientClamp)
+        {
+            iterations = Mathf.Max(0, iterations);
+            blend = Mathf.Clamp01(blend);
+            gradientClamp = Mathf.Max(0.0001f, gradientClamp);
+            if (iterations == 0 || blend <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float centre = field[x, z];
+                        float interior = SampleInterior(field, x, z);
+                        float gradient = Mathf.Abs(centre - interior);
+                        float weight = Mathf.Clamp01(gradient / gradientClamp) * blend;
+                        if (weight <= 0f)
+                        {
+                            buffer[x, z] = centre;
+                            continue;
+                        }
+
+                        float stabilised = centre * (1f - weight) + interior * weight;
+                        float clampMax = Mathf.Max(Mathf.Max(centre, interior) + gradientClamp * 0.5f, 1f);
+                        buffer[x, z] = Mathf.Clamp(stabilised, 0f, clampMax);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
         }
 
         private void ApplyEdgeSeal(bool[,,] mask, double strength)

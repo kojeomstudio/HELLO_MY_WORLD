@@ -18,6 +18,12 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 
 `WorldManager` now orchestrates chunk creation through `TerrainGenerationPipeline`, an ordered series of `ITerrainGenerationStage` implementations. Each stage receives a shared `TerrainGenerationContext` so base heightmap data, ore placement, caves/dungeons, rivers, lakes, vegetation, and clouds can collaborate without duplicating setup. The pipeline provides a natural extension point for future biome or structure passes while keeping legacy systems composable and testable.
 
+## Latest Adjustments (2026-02-18)
+- Flow-memory hydrology stitched across chunk seams to keep river/lake/cave masks aligned (server `ImprovedTerrainCoordinator` + Unity `WorldMapController` + MapGeneratorLib).
+- Lake seepage/outflow now use flow memory and watershed repair so wetlands and outlets remain continuous near chunk borders.
+- Caves apply ceiling moisture clamps with flow memory, suppressing seams under rivers/lakes while keeping stability near edges.
+- World-map generation signatures now mix world/map-control versions and hydrology knobs so client previews reload whenever generation inputs drift.
+
 ## 2025-12-29 Map-Control & Pipeline Refresh
 
 - Replaced the duplicated `GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs` with a hydrology-aware implementation that consumes `TerrainGeneration` + `Water/Caves/Lakes` knobs from `config/world.json` (via `WorldGenerationConfig`). Caves now use warped simplex noise with moisture bias; rivers/lakes respect JSON thresholds and edge smoothing.

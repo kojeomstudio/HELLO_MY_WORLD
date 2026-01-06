@@ -35,6 +35,7 @@ namespace GameServerApp.World.Generation
             double flowShadowSlopeWeight = Math.Clamp(config.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
             double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
+            double flowMemoryWeight = Math.Clamp(config.HydrologyFlowPersistence * 0.5, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -64,10 +65,12 @@ namespace GameServerApp.World.Generation
 
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
-                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
                     double flowAlignment = 1.0 + Math.Clamp(flow * config.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
                     double seamStitch = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrologyMask[x, z]) * config.HydrologyEdgeFluxBlend, -0.35, 0.35);
@@ -87,6 +90,7 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - Math.Clamp(gradient * config.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
                     pressure *= flowAlignment * seamStitch * meanderFactor;
+                    pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
                     pressure *= seamGuard;
                     if (confluenceBoost > 0.0)
@@ -108,8 +112,8 @@ namespace GameServerApp.World.Generation
                     if (edgeRepair > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
-                        double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
-                        double seamAnchor = hydrology * 0.35 + neighbourHydro * 0.35 + neighbourFlow * 0.3;
+                        double neighbourHydro = seamHydro;
+                        double seamAnchor = hydrology * 0.3 + neighbourHydro * 0.3 + neighbourFlow * 0.25 + flowMemory * 0.15;
                         pressure = pressure * (1.0 - edgeRepair * 0.35) + seamAnchor * edgeRepair * 0.5;
                         pressure = Math.Max(pressure, seamAnchor * edgeRepair * 0.25);
                     }

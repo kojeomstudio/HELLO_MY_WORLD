@@ -66,6 +66,7 @@ public static class ProtocolValidator
         ValidateDescriptorFiles();
         ValidatePrototypeDescriptorFiles();
         ValidateDescriptorAssemblies();
+        ValidateDescriptorOrigins();
         ValidateDescriptorNamespaces();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
@@ -540,6 +541,36 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
+            }
+        }
+    }
+
+    private static void ValidateDescriptorOrigins()
+    {
+        Assembly expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly;
+        string? expectedFile = EnhancedMinecraftGameReflection.Descriptor?.Name;
+
+        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        {
+            if (!ProtocolRegistry.TryResolveContractType(messageType, out var contractType) || contractType == null)
+            {
+                continue;
+            }
+
+            if (!ReferenceEquals(contractType.Assembly, expectedAssembly))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' resolved from assembly '{contractType.Assembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets or update using directives so server and Unity share the generated assembly.");
+            }
+
+            var descriptor = contractType.GetProperty("Descriptor", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as MessageDescriptor;
+            string? descriptorFile = descriptor?.File?.Name;
+            if (!string.IsNullOrWhiteSpace(expectedFile) &&
+                !string.IsNullOrWhiteSpace(descriptorFile) &&
+                !string.Equals(descriptorFile, expectedFile, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' resolved from descriptor '{descriptorFile}', expected '{expectedFile}'. Regenerate protobuf assets so both server and Unity reference the same generated file.");
             }
         }
     }

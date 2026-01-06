@@ -280,7 +280,7 @@ namespace GameServerApp.World
 
         private string ComputeGenerationSignature()
         {
-            return $"{generationConfig.WorldName}:{worldSettings.WorldSeed}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.Water.GlobalWaterLevel}:{controlProfile?.ProfileHash ?? "no-profile"}:{worldConfigWriteTime.Ticks}";
+            return $"{generationConfig.WorldName}:{worldSettings.WorldSeed}:{generationConfig.MapControlProfileVersion}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{controlProfile?.ProfileHash ?? "no-profile"}:{worldConfigWriteTime.Ticks}";
         }
     }
 

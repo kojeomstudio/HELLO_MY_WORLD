@@ -51,6 +51,7 @@ namespace GameServerApp.World.Generation
             int size = Math.Min(Math.Max(1, sizeOverride), chunkSize);
             var hydrology = BuildHydrologyMask(heightMap, size);
             var flow = BuildFlowAccumulation(heightMap, hydrology, size);
+            ApplyFlowMemory(heightMap, hydrology, flow);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
@@ -221,6 +222,62 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.StitchEdges(flow, config.Water.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
+        }
+
+        private void ApplyFlowMemory(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = flow.GetLength(0);
+            int sizeZ = flow.GetLength(1);
+            double memoryWeight = Math.Clamp(config.Water.HydrologyFlowPersistence * 0.35, 0.0, 0.6);
+            double watershedBlend = Math.Clamp(config.Water.HydrologyWatershedStitchWeight, 0.0, 1.0);
+            double flowShadowWeight = Math.Clamp(config.Water.HydrologyFlowShadowWeight, 0.0, 1.0);
+            int watershedRadius = Math.Max(1, config.Water.HydrologyWatershedStitchRadius);
+            if (memoryWeight <= 0.0 && watershedBlend <= 0.0 && flowShadowWeight <= 0.0)
+            {
+                return;
+            }
+
+            var buffer = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float flowValue = flow[x, z];
+                    float hydro = hydrology[x, z];
+                    double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
+                    double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    float downhillFlow = flow[downX, downZ];
+                    double hydrologyGradient = Math.Abs(neighbourHydro - hydro);
+
+                    double continuity = 1.0 + hydro * config.Water.HydrologyContinuityWeight + neighbourHydro * 0.25;
+                    double memory = flowValue * (1.0 - memoryWeight);
+                    memory += (downhillFlow + flowValue) * (memoryWeight * 0.25);
+                    memory += neighbourFlow * (memoryWeight * 0.35);
+                    memory += hydro * memoryWeight * 0.25;
+                    memory *= continuity;
+                    memory *= 1.0 - Math.Clamp(hydrologyGradient * flowShadowWeight * 0.25, 0.0, 0.3);
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
+                    double edgeRepair = watershedBlend * edgeFalloff;
+                    if (edgeRepair > 0.0)
+                    {
+                        double seamAnchor = neighbourHydro * 0.35 + hydro * 0.35 + neighbourFlow * 0.3;
+                        memory = memory * (1.0 - edgeRepair * 0.55) + seamAnchor * edgeRepair;
+                    }
+
+                    buffer[x, z] = (float)Math.Clamp(
+                        memory,
+                        0.0,
+                        Math.Max(flowValue + 1.5, config.Water.HydrologyFlowDivergenceClamp * 12.0));
+                }
+            }
+
+            Array.Copy(buffer, flow, buffer.Length);
         }
 
         private void BlendHydrologyWithFlow(int[,] heightMap, float[,] hydrology, float[,] flow)

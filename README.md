@@ -29,6 +29,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2026-02-18: Flow-memory hydrology keeps rivers/lakes/caves stitched across chunks (server `ImprovedTerrainCoordinator`, `ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`, Unity `WorldMapController`, MapGeneratorLib), lake seepage/outflow and cave ceiling moisture clamps reduce seam artifacts, world-map generation signatures now include hydrology/map-control knobs, and protobuf descriptor-origin guards catch stale generated assemblies (`config/minecraft_feature_core_content_util_2026-02-18.json`, `docs/minecraft_feature_core_content_util_2026-02-18.md`).
 - 2026-01-05: Comprehensive implementation planning and configuration enhancement for Minecraft features including terrain generation improvements (caves, rivers, lakes), Protobuf protocol unification, world map control architecture, and data-driven JSON configuration system. Created detailed implementation plans and enhanced configuration files for server, client, and game data.
 - 2026-01-05: Harmonized hydrology/flow masks with surface slope/curvature on server + Unity previews (`ImprovedTerrainCoordinator`, `WorldMapController`, MapGeneratorLib) so rivers/lakes/caves stay stitched across chunk seams, added a generation signature to world-map responses/previews (`WorldMapControlManager`, `WorldMapController`) for safer cache reloads, strengthened EnhancedMinecraft player-state descriptor validation (`ProtocolValidator`), and published the refreshed core/content/util rollout (`config/minecraft_feature_core_content_util_2026-01-05-harmonized.json`, `docs/minecraft_feature_core_content_util_2026-01-05-world-map.md`).
 - 2026-02-17: Added watershed seam stitching + flow-shadow weights so rivers/lakes/caves stay continuous across chunks (server `ImprovedTerrainCoordinator`, `ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`, Unity `EnhancedTerrainGenerator`, MapGeneratorLib), introduced flow seepage + cave ceiling moisture tuning via JSON (`config/world.json`, `Assets/StreamingAssets/world-config.json`), watched map-control profile/version drift on server and StreamingAssets (`WorldMapControlManager`, Unity `EnhancedWorldMapController`), tightened protobuf namespace validation (`ProtocolValidator`), and published the latest core/content/util plan (`config/minecraft_feature_core_content_util_2026-02-17.json`, `docs/minecraft_feature_core_content_util_2026-02-17.md`, `docs/minecraft_feature_core_content_util_latest.md`).
@@ -634,6 +635,5 @@ These implementation plans provide a structured approach to completing the Minec
 
 ## Known Issues
 - Protobuf validation may emit `[Proto][WARN]` for helper/nested messages that are not network-level packets; startup still fails fast for missing network packet bindings.
-
 
 

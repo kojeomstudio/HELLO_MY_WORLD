@@ -730,6 +730,8 @@ namespace MapGenLib
                         + relief * 0.12f
                         + humidity * (0.22f + 0.08f * flowMemory)
                         + flowMemory * 0.05f;
+                    float seamMemory = flowMemory * edgeFalloff;
+                    hydrologyValue = hydrologyValue * (1f - edgeFalloff * 0.15f) + seamMemory * 0.15f + humidity * seamMemory * 0.05f;
 
                     hydrology[x, z] = CustomMathf.Clamp01(hydrologyValue);
                 }
@@ -810,6 +812,7 @@ namespace MapGenLib
                     float edgeBoost = (1f - CustomMathf.Clamp01(edgeDistance / (edgeRadius * 1f))) * (0.35f + flowMemory * 0.25f);
                     float flowSeed = CustomMathf.Max(0f, contribution * altitudeBias * slopeAttenuation);
                     flowSeed = flowSeed * (0.9f + 0.1f * flowMemory) + edgeBoost * altitudeBias;
+                    flowSeed = flowSeed * (1f - edgeBoost * 0.1f) + edgeBoost * flowMemory * 0.1f;
 
                     rawAccumulation[x, z] = flowSeed;
                 }

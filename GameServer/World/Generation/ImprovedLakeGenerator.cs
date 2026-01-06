@@ -48,13 +48,15 @@ namespace GameServerApp.World.Generation
                     double rimNoise = SimplexNoise.Generate(worldX * 0.009 + 31, worldZ * 0.009 + 17, 1.0, 2, 1.0, 0.55, random.Next());
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
+                    double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
                     double inflowBlend = riverMask != null ? riverMask[x, z] * waterConfig.LakeInflowBlendWeight : 0.0;
                     double reliefPenalty = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
                     double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
-                    double hydrologyGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double flowShadow = Math.Clamp(
                         flow * flowShadowWeight +
                         hydrologyGradient * flowShadowSlopeWeight * 0.5,
@@ -74,7 +76,8 @@ namespace GameServerApp.World.Generation
                     double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
                     double weight = (basinNoise * 0.42) + (rimNoise * rimWeight) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
                     weight += inflowBlend * 0.35 * (1.0 - flowShadow * 0.5);
-                    double seepage = (flow + hydrologyGradient) * flowSeepageWeight;
+                    double seamContinuity = 1.0 + (seamHydro + flowMemory) * flowSeepageWeight * 0.2;
+                    double seepage = (flow + hydrologyGradient + flowMemory * 0.5) * flowSeepageWeight;
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
@@ -82,14 +85,14 @@ namespace GameServerApp.World.Generation
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
                     weight *= 0.75 + radiusFalloff * 0.25;
-                    double seamCushion = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
-                    weight *= seamCushion * seamGuard;
+                    double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
+                    weight *= seamCushion * seamGuard * seamContinuity;
                     weight *= 1.0 - flowShadow * 0.35;
                     double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
                     double edgeRepair = watershedBlend * edgeFalloff;
                     if (edgeRepair > 0.0)
                     {
-                        double seamAnchor = hydrology * 0.35 + flow * 0.25 + inflowBlend * 0.2 + hydrologyGradient * 0.1;
+                        double seamAnchor = hydrology * 0.3 + seamHydro * 0.25 + flow * 0.2 + inflowBlend * 0.15 + flowMemory * 0.1;
                         weight = weight * (1.0 - edgeRepair * 0.4) + seamAnchor * edgeRepair;
                     }
 

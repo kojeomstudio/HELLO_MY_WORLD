@@ -82,6 +82,7 @@ public static class ProtocolValidator
         ValidateEntityDescriptors();
         ValidateEnumBindings();
         ValidateOptionalDescriptorVisibility();
+        ValidateOptionalPrototypes();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -695,6 +696,22 @@ public static class ProtocolValidator
             if (!generated)
             {
                 Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft packet '{messageType}' is not present in generated descriptors. Run protoc to keep optional bindings reachable when promoted to required.");
+            }
+        }
+    }
+
+    private static void ValidateOptionalPrototypes()
+    {
+        foreach (var messageType in OptionalMessages)
+        {
+            if (!ProtocolRegistry.IsRegistered(messageType))
+            {
+                continue;
+            }
+
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out IMessage? prototype) || prototype == null)
+            {
+                Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft packet '{messageType}' is registered but no generated prototype was resolved. Regenerate protobuf DTOs or update ProtocolRegistry so handlers remain wired when promoting this packet to required.");
             }
         }
     }

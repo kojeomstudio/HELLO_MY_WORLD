@@ -285,7 +285,7 @@ namespace GameServerApp.World
             int gradientStabilityIterations = generationConfig.Water.HydrologyGradientStabilityIterations;
             double gradientClamp = generationConfig.Water.HydrologyGradientClamp;
 
-            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}";
+            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}";
         }
     }
 

@@ -1,0 +1,131 @@
+{
+  "updated": "2026-02-20T00:00:00Z",
+  "data_sources": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "Assets/StreamingAssets/world-config.json",
+    "Assets/StreamingAssets/world-map-control.json"
+  ],
+  "implementation_order": [
+    "core:world-map-control-parity",
+    "core:terrain-mask-edge-normalization",
+    "content:hydrology-aware-rivers",
+    "content:seam-safe-lakes",
+    "content:cave-stability",
+    "util:generation-signature-export",
+    "util:config-sync"
+  ],
+  "core": [
+    {
+      "name": "world-map-control-parity",
+      "server": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "client": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ],
+      "status": "ready",
+      "notes": "Signatures include hydrology edge tuning so server map responses and Unity previews invalidate caches together."
+    },
+    {
+      "name": "terrain-mask-edge-normalization",
+      "server": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "client": [
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ],
+      "status": "in-progress",
+      "notes": "Edge-band normalization and seam continuity bias smooth caves/rivers/lakes across chunk seams for previews and dedicated server."
+    },
+    {
+      "name": "proto-registry-validation",
+      "server": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "GameServer/Program.cs"
+      ],
+      "client": [
+        "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs"
+      ],
+      "status": "ready",
+      "notes": "Descriptor fingerprint/namespace/package checks keep EnhancedMinecraft DTOs reachable via using directives on server and Unity."
+    }
+  ],
+  "content": [
+    {
+      "name": "hydrology-aware-rivers",
+      "server": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+      ],
+      "client": [
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ],
+      "status": "in-progress",
+      "notes": "Flow memory + seam continuity bias widen channels near chunk edges while honoring hydrology gradients."
+    },
+    {
+      "name": "seam-safe-lakes",
+      "server": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ],
+      "client": [
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ],
+      "status": "in-progress",
+      "notes": "Lake basins blend edge hydrology with interior flow before carving rims, outlets, and wetland buffers."
+    },
+    {
+      "name": "cave-stability",
+      "server": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "client": [
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ],
+      "status": "in-progress",
+      "notes": "Edge-aware stability clamps and seam continuity dampen riparian caves and moisture-prone ceilings."
+    }
+  ],
+  "util": [
+    {
+      "name": "config-sync",
+      "server": [
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ],
+      "client": [
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "status": "ready",
+      "notes": "JSON-first configuration drives hydrology edge weights, chunk sizing, and map-control hashes."
+    },
+    {
+      "name": "generation-signature-export",
+      "server": [
+        "GameServer/World/WorldMapControlManager.cs"
+      ],
+      "client": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "status": "ready",
+      "notes": "Generation signature now includes hydrology edge clamps to keep preview caches in sync with server output."
+    },
+    {
+      "name": "data-driven-worldmap",
+      "server": [
+        "GameServer/World/WorldGenerationConfig.cs"
+      ],
+      "client": [
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+      ],
+      "status": "ready",
+      "notes": "World map control remains data-driven with JSON overrides for render/simulation distances and water levels."
+    }
+  ]
+}

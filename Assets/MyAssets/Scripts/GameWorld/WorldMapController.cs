@@ -331,7 +331,7 @@ namespace GameWorld
 
         private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
         {
-            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}";
+            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)

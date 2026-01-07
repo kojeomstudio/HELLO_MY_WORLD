@@ -259,6 +259,11 @@ namespace Minecraft.World
 
             SmoothField(hydrology, _worldConfig.Water.HydrologySmoothIterations, _worldConfig.Water.HydrologySmoothBlend);
             BlendInterior(hydrology, 0.1f);
+            NormalizeEdgeBands(
+                hydrology,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.5f),
+                _worldConfig.Water.HydrologyEdgeVarianceClamp);
             return hydrology;
         }
 
@@ -308,6 +313,11 @@ namespace Minecraft.World
             }
 
             SmoothField(flow, _worldConfig.Water.HydrologySmoothIterations, _worldConfig.Water.HydrologySmoothBlend);
+            NormalizeEdgeBands(
+                flow,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.5f),
+                _worldConfig.Water.HydrologyEdgeVarianceClamp);
             return flow;
         }
 
@@ -369,6 +379,11 @@ namespace Minecraft.World
             BlendWatershedEdges(heightMap, hydrology, flow, watershedRadius, watershedBlend, flowShadowWeight);
             ClampVariance(hydrology, Math.Max(_tuning.HydrologyVarianceClamp, _worldConfig.Water.HydrologyVarianceClamp));
             BlendInterior(hydrology, Mathf.Clamp01(_worldConfig.Water.HydrologySeamRelaxBlend * 0.15f));
+            NormalizeEdgeBands(
+                hydrology,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.4f),
+                _worldConfig.Water.HydrologyEdgeVarianceClamp);
         }
 
         private float[,] BuildRiverMask(int[,] heightMap, float[,] hydrology, float[,] flow, int chunkX, int chunkZ)
@@ -391,15 +406,18 @@ namespace Minecraft.World
 
                     double hydrologySample = hydrology[x, z];
                     double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double flowMemory = SampleInterior(flow, x, z) / 6.0;
                     double gradient = ComputeSlope(heightMap, x, z);
                     double relief = Math.Max(0, heightMap[x, z] - _seaLevel) / Math.Max(1, _seaLevel);
                     double meander = Math.Abs(_riverNoise.GetNoise(worldX * (float)noiseScale * 0.65f + 19f, worldZ * (float)noiseScale * 0.65f - 11f));
                     double meanderFactor = 1.0 + meander * Mathf.Clamp(_worldConfig.Water.HydrologyWarpAmplitude * 0.02f, 0.05f, 0.2f);
-                    double hydrologyGradient = Math.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
+                    double seamHydro = SampleInterior(hydrology, x, z);
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
                     float flowShadow = Mathf.Clamp(
                         (float)(flowSample * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight * 0.5),
                         0f,
                         0.75f);
+                    double continuityBias = 1.0 + Math.Clamp((seamHydro + flowMemory) * _worldConfig.Water.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
 
                     double pressure = _worldConfig.Water.RiverBankThreshold - baseNoise;
                     pressure = Math.Max(0.0, pressure);
@@ -435,12 +453,17 @@ namespace Minecraft.World
 
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrologySample * flowShadow * 0.15;
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
-                    pressure *= seamGuard;
+                    pressure *= seamGuard * continuityBias;
 
                     mask[x, z] = Mathf.Clamp((float)pressure, 0f, 1.35f);
                 }
             }
 
+            NormalizeEdgeBands(
+                mask,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.35f),
+                _worldConfig.Water.HydrologyEdgeVarianceClamp);
             SmoothField(mask, _worldConfig.Water.RiverIntensitySmoothIterations, _worldConfig.Water.RiverIntensitySmoothBlend);
             ApplyEdgeFeather(mask, Math.Max(_tuning.RiverEdgeFeather, _worldConfig.Water.RiverEdgeFeather));
             return mask;
@@ -473,12 +496,15 @@ namespace Minecraft.World
                     double rimNoise = Math.Abs(_lakeNoise.GetNoise(worldX * 0.009f + 31f, worldZ * 0.009f + 17f));
                     double hydrologySample = hydrology[x, z];
                     double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
-                    double hydrologyGradient = Math.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
+                    double seamHydro = SampleInterior(hydrology, x, z);
+                    double interiorFlow = SampleInterior(flow, x, z) / 6.0;
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
                     float flowShadow = Mathf.Clamp(
                         (float)(flowSample * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight * 0.5),
                         0f,
                         0.7f);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.35, 0.0, 0.5);
+                    double seamContinuity = 1.0 + Math.Clamp((seamHydro + interiorFlow + hydrologySample) * _worldConfig.Water.HydrologyEdgeFluxBlend * 0.15, -0.35, 0.35);
                     double shorelineJitter = Math.Abs(_lakeNoise.GetNoise(worldX * 0.0025f + 7f, worldZ * 0.0025f - 13f)) * _worldConfig.Lakes.ShorelineBlend * 0.25;
                     double reliefPenalty = Math.Max(0, heightMap[x, z] - _seaLevel) / Math.Max(1, _seaLevel);
                     double inflowBlend = riverPressure * _worldConfig.Water.LakeInflowBlendWeight;
@@ -497,7 +523,7 @@ namespace Minecraft.World
                         double seamAnchor = hydrologySample * 0.35 + flowSample * 0.25 + inflowBlend * 0.2 + hydrologyGradient * 0.1;
                         weight = weight * (1.0 - edgeRepair * 0.4) + seamAnchor * edgeRepair;
                     }
-                    weight *= seamGuard;
+                    weight *= seamGuard * seamContinuity;
                     weight *= 1.0 - flowShadow * 0.35;
 
                     if (weight > _tuning.LakeWetlandSaturationThreshold && heightMap[x, z] > _seaLevel - _worldConfig.Lakes.MaxDepth)
@@ -507,6 +533,11 @@ namespace Minecraft.World
                 }
             }
 
+            NormalizeEdgeBands(
+                lakes,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.35f),
+                _worldConfig.Water.HydrologyEdgeVarianceClamp);
             SmoothField(lakes, _worldConfig.Lakes.LakeBasinSmoothIterations, _worldConfig.Water.HydrologySmoothBlend);
             ApplyRiparianBuffer(lakes, Math.Min(_tuning.LakeWetlandBufferRadius, _worldConfig.Lakes.MaxRadius), _tuning.LakeShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flow, _worldConfig.Water.LakeInflowBlendWeight, _tuning.LakeOutflowCarveDepth);
@@ -901,6 +932,48 @@ namespace Minecraft.World
 
                     hydrology[x, z] = Mathf.Clamp01(hydroCopy[x, z] * (1f - blend) + targetHydro * blend);
                     flow[x, z] = Mathf.Clamp(flowCopy[x, z] * (1f - blend * 0.5f) + targetFlow * blend, 0f, Mathf.Max(2.5f, targetFlow * 1.5f + 0.5f));
+                }
+            }
+        }
+
+        private static void NormalizeEdgeBands(float[,] field, int radius, float interiorBlend, float clampRange)
+        {
+            radius = Mathf.Max(1, radius);
+            interiorBlend = Mathf.Clamp01(interiorBlend);
+            clampRange = Math.Max(0f, clampRange);
+            if (interiorBlend <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var copy = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Mathf.Min(Mathf.Min(x, sizeX - 1 - x), Mathf.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > radius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - edgeDistance / (float)(radius + 1);
+                    float blend = interiorBlend * falloff;
+                    float interior = SampleInterior(copy, x, z);
+                    float target = copy[x, z] * (1f - blend) + interior * blend;
+
+                    if (clampRange > 0f)
+                    {
+                        float deltaClamp = clampRange * falloff;
+                        float min = copy[x, z] - deltaClamp;
+                        float max = copy[x, z] + deltaClamp;
+                        target = Mathf.Clamp(target, min, max);
+                    }
+
+                    field[x, z] = Mathf.Clamp01(target);
                 }
             }
         }

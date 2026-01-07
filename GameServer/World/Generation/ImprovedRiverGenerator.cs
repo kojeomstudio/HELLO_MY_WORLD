@@ -68,6 +68,7 @@ namespace GameServerApp.World.Generation
                     double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                     double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double interiorFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / Math.Max(1.0, config.RiverDepth);
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
@@ -81,6 +82,7 @@ namespace GameServerApp.World.Generation
                         0.0,
                         0.75);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
+                    double continuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow) * config.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
@@ -104,6 +106,7 @@ namespace GameServerApp.World.Generation
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
+                    pressure *= continuityBias;
                     double deltaBlend = 1.0 - Math.Clamp(Math.Abs(height - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
                     pressure *= 1.0 + deltaBlend * config.RiverDeltaWetlandStrength * 0.5;
                     int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
@@ -123,6 +126,11 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            TerrainMaskUtility.NormalizeEdgeBands(
+                mask,
+                config.HydrologyEdgeBlendRadius,
+                Math.Max(0.05, config.HydrologySeamRelaxBlend * 0.35),
+                config.HydrologyEdgeVarianceClamp);
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             TerrainMaskUtility.DirectionalSmooth(heightMap, mask, Math.Max(1, config.HydrologyDirectionalIterations), config.HydrologyDirectionalBlend * 0.35);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);

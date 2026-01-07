@@ -150,6 +150,11 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.StitchEdges(hydrology, config.Water.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.ClampVariance(hydrology, varianceClamp);
             TerrainMaskUtility.RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
+            TerrainMaskUtility.NormalizeEdgeBands(
+                hydrology,
+                config.Water.HydrologyEdgeBlendRadius,
+                Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.5),
+                config.Water.HydrologyEdgeVarianceClamp);
             return hydrology;
         }
 
@@ -231,6 +236,11 @@ namespace GameServerApp.World.Generation
                 Math.Max(1, config.Water.HydrologySeamRelaxIterations));
             TerrainMaskUtility.StitchEdges(flow, config.Water.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
+            TerrainMaskUtility.NormalizeEdgeBands(
+                flow,
+                config.Water.HydrologyEdgeBlendRadius,
+                Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.5),
+                config.Water.HydrologyEdgeVarianceClamp);
             return flow;
         }
 
@@ -361,6 +371,11 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.ClampVariance(hydrology, config.Water.HydrologyVarianceClamp);
             TerrainMaskUtility.ApplyFlowShadow(hydrology, flow, flowShadowWeight, flowShadowSlopeWeight);
             TerrainMaskUtility.StitchEdges(hydrology, Math.Min(0.65, config.Water.HydrologySeamRelaxBlend * 0.85));
+            TerrainMaskUtility.NormalizeEdgeBands(
+                hydrology,
+                config.Water.HydrologyEdgeBlendRadius,
+                Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.4),
+                config.Water.HydrologyEdgeVarianceClamp);
         }
 
         private void HarmonizeHydrologyWithSurface(int[,] heightMap, float[,] hydrology, float[,] flow)
@@ -954,6 +969,48 @@ namespace GameServerApp.World.Generation
 
                     hydrology[x, z] = Clamp01(hydroCopy[x, z] * (1.0 - blend) + targetHydro * blend);
                     flow[x, z] = (float)Math.Clamp(flowCopy[x, z] * (1.0 - blend * 0.5) + targetFlow * blend, 0.0, Math.Max(2.5, targetFlow * 1.5 + 0.5));
+                }
+            }
+        }
+
+        public static void NormalizeEdgeBands(float[,] field, int radius, double interiorBlend, double clampRange)
+        {
+            radius = Math.Max(1, radius);
+            interiorBlend = Math.Clamp(interiorBlend, 0.0, 1.0);
+            clampRange = Math.Max(0.0, clampRange);
+            if (interiorBlend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var copy = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > radius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(radius + 1);
+                    double blend = interiorBlend * falloff;
+                    float interior = SampleInterior(copy, x, z);
+                    double target = copy[x, z] * (1.0 - blend) + interior * blend;
+
+                    if (clampRange > 0.0)
+                    {
+                        double deltaClamp = clampRange * falloff;
+                        double min = copy[x, z] - deltaClamp;
+                        double max = copy[x, z] + deltaClamp;
+                        target = Math.Clamp(target, min, max);
+                    }
+
+                    field[x, z] = Clamp01(target);
                 }
             }
         }

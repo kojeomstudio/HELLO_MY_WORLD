@@ -36,6 +36,9 @@ namespace GameServerApp.World.Generation
             double flowSeepageWeight = Math.Clamp(lakeConfig.FlowSeepageWeight, 0.0, 1.0);
             double watershedBlend = Math.Clamp(waterConfig.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, waterConfig.HydrologyWatershedStitchRadius);
+            double flowMemoryWeight = Math.Clamp(waterConfig.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double varianceWeight = Math.Clamp(lakeConfig.VarianceWeight, 0.0, 1.0);
+            double outflowStabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -58,6 +61,7 @@ namespace GameServerApp.World.Generation
                     int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
                     double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
+                    double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
                     double flowShadow = Math.Clamp(
                         flow * flowShadowWeight +
                         hydrologyGradient * flowShadowSlopeWeight * 0.5,
@@ -78,8 +82,9 @@ namespace GameServerApp.World.Generation
                     double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
                     double weight = (basinNoise * 0.42) + (rimNoise * rimWeight) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
                     weight += inflowBlend * 0.35 * (1.0 - flowShadow * 0.5);
-                    double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory) * flowSeepageWeight * 0.2;
-                    double seepage = (flow + hydrologyGradient + flowMemory * 0.5) * flowSeepageWeight;
+                    double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight) * flowSeepageWeight * 0.2;
+                    double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight) * flowSeepageWeight;
+                    weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
@@ -115,8 +120,13 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.StitchEdges(lakes, waterConfig.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.FillBasins(lakes, Math.Max(0.05, waterConfig.HydrologyEdgeStabilityWeight * 0.35), Math.Max(1, waterConfig.HydrologySeamRelaxIterations));
             TerrainMaskUtility.RelaxEdges(lakes, waterConfig.HydrologySeamRelaxIterations, waterConfig.HydrologySeamRelaxBlend);
+            TerrainMaskUtility.NormalizeEdges(
+                lakes,
+                waterConfig.HydrologyEdgeBlendRadius,
+                waterConfig.HydrologyEdgeNormalizationIterations,
+                waterConfig.HydrologyEdgeNormalizationBlend);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
-            ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth);
+            ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             return lakes;
         }
 
@@ -165,10 +175,11 @@ namespace GameServerApp.World.Generation
             Array.Copy(buffer, field, buffer.Length);
         }
 
-        private static void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, double inflowBlendWeight, int outflowDepth)
+        private static void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, double inflowBlendWeight, int outflowDepth, double outflowStabilityWeight)
         {
             inflowBlendWeight = Math.Clamp(inflowBlendWeight, 0.0, 1.0);
             outflowDepth = Math.Max(1, outflowDepth);
+            outflowStabilityWeight = Math.Clamp(outflowStabilityWeight, 0.0, 1.0);
             if (inflowBlendWeight <= 0.0 && outflowDepth <= 0)
             {
                 return;
@@ -188,6 +199,7 @@ namespace GameServerApp.World.Generation
                         continue;
                     }
 
+                    double stabilityBlend = 1.0 - outflowStabilityWeight * 0.5;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     if (downhill == (0, 0))
                     {
@@ -205,7 +217,9 @@ namespace GameServerApp.World.Generation
 
                         float flowInfluence = TerrainMaskUtility.Clamp01(flow[currentX, currentZ] * (float)inflowBlendWeight);
                         float blended = Math.Max(channelStrength * 0.65f, lakeStrength * 0.35f);
-                        buffer[currentX, currentZ] = Math.Max(buffer[currentX, currentZ], blended + flowInfluence * 0.5f);
+                        float stability = (float)stabilityBlend;
+                        float outflowValue = blended * stability + flowInfluence * (1f - stability);
+                        buffer[currentX, currentZ] = Math.Max(buffer[currentX, currentZ], outflowValue);
 
                         if (downhill == (0, 0))
                         {

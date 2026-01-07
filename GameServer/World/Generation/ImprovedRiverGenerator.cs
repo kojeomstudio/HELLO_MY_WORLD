@@ -35,7 +35,7 @@ namespace GameServerApp.World.Generation
             double flowShadowSlopeWeight = Math.Clamp(config.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
             double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
-            double flowMemoryWeight = Math.Clamp(config.HydrologyFlowPersistence * 0.5, 0.0, 1.0);
+            double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -61,7 +61,7 @@ namespace GameServerApp.World.Generation
                         1.0,
                         0.55,
                         random.Next()));
-                    double meanderFactor = 1.0 + meanderNoise * Math.Clamp(config.HydrologyWarpAmplitude * 0.02, 0.05, 0.2);
+                    double meanderFactor = 1.0 + meanderNoise * (Math.Clamp(config.HydrologyWarpAmplitude * 0.02, 0.05, 0.2) + Math.Max(0.0, config.RiverMeanderJitter));
 
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
@@ -133,6 +133,11 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeVarianceClamp);
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             TerrainMaskUtility.DirectionalSmooth(heightMap, mask, Math.Max(1, config.HydrologyDirectionalIterations), config.HydrologyDirectionalBlend * 0.35);
+            TerrainMaskUtility.NormalizeEdges(
+                mask,
+                config.HydrologyEdgeBlendRadius,
+                config.HydrologyEdgeNormalizationIterations,
+                config.HydrologyEdgeNormalizationBlend);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }

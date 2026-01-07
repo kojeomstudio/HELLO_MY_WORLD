@@ -69,6 +69,7 @@ public static class ProtocolValidator
         ValidateDescriptorOrigins();
         ValidateDescriptorNamespaces();
         ValidateDescriptorPackage();
+        ValidateDescriptorAssemblyLocations();
         ValidateRegistryCoverage();
         ValidateRegistryPrototypes();
         ValidateRegistryBindingNames();
@@ -543,6 +544,27 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
+            }
+        }
+    }
+
+    private static void ValidateDescriptorAssemblyLocations()
+    {
+        string expectedLocation = typeof(EnhancedMinecraftGameReflection).Assembly.Location;
+        foreach (var binding in ProtocolRegistry.RegisteredDescriptors)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(binding.MessageType, out IMessage prototype))
+            {
+                continue;
+            }
+
+            string actualLocation = prototype.Descriptor?.ClrType?.Assembly?.Location ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(expectedLocation) &&
+                !string.IsNullOrWhiteSpace(actualLocation) &&
+                !string.Equals(expectedLocation, actualLocation, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' loaded from '{actualLocation}', expected '{expectedLocation}'. Ensure the Google.Protobuf generated assembly is referenced and remove stale using directives pointing at old DLLs.");
             }
         }
     }

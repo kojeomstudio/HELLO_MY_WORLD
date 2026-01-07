@@ -39,6 +39,7 @@ namespace GameServerApp.World.Generation
             double horizontal = Math.Max(0.0001, config.HorizontalFrequency);
             double vertical = Math.Max(0.0001, config.VerticalFrequency);
             double ceilingMoistureWeight = Math.Clamp(config.CeilingMoistureWeight, 0.0, 1.0);
+            double ceilingMoistureClampWeight = Math.Clamp(config.CeilingMoistureClamp, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -70,13 +71,13 @@ namespace GameServerApp.World.Generation
                         flowMemory * ceilingMoistureWeight * 0.5 +
                         hydrologyGradient * ceilingMoistureWeight * 0.35,
                         0.0,
-                        1.0);
+                        ceilingMoistureClampWeight);
                     double ceilingMoisturePenalty = Math.Clamp(
                         hydrology * ceilingMoistureWeight +
                         flow * ceilingMoistureWeight * 0.5 +
                         hydrologyGradient * ceilingMoistureWeight * 0.25,
                         0.0,
-                        1.0);
+                        ceilingMoistureClampWeight);
                     stability *= 1.0 - stabilityPenalty * 0.4;
                     stability *= 1.0 - ceilingMoisturePenalty * 0.2;
                     stability *= 1.0 - ceilingClamp * 0.15;

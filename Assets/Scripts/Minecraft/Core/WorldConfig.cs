@@ -167,6 +167,9 @@ namespace Minecraft.Core
         public float HydrologyEdgeFluxBlend = 0.55f;
         public float HydrologyVarianceBlend = 0.55f;
         public float HydrologyVarianceClamp = 0.65f;
+        public float HydrologyEdgeNormalizationBlend = 0.38f;
+        public int HydrologyEdgeNormalizationIterations = 2;
+        public float HydrologyFlowMemoryWeight = 0.35f;
         public float HydrologyWaterTableClampWeight = 0.42f;
         public int HydrologyWaterTableClampRange = 18;
         public float HydrologyWaterTableSlopeWeight = 0.55f;
@@ -193,6 +196,7 @@ namespace Minecraft.Core
         public float RiverGradientPenalty = 0.42f;
         public float RiverHeadwaterStabilityWeight = 0.35f;
         public float RiverAnisotropyWeight = 0.32f;
+        public float RiverMeanderJitter = 0.18f;
         public float RiverBankErosionWeight = 0.18f;
         public float LakeRimErosionWeight = 0.3f;
         public float LakeInflowBlendWeight = 0.42f;
@@ -256,6 +260,7 @@ namespace Minecraft.Core
         public int RiparianPlugDepth = 2;
         public float CaveCeilingStabilityWeight = 0.35f;
         public float CeilingMoistureWeight = 0.28f;
+        public float CeilingMoistureClamp = 0.35f;
     }
 
     [Serializable]
@@ -305,6 +310,8 @@ namespace Minecraft.Core
         public int OutflowCarveDepth = 2;
         public int WetlandBufferRadius = 2;
         public float FlowSeepageWeight = 0.25f;
+        public float VarianceWeight = 0.25f;
+        public float OutflowStabilityWeight = 0.3f;
     }
 
     // Configuration wrappers for type safety and easier access
@@ -367,6 +374,9 @@ namespace Minecraft.Core
         public float HydrologyEdgeFluxBlend { get; }
         public float HydrologyVarianceBlend { get; }
         public float HydrologyVarianceClamp { get; }
+        public float HydrologyEdgeNormalizationBlend { get; }
+        public int HydrologyEdgeNormalizationIterations { get; }
+        public float HydrologyFlowMemoryWeight { get; }
         public float HydrologyWaterTableClampWeight { get; }
         public int HydrologyWaterTableClampRange { get; }
         public float HydrologyWaterTableSlopeWeight { get; }
@@ -393,6 +403,7 @@ namespace Minecraft.Core
         public float RiverGradientPenalty { get; }
         public float RiverHeadwaterStabilityWeight { get; }
         public float RiverAnisotropyWeight { get; }
+        public float RiverMeanderJitter { get; }
         public float RiverBankErosionWeight { get; }
         public float LakeRimErosionWeight { get; }
         public float LakeInflowBlendWeight { get; }
@@ -436,6 +447,9 @@ namespace Minecraft.Core
             HydrologyEdgeFluxBlend = data.HydrologyEdgeFluxBlend;
             HydrologyVarianceBlend = data.HydrologyVarianceBlend;
             HydrologyVarianceClamp = data.HydrologyVarianceClamp;
+            HydrologyEdgeNormalizationBlend = data.HydrologyEdgeNormalizationBlend;
+            HydrologyEdgeNormalizationIterations = data.HydrologyEdgeNormalizationIterations;
+            HydrologyFlowMemoryWeight = data.HydrologyFlowMemoryWeight;
             HydrologyWaterTableClampWeight = data.HydrologyWaterTableClampWeight;
             HydrologyWaterTableClampRange = data.HydrologyWaterTableClampRange;
             HydrologyWaterTableSlopeWeight = data.HydrologyWaterTableSlopeWeight;
@@ -462,6 +476,7 @@ namespace Minecraft.Core
             RiverGradientPenalty = data.RiverGradientPenalty;
             RiverHeadwaterStabilityWeight = data.RiverHeadwaterStabilityWeight;
             RiverAnisotropyWeight = data.RiverAnisotropyWeight;
+            RiverMeanderJitter = data.RiverMeanderJitter;
             RiverBankErosionWeight = data.RiverBankErosionWeight;
             LakeRimErosionWeight = data.LakeRimErosionWeight;
             LakeInflowBlendWeight = data.LakeInflowBlendWeight;
@@ -525,6 +540,7 @@ namespace Minecraft.Core
         public int RiparianPlugDepth { get; }
         public float CaveCeilingStabilityWeight { get; }
         public float CeilingMoistureWeight { get; }
+        public float CeilingMoistureClamp { get; }
 
         public CaveConfig(CaveData data)
         {
@@ -569,6 +585,7 @@ namespace Minecraft.Core
             RiparianPlugDepth = data.RiparianPlugDepth;
             CaveCeilingStabilityWeight = data.CaveCeilingStabilityWeight;
             CeilingMoistureWeight = data.CeilingMoistureWeight;
+            CeilingMoistureClamp = data.CeilingMoistureClamp;
         }
     }
 
@@ -626,6 +643,8 @@ namespace Minecraft.Core
         public int OutflowCarveDepth { get; }
         public int WetlandBufferRadius { get; }
         public float FlowSeepageWeight { get; }
+        public float VarianceWeight { get; }
+        public float OutflowStabilityWeight { get; }
 
         public LakeConfig(LakeData data)
         {
@@ -641,6 +660,8 @@ namespace Minecraft.Core
             OutflowCarveDepth = data.OutflowCarveDepth;
             WetlandBufferRadius = data.WetlandBufferRadius;
             FlowSeepageWeight = data.FlowSeepageWeight;
+            VarianceWeight = data.VarianceWeight;
+            OutflowStabilityWeight = data.OutflowStabilityWeight;
         }
     }
 }

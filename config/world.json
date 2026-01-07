@@ -47,6 +47,9 @@
     "HydrologyEdgeFluxBlend": 0.55,
     "HydrologyVarianceBlend": 0.55,
     "HydrologyVarianceClamp": 0.65,
+    "HydrologyEdgeNormalizationBlend": 0.38,
+    "HydrologyEdgeNormalizationIterations": 2,
+    "HydrologyFlowMemoryWeight": 0.35,
     "HydrologyWaterTableClampWeight": 0.42,
     "HydrologyWaterTableClampRange": 18,
     "HydrologyWaterTableSlopeWeight": 0.55,
@@ -73,6 +76,7 @@
     "RiverGradientPenalty": 0.42,
     "RiverHeadwaterStabilityWeight": 0.35,
     "RiverAnisotropyWeight": 0.32,
+    "RiverMeanderJitter": 0.18,
     "RiverBankErosionWeight": 0.18,
     "LakeRimErosionWeight": 0.3,
     "LakeInflowBlendWeight": 0.42,
@@ -132,7 +136,8 @@
     "SupportPillarChance": 0.28,
     "RiparianPlugDepth": 2,
     "CeilingStabilityWeight": 0.35,
-    "CeilingMoistureWeight": 0.28
+    "CeilingMoistureWeight": 0.28,
+    "CeilingMoistureClamp": 0.35
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -188,10 +193,12 @@
     "LakeBasinSmoothIterations": 2,
     "ShelfDepth": 2,
     "SpawnWeightBias": 0.3,
+    "VarianceWeight": 0.25,
     "ShorelineBlend": 0.66,
     "RiverProximitySuppression": 0.35,
     "WetlandSaturationThreshold": 0.55,
     "OutflowCarveDepth": 2,
+    "OutflowStabilityWeight": 0.3,
     "WetlandBufferRadius": 2,
     "FlowSeepageWeight": 0.25
   }

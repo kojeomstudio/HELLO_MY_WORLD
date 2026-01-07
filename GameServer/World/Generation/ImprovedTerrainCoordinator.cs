@@ -155,6 +155,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.5),
                 config.Water.HydrologyEdgeVarianceClamp);
+            TerrainMaskUtility.NormalizeEdges(
+                hydrology,
+                config.Water.HydrologyEdgeBlendRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend);
             return hydrology;
         }
 
@@ -241,6 +246,11 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.5),
                 config.Water.HydrologyEdgeVarianceClamp);
+            TerrainMaskUtility.NormalizeEdges(
+                flow,
+                config.Water.HydrologyEdgeBlendRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend);
             return flow;
         }
 
@@ -248,7 +258,7 @@ namespace GameServerApp.World.Generation
         {
             int sizeX = flow.GetLength(0);
             int sizeZ = flow.GetLength(1);
-            double memoryWeight = Math.Clamp(config.Water.HydrologyFlowPersistence * 0.35, 0.0, 0.6);
+            double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double watershedBlend = Math.Clamp(config.Water.HydrologyWatershedStitchWeight, 0.0, 1.0);
             double flowShadowWeight = Math.Clamp(config.Water.HydrologyFlowShadowWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.Water.HydrologyWatershedStitchRadius);
@@ -1013,6 +1023,80 @@ namespace GameServerApp.World.Generation
                     field[x, z] = Clamp01(target);
                 }
             }
+        }
+
+        public static void NormalizeEdges(float[,] field, int radius, int iterations, double blend)
+        {
+            radius = Math.Max(0, radius);
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (iterations <= 0 || blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                Array.Copy(field, buffer, field.Length);
+
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        if (edgeDistance > radius)
+                        {
+                            continue;
+                        }
+
+                        float interior = SampleInterior(buffer, x, z);
+                        float current = buffer[x, z];
+                        double edgeFalloff = 1.0 - edgeDistance / (double)(radius + 1);
+                        double lerp = blend * edgeFalloff;
+                        field[x, z] = Clamp01((float)(current * (1.0 - lerp) + interior * lerp));
+                    }
+                }
+            }
+        }
+
+        public static double SampleVariance(float[,] field, int x, int z, int radius = 1)
+        {
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            double sum = 0.0;
+            double sumSq = 0.0;
+            int count = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    double value = field[nx, nz];
+                    sum += value;
+                    sumSq += value * value;
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return 0.0;
+            }
+
+            double mean = sum / count;
+            double variance = Math.Max(0.0, sumSq / count - mean * mean);
+            return Math.Clamp(variance, 0.0, 1.0);
         }
 
         public static (int X, int Z) ComputeDownhillVector(int[,] heightMap, int x, int z)

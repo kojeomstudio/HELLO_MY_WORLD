@@ -475,6 +475,15 @@ namespace Minecraft.World
             {
                 Debug.LogWarning("[WorldMap] Map-control profile hash missing; verify server exported config/world_map_control_profile.json.");
             }
+
+            if (_worldConfig != null)
+            {
+                var expectedProfile = WorldMapControlProfile.FromConfig(_worldConfig);
+                if (!string.Equals(expectedProfile.ProfileHash, _profileHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.LogWarning($"[WorldMap] Map-control profile hash drift detected. Current={_profileHash} Expected={expectedProfile.ProfileHash}. Regenerate the profile from the server config to keep hydrology overlays aligned.");
+                }
+            }
         }
 
         private void MaybeReloadProfile()

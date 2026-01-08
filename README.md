@@ -29,6 +29,7 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- 2026-02-21: Hydrology-aware river bank erosion + lake shelves + moisture-weighted cave carving in Unity previews (`Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs` with new tuning knobs in `config/enhanced-terrain-config.json`), map-control profile hash drift warning in the Unity world-map controller (`Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs`), stronger EnhancedMinecraft protobuf assembly-name validation (`SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`), and refreshed core/content/util rollout (`config/minecraft_feature_client_server_core_content_util_2026-02-21.json`).
 - 2026-01-07: **Comprehensive Minecraft Feature Implementation and Code Quality Improvements**
   - Fixed duplicate content in [`SharedProtocol/Proto/enhanced_minecraft.proto`](SharedProtocol/Proto/enhanced_minecraft.proto:1) (removed lines 393-782 which were duplicates)
   - Created comprehensive feature categorization file [`config/minecraft_feature_implementation_comprehensive_2026-01-07.json`](config/minecraft_feature_implementation_comprehensive_2026-01-07.json:1) with 22 features categorized into core (7), content (7), and utility (8) categories
@@ -659,6 +660,5 @@ These implementation plans provide a structured approach to completing the Minec
 
 ## Known Issues
 - Protobuf validation may emit `[Proto][WARN]` for helper/nested messages that are not network-level packets; startup still fails fast for missing network packet bindings.
-
 
 

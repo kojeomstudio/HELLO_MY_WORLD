@@ -66,6 +66,7 @@ public static class ProtocolValidator
         ValidateDescriptorFiles();
         ValidatePrototypeDescriptorFiles();
         ValidateDescriptorAssemblies();
+        ValidateRegistryAssemblyNames();
         ValidateDescriptorOrigins();
         ValidateDescriptorNamespaces();
         ValidateDescriptorPackage();
@@ -544,6 +545,25 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
+            }
+        }
+    }
+
+    private static void ValidateRegistryAssemblyNames()
+    {
+        string expectedAssemblyName = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name ?? string.Empty;
+        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out IMessage? prototype) || prototype == null)
+            {
+                continue;
+            }
+
+            string assemblyName = prototype.Descriptor?.ClrType?.Assembly?.GetName().Name ?? string.Empty;
+            if (!string.Equals(expectedAssemblyName, assemblyName, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{messageType}' resolved from assembly '{assemblyName}', expected '{expectedAssemblyName}'. Update project references or using directives so both server and client load the generated Google.Protobuf DTOs from the same assembly.");
             }
         }
     }

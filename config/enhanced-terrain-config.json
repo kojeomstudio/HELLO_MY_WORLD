@@ -5,7 +5,8 @@
     "MinTunnelHeight": 2,
     "LavaPoolChance": 0.06,
     "WaterPoolChance": 0.15,
-    "EnableMultiLevel": true
+    "EnableMultiLevel": true,
+    "CaveMoistureRetentionWeight": 0.42
   },
   "Water": {
     "MeanderStrength": 0.8,
@@ -15,7 +16,8 @@
     "DeltaFertility": 0.6,
     "EnableTributaries": true,
     "ConfluenceBoost": 0.4,
-    "VarianceBlend": 0.25
+    "VarianceBlend": 0.25,
+    "RiverBankErosionWeight": 0.22
   },
   "Lakes": {
     "DepthVariation": 0.6,
@@ -25,7 +27,8 @@
     "IslandChance": 0.08,
     "EnableOutflow": true,
     "OutflowCarveDepth": 3,
-    "WetlandBufferRadius": 3
+    "WetlandBufferRadius": 3,
+    "LakeShelfDepth": 3
   },
   "Terrain": {
     "BiomeTransitionSmoothing": 0.35,

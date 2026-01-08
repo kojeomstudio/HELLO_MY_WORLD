@@ -35,13 +35,16 @@ namespace Minecraft.World
             public float HydrologyVarianceClamp = 0.65f;
             public float RiverConfluenceBoost = 0.35f;
             public float RiverEdgeFeather = 0.45f;
+            public float RiverBankErosionWeight = 0.18f;
             public int LakeOutflowCarveDepth = 3;
             public int LakeWetlandBufferRadius = 2;
             public float LakeWetlandSaturationThreshold = 0.55f;
             public float LakeShorelineBlend = 0.66f;
+            public int LakeShelfDepth = 2;
             public float CaveConnectivityThreshold = 0.42f;
             public float CaveMoisturePenalty = 0.35f;
             public float CaveFlowPenalty = 0.25f;
+            public float CaveMoistureRetentionWeight = 0.35f;
             public float DetailNoiseStrength = 0.12f;
             public int DetailNoiseOctaves = 2;
 
@@ -53,10 +56,14 @@ namespace Minecraft.World
                     HydrologyVarianceClamp = Mathf.Clamp(config.Water.HydrologyVarianceClamp, 0.0f, 2.0f),
                     RiverConfluenceBoost = Mathf.Clamp(config.Water.RiverConfluenceBoost, 0.0f, 2.0f),
                     RiverEdgeFeather = Mathf.Clamp(config.Water.RiverEdgeFeather, 0.0f, 1.0f),
+                    RiverBankErosionWeight = Mathf.Clamp01(config.Water.RiverBankErosionWeight),
                     LakeOutflowCarveDepth = Math.Max(1, config.Lakes.OutflowCarveDepth),
                     LakeWetlandBufferRadius = Math.Max(0, config.Lakes.WetlandBufferRadius),
                     LakeWetlandSaturationThreshold = Mathf.Clamp(config.Lakes.WetlandSaturationThreshold, 0.0f, 1.0f),
-                    LakeShorelineBlend = Mathf.Clamp(config.Lakes.ShorelineBlend, 0.0f, 1.0f)
+                    LakeShorelineBlend = Mathf.Clamp(config.Lakes.ShorelineBlend, 0.0f, 1.0f),
+                    LakeShelfDepth = Math.Max(1, config.Lakes.ShelfDepth),
+                    CaveConnectivityThreshold = Mathf.Clamp(config.Caves.CaveThreshold, 0.1f, 0.9f),
+                    CaveMoistureRetentionWeight = Mathf.Clamp01(config.Caves.MoistureRetentionWeight)
                 };
             }
 
@@ -71,13 +78,18 @@ namespace Minecraft.World
                 HydrologyVarianceClamp = Mathf.Clamp(overrides.HydrologyVarianceClamp, 0.0f, 2.0f);
                 RiverConfluenceBoost = Mathf.Clamp(overrides.RiverConfluenceBoost, 0.0f, 2.0f);
                 RiverEdgeFeather = Mathf.Clamp(overrides.RiverEdgeFeather, 0.0f, 1.0f);
+                RiverBankErosionWeight = overrides.RiverBankErosionWeight > 0f ? Mathf.Clamp01(overrides.RiverBankErosionWeight) : RiverBankErosionWeight;
                 LakeOutflowCarveDepth = Math.Max(1, overrides.LakeOutflowCarveDepth);
                 LakeWetlandBufferRadius = Math.Max(0, overrides.LakeWetlandBufferRadius);
                 LakeWetlandSaturationThreshold = Mathf.Clamp(overrides.LakeWetlandSaturationThreshold, 0.0f, 1.0f);
                 LakeShorelineBlend = Mathf.Clamp(overrides.LakeShorelineBlend, 0.0f, 1.0f);
+                LakeShelfDepth = overrides.LakeShelfDepth > 0 ? Math.Max(1, overrides.LakeShelfDepth) : LakeShelfDepth;
                 CaveConnectivityThreshold = Mathf.Clamp(overrides.CaveConnectivityThreshold, 0.1f, 0.9f);
                 CaveMoisturePenalty = Mathf.Clamp01(overrides.CaveMoisturePenalty);
                 CaveFlowPenalty = Mathf.Clamp01(overrides.CaveFlowPenalty);
+                CaveMoistureRetentionWeight = overrides.CaveMoistureRetentionWeight > 0f
+                    ? Mathf.Clamp01(overrides.CaveMoistureRetentionWeight)
+                    : CaveMoistureRetentionWeight;
                 DetailNoiseStrength = Mathf.Clamp01(overrides.DetailNoiseStrength);
                 DetailNoiseOctaves = Math.Max(1, overrides.DetailNoiseOctaves);
             }
@@ -136,6 +148,7 @@ namespace Minecraft.World
             float[,] lakeMask = _enableLakes ? BuildLakeMask(heightMap, hydrology, flow, riverMask, chunkX, chunkZ) : new float[_chunkSize, _chunkSize];
             bool[,,]? caveMask = _enableCaves ? BuildCaveMask(heightMap, hydrology, flow, riverMask, chunkX, chunkZ) : null;
 
+            RefineTerrainForWater(heightMap, riverMask, lakeMask);
             FillTerrain(blocks, heightMap);
             ApplyRivers(blocks, heightMap, riverMask);
             ApplyLakes(blocks, heightMap, lakeMask);
@@ -581,28 +594,36 @@ namespace Minecraft.World
             for (int x = 0; x < _chunkSize; x++)
             {
                 for (int z = 0; z < _chunkSize; z++)
-                    {
-                        float hydrologySample = hydrology[x, z];
-                        float flowSample = flow[x, z];
-                        float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
-                        float flowGradient = Mathf.Abs(SampleInterior(flow, x, z) - flowSample);
-                        float flowShadow = Mathf.Clamp(flowSample * _worldConfig.Caves.FlowStabilityWeight + hydrologySample * _worldConfig.Caves.HydrologyStabilityWeight, 0f, 1.5f);
-                        float ceilingMoisturePenalty = Mathf.Clamp(hydrologySample * ceilingMoistureWeight + flowSample * ceilingMoistureWeight * 0.5f + hydrologyGradient * ceilingMoistureWeight * 0.25f, 0f, ceilingMoistureClamp);
-                        float stabilityPenalty = Mathf.Clamp(flowShadow * 0.35f + hydrologyGradient * 0.25f + flowGradient * 0.25f + riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight * 0.5f + ceilingMoisturePenalty * 0.5f, 0f, 0.95f);
+                {
+                    float hydrologySample = hydrology[x, z];
+                    float flowSample = flow[x, z];
+                    float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
+                    float flowGradient = Mathf.Abs(SampleInterior(flow, x, z) - flowSample);
+                    float flowShadow = Mathf.Clamp(flowSample * _worldConfig.Caves.FlowStabilityWeight + hydrologySample * _worldConfig.Caves.HydrologyStabilityWeight, 0f, 1.5f);
+                    float ceilingMoisturePenalty = Mathf.Clamp(hydrologySample * ceilingMoistureWeight + flowSample * ceilingMoistureWeight * 0.5f + hydrologyGradient * ceilingMoistureWeight * 0.25f, 0f, ceilingMoistureClamp);
+                    float stabilityPenalty = Mathf.Clamp(flowShadow * 0.35f + hydrologyGradient * 0.25f + flowGradient * 0.25f + riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight * 0.5f + ceilingMoisturePenalty * 0.5f, 0f, 0.95f);
+                    float moistureRetention = Mathf.Clamp01(1f - (hydrologySample * _tuning.CaveMoistureRetentionWeight + flowSample * _tuning.CaveMoistureRetentionWeight * 0.5f));
+            int riparianPlugDepth = Math.Max(0, _worldConfig.Caves.RiparianPlugDepth);
 
                     for (int y = minCave; y < maxCave; y++)
+                    {
+                        if (riparianPlugDepth > 0 && riverMask[x, z] > 0.55f && y >= Math.Max(1, _seaLevel - riparianPlugDepth))
                         {
-                            float worldX = chunkX * _chunkSize + x;
-                            float worldZ = chunkZ * _chunkSize + z;
-                            float noise = _caveNoise.GetNoise(worldX * _worldConfig.Caves.HorizontalFrequency, worldZ * _worldConfig.Caves.HorizontalFrequency + y * _worldConfig.Caves.VerticalFrequency);
-                            double threshold = _tuning.CaveConnectivityThreshold
-                                + hydrologySample * _tuning.CaveMoisturePenalty
-                                + flowSample * _tuning.CaveFlowPenalty
-                                + riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight
-                                + stabilityPenalty * 0.25
-                                + ceilingMoisturePenalty * 0.2f
-                                + Mathf.Clamp(flowShadow * 0.15f, 0f, 0.25f)
-                                + Mathf.Clamp(flowGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.2f);
+                            continue;
+                        }
+
+                        float worldX = chunkX * _chunkSize + x;
+                        float worldZ = chunkZ * _chunkSize + z;
+                        float noise = _caveNoise.GetNoise(worldX * _worldConfig.Caves.HorizontalFrequency, worldZ * _worldConfig.Caves.HorizontalFrequency + y * _worldConfig.Caves.VerticalFrequency);
+                        double threshold = _tuning.CaveConnectivityThreshold
+                            + hydrologySample * _tuning.CaveMoisturePenalty
+                            + flowSample * _tuning.CaveFlowPenalty
+                            + riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight
+                            + stabilityPenalty * 0.25
+                            + ceilingMoisturePenalty * 0.2f
+                            + (1f - moistureRetention) * 0.12f
+                            + Mathf.Clamp(flowShadow * 0.15f, 0f, 0.25f)
+                            + Mathf.Clamp(flowGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.2f);
 
                         if (noise > threshold)
                         {
@@ -612,8 +633,78 @@ namespace Minecraft.World
                 }
             }
 
-            SmoothField(mask, _worldConfig.Caves.StabilitySmoothIterations, _worldConfig.Caves.StabilitySmoothBlend);
+            SmoothField(mask, _worldConfig.Caves.StabilitySmoothIterations, _worldConfig.Caves.StabilitySmoothBlend, _worldConfig.Caves.SupportDensity);
             return mask;
+        }
+
+        private void RefineTerrainForWater(int[,] heightMap, float[,] riverMask, float[,] lakeMask)
+        {
+            _ = lakeMask;
+
+            if (_enableRivers)
+            {
+                ApplyRiverBankErosion(heightMap, riverMask);
+            }
+        }
+
+        private void ApplyRiverBankErosion(int[,] heightMap, float[,] riverMask)
+        {
+            float erosionStrength = Mathf.Clamp01(_tuning.RiverBankErosionWeight);
+            if (erosionStrength <= 0f)
+            {
+                return;
+            }
+
+            int radius = Mathf.Max(1, Mathf.CeilToInt(_worldConfig.Water.RiverDepth * erosionStrength * 0.5f));
+
+            for (int x = 0; x < _chunkSize; x++)
+            {
+                for (int z = 0; z < _chunkSize; z++)
+                {
+                    float pressure = riverMask[x, z];
+                    if (pressure <= _worldConfig.Water.RiverBankThreshold * 0.35f)
+                    {
+                        continue;
+                    }
+
+                    int surface = heightMap[x, z];
+                    int erosion = Mathf.Max(1, Mathf.RoundToInt(pressure * _worldConfig.Water.RiverDepth * erosionStrength));
+                    heightMap[x, z] = Math.Max(1, surface - erosion);
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= _chunkSize || nz >= _chunkSize)
+                            {
+                                continue;
+                            }
+
+                            float falloff = 1f - (Mathf.Abs(dx) + Mathf.Abs(dz)) / (float)(radius + 1);
+                            if (falloff <= 0f)
+                            {
+                                continue;
+                            }
+
+                            int neighborSurface = heightMap[nx, nz];
+                            int bankCut = Mathf.RoundToInt(erosion * falloff * 0.6f);
+                            if (bankCut <= 0)
+                            {
+                                continue;
+                            }
+
+                            heightMap[nx, nz] = Math.Max(1, neighborSurface - bankCut);
+                        }
+                    }
+                }
+            }
         }
 
         private void FillTerrain(int[,,] blocks, int[,] heightMap)
@@ -714,12 +805,26 @@ namespace Minecraft.World
                     }
 
                     int surface = heightMap[x, z];
-                    int depth = Mathf.Clamp(Mathf.RoundToInt(_worldConfig.Lakes.MinDepth + lake * (_worldConfig.Lakes.MaxDepth - _worldConfig.Lakes.MinDepth)), _worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth + 2);
-                    int bottom = Math.Max(1, surface - depth);
+                    int rawDepth = Mathf.Clamp(Mathf.RoundToInt(_worldConfig.Lakes.MinDepth + lake * (_worldConfig.Lakes.MaxDepth - _worldConfig.Lakes.MinDepth)), _worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth + 2);
+                    float shorelineFactor = Mathf.Clamp01((lake - 0.55f) / 0.45f);
+                    int shelfDepth = Math.Max(1, _tuning.LakeShelfDepth);
+                    int adjustedDepth = Mathf.Clamp(
+                        Mathf.RoundToInt(Mathf.Lerp(shelfDepth, rawDepth, shorelineFactor)),
+                        _worldConfig.Lakes.MinDepth,
+                        _worldConfig.Lakes.MaxDepth + 2);
+                    int bottom = Math.Max(1, surface - adjustedDepth);
+                    int shelfLayer = Math.Max(bottom, surface - shelfDepth);
 
                     for (int y = bottom; y <= surface; y++)
                     {
-                        blocks[x, y, z] = y <= _seaLevel ? waterId : 0;
+                        bool belowSea = y <= _seaLevel;
+                        if (y == bottom || y == shelfLayer)
+                        {
+                            blocks[x, y, z] = sandId;
+                            continue;
+                        }
+
+                        blocks[x, y, z] = belowSea ? waterId : 0;
                     }
 
                     blocks[x, bottom, z] = sandId;
@@ -819,10 +924,13 @@ namespace Minecraft.World
             }
         }
 
-        private static void SmoothField(bool[,,] field, int iterations, float blend)
+        private static void SmoothField(bool[,,] field, int iterations, float blend, float supportDensity)
         {
             iterations = Mathf.Max(0, iterations);
             blend = Mathf.Clamp01(blend);
+            supportDensity = Mathf.Clamp01(supportDensity);
+            int survivalThreshold = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(10f, 18f, supportDensity)), 6, 24);
+            int birthThreshold = Math.Max(3, survivalThreshold - 6);
             int sizeX = field.GetLength(0);
             int sizeY = field.GetLength(1);
             int sizeZ = field.GetLength(2);
@@ -865,17 +973,18 @@ namespace Minecraft.World
                             }
 
                             bool carve = field[x, y, z];
-                            if (neighbours >= 13)
+                            if (neighbours >= survivalThreshold)
                             {
                                 buffer[x, y, z] = true;
                             }
-                            else if (neighbours <= 3)
+                            else if (neighbours <= birthThreshold)
                             {
                                 buffer[x, y, z] = false;
                             }
                             else
                             {
-                                buffer[x, y, z] = blend > 0 ? neighbours >= 9 : carve;
+                                int softThreshold = Math.Max(4, survivalThreshold - 4);
+                                buffer[x, y, z] = blend > 0 ? neighbours >= softThreshold : carve;
                             }
                         }
                     }

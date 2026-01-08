@@ -150,8 +150,8 @@ namespace Minecraft.World
 
             RefineTerrainForWater(heightMap, riverMask, lakeMask);
             FillTerrain(blocks, heightMap);
-            ApplyRivers(blocks, heightMap, riverMask);
-            ApplyLakes(blocks, heightMap, lakeMask);
+            ApplyRivers(blocks, heightMap, riverMask, hydrology, flow);
+            ApplyLakes(blocks, heightMap, lakeMask, hydrology, flow);
             ApplyCaves(blocks, caveMask, hydrology);
             AddBedrock(blocks);
             return blocks;
@@ -749,7 +749,7 @@ namespace Minecraft.World
             }
         }
 
-        private void ApplyRivers(int[,,] blocks, int[,] heightMap, float[,] riverMask)
+        private void ApplyRivers(int[,,] blocks, int[,] heightMap, float[,] riverMask, float[,] hydrology, float[,] flow)
         {
             if (!_enableRivers)
             {
@@ -758,6 +758,8 @@ namespace Minecraft.World
 
             int waterId = GetBlockId("water");
             int sandId = GetBlockId("sand");
+            int grassId = GetBlockId("grass");
+            int dirtId = GetBlockId("dirt");
 
             for (int x = 0; x < _chunkSize; x++)
             {
@@ -770,7 +772,19 @@ namespace Minecraft.World
                     }
 
                     int surface = heightMap[x, z];
-                    int depth = Mathf.Clamp(Mathf.RoundToInt(_worldConfig.Water.RiverDepth * (pressure + 0.35f)), 2, _worldConfig.Water.RiverDepth + 3);
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydro);
+                    float flowShadow = Mathf.Clamp(
+                        (flowValue / Mathf.Max(1f, _worldConfig.Water.RiverDepth)) * _worldConfig.Water.HydrologyFlowShadowWeight +
+                        hydrologyGradient * _worldConfig.Water.HydrologyFlowShadowSlopeWeight * 0.5f,
+                        0f,
+                        1f);
+                    float seamStability = 1f - Mathf.Clamp(hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.35f, 0f, 0.85f);
+                    int depth = Mathf.Clamp(
+                        Mathf.RoundToInt(_worldConfig.Water.RiverDepth * (pressure + 0.35f + hydro * 0.35f + flowValue * 0.25f) * (1f - flowShadow * 0.25f)),
+                        2,
+                        _worldConfig.Water.RiverDepth + 3);
                     int waterLevel = Math.Max(1, Math.Min(surface, _seaLevel));
                     int bottom = Math.Max(1, waterLevel - depth);
 
@@ -780,11 +794,32 @@ namespace Minecraft.World
                     }
 
                     blocks[x, bottom, z] = sandId;
+
+                    int bankDepth = Mathf.Max(1, Mathf.RoundToInt((_worldConfig.Water.RiverEdgeFeather * 4f + hydro * 2f) * seamStability));
+                    for (int b = 0; b < bankDepth; b++)
+                    {
+                        int bankY = Mathf.Max(1, surface - b);
+                        int current = blocks[x, bankY, z];
+                        if (current == grassId)
+                        {
+                            blocks[x, bankY, z] = b == 0 ? sandId : dirtId;
+                        }
+                    }
+
+                    float wetland = Mathf.Max(pressure, hydro);
+                    if (wetland > 0.35f && blocks[x, surface, z] == grassId)
+                    {
+                        blocks[x, surface, z] = dirtId;
+                        if (surface <= _seaLevel && flowShadow < 0.9f)
+                        {
+                            blocks[x, Math.Max(1, surface + 1), z] = waterId;
+                        }
+                    }
                 }
             }
         }
 
-        private void ApplyLakes(int[,,] blocks, int[,] heightMap, float[,] lakeMask)
+        private void ApplyLakes(int[,,] blocks, int[,] heightMap, float[,] lakeMask, float[,] hydrology, float[,] flow)
         {
             if (!_enableLakes)
             {
@@ -793,6 +828,8 @@ namespace Minecraft.World
 
             int waterId = GetBlockId("water");
             int sandId = GetBlockId("sand");
+            int grassId = GetBlockId("grass");
+            int dirtId = GetBlockId("dirt");
 
             for (int x = 0; x < _chunkSize; x++)
             {
@@ -805,11 +842,19 @@ namespace Minecraft.World
                     }
 
                     int surface = heightMap[x, z];
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydro);
+                    float flowShadow = Mathf.Clamp(
+                        (flowValue / Mathf.Max(1f, _worldConfig.Water.RiverDepth)) * _worldConfig.Water.HydrologyFlowShadowWeight +
+                        hydrologyGradient * _worldConfig.Water.HydrologyFlowShadowSlopeWeight * 0.5f,
+                        0f,
+                        1f);
                     int rawDepth = Mathf.Clamp(Mathf.RoundToInt(_worldConfig.Lakes.MinDepth + lake * (_worldConfig.Lakes.MaxDepth - _worldConfig.Lakes.MinDepth)), _worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth + 2);
                     float shorelineFactor = Mathf.Clamp01((lake - 0.55f) / 0.45f);
                     int shelfDepth = Math.Max(1, _tuning.LakeShelfDepth);
                     int adjustedDepth = Mathf.Clamp(
-                        Mathf.RoundToInt(Mathf.Lerp(shelfDepth, rawDepth, shorelineFactor)),
+                        Mathf.RoundToInt(Mathf.Lerp(shelfDepth, rawDepth, shorelineFactor) * (1f - flowShadow * 0.2f) + hydro * 0.5f),
                         _worldConfig.Lakes.MinDepth,
                         _worldConfig.Lakes.MaxDepth + 2);
                     int bottom = Math.Max(1, surface - adjustedDepth);
@@ -828,7 +873,79 @@ namespace Minecraft.World
                     }
 
                     blocks[x, bottom, z] = sandId;
+
+                    float wetland = Mathf.Max(lake, hydro);
+                    if (wetland > 0.45f && blocks[x, surface, z] == grassId)
+                    {
+                        blocks[x, surface, z] = dirtId;
+                        if (surface <= _seaLevel && flowShadow < 0.9f)
+                        {
+                            blocks[x, Math.Max(1, surface + 1), z] = waterId;
+                        }
+                    }
+
+                    if (flowValue > 0.75f)
+                    {
+                        CreateLakeOutflow(blocks, heightMap, x, z, surface, flow, flowValue);
+                    }
                 }
+            }
+        }
+
+        private void CreateLakeOutflow(int[,,] blocks, int[,] heightMap, int x, int z, int surface, float[,] flow, float flowValue)
+        {
+            float normalizedFlow = Mathf.Clamp(flowValue / Mathf.Max(1f, _worldConfig.Water.RiverDepth), 0f, 1f);
+            if (normalizedFlow <= 0.55f)
+            {
+                return;
+            }
+
+            var directions = new (int dx, int dz)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+            float bestFlow = 0f;
+            int bestDx = 0;
+            int bestDz = 0;
+
+            foreach (var dir in directions)
+            {
+                int nx = x + dir.dx;
+                int nz = z + dir.dz;
+                if (nx < 0 || nz < 0 || nx >= _chunkSize || nz >= _chunkSize)
+                {
+                    continue;
+                }
+
+                float neighbourFlow = flow[nx, nz];
+                if (neighbourFlow > bestFlow)
+                {
+                    bestFlow = neighbourFlow;
+                    bestDx = dir.dx;
+                    bestDz = dir.dz;
+                }
+            }
+
+            if (bestFlow <= 0f)
+            {
+                return;
+            }
+
+            int waterId = GetBlockId("water");
+            int sandId = GetBlockId("sand");
+            int steps = Mathf.Min(2, Mathf.Max(1, Mathf.RoundToInt(normalizedFlow * 2f)));
+            int depth = Mathf.Max(1, Mathf.RoundToInt(_worldConfig.Lakes.OutflowStabilityWeight * 3f));
+
+            for (int step = 0; step < steps; step++)
+            {
+                int cx = Mathf.Clamp(x + bestDx * step, 0, _chunkSize - 1);
+                int cz = Mathf.Clamp(z + bestDz * step, 0, _chunkSize - 1);
+                int bottom = Math.Max(1, heightMap[cx, cz] - depth);
+
+                for (int y = bottom; y <= surface; y++)
+                {
+                    bool belowSea = y <= _seaLevel;
+                    blocks[cx, y, cz] = belowSea ? waterId : blocks[cx, y, cz];
+                }
+
+                blocks[cx, bottom, cz] = sandId;
             }
         }
 

@@ -86,9 +86,19 @@ namespace GameServerApp.World.Generation
             float[,]? hydrologyMask = improvedMasks?.Hydrology;
             float[,]? flowAccumulation = improvedMasks?.FlowAccumulation;
 
+            if (hydrologyMask == null && (enableRivers || enableLakes || enableCaves))
+            {
+                hydrologyMask = BuildHydrologyMask(heightMap);
+            }
+
+            if (flowAccumulation == null && hydrologyMask != null)
+            {
+                flowAccumulation = BuildFlowMask(heightMap, hydrologyMask);
+            }
+
             if (caveMask != null)
             {
-                CarveCaves(chunk, caveMask, heightMap);
+                CarveCaves(chunk, caveMask, heightMap, hydrologyMask, flowAccumulation);
             }
 
             ApplyHydrology(chunk, heightMap, riverMask, lakeMask, hydrologyMask, flowAccumulation);
@@ -121,6 +131,115 @@ namespace GameServerApp.World.Generation
             }
 
             return heightMap;
+        }
+
+        private float[,] BuildHydrologyMask(int[,] heightMap)
+        {
+            var hydrology = new float[chunkSize, chunkSize];
+            double clampRange = Math.Max(1.0, config.Water.HydrologyWaterTableClampRange);
+            double clampWeight = Math.Clamp(config.Water.HydrologyWaterTableClampWeight, 0.0, 1.0);
+            double slopeWeight = Math.Clamp(config.Water.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
+            double slopePenaltyWeight = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
+            double varianceClamp = Math.Clamp(config.Water.HydrologyVarianceClamp, 0.0, 2.0);
+            double shorePush = Math.Max(0.1, config.Water.HydrologyShorePush);
+            double warpFrequency = Math.Max(0.00001, config.Water.HydrologyWarpFrequency);
+            double warpAmplitude = Math.Clamp(config.Water.HydrologyWarpAmplitude, 0.0, 32.0);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int surface = heightMap[x, z];
+                    double distance = Math.Max(0, surface - seaLevel);
+                    double waterBias = 1.0 - Math.Clamp(distance / clampRange, 0.0, 1.0);
+                    double shoreBoost = Math.Exp(-distance / shorePush);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double stability = 1.0 - Math.Clamp(slope * (slopeWeight + slopePenaltyWeight * 0.1) / 6.0, 0.0, 0.7);
+                    double gradientDamp = 1.0 - Math.Clamp(slope * gradientWeight / Math.Max(1.0, config.Water.HydrologyGradientClamp * 8.0), 0.0, 0.35);
+                    double warp = SimplexNoise.Generate(
+                        (x + 17) * warpFrequency,
+                        (z + 31) * warpFrequency,
+                        1.0,
+                        2,
+                        warpAmplitude * 0.15,
+                        0.6,
+                        (int)(worldSettings.WorldSeed ^ 0x6611));
+
+                    double baseline = Math.Clamp(waterBias * clampWeight * stability * gradientDamp, 0.0, 1.0);
+                    baseline = Math.Clamp(baseline + shoreBoost * 0.05 + warp * 0.05, 0.0, 1.25);
+                    hydrology[x, z] = (float)baseline;
+                }
+            }
+
+            Smooth2D(hydrology, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    hydrology[x, z] = (float)Math.Clamp(hydrology[x, z], 0.0, varianceClamp);
+                }
+            }
+
+            return hydrology;
+        }
+
+        private float[,] BuildFlowMask(int[,] heightMap, float[,] hydrology)
+        {
+            var flow = new float[chunkSize, chunkSize];
+            double persistence = Math.Clamp(config.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double continuityWeight = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double divergenceClamp = Math.Clamp(config.Water.HydrologyFlowDivergenceClamp, 0.1, 2.0);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    double current = heightMap[x, z];
+                    double lowest = current;
+                    double accumulation = 0.0;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                            {
+                                continue;
+                            }
+
+                            double neighbour = heightMap[nx, nz];
+                            if (neighbour < lowest)
+                            {
+                                lowest = neighbour;
+                            }
+
+                            if (neighbour < current)
+                            {
+                                accumulation += (current - neighbour) * 0.25;
+                            }
+                        }
+                    }
+
+                    double hydrologyBoost = hydrology[x, z] * config.Water.HydrologyFlowGain;
+                    double scaled = (accumulation * (1.0 - persistence) + hydrologyBoost) * (1.0 + hydrology[x, z] * continuityWeight);
+                    scaled *= 1.0 - Math.Clamp((current - lowest) * 0.01 * config.Water.HydrologyGradientSlopeWeight, 0.0, 0.35);
+                    flow[x, z] = (float)Math.Clamp(scaled, 0.0, divergenceClamp * 12.0);
+                }
+            }
+
+            Smooth2D(flow, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
+            return flow;
         }
 
         private void PaintBaseTerrain(ChunkData chunk, int[,] heightMap)
@@ -324,13 +443,19 @@ namespace GameServerApp.World.Generation
             return lakes;
         }
 
-        private void CarveCaves(ChunkData chunk, bool[,,] mask, int[,] heightMap)
+        private void CarveCaves(ChunkData chunk, bool[,,] mask, int[,] heightMap, float[,]? hydrologyMask, float[,]? flowMask)
         {
             var caves = config.Caves;
             for (int x = 0; x < chunkSize; x++)
             {
                 for (int z = 0; z < chunkSize; z++)
                 {
+                    float hydrology = hydrologyMask != null ? hydrologyMask[x, z] : 0f;
+                    float flow = flowMask != null ? flowMask[x, z] : 0f;
+                    float neighbourHydro = hydrologyMask != null ? SampleInterior(hydrologyMask, x, z) : hydrology;
+                    float hydrologyGradient = hydrologyMask != null ? Math.Abs(neighbourHydro - hydrology) : 0f;
+                    double stabilityPenalty = hydrology * caves.HydrologyStabilityWeight + flow * caves.FlowStabilityWeight + hydrologyGradient * caves.RoughnessStabilityWeight;
+
                     for (int y = bedrockLevel + 1; y < Math.Min(worldHeight - 4, heightMap[x, z]); y++)
                     {
                         if (!mask[x, y, z])
@@ -338,8 +463,23 @@ namespace GameServerApp.World.Generation
                             continue;
                         }
 
+                        double depthRatio = (double)(y - bedrockLevel) / Math.Max(1.0, seaLevel - bedrockLevel);
+                        double ceilingPenalty = Math.Clamp(depthRatio * caves.CeilingStabilityWeight, 0.0, caves.CeilingStabilityWeight);
+                        double moisturePenalty = Math.Clamp(hydrology * caves.MoistureRetentionWeight + flow * caves.FlowStabilityWeight * 0.5f, 0.0, 0.9);
+                        double stability = stabilityPenalty + ceilingPenalty + moisturePenalty;
+
+                        if (stability > 0.9 && random.NextDouble() < stability * 0.5)
+                        {
+                            continue;
+                        }
+
                         bool isEdge = x == 0 || z == 0 || x == chunkSize - 1 || z == chunkSize - 1;
                         if (isEdge && random.NextDouble() < config.Caves.EdgeSealStrength)
+                        {
+                            continue;
+                        }
+
+                        if (caves.RiparianPlugDepth > 0 && hydrology > 0.65f && y >= Math.Max(1, seaLevel - caves.RiparianPlugDepth))
                         {
                             continue;
                         }
@@ -351,7 +491,8 @@ namespace GameServerApp.World.Generation
                             continue;
                         }
 
-                        bool flooded = y < seaLevel - 6 && random.NextDouble() < caves.WaterThreshold;
+                        bool flooded = y < seaLevel - 6 &&
+                            (random.NextDouble() < caves.WaterThreshold || hydrology > 0.55f || flow > 0.8f);
                         chunk.SetBlock(x, y, z, flooded ? BlockType.Water : BlockType.Air);
                     }
                 }
@@ -381,15 +522,28 @@ namespace GameServerApp.World.Generation
                     float lake = lakeMask != null ? lakeMask[x, z] : 0f;
                     float hydrology = hydrologyMask != null ? hydrologyMask[x, z] : 0f;
                     float flow = flowMask != null ? flowMask[x, z] : 0f;
+                    float neighbourHydro = hydrologyMask != null ? SampleInterior(hydrologyMask, x, z) : hydrology;
+                    float neighbourFlow = flowMask != null ? SampleInterior(flowMask, x, z) : flow;
+                    float hydrologyGradient = hydrologyMask != null ? Math.Abs(neighbourHydro - hydrology) : 0f;
+                    float flowShadow = Math.Clamp(
+                        (flow / Math.Max(1f, config.Water.RiverDepth)) * (float)config.Water.HydrologyFlowShadowWeight +
+                        hydrologyGradient * (float)config.Water.HydrologyFlowShadowSlopeWeight * 0.5f,
+                        0f,
+                        1f);
+                    float seamStability = 1f - Math.Clamp(hydrologyGradient * (float)config.Water.HydrologyEdgeStabilityWeight * 0.35f, 0f, 0.85f);
 
                     bool hasRiver = river > config.Water.RiverCenterThreshold;
                     bool hasLake = lake > config.Lakes.ShorelineBlend;
                     float wetland = Math.Max(Math.Max(river, lake), hydrology * (float)Math.Clamp(config.Water.RiparianSaturationBoost, 0.0, 1.0));
+                    float wetlandPressure = Math.Max(wetland, (hydrology + neighbourHydro) * 0.5f + (flow + neighbourFlow) * 0.1f);
 
                     if (hasRiver)
                     {
                         float saturation = Math.Max(river, hydrology);
-                        int depth = Math.Clamp((int)(config.Water.RiverDepth * (river + hydrology * 0.5f + flow * 0.35f + saturation * 0.15f)), 2, config.Water.RiverDepth + 3);
+                        int depth = Math.Clamp(
+                            (int)(config.Water.RiverDepth * (river + hydrology * 0.5f + flow * 0.35f + saturation * 0.15f) * (1f - flowShadow * 0.25f)),
+                            2,
+                            config.Water.RiverDepth + 3);
                         for (int d = 0; d < depth; d++)
                         {
                             int y = Math.Max(bedrockLevel + 1, surface - d);
@@ -397,7 +551,7 @@ namespace GameServerApp.World.Generation
                         }
 
                         // Feather river banks to reduce jagged edges and surface seams
-                        int bankDepth = Math.Max(1, (int)(config.Water.RiverEdgeFeather * 4 + hydrology * 2));
+                        int bankDepth = Math.Max(1, (int)((config.Water.RiverEdgeFeather * 4 + hydrology * 2 - hydrologyGradient) * seamStability));
                         for (int b = 0; b < bankDepth; b++)
                         {
                             int bankY = Math.Max(bedrockLevel + 1, surface - b);
@@ -408,8 +562,8 @@ namespace GameServerApp.World.Generation
                             }
                         }
 
-                        ErodeRiverBanks(chunk, x, z, surface, bankDepth, config.Water.RiverBankErosionWeight);
-                        ApplyRiverMouthBlend(chunk, x, z, surface, config.Water.RiverMouthSmoothRadius);
+                        ErodeRiverBanks(chunk, x, z, surface, bankDepth, config.Water.RiverBankErosionWeight * seamStability);
+                        ApplyRiverMouthBlend(chunk, x, z, surface, (int)(config.Water.RiverMouthSmoothRadius * seamStability));
                         if (surface <= seaLevel + config.Water.RiverMouthSmoothRadius && config.Water.RiverDeltaWetlandStrength > 0)
                         {
                             int deltaDepth = Math.Max(1, (int)(config.Water.RiverDeltaWetlandStrength * 2));
@@ -425,7 +579,7 @@ namespace GameServerApp.World.Generation
                     }
                     else if (hasLake)
                     {
-                        int depth = Math.Clamp((int)(config.Lakes.MaxDepth * (lake + hydrology * 0.25f)), config.Lakes.MinDepth, config.Lakes.MaxDepth);
+                        int depth = Math.Clamp((int)(config.Lakes.MaxDepth * (lake + hydrology * 0.25f + flow * 0.15f) * (1f - flowShadow * 0.2f)), config.Lakes.MinDepth, config.Lakes.MaxDepth);
                         int shelfDepth = Math.Clamp(config.Lakes.ShelfDepth, 1, depth);
 
                         for (int d = 0; d < depth; d++)
@@ -444,10 +598,14 @@ namespace GameServerApp.World.Generation
                         }
 
                         ApplyWetlandRing(chunk, x, z, surface, config.Lakes.WetlandBufferRadius);
+                        if (flowMask != null)
+                        {
+                            ApplyLakeOutflowChannel(chunk, x, z, surface, flow, flowMask, hydrology, seamStability);
+                        }
                     }
-                    else if ((hydrology > 0.6f || flow > 0.85f) && chunk.GetBlock(x, surface, z) == BlockType.Grass)
+                    else if ((wetlandPressure > 0.6f || flow > 0.85f) && chunk.GetBlock(x, surface, z) == BlockType.Grass)
                     {
-                        int shallowDepth = Math.Max(1, (int)Math.Min(config.Water.RiverDepth, (hydrology + flow) * 2f));
+                        int shallowDepth = Math.Max(1, (int)Math.Min(config.Water.RiverDepth, (wetlandPressure + flow) * 2f * (1f - flowShadow * 0.35f)));
                         for (int d = 0; d < shallowDepth; d++)
                         {
                             int y = Math.Max(bedrockLevel + 1, surface - d);
@@ -465,10 +623,10 @@ namespace GameServerApp.World.Generation
                     }
 
                     // Add a shallow wetland buffer to keep riparian zones consistent
-                    if (!hasRiver && !hasLake && wetland > 0.35f && chunk.GetBlock(x, surface, z) == BlockType.Grass)
+                    if (!hasRiver && !hasLake && wetlandPressure > 0.35f && chunk.GetBlock(x, surface, z) == BlockType.Grass)
                     {
                         chunk.SetBlock(x, surface, z, BlockType.Dirt);
-                        if (hydrology > 0.55f && surface <= seaLevel + 1 && chunk.GetBlock(x, surface + 1, z) == BlockType.Air)
+                        if (hydrology > 0.55f && surface <= seaLevel + 1 && chunk.GetBlock(x, surface + 1, z) == BlockType.Air && flowShadow < 0.9f)
                         {
                             chunk.SetBlock(x, surface + 1, z, BlockType.Water);
                         }
@@ -894,6 +1052,61 @@ namespace GameServerApp.World.Generation
                     if (ny < seaLevel && chunk.GetBlock(nx, ny + 1, nz) == BlockType.Air)
                     {
                         chunk.SetBlock(nx, ny + 1, nz, BlockType.Water);
+                    }
+                }
+            }
+        }
+
+        private void ApplyLakeOutflowChannel(ChunkData chunk, int x, int z, int surface, float flowValue, float[,] flowMask, float hydrology, float seamStability)
+        {
+            float normalizedFlow = Math.Clamp(flowValue / Math.Max(1f, config.Water.RiverDepth), 0f, 1f);
+            if (normalizedFlow <= 0.55f || seamStability <= 0.1f)
+            {
+                return;
+            }
+
+            var directions = new (int dx, int dz)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+            float bestFlow = 0f;
+            int bestDx = 0;
+            int bestDz = 0;
+
+            foreach (var dir in directions)
+            {
+                int nx = x + dir.dx;
+                int nz = z + dir.dz;
+                if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                {
+                    continue;
+                }
+
+                float neighbourFlow = flowMask[nx, nz];
+                if (neighbourFlow > bestFlow)
+                {
+                    bestFlow = neighbourFlow;
+                    bestDx = dir.dx;
+                    bestDz = dir.dz;
+                }
+            }
+
+            if (bestFlow <= 0f)
+            {
+                return;
+            }
+
+            int channelDepth = Math.Max(1, (int)Math.Round(config.Lakes.OutflowStabilityWeight * 3 * seamStability));
+            int steps = Math.Min(2, Math.Max(1, (int)Math.Round(normalizedFlow * 2)));
+            for (int step = 0; step < steps; step++)
+            {
+                int cx = Math.Clamp(x + bestDx * step, 0, chunkSize - 1);
+                int cz = Math.Clamp(z + bestDz * step, 0, chunkSize - 1);
+                int bottom = Math.Max(bedrockLevel + 1, surface - channelDepth);
+                for (int d = 0; d <= channelDepth; d++)
+                {
+                    int y = Math.Max(bedrockLevel + 1, bottom + d);
+                    var current = chunk.GetBlock(cx, y, cz);
+                    if (current == BlockType.Grass || current == BlockType.Dirt || current == BlockType.Air)
+                    {
+                        chunk.SetBlock(cx, y, cz, y <= seaLevel || hydrology > 0.5f ? BlockType.Water : current);
                     }
                 }
             }

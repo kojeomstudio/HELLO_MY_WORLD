@@ -24,6 +24,7 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
+        private DateTime profileWriteTime;
         private string generationSignature;
 
         public WorldMapControlManager(WorldMapControlSettings settings, WorldGenerationConfig generationConfig, WorldSettings worldSettings)
@@ -35,6 +36,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, this.worldSettings);
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
             worldConfigWriteTime = GetWriteTime(this.generationConfig.SourcePath);
+            profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
             maxCachedChunks = Math.Max(this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance, this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
             generationSignature = ComputeGenerationSignature();
         }
@@ -181,8 +183,9 @@ namespace GameServerApp.World
             bool profileHashDrift = loaded != null &&
                 !string.Equals(loaded.ProfileHash, WorldMapControlProfileUtility.ComputeHash(loaded), StringComparison.OrdinalIgnoreCase);
             bool versionMismatch = loaded != null && generationConfig.MapControlProfileVersion > loaded.Version;
+            bool profileFileUpdated = GetWriteTime(generationConfig.MapControlProfilePath) > profileWriteTime;
 
-            if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch)
+            if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch || profileFileUpdated)
             {
                 controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
                 WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
@@ -190,6 +193,7 @@ namespace GameServerApp.World
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 generationSignature = ComputeGenerationSignature();
+                profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
                 return controlProfile;
             }
 
@@ -200,6 +204,7 @@ namespace GameServerApp.World
                 chunkCache.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
+                profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
             }
 
             generationSignature = ComputeGenerationSignature();
@@ -242,6 +247,7 @@ namespace GameServerApp.World
             chunkCache.Clear();
             profileChanged = true;
             generationSignature = ComputeGenerationSignature();
+            profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
         }
 
         private void EnforceCacheBudget()
@@ -285,7 +291,7 @@ namespace GameServerApp.World
             int gradientStabilityIterations = generationConfig.Water.HydrologyGradientStabilityIterations;
             double gradientClamp = generationConfig.Water.HydrologyGradientClamp;
 
-            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}";
+            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}";
         }
     }
 

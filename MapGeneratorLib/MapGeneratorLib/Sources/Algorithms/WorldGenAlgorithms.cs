@@ -2011,8 +2011,12 @@ namespace MapGenLib
                     }
 
                     float average = samples > 0 ? sum / samples : hydrologyMask[x, z];
-                    hydrologyMask[x, z] = hydrologyMask[x, z] * (1f - bleed) + average * bleed;
-                    flowAccumulation[x, z] = flowAccumulation[x, z] * (1f - bleed * 0.5f) + hydrologyMask[x, z] * bleed * 0.25f;
+                    float hydroGradient = CustomMathf.Abs(hydrologyMask[x, z] - average);
+                    float flowShadow = CustomMathf.Clamp01((flowAccumulation[x, z] / CustomMathf.Max(1f, RiverDepth)) * HydrologyEdgeStabilityWeight * 0.35f + hydroGradient * HydrologyEdgeStabilityWeight);
+                    float stabilityBlend = bleed * (1f - flowShadow * 0.35f);
+
+                    hydrologyMask[x, z] = hydrologyMask[x, z] * (1f - stabilityBlend) + average * stabilityBlend;
+                    flowAccumulation[x, z] = flowAccumulation[x, z] * (1f - stabilityBlend * 0.5f) + hydrologyMask[x, z] * stabilityBlend * 0.25f;
                 }
             }
         }

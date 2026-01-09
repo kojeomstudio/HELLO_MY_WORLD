@@ -1,0 +1,104 @@
+{
+  "worldMapControl": {
+    "ui": {
+      "showMiniMap": true,
+      "miniMapPosition": "bottom-right",
+      "miniMapSize": 256,
+      "miniMapOpacity": 0.9,
+      "showPlayerMarker": true,
+      "showChunkBorders": true
+    },
+    "display": {
+      "showCoordinates": false,
+      "showBiomeInfo": false,
+      "showFps": true,
+      "showPing": true
+    },
+    "performance": {
+      "chunkUpdateThrottleMs": 50,
+      "maxConcurrentChunkRequests": 8,
+      "enableChunkPrediction": true
+    },
+    "defaults": {
+      "renderDistance": 4,
+      "mapScale": 1.0,
+      "terrainQuality": 2,
+      "waterQuality": 2,
+      "vegetationQuality": 2,
+      "fogEnabled": true,
+      "shadowEnabled": true,
+      "maxChunkUpdatesPerFrame": 12,
+      "chunkLOD": 2,
+      "unloadDistance": 12
+    }
+  }
+}
+  "worldMapControl": {
+    "ui": {
+      "showMiniMap": true,
+      "miniMapPosition": "bottom-right",
+      "miniMapSize": 256,
+      "miniMapOpacity": 0.9,
+      "showPlayerMarker": true,
+      "showChunkBorders": true
+    },
+    "display": {
+      "showCoordinates": false,
+      "showBiomeInfo": false,
+      "showFps": true,
+      "showPing": true
+    },
+    "performance": {
+      "chunkUpdateThrottleMs": 50,
+      "maxConcurrentChunkRequests": 8,
+      "enableChunkPrediction": true
+    },
+    "defaults": {
+      "renderDistance": 4,
+      "mapScale": 1.0,
+      "terrainQuality": 2,
+      "waterQuality": 2,
+      "vegetationQuality": 2,
+      "fogEnabled": true,
+      "shadowEnabled": true,
+      "maxChunkUpdatesPerFrame": 12,
+      "chunkLOD": 2,
+      "unloadDistance": 12
+    }
+  }
+}
+
+    "ui": {
+      "showMiniMap": true,
+      "miniMapPosition": "bottom-right",
+      "miniMapSize": 256,
+      "miniMapOpacity": 0.9,
+      "showPlayerMarker": true,
+      "showChunkBorders": true
+    },
+    "display": {
+      "showCoordinates": false,
+      "showBiomeInfo": false,
+      "showFps": true,
+      "showPing": true
+    },
+    "performance": {
+      "chunkUpdateThrottleMs": 50,
+      "maxConcurrentChunkRequests": 8,
+      "enableChunkPrediction": true
+    },
+    "defaults": {
+      "renderDistance": 4,
+      "mapScale": 1.0,
+      "terrainQuality": 2,
+      "waterQuality": 2,
+      "vegetationQuality": 2,
+      "fogEnabled": true,
+      "shadowEnabled": true,
+      "maxChunkUpdatesPerFrame": 12,
+      "chunkLOD": 2,
+      "unloadDistance": 12
+    }
+  }
+}
+

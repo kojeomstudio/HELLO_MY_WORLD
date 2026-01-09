@@ -143,6 +143,7 @@ namespace Minecraft.World
             float[,] hydrology = BuildHydrologyMask(heightMap);
             float[,] flow = BuildFlowMask(heightMap, hydrology);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
+            ApplyFlowShadow(hydrology, flow);
 
             float[,] riverMask = _enableRivers ? BuildRiverMask(heightMap, hydrology, flow, chunkX, chunkZ) : new float[_chunkSize, _chunkSize];
             float[,] lakeMask = _enableLakes ? BuildLakeMask(heightMap, hydrology, flow, riverMask, chunkX, chunkZ) : new float[_chunkSize, _chunkSize];
@@ -410,6 +411,47 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeVarianceClamp);
         }
 
+        private void ApplyFlowShadow(float[,] hydrology, float[,] flow)
+        {
+            float weight = Mathf.Clamp01(_worldConfig.Water.HydrologyFlowShadowWeight);
+            float slopeWeight = Mathf.Clamp01(_worldConfig.Water.HydrologyFlowShadowSlopeWeight);
+            if (weight <= 0f && slopeWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
+            float flowClamp = Mathf.Max(0.5f, _worldConfig.Water.HydrologyFlowDivergenceClamp * 12f);
+            float persistence = Mathf.Clamp01(_worldConfig.Water.HydrologyFlowPersistence);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float flowShadow = Mathf.Clamp(((flowValue + neighbourFlow) * 0.5f) * weight, 0f, 0.6f);
+                    float slopeShadow = Mathf.Clamp(Mathf.Abs(hydro - neighbourHydro) * slopeWeight, 0f, 0.35f);
+
+                    float dampenedHydro = hydro * (1f - flowShadow * 0.35f - slopeShadow * 0.35f) + neighbourHydro * (flowShadow * 0.2f);
+                    float flowDamp = flowValue * (1f - flowShadow * 0.25f - slopeShadow * 0.2f);
+                    flowDamp += neighbourFlow * (flowShadow * 0.25f + slopeShadow * 0.15f);
+                    flowDamp *= 0.75f + persistence * 0.25f;
+
+                    hydroBuffer[x, z] = Mathf.Clamp01(dampenedHydro);
+                    flowBuffer[x, z] = Mathf.Clamp(flowDamp, 0f, Mathf.Max(flowClamp, Mathf.Max(flowValue, neighbourFlow) + 1f));
+                }
+            }
+
+            Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+            Array.Copy(flowBuffer, flow, flowBuffer.Length);
+        }
+
         private float[,] BuildRiverMask(int[,] heightMap, float[,] hydrology, float[,] flow, int chunkX, int chunkZ)
         {
             var mask = new float[_chunkSize, _chunkSize];
@@ -437,11 +479,14 @@ namespace Minecraft.World
                     double meanderFactor = 1.0 + meander * (Mathf.Clamp(_worldConfig.Water.HydrologyWarpAmplitude * 0.02f, 0.05f, 0.2f) + Mathf.Max(0f, _worldConfig.Water.RiverMeanderJitter));
                     double seamHydro = SampleInterior(hydrology, x, z);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
+                    double hydrologyVariance = SampleVariance(hydrology, x, z);
+                    double flowVariance = SampleVariance(flow, x, z);
                     float flowShadow = Mathf.Clamp(
                         (float)(flowSample * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight * 0.5),
                         0f,
                         0.75f);
                     double continuityBias = 1.0 + Math.Clamp((seamHydro + flowMemory) * _worldConfig.Water.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
+                    continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
 
                     double pressure = _worldConfig.Water.RiverBankThreshold - baseNoise;
                     pressure = Math.Max(0.0, pressure);
@@ -478,6 +523,7 @@ namespace Minecraft.World
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrologySample * flowShadow * 0.15;
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
                     pressure *= seamGuard * continuityBias;
+                    pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
 
                     mask[x, z] = Mathf.Clamp((float)pressure, 0f, 1.35f);
                 }
@@ -550,6 +596,14 @@ namespace Minecraft.World
                     weight -= hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= reliefPenalty * _worldConfig.Water.RiverReliefPenaltyWeight;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, _chunkSize - 1);
+                    int downZ = Mathf.Clamp(z + downhill.z, 0, _chunkSize - 1);
+                    double downhillHydro = hydrology[downX, downZ];
+                    double downhillFlow = flow[downX, downZ] / 6.0;
+                    double outflowAnchor = (downhillHydro + downhillFlow) * outflowStabilityWeight * 0.25;
+                    weight += outflowAnchor * (1.0 - flowShadow * 0.5);
+                    weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1, 0.0, 0.35);
                     double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
                     double edgeRepair = watershedBlend * edgeFalloff;
                     if (edgeRepair > 0.0)
@@ -600,10 +654,20 @@ namespace Minecraft.World
                     float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
                     float flowGradient = Mathf.Abs(SampleInterior(flow, x, z) - flowSample);
                     float flowShadow = Mathf.Clamp(flowSample * _worldConfig.Caves.FlowStabilityWeight + hydrologySample * _worldConfig.Caves.HydrologyStabilityWeight, 0f, 1.5f);
+                    float hydrologyVariance = SampleVariance(hydrology, x, z, 2);
                     float ceilingMoisturePenalty = Mathf.Clamp(hydrologySample * ceilingMoistureWeight + flowSample * ceilingMoistureWeight * 0.5f + hydrologyGradient * ceilingMoistureWeight * 0.25f, 0f, ceilingMoistureClamp);
-                    float stabilityPenalty = Mathf.Clamp(flowShadow * 0.35f + hydrologyGradient * 0.25f + flowGradient * 0.25f + riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight * 0.5f + ceilingMoisturePenalty * 0.5f, 0f, 0.95f);
+                    float variancePenalty = Mathf.Clamp(hydrologyVariance * 0.3f, 0f, 0.35f);
+                    float stabilityPenalty = Mathf.Clamp(
+                        flowShadow * 0.35f +
+                        hydrologyGradient * 0.25f +
+                        flowGradient * 0.25f +
+                        riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight * 0.5f +
+                        ceilingMoisturePenalty * 0.5f +
+                        variancePenalty * 0.5f,
+                        0f,
+                        0.95f);
                     float moistureRetention = Mathf.Clamp01(1f - (hydrologySample * _tuning.CaveMoistureRetentionWeight + flowSample * _tuning.CaveMoistureRetentionWeight * 0.5f));
-            int riparianPlugDepth = Math.Max(0, _worldConfig.Caves.RiparianPlugDepth);
+                    int riparianPlugDepth = Math.Max(0, _worldConfig.Caves.RiparianPlugDepth);
 
                     for (int y = minCave; y < maxCave; y++)
                     {
@@ -623,7 +687,8 @@ namespace Minecraft.World
                             + ceilingMoisturePenalty * 0.2f
                             + (1f - moistureRetention) * 0.12f
                             + Mathf.Clamp(flowShadow * 0.15f, 0f, 0.25f)
-                            + Mathf.Clamp(flowGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.2f);
+                            + Mathf.Clamp(flowGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.2f)
+                            + variancePenalty * 0.25f;
 
                         if (noise > threshold)
                         {

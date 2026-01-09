@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-09: Hydrology Stability & Feature Sequencing**
+  - Added sequenced client/server feature roster with core/content/util ordering (`config/minecraft_feature_client_server_core_content_util_2026-01-09-sequenced.json`) for incremental implementation.
+  - Strengthened flow-shadow smoothing and variance-aware damping across rivers, lakes, and caves on server (`ImprovedTerrainCoordinator`, `ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`) and client preview (`EnhancedTerrainGenerator`).
+  - Documented the new terrain safeguards and parity work in `terrain_generation_improvements.md`.
 - **2026-01-09: Comprehensive Feature Categorization, World Map Control Improvements, and Data-Driven Approach Enhancement**
   - Created comprehensive feature categorization document (`minecraft_features_implementation_plan_v3.json`) with Core, Content, and Utility categories for both client and server
   - Documented world map control architecture improvements (`minecraft_world_map_control_improvements.md`) with server and client enhancement recommendations
@@ -316,5 +320,4 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-
 

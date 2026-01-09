@@ -92,6 +92,14 @@ namespace GameServerApp.World.Generation
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
                     weight *= 0.75 + radiusFalloff * 0.25;
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, chunkSize - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, chunkSize - 1);
+                    double downhillHydro = hydrologyMask[downX, downZ];
+                    double downhillFlow = flowAccumulation[downX, downZ] / 6.0;
+                    double outflowAnchor = (downhillHydro + downhillFlow) * outflowStabilityWeight * 0.25;
+                    weight += outflowAnchor * (1.0 - flowShadow * 0.5);
+                    weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1, 0.0, 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     weight *= 1.0 - flowShadow * 0.35;

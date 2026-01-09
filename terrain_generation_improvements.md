@@ -1,8 +1,13 @@
 # Terrain Generation Improvements Analysis
 
-## Latest update (2025-12-28)
+## Latest update (2026-01-09)
+- Added a shared flow-shadow stabilizer that damps both hydrology and flow fields before mask generation on server (`ImprovedTerrainCoordinator`, `ImprovedRiverGenerator`, `ImprovedLakeGenerator`) and the Unity preview (`EnhancedTerrainGenerator`), reducing chunk seams and preventing over-widened rivers.
+- River masks now apply variance-aware continuity damping so high-gradient hydrology cells do not explode into jagged banks; lakes bias outflow strength using downhill hydrology/flow anchors to carve consistent channels.
+- Cave carving applies a hydrology-variance penalty to suppress unstable voids near saturated slopes and river seams, tightening thresholds without losing moisture-aware shaping.
+
+## Previous update (2025-12-28)
 - Added a riparian-aware hydrology buffer that blends nearby saturation/flow into edge cells before river/lake/cave passes run (`GameServer/World/WorldManager.cs`, `MapGeneratorLib/.../WorldGenAlgorithms.cs`). The buffer uses the JSON-driven `RiparianBufferRadius` so chunk seams stay hydrated and cave ceilings near waterways stabilize instead of collapsing.
-- Map-control propagation now includes `riparianBufferRadius` and `lakeWetlandBufferRadius` for the Unity preview (`WorldAreaManager` → `WorldGenAlgorithms`), keeping StreamingAssets profiles aligned with server worldgen and map tools.
+- Map-control propagation now includes `riparianBufferRadius` and `lakeWetlandBufferRadius` for the Unity preview (`WorldAreaManager` to `WorldGenAlgorithms`), keeping StreamingAssets profiles aligned with server worldgen and map tools.
 - Lake wetland pocket spawning now respects the configured wetland buffer radius, producing smoother shallow shelves around basins for rivers to blend into.
 
 ## Previous update (2026-01-22)

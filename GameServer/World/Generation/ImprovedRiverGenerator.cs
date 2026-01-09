@@ -70,6 +70,8 @@ namespace GameServerApp.World.Generation
                     double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double interiorFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / Math.Max(1.0, config.RiverDepth);
                     double relief = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
+                    double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
+                    double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
@@ -83,6 +85,7 @@ namespace GameServerApp.World.Generation
                         0.75);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
                     double continuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow) * config.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
+                    continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
@@ -95,6 +98,7 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
                     pressure *= seamGuard;
+                    pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;

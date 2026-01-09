@@ -60,12 +60,22 @@ namespace GameServerApp.World.Generation
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double flowGradient = Math.Abs(seamFlow - flow);
+                    double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z, 2);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
                     seamStability *= 1.0 - Math.Clamp(flowGradient * config.EdgeSealStrength * 0.35, 0.0, 0.35);
                     double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
-                    double stabilityPenalty = Math.Clamp(flowShadow * 0.35 + hydrologyGradient * 0.25 + riverPressure * 0.25 + flowGradient * 0.25, 0.0, 0.85);
+                    double variancePenalty = Math.Clamp(hydrologyVariance * 0.3, 0.0, 0.35);
+                    double stabilityPenalty = Math.Clamp(
+                        flowShadow * 0.35 +
+                        hydrologyGradient * 0.25 +
+                        riverPressure * 0.25 +
+                        flowGradient * 0.25 +
+                        variancePenalty * 0.5,
+                        0.0,
+                        0.95);
                     double continuityPenalty = Math.Clamp(Math.Abs(seamHydro - hydrology) + Math.Abs(seamFlow - flow) * 0.5, 0.0, 1.5);
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
+                    stability *= 1.0 - variancePenalty * 0.3;
                     double ceilingClamp = Math.Clamp(
                         hydrology * ceilingMoistureWeight +
                         flowMemory * ceilingMoistureWeight * 0.5 +
@@ -132,6 +142,7 @@ namespace GameServerApp.World.Generation
                         threshold += ceilingMoisturePenalty * 0.2;
                         threshold += ceilingClamp * 0.1;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
+                        threshold += variancePenalty * 0.25;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)

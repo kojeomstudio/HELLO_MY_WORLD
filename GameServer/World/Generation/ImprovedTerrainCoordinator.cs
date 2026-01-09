@@ -830,7 +830,8 @@ namespace GameServerApp.World.Generation
 
             int sizeX = hydrology.GetLength(0);
             int sizeZ = hydrology.GetLength(1);
-            var buffer = (float[,])hydrology.Clone();
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -844,12 +845,17 @@ namespace GameServerApp.World.Generation
                     float neighbourHydro = SampleInterior(hydrology, x, z);
                     double slopeShadow = Math.Clamp(Math.Abs(hydro - neighbourHydro) * slopeWeight, 0.0, 0.35);
 
-                    double dampened = hydro * (1.0 - flowShadow * 0.35 - slopeShadow * 0.35) + neighbourHydro * (flowShadow * 0.2);
-                    buffer[x, z] = Clamp01(dampened);
+                    double dampenedHydro = hydro * (1.0 - flowShadow * 0.35 - slopeShadow * 0.35) + neighbourHydro * (flowShadow * 0.2);
+                    double flowDamp = flowValue * (1.0 - flowShadow * 0.25 - slopeShadow * 0.2);
+                    flowDamp += neighbourFlow * (flowShadow * 0.25 + slopeShadow * 0.15);
+
+                    hydroBuffer[x, z] = Clamp01(dampenedHydro);
+                    flowBuffer[x, z] = (float)Math.Clamp(flowDamp, 0.0, Math.Max(flowValue + 0.75, neighbourFlow + 0.75));
                 }
             }
 
-            Array.Copy(buffer, hydrology, buffer.Length);
+            Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+            Array.Copy(flowBuffer, flow, flowBuffer.Length);
         }
 
         public static float SampleInterior(float[,] field, int x, int z)

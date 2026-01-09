@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "profileHash": "f1a4035964f23570faa4d64ac3d76ed3cd5d37eb2f8f9d0f3834a42858be7a90",
+  "profileHash": "9d5d2eeafc185ec80e003678b7b7d5e48cb74fe1c07925fb3b40362c02dafde3",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-01-04T12:23:11.5662397Z",
+  "generatedAtUtc": "2026-01-09T06:14:49.638953Z",
   "chunkSize": 16,
   "renderDistance": 12,
   "simulationDistance": 12,
@@ -92,5 +92,15 @@
   "enableCaves": true,
   "useImprovedCaves": true,
   "useImprovedRivers": true,
-  "useImprovedLakes": true
+  "useImprovedLakes": true,
+  "hydrologyFlowShadowWeight": 0.45,
+  "hydrologyFlowShadowSlopeWeight": 0.35,
+  "riverMeanderJitter": 0.18,
+  "lakeVarianceWeight": 0.25,
+  "lakeOutflowStabilityWeight": 0.3,
+  "lakeFlowSeepageWeight": 0.25,
+  "hydrologyEdgeNormalizationBlend": 0.38,
+  "hydrologyEdgeNormalizationIterations": 2,
+  "hydrologyFlowMemoryWeight": 0.35,
+  "caveCeilingMoistureClamp": 0.35
 }

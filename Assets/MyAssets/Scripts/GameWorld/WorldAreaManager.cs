@@ -56,6 +56,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(MapControlProfile.HydrologyShorePush, 0.1f, 64f);
         WorldGenAlgorithms.HydrologySlopePenalty = Mathf.Clamp(MapControlProfile.HydrologySlopePenalty, 0.1f, 64f);
         WorldGenAlgorithms.HydrologyFlowGain = Mathf.Clamp(MapControlProfile.HydrologyFlowGain, 0f, 2f);
+        WorldGenAlgorithms.HydrologyFlowShadowWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowWeight);
+        WorldGenAlgorithms.HydrologyFlowShadowSlopeWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowSlopeWeight);
         WorldGenAlgorithms.HydrologyContinuityWeight = Mathf.Clamp01(MapControlProfile.HydrologyContinuityWeight);
         WorldGenAlgorithms.HydrologyEdgeFlowBias = Mathf.Clamp01(MapControlProfile.HydrologyEdgeFlowBias);
         WorldGenAlgorithms.HydrologyEdgeTangentWeight = Mathf.Clamp01(MapControlProfile.HydrologyEdgeTangentWeight);
@@ -109,6 +111,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.LakeBasinSmoothIterations = Mathf.Max(0, MapControlProfile.LakeBasinSmoothIterations);
         WorldGenAlgorithms.LakeShelfDepth = Mathf.Max(0, MapControlProfile.LakeShelfDepth);
         WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(MapControlProfile.LakeRiverProximitySuppression);
+        WorldGenAlgorithms.LakeFlowSeepageWeight = Mathf.Clamp01(MapControlProfile.LakeFlowSeepageWeight);
         WorldGenAlgorithms.WetlandSaturationThreshold = Mathf.Clamp01(MapControlProfile.LakeWetlandSaturationThreshold);
         WorldGenAlgorithms.OutflowCarveDepth = Mathf.Max(1, MapControlProfile.LakeOutflowCarveDepth);
         WorldGenAlgorithms.LakeWetlandBufferRadius = Mathf.Max(0, MapControlProfile.LakeWetlandBufferRadius);

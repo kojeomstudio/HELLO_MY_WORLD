@@ -31,6 +31,8 @@ public class WorldMapControlProfileData
     public float hydrologyShorePush;
     public float hydrologySlopePenalty;
     public float hydrologyFlowGain;
+    public float hydrologyFlowShadowWeight;
+    public float hydrologyFlowShadowSlopeWeight;
     public float hydrologyEdgeNormalizationBlend;
     public int hydrologyEdgeNormalizationIterations;
     public float hydrologyFlowMemoryWeight;
@@ -85,6 +87,7 @@ public class WorldMapControlProfileData
     public float lakeRiverProximitySuppression;
     public float lakeInflowBlendWeight;
     public float lakeRimErosionWeight;
+    public float lakeFlowSeepageWeight;
     public float lakeVarianceWeight;
     public float lakeOutflowStabilityWeight;
     public float caveEdgeSealStrength;
@@ -137,6 +140,8 @@ public sealed class WorldMapControlProfile
     public float HydrologyShorePush { get; private set; }
     public float HydrologySlopePenalty { get; private set; }
     public float HydrologyFlowGain { get; private set; }
+    public float HydrologyFlowShadowWeight { get; private set; }
+    public float HydrologyFlowShadowSlopeWeight { get; private set; }
     public float HydrologyEdgeNormalizationBlend { get; private set; }
     public int HydrologyEdgeNormalizationIterations { get; private set; }
     public float HydrologyFlowMemoryWeight { get; private set; }
@@ -191,6 +196,7 @@ public sealed class WorldMapControlProfile
     public float LakeRiverProximitySuppression { get; private set; }
     public float LakeInflowBlendWeight { get; private set; }
     public float LakeRimErosionWeight { get; private set; }
+    public float LakeFlowSeepageWeight { get; private set; }
     public float LakeVarianceWeight { get; private set; }
     public float LakeOutflowStabilityWeight { get; private set; }
     public float CaveEdgeSealStrength { get; private set; }
@@ -281,6 +287,8 @@ public sealed class WorldMapControlProfile
                 hydrologyShorePush = Mathf.Clamp(water.HydrologyShorePush, 0.1f, 64f),
                 hydrologySlopePenalty = Mathf.Clamp(water.HydrologySlopePenalty, 0.1f, 64f),
                 hydrologyFlowGain = Mathf.Clamp(water.HydrologyFlowGain, 0f, 2f),
+                hydrologyFlowShadowWeight = Mathf.Clamp01(water.HydrologyFlowShadowWeight),
+                hydrologyFlowShadowSlopeWeight = Mathf.Clamp01(water.HydrologyFlowShadowSlopeWeight),
                 hydrologyEdgeNormalizationBlend = Mathf.Clamp01(water.HydrologyEdgeNormalizationBlend),
                 hydrologyEdgeNormalizationIterations = Mathf.Max(0, water.HydrologyEdgeNormalizationIterations),
                 hydrologyFlowMemoryWeight = Mathf.Clamp01(water.HydrologyFlowMemoryWeight),
@@ -335,6 +343,7 @@ public sealed class WorldMapControlProfile
                 lakeRiverProximitySuppression = Mathf.Clamp01(lakes.RiverProximitySuppression),
                 lakeInflowBlendWeight = Mathf.Clamp01(water.LakeInflowBlendWeight),
                 lakeRimErosionWeight = Mathf.Clamp01(water.LakeRimErosionWeight),
+                lakeFlowSeepageWeight = Mathf.Clamp01(lakes.FlowSeepageWeight),
                 lakeVarianceWeight = Mathf.Clamp01(lakes.VarianceWeight),
                 lakeOutflowStabilityWeight = Mathf.Clamp01(lakes.OutflowStabilityWeight),
                 caveEdgeSealStrength = Mathf.Clamp01(caves.EdgeSealStrength),
@@ -393,6 +402,8 @@ public sealed class WorldMapControlProfile
             HydrologyShorePush = data.hydrologyShorePush,
             HydrologySlopePenalty = data.hydrologySlopePenalty,
             HydrologyFlowGain = data.hydrologyFlowGain,
+            HydrologyFlowShadowWeight = data.hydrologyFlowShadowWeight,
+            HydrologyFlowShadowSlopeWeight = data.hydrologyFlowShadowSlopeWeight,
             HydrologyEdgeNormalizationBlend = data.hydrologyEdgeNormalizationBlend,
             HydrologyEdgeNormalizationIterations = data.hydrologyEdgeNormalizationIterations,
             HydrologyFlowMemoryWeight = data.hydrologyFlowMemoryWeight,
@@ -447,6 +458,7 @@ public sealed class WorldMapControlProfile
             LakeRiverProximitySuppression = data.lakeRiverProximitySuppression,
             LakeInflowBlendWeight = data.lakeInflowBlendWeight,
             LakeRimErosionWeight = data.lakeRimErosionWeight,
+            LakeFlowSeepageWeight = data.lakeFlowSeepageWeight,
             LakeVarianceWeight = data.lakeVarianceWeight,
             LakeOutflowStabilityWeight = data.lakeOutflowStabilityWeight,
             CaveEdgeSealStrength = data.caveEdgeSealStrength,
@@ -498,6 +510,8 @@ public sealed class WorldMapControlProfile
             .Append(data.hydrologyShorePush).Append('|')
             .Append(data.hydrologySlopePenalty).Append('|')
             .Append(data.hydrologyFlowGain).Append('|')
+            .Append(data.hydrologyFlowShadowWeight).Append('|')
+            .Append(data.hydrologyFlowShadowSlopeWeight).Append('|')
             .Append(data.hydrologyEdgeNormalizationBlend).Append('|')
             .Append(data.hydrologyEdgeNormalizationIterations).Append('|')
             .Append(data.hydrologyFlowMemoryWeight).Append('|')
@@ -552,6 +566,7 @@ public sealed class WorldMapControlProfile
             .Append(data.lakeRiverProximitySuppression).Append('|')
             .Append(data.lakeInflowBlendWeight).Append('|')
             .Append(data.lakeRimErosionWeight).Append('|')
+            .Append(data.lakeFlowSeepageWeight).Append('|')
             .Append(data.lakeVarianceWeight).Append('|')
             .Append(data.lakeOutflowStabilityWeight).Append('|')
             .Append(data.caveEdgeSealStrength).Append('|')

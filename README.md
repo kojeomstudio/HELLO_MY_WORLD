@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-02-23: Hydrology Parity + World Profile Sync**
+  - Added a fresh client/server feature roster by core/content/util (`config/minecraft_feature_client_server_core_content_util_2026-02-23.json`).
+  - Synced flow-shadow, flow-memory, and lake seepage knobs across server/client map-control profiles; refreshed hashed JSON (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+  - Hardened hydrology harmonization to blend flow-shadow dampening and seepage before cave/river/lake carving in `ImprovedTerrainCoordinator`.
+  - Verified protobuf packet references remain valid via SharedProtocol build and maintained JSON-first config overrides.
 - **2026-01-08: Comprehensive Minecraft Feature Implementation and Code Quality Review**
   - Created comprehensive implementation roadmap v2.0 (`minecraft_implementation_roadmap_v2.md`)
   - Verified terrain generation algorithms (caves, rivers, lakes) - all implemented with advanced hydrology-aware features

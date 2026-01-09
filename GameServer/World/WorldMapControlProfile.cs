@@ -37,6 +37,8 @@ namespace GameServerApp.World
         public double HydrologyShorePush { get; set; }
         public double HydrologySlopePenalty { get; set; }
         public double HydrologyFlowGain { get; set; }
+        public double HydrologyFlowShadowWeight { get; set; }
+        public double HydrologyFlowShadowSlopeWeight { get; set; }
         public double HydrologyEdgeNormalizationBlend { get; set; }
         public int HydrologyEdgeNormalizationIterations { get; set; }
         public double HydrologyFlowMemoryWeight { get; set; }
@@ -91,6 +93,7 @@ namespace GameServerApp.World
         public double LakeRiverProximitySuppression { get; set; }
         public double LakeInflowBlendWeight { get; set; }
         public double LakeRimErosionWeight { get; set; }
+        public double LakeFlowSeepageWeight { get; set; }
         public double LakeVarianceWeight { get; set; }
         public double LakeOutflowStabilityWeight { get; set; }
         public double CaveEdgeSealStrength { get; set; }
@@ -151,6 +154,8 @@ namespace GameServerApp.World
                 HydrologyShorePush = config.Water.HydrologyShorePush,
                 HydrologySlopePenalty = config.Water.HydrologySlopePenalty,
                 HydrologyFlowGain = config.Water.HydrologyFlowGain,
+                HydrologyFlowShadowWeight = config.Water.HydrologyFlowShadowWeight,
+                HydrologyFlowShadowSlopeWeight = config.Water.HydrologyFlowShadowSlopeWeight,
                 HydrologyEdgeNormalizationBlend = config.Water.HydrologyEdgeNormalizationBlend,
                 HydrologyEdgeNormalizationIterations = Math.Max(0, config.Water.HydrologyEdgeNormalizationIterations),
                 HydrologyFlowMemoryWeight = config.Water.HydrologyFlowMemoryWeight,
@@ -205,6 +210,7 @@ namespace GameServerApp.World
                 LakeRiverProximitySuppression = config.Lakes.RiverProximitySuppression,
                 LakeInflowBlendWeight = config.Water.LakeInflowBlendWeight,
                 LakeRimErosionWeight = config.Water.LakeRimErosionWeight,
+                LakeFlowSeepageWeight = config.Lakes.FlowSeepageWeight,
                 LakeVarianceWeight = config.Lakes.VarianceWeight,
                 LakeOutflowStabilityWeight = config.Lakes.OutflowStabilityWeight,
                 CaveEdgeSealStrength = config.Caves.EdgeSealStrength,
@@ -262,6 +268,8 @@ namespace GameServerApp.World
                 .Append(profile.HydrologyShorePush).Append('|')
                 .Append(profile.HydrologySlopePenalty).Append('|')
                 .Append(profile.HydrologyFlowGain).Append('|')
+                .Append(profile.HydrologyFlowShadowWeight).Append('|')
+                .Append(profile.HydrologyFlowShadowSlopeWeight).Append('|')
                 .Append(profile.HydrologyEdgeNormalizationBlend).Append('|')
                 .Append(profile.HydrologyEdgeNormalizationIterations).Append('|')
                 .Append(profile.HydrologyFlowMemoryWeight).Append('|')
@@ -316,6 +324,7 @@ namespace GameServerApp.World
                 .Append(profile.LakeRiverProximitySuppression).Append('|')
                 .Append(profile.LakeInflowBlendWeight).Append('|')
                 .Append(profile.LakeRimErosionWeight).Append('|')
+                .Append(profile.LakeFlowSeepageWeight).Append('|')
                 .Append(profile.LakeVarianceWeight).Append('|')
                 .Append(profile.LakeOutflowStabilityWeight).Append('|')
                 .Append(profile.CaveEdgeSealStrength).Append('|')

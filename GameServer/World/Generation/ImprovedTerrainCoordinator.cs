@@ -400,6 +400,9 @@ namespace GameServerApp.World.Generation
             double curvatureWeight = Math.Clamp(config.Water.HydrologyCurvatureWeight, 0.0, 1.0);
             int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
             double clampMax = Math.Max(2.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+            double flowShadowWeight = Math.Clamp(config.Water.HydrologyFlowShadowWeight, 0.0, 1.0);
+            double flowShadowSlopeWeight = Math.Clamp(config.Water.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
+            double flowSeepageWeight = Math.Clamp(config.Lakes.FlowSeepageWeight, 0.0, 1.0);
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -413,6 +416,11 @@ namespace GameServerApp.World.Generation
                     double flowGradient = Math.Abs(neighbourFlow - flowValue);
                     double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double curvature = Math.Abs(SampleCurvature(heightMap, x, z)) * curvatureWeight * 0.05;
+                    double flowShadow = Math.Clamp(
+                        (flowValue / Math.Max(1.0, config.Water.RiverDepth)) * flowShadowWeight +
+                        hydrologyGradient * flowShadowSlopeWeight * 0.5,
+                        0.0,
+                        0.75);
 
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
@@ -425,28 +433,30 @@ namespace GameServerApp.World.Generation
 
                     double stability = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * stabilityWeight, 0.0, 0.55);
                     stability *= 1.0 - Math.Clamp(slope / Math.Max(1.0, slopePenalty * 1.1), 0.0, 0.55);
+                    stability *= 1.0 - flowShadow * 0.15;
 
                     double anchorHydro = hydro * (0.6 + flowPersistence * 0.25) + neighbourHydro * 0.25 + neighbourFlow * 0.15;
                     double directionalAnchor = downhillHydro * 0.25 + downhillFlow * 0.15;
+                    double seepage = (flowValue + neighbourFlow + hydrologyGradient) * flowSeepageWeight * 0.15;
                     double blend = Math.Clamp(
                         hydrologyGradient * (0.35 + gradientWeight * 0.35) +
                         flowGradient * 0.15 +
                         edgeBlend * 0.35 +
                         curvature, 0.0, 0.85);
 
-                    double harmonized = (anchorHydro + directionalAnchor) * stability;
+                    double harmonized = (anchorHydro + directionalAnchor + seepage) * stability;
                     double anchoredHydro = hydro * (1.0 - blend) + harmonized * blend;
                     double edgeAnchor = hydro * (1.0 - edgeBlend * edgeClamp) + neighbourHydro * edgeBlend * edgeClamp;
-                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
-                        anchoredHydro * (1.0 - edgeBlend * 0.35) + edgeAnchor * edgeBlend * 0.35,
-                        0.0,
-                        1.25));
+                    double dampenedHydro = anchoredHydro * (1.0 - edgeBlend * 0.35) + edgeAnchor * edgeBlend * 0.35;
+                    dampenedHydro *= 1.0 - flowShadow * 0.15;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(dampenedHydro, 0.0, 1.25));
 
-                    double flowAnchor = hydrology[x, z] * 0.5 + flowValue * (0.5 + flowPersistence * 0.2);
+                    double flowAnchor = hydrology[x, z] * 0.5 + flowValue * (0.5 + flowPersistence * 0.2) + seepage * 0.25;
+                    double flowClamp = clampMax * (1.0 - flowShadow * 0.15);
                     flow[x, z] = (float)Math.Clamp(
                         flowValue * (1.0 - blend * 0.35) + flowAnchor * blend * 0.35,
                         0.0,
-                        clampMax);
+                        Math.Max(0.5, flowClamp));
                 }
             }
         }

@@ -47,6 +47,11 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - Cave ceilings reinforce near saturated/riparian spans (`Caves.CeilingStabilityWeight`), reducing skylight collapses where water tables or rivers meet shallow caves.
 - These knobs are serialized into `config/world_map_control_profile.json` and mirrored to `Assets/StreamingAssets/world-map-control.json`; regenerate the profile hash when tweaking values.
 
+## 2026-02-23 Flow-Shadow Seepage Parity
+
+- Map-control profiles now serialize flow-shadow weights and lake seepage weights so server `config/world_map_control_profile.json` and Unity `Assets/StreamingAssets/world-map-control.json` stay in lockstep; hashes refreshed for validation.
+- `ImprovedTerrainCoordinator.HarmonizeHydrologyWithSurface` blends flow-shadow dampening and seepage from cached flow fields before caves/rivers/lakes consume the masks, trimming over-saturation and chunk-edge drift.
+
 ## 2026-02-16 Flow-Shadow Hydrology & Meander Stability
 
 - Hydrology masks now apply a flow-shadow pass (blending flow accumulation with hydrology gradients) before cave/river/lake carving on server (`ImprovedTerrainCoordinator`) and Unity previews (`EnhancedTerrainGenerator`, MapGeneratorLib smoothing), reducing flooded seams.

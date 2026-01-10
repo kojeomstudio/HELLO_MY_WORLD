@@ -3,8 +3,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using ProtoBuf;
-using SharedProtocol;
 using Google.Protobuf;
+using SharedProtocol;
 using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Systems

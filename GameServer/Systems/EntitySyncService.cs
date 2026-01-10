@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ProtoBuf;
-using SharedProtocol;
 using Google.Protobuf;
+using SharedProtocol;
 using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Systems

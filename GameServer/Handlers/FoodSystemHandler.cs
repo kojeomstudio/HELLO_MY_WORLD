@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using GameServerApp.Systems;
 using SharedProtocol;
-using ProtoBuf;
+using Google.Protobuf;
 
 namespace GameServerApp.Handlers
 {

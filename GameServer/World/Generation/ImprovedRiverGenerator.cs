@@ -36,6 +36,7 @@ namespace GameServerApp.World.Generation
             double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
             double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double edgeNormalizationStrength = Math.Clamp(config.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -44,6 +45,9 @@ namespace GameServerApp.World.Generation
                     int height = heightMap[x, z];
                     double worldX = chunkX * chunkSize + x;
                     double worldZ = chunkZ * chunkSize + z;
+                    int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
+                    double edgeNormalization = edgeNormalizationStrength * edgeFalloff;
                     double baseNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * noiseScale,
                         worldZ * noiseScale,
@@ -86,6 +90,7 @@ namespace GameServerApp.World.Generation
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
                     double continuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow) * config.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
                     continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
+                    double seamAnchor = hydrology * 0.25 + seamHydro * 0.25 + flow * 0.25 + flowMemory * 0.25;
 
                     double riverMask = config.RiverBankThreshold - baseNoise;
                     double pressure = Math.Max(0.0, riverMask);
@@ -96,6 +101,7 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
                     pressure *= flowAlignment * seamStitch * meanderFactor;
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
+                    pressure *= 1.0 + seamAnchor * edgeNormalization * 0.15;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
                     pressure *= seamGuard;
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
@@ -113,17 +119,16 @@ namespace GameServerApp.World.Generation
                     pressure *= continuityBias;
                     double deltaBlend = 1.0 - Math.Clamp(Math.Abs(height - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
                     pressure *= 1.0 + deltaBlend * config.RiverDeltaWetlandStrength * 0.5;
-                    int edgeDistance = Math.Min(Math.Min(x, chunkSize - 1 - x), Math.Min(z, chunkSize - 1 - z));
-                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
                     double edgeRepair = watershedBlend * edgeFalloff;
                     if (edgeRepair > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                         double neighbourHydro = seamHydro;
-                        double seamAnchor = hydrology * 0.3 + neighbourHydro * 0.3 + neighbourFlow * 0.25 + flowMemory * 0.15;
-                        pressure = pressure * (1.0 - edgeRepair * 0.35) + seamAnchor * edgeRepair * 0.5;
-                        pressure = Math.Max(pressure, seamAnchor * edgeRepair * 0.25);
+                        double seam = hydrology * 0.3 + neighbourHydro * 0.3 + neighbourFlow * 0.25 + flowMemory * 0.15;
+                        pressure = pressure * (1.0 - edgeRepair * 0.35) + seam * edgeRepair * 0.5;
+                        pressure = Math.Max(pressure, seam * edgeRepair * 0.25);
                     }
+                    pressure = pressure * (1.0 - edgeNormalization * 0.25) + seamAnchor * edgeNormalization * 0.35;
                     pressure = ApplyEdgeBlend(pressure, hydrologyMask[x, z], x, z, chunkSize);
 
                     mask[x, z] = (float)Math.Clamp(pressure, 0.0, 1.35);

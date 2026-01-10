@@ -78,6 +78,7 @@ public static class ProtocolValidator
         ValidateParserBindings();
         ValidateChunkDescriptor();
         ValidateChunkRequestAndResponseDescriptors();
+        ValidateChunkUnloadDescriptors();
         ValidateActionDescriptors();
         ValidatePlayerStateDescriptors();
         ValidateWorldControlDescriptors();

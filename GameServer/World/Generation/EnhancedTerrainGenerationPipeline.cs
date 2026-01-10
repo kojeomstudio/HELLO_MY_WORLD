@@ -96,6 +96,11 @@ namespace GameServerApp.World.Generation
                 flowAccumulation = BuildFlowMask(heightMap, hydrologyMask);
             }
 
+            if (hydrologyMask != null && flowAccumulation != null)
+            {
+                NormalizeHydrologyFlowEdges(hydrologyMask, flowAccumulation);
+            }
+
             if (caveMask != null)
             {
                 CarveCaves(chunk, caveMask, heightMap, hydrologyMask, flowAccumulation);
@@ -243,6 +248,59 @@ namespace GameServerApp.World.Generation
             RelaxEdges(flow, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
+        }
+
+        private void NormalizeHydrologyFlowEdges(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            int iterations = Math.Max(1, config.Water.HydrologyEdgeNormalizationIterations);
+            double blendBase = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        if (edgeDistance > edgeRadius)
+                        {
+                            continue;
+                        }
+
+                        double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                        double blend = blendBase * edgeFalloff;
+                        if (blend <= 0.0)
+                        {
+                            continue;
+                        }
+
+                        float hydro = hydrology[x, z];
+                        float flowValue = flow[x, z];
+                        double neighbourHydro = SampleInterior(hydrology, x, z);
+                        double neighbourFlow = SampleInterior(flow, x, z);
+                        double seamAnchor = (neighbourHydro + hydro) * 0.5 + neighbourFlow * memoryWeight * 0.25;
+
+                        double targetHydro = (neighbourHydro * (1.0 + memoryWeight * 0.35) + hydro * 0.65 + flowValue * memoryWeight * 0.15) / (1.8 + memoryWeight * 0.35);
+                        targetHydro = (targetHydro + seamAnchor * 0.25) / 1.25;
+                        hydroBuffer[x, z] = (float)Math.Clamp(hydro + (targetHydro - hydro) * blend, 0.0, 1.0);
+
+                        double targetFlow = (neighbourFlow * (1.0 + memoryWeight) + flowValue + hydro * memoryWeight * 0.35) / (2.0 + memoryWeight);
+                        targetFlow = (targetFlow + seamAnchor * 0.2) / 1.2;
+                        flowBuffer[x, z] = (float)Math.Clamp(targetFlow, 0.0, Math.Max(flowValue + 1.5, flowClamp));
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+                Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
         }
 
         private void PaintBaseTerrain(ChunkData chunk, int[,] heightMap)

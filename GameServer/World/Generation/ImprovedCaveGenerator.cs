@@ -76,6 +76,8 @@ namespace GameServerApp.World.Generation
                     double continuityPenalty = Math.Clamp(Math.Abs(seamHydro - hydrology) + Math.Abs(seamFlow - flow) * 0.5, 0.0, 1.5);
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
                     stability *= 1.0 - variancePenalty * 0.3;
+                    double seamMemory = (seamFlow + flowMemory) * 0.5;
+                    double seamContinuity = 1.0 - Math.Clamp(continuityPenalty * config.EdgeSealStrength * 0.35, 0.0, 0.45);
                     double ceilingClamp = Math.Clamp(
                         hydrology * ceilingMoistureWeight +
                         flowMemory * ceilingMoistureWeight * 0.5 +
@@ -91,6 +93,7 @@ namespace GameServerApp.World.Generation
                     stability *= 1.0 - stabilityPenalty * 0.4;
                     stability *= 1.0 - ceilingMoisturePenalty * 0.2;
                     stability *= 1.0 - ceilingClamp * 0.15;
+                    stability *= seamContinuity;
                     stability *= 1.0 - continuityPenalty * 0.15;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemory * config.MoistureRetentionWeight * 0.35;
 
@@ -136,6 +139,7 @@ namespace GameServerApp.World.Generation
                         threshold -= depthFactor * depthWeight * 0.6;
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * config.EdgeSealStrength * 0.35;
+                        threshold += seamMemory * config.FlowStabilityWeight * 0.15;
                         threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
                         threshold += Math.Clamp(flowGradient * config.EdgeSealStrength * 0.2, 0.0, 0.2);
                         threshold += stabilityPenalty * 0.25;

@@ -29,6 +29,12 @@ This project is an open-source voxel game that aims to mimic the core mechanics 
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-10: Hydrology Seam Normalization + Proto Guard Refresh**
+  - Added edge-aware hydrology/flow co-normalization for world-map control previews and chunk generation (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
+  - Tuned improved cave/river/lake generators with seam memory and edge normalization (`ImprovedCaveGenerator`, `ImprovedRiverGenerator`, `ImprovedLakeGenerator`).
+  - Extended protobuf validation to cover chunk unload descriptors (fails fast on stale generated DTOs).
+  - Published updated feature roster (`config/minecraft_feature_client_server_core_content_util_2026-01-10-worldgen-edge.json`) with matching docs under `docs/`.
+  - Config/data remain JSON-driven for server + Unity (world/config/map-control profiles kept in StreamingAssets and `config/`).
 - **2026-01-10: Comprehensive System Review and Documentation Update**
   - Created comprehensive work plan (`plans/2026-01-10-comprehensive-implementation-plan.md`)
   - Created comprehensive feature categorization (`config/minecraft_feature_client_server_core_content_util_2026-01-10-comprehensive.json`)
@@ -306,5 +312,4 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-
 

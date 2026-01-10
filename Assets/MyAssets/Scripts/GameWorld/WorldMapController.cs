@@ -331,7 +331,7 @@ namespace GameWorld
 
         private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
         {
-            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}";
+            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Caves.CeilingMoistureClamp}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}:{config.Water.HydrologyEdgeNormalizationBlend}:{config.Water.HydrologyEdgeNormalizationIterations}:{config.Water.HydrologyFlowMemoryWeight}:{config.Water.RiverMeanderJitter}:{config.Lakes.VarianceWeight}:{config.Lakes.OutflowStabilityWeight}:{config.Water.HydrologyFlowShadowWeight}:{config.Water.HydrologyFlowShadowSlopeWeight}:{config.Lakes.WetlandBufferRadius}:{config.Water.LakeInflowBlendWeight}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)
@@ -478,6 +478,8 @@ namespace GameWorld
             Smooth2D(mask, profile.RiverIntensitySmoothIterations, profile.RiverIntensitySmoothBlend);
             DirectionalSmooth(heightMap, mask, Math.Max(1, profile.HydrologyDirectionalIterations), profile.HydrologyDirectionalBlend * 0.35f);
             StabilizeEdges(mask, profile.HydrologyEdgeBlendRadius, 1, profile.RiverEdgeFeather, profile.RiverSeamFillStrength);
+            RelaxEdges(mask, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
+            RelaxEdges(mask, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return mask;
         }
 
@@ -556,6 +558,7 @@ namespace GameWorld
             Smooth2D(lakes, profile.LakeBasinSmoothIterations, profile.HydrologySmoothBlend);
             StitchEdges(lakes, profile.HydrologySeamRelaxBlend * 0.65f);
             FillBasins(lakes, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.35f), Math.Max(1, profile.HydrologySeamRelaxIterations));
+            RelaxEdges(lakes, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
             RelaxEdges(lakes, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             ApplyRiparianBuffer(lakes, Math.Min(profile.LakeWetlandBufferRadius, profile.LakeMaxRadius), profile.LakeShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flow, profile.LakeInflowBlendWeight, profile.LakeOutflowCarveDepth);
@@ -683,6 +686,7 @@ namespace GameWorld
             FillBasins(hydrology, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.5f), Math.Max(1, profile.HydrologySeamRelaxIterations));
             StitchEdges(hydrology, profile.HydrologySeamRelaxBlend * 0.65f);
             ClampVariance(hydrology, profile.HydrologyVarianceClamp);
+            RelaxEdges(hydrology, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
             RelaxEdges(hydrology, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return hydrology;
         }
@@ -744,6 +748,7 @@ namespace GameWorld
             ApplyEdgeFlowLocks(heightMap, flow, profile.HydrologyEdgeBlendRadius, profile.HydrologyEdgeFlowLockWeight, profile.HydrologyEdgeFlowBias, profile.HydrologyEdgeTangentWeight);
             FillBasins(flow, Mathf.Max(0.05f, profile.HydrologyEdgeStabilityWeight * 0.35f), Math.Max(1, profile.HydrologySeamRelaxIterations));
             StitchEdges(flow, profile.HydrologySeamRelaxBlend * 0.65f);
+            RelaxEdges(flow, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
             RelaxEdges(flow, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return flow;
         }
@@ -752,7 +757,7 @@ namespace GameWorld
         {
             int sizeX = flow.GetLength(0);
             int sizeZ = flow.GetLength(1);
-            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowPersistence * 0.35f);
+            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowPersistence * 0.35f + profile.HydrologyFlowMemoryWeight);
             float watershedBlend = Mathf.Clamp01(profile.HydrologyWatershedStitchWeight);
             float flowShadowWeight = Mathf.Clamp01(profile.HydrologyFlowShadowWeight);
             int watershedRadius = Math.Max(1, profile.HydrologyWatershedStitchRadius);

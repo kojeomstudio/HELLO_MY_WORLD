@@ -173,6 +173,7 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(hydrology, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            RelaxEdges(hydrology, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
 
             for (int x = 0; x < chunkSize; x++)
@@ -238,6 +239,8 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(flow, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            ApplyFlowMemoryWeight(flow, config.Water.HydrologyFlowMemoryWeight, config.Water.HydrologyFlowDivergenceClamp);
+            RelaxEdges(flow, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
         }
@@ -386,6 +389,7 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(mask, water.RiverIntensitySmoothIterations, water.RiverIntensitySmoothBlend);
+            RelaxEdges(mask, water.HydrologyEdgeNormalizationIterations, water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(mask, water.HydrologySeamRelaxIterations, water.HydrologySeamRelaxBlend);
             BoostRiverConfluences(mask, water.RiverConfluenceBoost);
             return mask;
@@ -438,6 +442,7 @@ namespace GameServerApp.World.Generation
             }
 
             Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, config.Water.HydrologySmoothBlend);
+            RelaxEdges(lakes, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(lakes, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             ApplyWetlandBuffer(lakes, lakeConfig.WetlandBufferRadius, lakeConfig.ShorelineBlend);
             return lakes;
@@ -785,6 +790,34 @@ namespace GameServerApp.World.Generation
 
                 Array.Copy(buffer, field, buffer.Length);
             }
+        }
+
+        private void ApplyFlowMemoryWeight(float[,] flow, double memoryWeight, double divergenceClamp)
+        {
+            memoryWeight = Math.Clamp(memoryWeight, 0.0, 1.0);
+            if (memoryWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = flow.GetLength(0);
+            int sizeZ = flow.GetLength(1);
+            var buffer = (float[,])flow.Clone();
+            double clampMax = Math.Max(2.5, divergenceClamp * 12.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float anchor = SampleInterior(flow, x, z);
+                    buffer[x, z] = (float)Math.Clamp(
+                        flow[x, z] * (1.0 - memoryWeight) + anchor * memoryWeight,
+                        0.0,
+                        clampMax);
+                }
+            }
+
+            Array.Copy(buffer, flow, buffer.Length);
         }
 
         private void BoostRiverConfluences(float[,] field, double confluenceBoost)

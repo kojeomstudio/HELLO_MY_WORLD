@@ -160,7 +160,7 @@ namespace GameServerApp.World.Generation
             SmoothMask(mask, config.StabilitySmoothIterations, config.StabilitySmoothBlend);
             PlugRiparianCaves(mask, hydrologyMask, riverMask, seaLevel);
             AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
-            SealEdges(mask, config.EdgeSealStrength);
+            SealEdges(mask, hydrologyMask, riverMask, config.EdgeSealStrength);
             return mask;
         }
 
@@ -316,7 +316,7 @@ namespace GameServerApp.World.Generation
             }
         }
 
-        private void SealEdges(bool[,,] mask, double strength)
+        private void SealEdges(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, double strength)
         {
             strength = Math.Clamp(strength, 0.0, 1.0);
             if (strength <= 0)
@@ -339,7 +339,13 @@ namespace GameServerApp.World.Generation
 
                     for (int y = 1; y < sizeY - 1; y++)
                     {
-                        if (mask[x, y, z] && random.NextDouble() < strength)
+                        float hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                        float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                        double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                        double gradient = Math.Abs(neighbourHydro - hydro);
+                        double sealingBias = 0.5 + hydro * 0.35 + river * 0.25 + gradient * 0.25;
+                        double sealChance = strength * Math.Clamp(sealingBias, 0.0, 1.5);
+                        if (mask[x, y, z] && random.NextDouble() < sealChance)
                         {
                             mask[x, y, z] = false;
                         }

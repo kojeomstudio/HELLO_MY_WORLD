@@ -393,10 +393,12 @@ namespace GameServerApp.World.Generation
         {
             int sizeX = hydrology.GetLength(0);
             int sizeZ = hydrology.GetLength(1);
-            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            int edgeRadius = Math.Max(1, Math.Max(config.Water.HydrologyEdgeBlendRadius, config.Water.HydrologyWatershedStitchRadius));
             int iterations = Math.Max(1, config.Water.HydrologyEdgeNormalizationIterations);
             double blendBase = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
             double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double watershedBlend = Math.Clamp(config.Water.HydrologyWatershedStitchWeight, 0.0, 1.0);
+            double varianceClamp = Math.Clamp(config.Water.HydrologyEdgeVarianceClamp, 0.0, 2.0);
 
             var hydroBuffer = (float[,])hydrology.Clone();
             var flowBuffer = (float[,])flow.Clone();
@@ -426,13 +428,23 @@ namespace GameServerApp.World.Generation
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
                         double seamAnchor = (neighbourHydro + hydro) * 0.5 + neighbourFlow * memoryWeight * 0.25;
 
+                        double edgeRepair = watershedBlend * edgeFalloff;
                         double targetHydro = (neighbourHydro * (1.0 + memoryWeight * 0.35) + hydro * 0.65 + flowValue * memoryWeight * 0.15) / (1.8 + memoryWeight * 0.35);
-                        targetHydro = (targetHydro + seamAnchor * 0.25) / 1.25;
-                        hydroBuffer[x, z] = (float)Math.Clamp(hydro + (targetHydro - hydro) * blend, 0.0, 1.0);
+                        targetHydro = (targetHydro + seamAnchor * (0.25 + edgeRepair * 0.35)) / (1.25 + edgeRepair * 0.35);
+                        double candidateHydro = hydro + (targetHydro - hydro) * blend;
+                        if (varianceClamp > 0.0)
+                        {
+                            double clampRange = varianceClamp * 0.35;
+                            double min = hydro - clampRange;
+                            double max = hydro + clampRange;
+                            candidateHydro = Math.Clamp(candidateHydro, min, max);
+                        }
+                        hydroBuffer[x, z] = (float)Math.Clamp(candidateHydro, 0.0, 1.05);
 
                         double targetFlow = (neighbourFlow * (1.0 + memoryWeight) + flowValue + hydro * memoryWeight * 0.35) / (2.0 + memoryWeight);
-                        targetFlow = (targetFlow + seamAnchor * 0.2) / 1.2;
-                        flowBuffer[x, z] = (float)Math.Clamp(targetFlow, 0.0, Math.Max(flowValue + 1.5, config.Water.HydrologyFlowDivergenceClamp * 12.0));
+                        targetFlow = (targetFlow + seamAnchor * (0.2 + edgeRepair * 0.35)) / (1.2 + edgeRepair * 0.35);
+                        double clampMax = Math.Max(flowValue + 1.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+                        flowBuffer[x, z] = (float)Math.Clamp(targetFlow, 0.0, clampMax);
                     }
                 }
 

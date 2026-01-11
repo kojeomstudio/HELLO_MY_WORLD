@@ -96,6 +96,14 @@ public static class ProtocolRegistry
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract mismatch for {binding.MessageType}: expected '{binding.DescriptorName}' but generated '{descriptorName}'. Regenerate protobuf assets so SharedProtocol and Unity stay aligned.");
             }
+
+            string expectedPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
+            string actualPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
+            if (!string.Equals(actualPackage, expectedPackage, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' is sourced from package '{actualPackage}', expected '{expectedPackage}'. Regenerate protobuf DTOs or fix using directives so registry bindings point at the current protoc output.");
+            }
         }
     }
 

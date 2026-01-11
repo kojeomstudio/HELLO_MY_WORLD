@@ -312,6 +312,7 @@ namespace GameWorld
             var flow = BuildFlowMask(heightMap, hydrology);
             ApplyFlowMemory(heightMap, hydrology, flow);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
+            NormalizeHydrologyFlowEdges(hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
@@ -331,7 +332,7 @@ namespace GameWorld
 
         private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
         {
-            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Caves.CeilingMoistureClamp}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}:{config.Water.HydrologyEdgeNormalizationBlend}:{config.Water.HydrologyEdgeNormalizationIterations}:{config.Water.HydrologyFlowMemoryWeight}:{config.Water.RiverMeanderJitter}:{config.Lakes.VarianceWeight}:{config.Lakes.OutflowStabilityWeight}:{config.Water.HydrologyFlowShadowWeight}:{config.Water.HydrologyFlowShadowSlopeWeight}:{config.Lakes.WetlandBufferRadius}:{config.Water.LakeInflowBlendWeight}";
+            return $"{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyWatershedStitchRadius}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Caves.CeilingMoistureClamp}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}:{config.Water.HydrologyEdgeNormalizationBlend}:{config.Water.HydrologyEdgeNormalizationIterations}:{config.Water.HydrologyFlowMemoryWeight}:{config.Water.RiverMeanderJitter}:{config.Lakes.VarianceWeight}:{config.Lakes.OutflowStabilityWeight}:{config.Water.HydrologyFlowShadowWeight}:{config.Water.HydrologyFlowShadowSlopeWeight}:{config.Lakes.WetlandBufferRadius}:{config.Water.LakeInflowBlendWeight}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)
@@ -416,7 +417,7 @@ namespace GameWorld
             }
 
             Smooth2D(mask, worldConfig.Caves.StabilitySmoothIterations, worldConfig.Caves.StabilitySmoothBlend);
-            ApplyEdgeSeal(mask, worldConfig.Caves.EdgeSealStrength);
+            ApplyEdgeSeal(mask, hydrology, riverMask, worldConfig.Caves.EdgeSealStrength);
             ApplyRiparianPlugs(mask, hydrology, riverMask, worldConfig.Caves.RiparianPlugDepth);
             AddSupportColumns(mask, hydrology, riverMask);
             return mask;
@@ -867,6 +868,69 @@ namespace GameWorld
                 flow,
                 Mathf.Max(0.05f, profile.HydrologyContinuityWeight * 0.35f),
                 Mathf.Max(0.01f, profile.HydrologyGradientWeight * 0.15f));
+        }
+
+        private void NormalizeHydrologyFlowEdges(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, Math.Max(profile.HydrologyEdgeBlendRadius, profile.HydrologyWatershedStitchRadius));
+            int iterations = Math.Max(1, profile.HydrologyEdgeNormalizationIterations);
+            float blendBase = Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend);
+            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowMemoryWeight);
+            float watershedBlend = Mathf.Clamp01(profile.HydrologyWatershedStitchWeight);
+            float varianceClamp = Mathf.Max(0f, profile.HydrologyEdgeVarianceClamp);
+
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        if (edgeDistance > edgeRadius)
+                        {
+                            continue;
+                        }
+
+                        float edgeFalloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                        float blend = blendBase * edgeFalloff;
+                        if (blend <= 0f)
+                        {
+                            continue;
+                        }
+
+                        float hydro = hydrology[x, z];
+                        float flowValue = flow[x, z];
+                        float neighbourHydro = SampleInterior(hydrology, x, z);
+                        float neighbourFlow = SampleInterior(flow, x, z);
+                        float seamAnchor = (neighbourHydro + hydro) * 0.5f + neighbourFlow * memoryWeight * 0.25f;
+
+                        float targetHydro = (neighbourHydro * (1f + memoryWeight * 0.35f) + hydro * 0.65f + flowValue * memoryWeight * 0.15f) / (1.8f + memoryWeight * 0.35f);
+                        float edgeRepair = watershedBlend * edgeFalloff;
+                        targetHydro = (targetHydro + seamAnchor * (0.25f + edgeRepair * 0.35f)) / (1.25f + edgeRepair * 0.35f);
+
+                        float candidateHydro = hydro + (targetHydro - hydro) * blend;
+                        if (varianceClamp > 0f)
+                        {
+                            float clampRange = varianceClamp * 0.35f;
+                            candidateHydro = Mathf.Clamp(candidateHydro, hydro - clampRange, hydro + clampRange);
+                        }
+                        hydroBuffer[x, z] = Mathf.Clamp(candidateHydro, 0f, 1.05f);
+
+                        float targetFlow = (neighbourFlow * (1f + memoryWeight) + flowValue + hydro * memoryWeight * 0.35f) / (2f + memoryWeight);
+                        targetFlow = (targetFlow + seamAnchor * (0.2f + edgeRepair * 0.35f)) / (1.2f + edgeRepair * 0.35f);
+                        float clampMax = Mathf.Max(flowValue + 1.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+                        flowBuffer[x, z] = Mathf.Clamp(targetFlow, 0f, clampMax);
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+                Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
         }
 
         private void HarmonizeHydrologyWithSurface(int[,] heightMap, float[,] hydrology, float[,] flow)
@@ -1429,7 +1493,7 @@ namespace GameWorld
             }
         }
 
-        private void ApplyEdgeSeal(bool[,,] mask, double strength)
+        private void ApplyEdgeSeal(bool[,,] mask, float[,] hydrologyMask, float[,] riverMask, double strength)
         {
             strength = Math.Clamp(strength, 0.0, 1.0);
             if (strength <= 0)
@@ -1448,7 +1512,13 @@ namespace GameWorld
 
                     for (int y = 1; y < worldHeight - 1; y++)
                     {
-                        if (mask[x, y, z] && random.NextDouble() < strength)
+                        float hydro = Mathf.Clamp01(hydrologyMask[x, z]);
+                        float river = riverMask != null ? Mathf.Clamp01(riverMask[x, z]) : 0f;
+                        float neighbourHydro = SampleInterior(hydrologyMask, x, z);
+                        float gradient = Mathf.Abs(neighbourHydro - hydro);
+                        double sealingBias = 0.5 + hydro * 0.35 + river * 0.25 + gradient * 0.25;
+                        double sealChance = strength * Math.Clamp(sealingBias, 0.0, 1.5);
+                        if (mask[x, y, z] && random.NextDouble() < sealChance)
                         {
                             mask[x, y, z] = false;
                         }

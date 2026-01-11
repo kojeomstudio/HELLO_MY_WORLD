@@ -63,6 +63,7 @@ namespace GameServerApp.World.Generation
                     double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
+                    double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     double edgeNormalization = edgeNormalizationStrength * (1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0));
                     double flowShadow = Math.Clamp(
                         flow * flowShadowWeight +
@@ -89,12 +90,14 @@ namespace GameServerApp.World.Generation
                     double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight) * flowSeepageWeight;
                     weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
+                    double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * waterConfig.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverSuppression * 0.5;
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
+                    weight *= 1.0 + varianceAssist;
                     weight *= 0.75 + radiusFalloff * 0.25;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, chunkSize - 1);
@@ -115,8 +118,10 @@ namespace GameServerApp.World.Generation
                         weight = weight * (1.0 - edgeRepair * 0.4) + edgeSeamAnchor * edgeRepair;
                     }
 
+                    double seamRelax = Math.Clamp(waterConfig.HydrologySeamRelaxBlend, 0.0, 1.0);
                     weight = weight * (1.0 - edgeNormalization * 0.2) + seamAnchor * edgeNormalization * 0.25;
-                    double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05;
+                    weight = weight * (1.0 - seamRelax * 0.1) + seamAnchor * seamRelax * 0.05;
+                    double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05;
                     if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - lakeConfig.MaxDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);

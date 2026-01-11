@@ -113,6 +113,11 @@ namespace GameServerApp.World.Generation
                         pressure *= 1.0 + (tributaryPressure + hydrologyAssist) * confluenceBoost * 0.35;
                     }
 
+                    double floodplain = Math.Clamp((hydrology + seamHydro + flowMemory) * config.RiverDeltaWetlandStrength * 0.25, 0.0, 0.6);
+                    double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * config.HydrologyVarianceBlend * 0.15, -0.35, 0.45);
+                    pressure = pressure * (1.0 - floodplain * 0.2) + floodplain * 0.1;
+                    pressure *= 1.0 + varianceAssist;
+
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;

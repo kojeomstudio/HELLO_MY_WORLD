@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-11: Hydrology envelope + map-control parity**
+  - Added hydrology/flow continuity envelope across server and Unity previews; tuned river/lake/cave masks with variance/floodplain assists.
+  - Expanded world-map generation signatures (variance, edge locks, seam relax, cave/lake stability) and cleaned JSON configs (`config/enhanced_world_map_control_*.json`).
+  - Hardened protobuf registry validation to ensure EnhancedMinecraft descriptors and parsers are present before handler registration.
+  - Docs: `docs/minecraft_features_client_server_core_content_util_2026-01-11.md`, `docs/terrain_generation_improvements_2026-01-11.md`.
 - **2026-01-11: Comprehensive System Review and Documentation Update**
   - Created comprehensive work plan (`plans/2026-01-11-comprehensive-work-plan.md`)
   - Created comprehensive feature categorization (`docs/minecraft-features-categorized-comprehensive.md`)

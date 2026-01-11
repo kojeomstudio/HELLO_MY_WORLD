@@ -81,6 +81,12 @@ public static class ProtocolRegistry
 
     public static void ValidateBindings()
     {
+        if (EnhancedMinecraftGameReflection.Descriptor == null)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraftGameReflection.Descriptor is null. Ensure generated Google.Protobuf DTOs are referenced and initialized before registering bindings.");
+        }
+
         foreach (var binding in Bindings)
         {
             var prototype = binding.Factory();
@@ -98,7 +104,21 @@ public static class ProtocolRegistry
             }
 
             string expectedPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
-            string actualPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
+            var descriptorFile = prototype.Descriptor?.File;
+            if (descriptorFile == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' has no descriptor file. Ensure Google.Protobuf generated DTOs are referenced via using directives.");
+            }
+
+            var parser = prototype.Descriptor?.Parser;
+            if (parser == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' is missing a parser. Regenerate protobuf DTOs so ProtocolRegistry factories return the generated message types.");
+            }
+
+            string actualPackage = descriptorFile.Package ?? string.Empty;
             if (!string.Equals(actualPackage, expectedPackage, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(

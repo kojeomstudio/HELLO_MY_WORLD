@@ -24,4 +24,4 @@
 - [x] Validate data-driven configs (JSON) for server/client including world/map-control settings; add any needed splits
 - [x] Update docs (README + docs/) with architecture changes, feature inventory, and worldgen/proto notes
 - [x] Run compilation/tests (`dotnet build SharedProtocol`, `dotnet build GameServer`) and basic protobuf handling checks
-- [ ] Stage, commit, and push all changes to origin/master with clear messages
+- [x] Stage, commit, and push all changes to origin/master with clear messages

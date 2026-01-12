@@ -133,12 +133,23 @@ namespace GameServerApp.World.Generation
                             0.6,
                             random.Next());
 
-                        double density = (primary * 0.65) + (secondary * 0.35);
+                        double detail = Math.Abs(SimplexNoise.Generate(
+                            warpX * 1.35 - 23.0,
+                            warpZ * 1.35 + warpY * 0.35 + 17.0,
+                            1.0,
+                            2,
+                            1.0,
+                            0.55,
+                            random.Next()));
+
+                        double density = (primary * 0.55) + (secondary * 0.25) + (detail * 0.2);
                         double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight + wetnessRetention * 0.35;
                         double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
                         double flowPenalty = flow * config.FlowStabilityWeight;
+                        double flowMemoryClamp = Math.Clamp(flowMemory * config.MoistureRetentionWeight, 0.0, 1.0);
                         double threshold = config.Threshold + moisturePenalty * 0.35 + flowPenalty * 0.35 + roughnessBias * 0.25;
                         threshold -= depthFactor * depthWeight * 0.6;
+                        threshold -= Math.Clamp(detail * depthFactor * 0.2, 0.0, 0.2);
                         threshold += wetnessRetention * 0.15;
                         threshold += edgeFactor * config.EdgeSealStrength * 0.35;
                         threshold += seamMemory * config.FlowStabilityWeight * 0.15;
@@ -150,6 +161,7 @@ namespace GameServerApp.World.Generation
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);
+                        threshold += flowMemoryClamp * 0.15;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)

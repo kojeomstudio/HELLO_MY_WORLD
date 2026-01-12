@@ -29,11 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- **2026-01-12: Flow-memory hydrology + proto coverage guard**
-  - Added slope-aware hydrology flow-memory smoothing shared by server worldgen and Unity previews (caves/rivers/lakes) plus synced JSON configs (`WorldConfigData.json`, `WorldMapController`).
-  - Kept map-control parity by pushing hydrology flow-memory weight through `WorldMapControlProfile` and Unity `WorldAreaManager`.
-  - Hardened EnhancedMinecraft protobuf validation to flag generated descriptors that lack registry bindings.
-  - Docs/data: `docs/minecraft_feature_core_content_util_2026-01-12.md`, `config/minecraft_feature_client_server_core_content_util_2026-01-12.json`.
+- **2026-01-12: Multi-layer hydrology, map-control parity, feature inventory refresh**
+  - Improved river/lake/cave generators with layered noise, flow-memory stability, and extra seam stitching; mirrored in Unity `WorldGenAlgorithms`.
+  - Added hash-based reloads for world/map-control JSON on server (`WorldMapControlManager`) and client (`WorldMapController`) so previews stay in lockstep with config edits.
+  - Audited EnhancedMinecraft protobuf registry/validators; kept handler coverage checks active on startup.
+  - New feature inventory files: `config/minecraft_feature_inventory_2026-01-12-session.json`, `docs/minecraft-feature-inventory-2026-01-12.md`; updated session plan `plans/2026-01-12-worldgen-proto-session.md`.
 - **2026-01-11: Hydrology envelope + map-control parity**
   - Added hydrology/flow continuity envelope across server and Unity previews; tuned river/lake/cave masks with variance/floodplain assists.
   - Expanded world-map generation signatures (variance, edge locks, seam relax, cave/lake stability) and cleaned JSON configs (`config/enhanced_world_map_control_*.json`).

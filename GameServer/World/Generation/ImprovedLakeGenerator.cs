@@ -50,6 +50,8 @@ namespace GameServerApp.World.Generation
 
                     double basinNoise = SimplexNoise.Generate(worldX * 0.004, worldZ * 0.004, 1.0, 3, 1.0, 0.6, random.Next());
                     double rimNoise = SimplexNoise.Generate(worldX * 0.009 + 31, worldZ * 0.009 + 17, 1.0, 2, 1.0, 0.55, random.Next());
+                    double macroNoise = SimplexNoise.Generate(worldX * 0.0017 - 37.0, worldZ * 0.0017 + 23.0, 1.0, 2, 1.0, 0.6, random.Next());
+                    double detailNoise = Math.Abs(SimplexNoise.Generate(worldX * 0.0065 + 3.0, worldZ * 0.0065 - 5.0, 1.0, 2, 1.0, 0.55, random.Next()));
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
                     double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
@@ -83,11 +85,13 @@ namespace GameServerApp.World.Generation
 
                     double wetness = hydrology * 0.65 + flow * 0.35;
                     double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
-                    double weight = (basinNoise * 0.42) + (rimNoise * rimWeight) + wetness * 0.4 + lakeConfig.SpawnWeightBias;
+                    double layeredNoise = (basinNoise * 0.42) + (rimNoise * rimWeight) + (macroNoise * 0.2) + (detailNoise * 0.15);
+                    double weight = layeredNoise + wetness * 0.4 + lakeConfig.SpawnWeightBias;
                     weight += inflowBlend * 0.35 * (1.0 - flowShadow * 0.5);
                     double seamAnchor = (hydrology + seamHydro + flow + flowMemory) * 0.25;
-                    double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight) * flowSeepageWeight * 0.2;
-                    double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight) * flowSeepageWeight;
+                    double seamMemory = (hydrology + seamHydro + flowMemory) * 0.333;
+                    double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight + seamMemory) * flowSeepageWeight * 0.15;
+                    double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight + seamMemory * 0.35) * flowSeepageWeight;
                     weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * waterConfig.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
@@ -106,7 +110,8 @@ namespace GameServerApp.World.Generation
                     double downhillFlow = flowAccumulation[downX, downZ] / 6.0;
                     double outflowAnchor = (downhillHydro + downhillFlow) * outflowStabilityWeight * 0.25;
                     weight += outflowAnchor * (1.0 - flowShadow * 0.5);
-                    weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1, 0.0, 0.35);
+                    double flowMemoryGradient = Math.Abs(flowMemory - flow);
+                    weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     weight *= 1.0 - flowShadow * 0.35;
@@ -119,7 +124,7 @@ namespace GameServerApp.World.Generation
                     }
 
                     double seamRelax = Math.Clamp(waterConfig.HydrologySeamRelaxBlend, 0.0, 1.0);
-                    weight = weight * (1.0 - edgeNormalization * 0.2) + seamAnchor * edgeNormalization * 0.25;
+                    weight = weight * (1.0 - edgeNormalization * 0.2) + (seamAnchor + seamMemory * 0.35) * edgeNormalization * 0.25;
                     weight = weight * (1.0 - seamRelax * 0.1) + seamAnchor * seamRelax * 0.05;
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05;
                     if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - lakeConfig.MaxDepth)

@@ -56,6 +56,22 @@ namespace GameServerApp.World.Generation
                         1.0,
                         0.55,
                         random.Next()));
+                    double macroNoise = Math.Abs(SimplexNoise.Generate(
+                        worldX * noiseScale * 0.4 + 71.0,
+                        worldZ * noiseScale * 0.4 - 53.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        random.Next()));
+                    double detailNoise = Math.Abs(SimplexNoise.Generate(
+                        worldX * noiseScale * 1.85 - 17.0,
+                        worldZ * noiseScale * 1.85 + 9.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        random.Next()));
 
                     double meanderNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * noiseScale * 0.65 + 19.0,
@@ -66,6 +82,7 @@ namespace GameServerApp.World.Generation
                         0.55,
                         random.Next()));
                     double meanderFactor = 1.0 + meanderNoise * (Math.Clamp(config.HydrologyWarpAmplitude * 0.02, 0.05, 0.2) + Math.Max(0.0, config.RiverMeanderJitter));
+                    double layeredNoise = (baseNoise * 0.55) + (macroNoise * 0.25) + (detailNoise * 0.2);
 
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
@@ -92,7 +109,7 @@ namespace GameServerApp.World.Generation
                     continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
                     double seamAnchor = hydrology * 0.25 + seamHydro * 0.25 + flow * 0.25 + flowMemory * 0.25;
 
-                    double riverMask = config.RiverBankThreshold - baseNoise;
+                    double riverMask = config.RiverBankThreshold - layeredNoise;
                     double pressure = Math.Max(0.0, riverMask);
                     pressure *= 1.0 + hydrology * config.HydrologyContinuityWeight;
                     pressure *= 1.0 + flow * config.RiverFlowAlignmentWeight;
@@ -103,7 +120,11 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure *= 1.0 + seamAnchor * edgeNormalization * 0.15;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
+                    double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
+                    double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     pressure *= seamGuard;
+                    pressure *= 1.0 + flowMemoryContinuity * 0.25;
+                    pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
                     if (confluenceBoost > 0.0)
                     {
@@ -147,6 +168,7 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeVarianceClamp);
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             TerrainMaskUtility.DirectionalSmooth(heightMap, mask, Math.Max(1, config.HydrologyDirectionalIterations), config.HydrologyDirectionalBlend * 0.35);
+            TerrainMaskUtility.StitchEdges(mask, config.HydrologySeamRelaxBlend * 0.5);
             TerrainMaskUtility.NormalizeEdges(
                 mask,
                 config.HydrologyEdgeBlendRadius,

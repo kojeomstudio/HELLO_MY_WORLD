@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using Minecraft.Core;
 using UnityEngine;
 
@@ -36,6 +37,7 @@ namespace GameWorld
         private WorldConfig worldConfig = null!;
         private string lastProfileHash = string.Empty;
         private string lastProfileSignature = string.Empty;
+        private string lastProfileFileHash = string.Empty;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
@@ -78,6 +80,7 @@ namespace GameWorld
             profile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
             lastProfileWriteUtc = File.Exists(profilePath) ? File.GetLastWriteTimeUtc(profilePath) : DateTime.MinValue;
             lastProfileHash = profile.ProfileHash;
+            lastProfileFileHash = ComputeFileHash(profilePath);
             lastProfileSignature = ComputeGenerationSignature(profile, worldConfig ?? WorldConfig.Instance);
 
             if (enableDebugLogging)
@@ -116,6 +119,7 @@ namespace GameWorld
 
                     profile = profileStale || profileOlderThanConfig ? expectedProfile : profile;
                     lastProfileHash = profile.ProfileHash;
+                    lastProfileFileHash = ComputeFileHash(profilePath);
                     lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
@@ -137,18 +141,22 @@ namespace GameWorld
                 }
 
                 var writeTime = File.GetLastWriteTimeUtc(profilePath);
-                if (writeTime <= lastProfileWriteUtc)
+                var fileHash = ComputeFileHash(profilePath);
+                bool profileContentChanged = !string.IsNullOrEmpty(fileHash) &&
+                                             !string.Equals(fileHash, lastProfileFileHash, StringComparison.OrdinalIgnoreCase);
+                if (writeTime <= lastProfileWriteUtc && !profileContentChanged)
                 {
                     return;
                 }
 
                 var newProfile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
-                if (!string.Equals(newProfile.ProfileHash, profile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(newProfile.ProfileHash, profile.ProfileHash, StringComparison.OrdinalIgnoreCase) || profileContentChanged)
                 {
                     profile = newProfile;
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
                     lastProfileHash = profile.ProfileHash;
+                    lastProfileFileHash = fileHash;
                     lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
                     if (enableDebugLogging)
                     {
@@ -161,6 +169,7 @@ namespace GameWorld
                 }
 
                 lastProfileWriteUtc = writeTime;
+                lastProfileFileHash = string.IsNullOrEmpty(fileHash) ? lastProfileFileHash : fileHash;
             }
             catch (Exception ex)
             {
@@ -273,6 +282,25 @@ namespace GameWorld
             int cx = Mathf.FloorToInt(position.x / size);
             int cz = Mathf.FloorToInt(position.z / size);
             return new Vector2Int(cx, cz);
+        }
+
+        private static string ComputeFileHash(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                using var sha = SHA256.Create();
+                byte[] data = File.ReadAllBytes(path);
+                return BitConverter.ToString(sha.ComputeHash(data)).Replace("-", string.Empty);
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 

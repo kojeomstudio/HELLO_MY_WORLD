@@ -2994,8 +2994,10 @@ namespace MapGenLib
             float ridgeNoise = Noise.GetNoise(sampleX * 1.6f, 0, sampleZ * 1.6f);
             float meanderNoise = CustomMathf.Abs(Noise.GetNoise(sampleX * 0.65f + 19f, 0, sampleZ * 0.65f - 11f));
 
-            float riverMask = CustomMathf.Abs(baseNoise - 0.5f);
-            riverMask = riverMask * (0.58f + 0.25f * ridgeNoise) - 0.045f * CustomMathf.Abs(detailNoise);
+            float macroNoise = CustomMathf.Abs(Noise.GetNoise(sampleX * 0.42f + 71f, 0, sampleZ * 0.42f - 53f));
+            float riverMaskBase = CustomMathf.Abs(baseNoise - 0.5f);
+            float layeredNoise = riverMaskBase * 0.55f + macroNoise * 0.25f + CustomMathf.Abs(detailNoise) * 0.2f;
+            float riverMask = layeredNoise * (0.58f + 0.25f * ridgeNoise) - 0.045f * CustomMathf.Abs(detailNoise);
             float meanderFactor = 1f + meanderNoise * CustomMathf.Clamp(HydrologyWarpAmplitude * 0.02f, 0.05f, 0.2f);
             riverMask = CustomMathf.Max(riverMask * meanderFactor - meanderNoise * 0.015f, 0.0f);
 
@@ -4425,6 +4427,10 @@ namespace MapGenLib
 
                     float hydrology = hydrologyMask[x, z];
                     float accumulation = CustomMathf.Clamp01(flowAccumulation[x, z] / 10f);
+                    float seamHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                    float flowMemory = SampleHydrologyAverage(flowAccumulation, x, z);
+                    float flowMemoryNorm = CustomMathf.Clamp01(flowMemory / 10f);
+                    float continuity = CustomMathf.Clamp01((hydrology + seamHydro + flowMemoryNorm) / 3f);
                     float relief = ComputeLocalRelief(surfaceCache, subWorldSize, x, z, 3);
                     float bowlStrength = CustomMathf.Clamp01(1f - relief / 8f);
                     float altitudeBias = 1f - CustomMathf.Clamp01(CustomMathf.Abs(surface - GlobalRiverWaterLevel) / 24f);
@@ -4432,7 +4438,12 @@ namespace MapGenLib
                     float erosion = CustomMathf.Clamp01(erosionRiskField[x, z]);
                     float erosionPenalty = CustomMathf.Clamp01(erosion * 0.6f);
                     float seepage = (hydrology + accumulation) * CustomMathf.Clamp01(LakeFlowSeepageWeight);
+                    float macroNoise = CustomMathf.Abs(Noise.GetNoise((x + 71f) * 0.15f, 0, (z - 53f) * 0.15f));
+                    float detailNoise = CustomMathf.Abs(Noise.GetNoise((x - 17f) * 0.45f, 0, (z + 9f) * 0.45f));
+                    float layeredNoise = macroNoise * 0.4f + detailNoise * 0.6f;
                     float score = hydrology * 0.45f + accumulation * 0.3f + bowlStrength * 0.3f + altitudeBias * 0.2f + shelterBias * 0.1f + seepage * 0.25f;
+                    score += layeredNoise * 0.12f + continuity * 0.18f;
+                    score *= 1f - CustomMathf.Clamp01(flowMemoryNorm * 0.25f + CustomMathf.Abs(flowMemoryNorm - accumulation) * 0.2f);
                     score -= CustomMathf.Clamp01(relief / 18f) * 0.2f;
                     score -= erosionPenalty * 0.25f;
                     heatmap[x, z] = CustomMathf.Clamp01(score);
@@ -4466,7 +4477,14 @@ namespace MapGenLib
                     float riparian = riparianSaturation[x, z];
                     float catchmentStrength = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
                     float erosionRisk = erosionRiskField[x, z];
+                    float seamHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                    float flowMemory = SampleHydrologyAverage(flowAccumulation, x, z);
+                    float flowMemoryNorm = CustomMathf.Clamp01(flowMemory / 6f);
+                    float continuity = CustomMathf.Clamp01((hydrology + seamHydro + flowMemoryNorm) / 3f);
+                    float flowMemoryDrift = CustomMathf.Abs(flowMemoryNorm - catchmentStrength);
                     float adjustedMask = AdjustRiverMask(riverMask, hydrology) - catchmentStrength * 0.015f - riparian * 0.0125f - erosionRisk * 0.01f;
+                    adjustedMask *= 1f + continuity * 0.2f;
+                    adjustedMask *= 1f - CustomMathf.Clamp(flowMemoryDrift * 0.35f, 0f, 0.35f);
                     adjustedMask = CustomMathf.Max(0f, adjustedMask);
 
                     if (reliefWeight > 0f)
@@ -5373,6 +5391,8 @@ namespace MapGenLib
             DampHydrologyEdgeNoise(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             StabilizeHydrologyVariance(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             ApplyHydrologyFlowMemory(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
+            SmoothScalarField(caveHydrologyMask, 1, CustomMathf.Clamp(HydrologySmoothBlend + 0.05f, 0f, 0.9f));
+            SmoothScalarField(caveFlowAccumulation, 1, CustomMathf.Clamp(HydrologySmoothBlend + 0.05f, 0f, 0.9f));
             StabilizeHydrologyGradients(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             StabilizeHydrologyWarping(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             ProjectHydrologyEdgeFlux(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);

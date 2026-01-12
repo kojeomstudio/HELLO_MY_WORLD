@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-12: Flow-memory hydrology + proto coverage guard**
+  - Added slope-aware hydrology flow-memory smoothing shared by server worldgen and Unity previews (caves/rivers/lakes) plus synced JSON configs (`WorldConfigData.json`, `WorldMapController`).
+  - Kept map-control parity by pushing hydrology flow-memory weight through `WorldMapControlProfile` and Unity `WorldAreaManager`.
+  - Hardened EnhancedMinecraft protobuf validation to flag generated descriptors that lack registry bindings.
+  - Docs/data: `docs/minecraft_feature_core_content_util_2026-01-12.md`, `config/minecraft_feature_client_server_core_content_util_2026-01-12.json`.
 - **2026-01-11: Hydrology envelope + map-control parity**
   - Added hydrology/flow continuity envelope across server and Unity previews; tuned river/lake/cave masks with variance/floodplain assists.
   - Expanded world-map generation signatures (variance, edge locks, seam relax, cave/lake stability) and cleaned JSON configs (`config/enhanced_world_map_control_*.json`).

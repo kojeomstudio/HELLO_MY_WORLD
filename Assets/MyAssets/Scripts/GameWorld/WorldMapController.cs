@@ -772,7 +772,7 @@ namespace GameWorld
         {
             int sizeX = flow.GetLength(0);
             int sizeZ = flow.GetLength(1);
-            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowPersistence * 0.35f + profile.HydrologyFlowMemoryWeight);
+            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowMemoryWeight + profile.HydrologyFlowPersistence * 0.2f);
             float watershedBlend = Mathf.Clamp01(profile.HydrologyWatershedStitchWeight);
             float flowShadowWeight = Mathf.Clamp01(profile.HydrologyFlowShadowWeight);
             int watershedRadius = Math.Max(1, profile.HydrologyWatershedStitchRadius);
@@ -796,12 +796,15 @@ namespace GameWorld
                     float downhillFlow = flow[downX, downZ];
                     float hydrologyGradient = Mathf.Abs(neighbourHydro - hydro);
 
+                    float relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, watershedRadius));
+                    float basinWeight = Mathf.Clamp01(1f - relief / 12f);
                     float continuity = 1f + hydro * profile.HydrologyContinuityWeight + neighbourHydro * 0.25f;
                     float memory = flowValue * (1f - memoryWeight);
-                    memory += (downhillFlow + flowValue) * (memoryWeight * 0.25f);
+                    memory += (downhillFlow + flowValue) * (memoryWeight * 0.2f);
                     memory += neighbourFlow * (memoryWeight * 0.35f);
-                    memory += hydro * memoryWeight * 0.25f;
+                    memory += (hydro + neighbourHydro) * memoryWeight * 0.15f;
                     memory *= continuity;
+                    memory *= 1f + basinWeight * 0.15f;
                     memory *= 1f - Mathf.Clamp(hydrologyGradient * flowShadowWeight * 0.25f, 0f, 0.3f);
 
                     int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
@@ -813,11 +816,52 @@ namespace GameWorld
                         memory = memory * (1f - edgeRepair * 0.55f) + seamAnchor * edgeRepair;
                     }
 
-                    buffer[x, z] = Mathf.Clamp(memory, 0f, Mathf.Max(flowValue + 1.5f, profile.HydrologyFlowDivergenceClamp * 12f));
+                    float clampBase = Mathf.Max(flowValue + 1.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+                    float basinClamp = Mathf.Lerp(clampBase, clampBase * 0.9f + (hydro + neighbourHydro) * 6f * 0.15f, basinWeight * memoryWeight * 0.5f);
+                    buffer[x, z] = Mathf.Clamp(memory, 0f, basinClamp);
                 }
             }
 
             Array.Copy(buffer, flow, buffer.Length);
+        }
+
+        private float ComputeLocalRelief(int[,] heightMap, int x, int z, int radius)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int min = int.MaxValue;
+            int max = int.MinValue;
+            int samples = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= sizeX || nz < 0 || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int height = heightMap[nx, nz];
+                    if (height <= 0)
+                    {
+                        continue;
+                    }
+
+                    min = Math.Min(min, height);
+                    max = Math.Max(max, height);
+                    samples++;
+                }
+            }
+
+            if (samples == 0)
+            {
+                return 0f;
+            }
+
+            return max - min;
         }
 
         private void BlendHydrologyWithFlow(int[,] heightMap, float[,] hydrology, float[,] flow)

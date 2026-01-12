@@ -56,6 +56,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(MapControlProfile.HydrologyShorePush, 0.1f, 64f);
         WorldGenAlgorithms.HydrologySlopePenalty = Mathf.Clamp(MapControlProfile.HydrologySlopePenalty, 0.1f, 64f);
         WorldGenAlgorithms.HydrologyFlowGain = Mathf.Clamp(MapControlProfile.HydrologyFlowGain, 0f, 2f);
+        WorldGenAlgorithms.HydrologyFlowMemoryWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowMemoryWeight);
         WorldGenAlgorithms.HydrologyFlowShadowWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowWeight);
         WorldGenAlgorithms.HydrologyFlowShadowSlopeWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowSlopeWeight);
         WorldGenAlgorithms.HydrologyContinuityWeight = Mathf.Clamp01(MapControlProfile.HydrologyContinuityWeight);

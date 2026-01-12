@@ -214,3 +214,8 @@ The current configuration system is excellent but could be enhanced with:
 - Ecosystem-specific parameters
 - Performance optimization settings
 - Performance optimization settings
+
+## 2026-01-12 Flow-Memory Stabilization
+- Added slope-aware hydrology flow-memory blending shared by server `WorldManager` and Unity `WorldGenAlgorithms`, keeping caves, rivers, and lakes coherent across chunk seams.
+- Updated Unity resource config (`Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`) to include hydrology flow-memory, riparian buffer, river seam fill, and wetland buffer parameters so previews match server chunks.
+- World map previews reuse the same basin-aware clamp in `WorldMapController.ApplyFlowMemory`, ensuring the map-control profile hash reflects the flow-memory weight.

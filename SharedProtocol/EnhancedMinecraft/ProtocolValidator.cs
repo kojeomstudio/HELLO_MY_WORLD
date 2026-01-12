@@ -85,6 +85,7 @@ public static class ProtocolValidator
         ValidateServerStatusDescriptors();
         ValidateEntityDescriptors();
         ValidateEnumBindings();
+        ValidateGeneratedDescriptorCoverage();
         ValidateOptionalDescriptorVisibility();
         ValidateOptionalPrototypes();
         ProtoDiagnostics.AssertRegistryClean();
@@ -747,6 +748,34 @@ public static class ProtocolValidator
             string joined = string.Join(", ", missing);
             throw new InvalidOperationException(
                 $"EnhancedMinecraft protocol registry is missing bindings for: {joined}. Add ProtocolRegistry entries or mark them optional so generated protobuf classes remain reachable via using directives.");
+        }
+    }
+
+    private static void ValidateGeneratedDescriptorCoverage()
+    {
+        var registered = new HashSet<MinecraftMessageType>(ProtocolRegistry.RegisteredMessageTypes);
+
+        foreach (var descriptor in EnhancedMinecraftGameReflection.Descriptor.MessageTypes)
+        {
+            if (!Enum.TryParse(descriptor.Name, out MinecraftMessageType messageType))
+            {
+                Console.WriteLine($"[Proto][WARN] Generated EnhancedMinecraft descriptor '{descriptor.Name}' is not mapped to MinecraftMessageType. Add the enum constant and registry binding or remove the stale proto message.");
+                continue;
+            }
+
+            if (registered.Contains(messageType))
+            {
+                continue;
+            }
+
+            if (OptionalMessages.Contains(messageType))
+            {
+                Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft message '{messageType}' is generated but not registered. Add a ProtocolRegistry binding when wiring its handler.");
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft descriptor '{messageType}' is generated but missing a ProtocolRegistry binding. Register it in ProtocolRegistry or mark it optional so generated DTOs remain reachable.");
         }
     }
 

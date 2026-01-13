@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using Networking.Core;
-using GameProtocol;
 
 namespace Networking
 {

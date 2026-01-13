@@ -342,6 +342,7 @@ namespace GameWorld
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
@@ -1076,6 +1077,72 @@ namespace GameWorld
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
             }
+        }
+
+        private void ApplyHydrologyEdgeCohesion(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            float seamBlend = Mathf.Clamp(profile.HydrologySeamRelaxBlend + profile.HydrologyEdgeStabilityWeight * 0.35f, 0.05f, 0.95f);
+            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowMemoryWeight);
+            float varianceClamp = Mathf.Max(0f, profile.HydrologyEdgeVarianceClamp);
+            float slopePenalty = Mathf.Max(0f, profile.HydrologySlopePenalty);
+            float gradientWeight = Mathf.Clamp01(profile.HydrologyGradientWeight);
+            float flowClamp = Mathf.Max(2.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float blend = seamBlend * falloff;
+                    float hydro = hydroCopy[x, z];
+                    float flowValue = flowCopy[x, z];
+                    float neighbourHydro = SampleInterior(hydroCopy, x, z);
+                    float neighbourFlow = SampleInterior(flowCopy, x, z);
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int downZ = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+                    float directionalHydro = hydroCopy[downX, downZ];
+                    float directionalFlow = flowCopy[downX, downZ];
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float hydroGradient = Mathf.Abs(neighbourHydro - hydro);
+                    float flowGradient = Mathf.Abs(neighbourFlow - flowValue);
+                    float stability = 1f - Mathf.Clamp(
+                        (hydroGradient + flowGradient) * profile.HydrologyEdgeStabilityWeight * 0.35f +
+                        slope * slopePenalty * 0.02f,
+                        0f,
+                        0.85f);
+
+                    float anchorHydro = hydro * (0.6f + memoryWeight * 0.25f) + neighbourHydro * 0.25f + directionalHydro * 0.15f;
+                    float directionalBias = (Mathf.Abs(downhill.x) + Mathf.Abs(downhill.y)) * 0.15f;
+                    float edgeAnchor = hydro * (1f - varianceClamp * falloff * 0.35f) + neighbourHydro * varianceClamp * falloff * 0.35f;
+                    float harmonized = hydro * (1f - blend) + anchorHydro * blend;
+                    harmonized = harmonized * stability + edgeAnchor * (1f - stability) * 0.25f;
+                    harmonized *= 1f - Mathf.Clamp(hydroGradient * gradientWeight * 0.15f + directionalBias, 0f, 0.4f);
+                    float clampDelta = varianceClamp * falloff;
+                    hydrology[x, z] = Mathf.Clamp(harmonized, hydro - clampDelta, hydro + clampDelta);
+
+                    float flowAnchor = flowValue * (0.6f + memoryWeight * 0.25f) + neighbourFlow * 0.25f + directionalFlow * 0.15f + hydroGradient * memoryWeight * 0.1f;
+                    float blendedFlow = flowValue * (1f - blend * 0.35f) + flowAnchor * blend * 0.35f;
+                    blendedFlow = Mathf.Clamp(blendedFlow, 0f, flowClamp * (1f + varianceClamp * 0.15f));
+                    flow[x, z] = blendedFlow;
+                }
+            }
+
+            ClampVariance(hydrology, varianceClamp);
+            ClampVariance(flow, varianceClamp * 1.25f);
+            RelaxEdges(hydrology, Math.Max(1, profile.HydrologySeamRelaxIterations), seamBlend * 0.65f);
+            RelaxEdges(flow, Math.Max(1, profile.HydrologySeamRelaxIterations), seamBlend * 0.45f);
         }
 
         private void HarmonizeHydrologyWithSurface(int[,] heightMap, float[,] hydrology, float[,] flow)

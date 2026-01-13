@@ -2366,6 +2366,8 @@ namespace MapGenLib
                     float seamAnchor = hydrologyMask[x, z] * 0.35f + neighborHydrology * 0.35f + neighborFlow * 0.3f;
                     blendedHydrology = CustomMathf.Lerp(blendedHydrology, neighborHydrology, flowShadow * 0.25f);
                     blendedHydrology = CustomMathf.Lerp(blendedHydrology, seamAnchor, watershedBlend * falloff * 0.5f);
+                    float stability = CustomMathf.Clamp01(1f - (hydrologyGradient + CustomMathf.Abs(neighborFlow - flowAccumulation[x, z])) * HydrologyEdgeStabilityWeight * 0.25f);
+                    blendedHydrology = blendedHydrology * stability + seamAnchor * (1f - stability) * 0.35f;
                     blendedHydrology = ClampEdgeVariance(blendedHydrology, interiorHydro, HydrologyEdgeVarianceClamp);
                     hydrologyMask[x, z] = CustomMathf.Clamp01(blendedHydrology);
 
@@ -2376,7 +2378,8 @@ namespace MapGenLib
                     blendedFlow = CustomMathf.Lerp(blendedFlow, flowAnchor, flowShadow * 0.25f);
                     blendedFlow = CustomMathf.Lerp(blendedFlow, seamAnchor, watershedBlend * falloff * 0.35f);
                     blendedFlow = ClampEdgeVariance(blendedFlow, interiorFlow, HydrologyEdgeVarianceClamp * 1.25f, 0.05f);
-                    flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, 8f);
+                    float flowClamp = CustomMathf.Max(2.5f, HydrologyFlowDivergenceClamp * 12f);
+                    flowAccumulation[x, z] = CustomMathf.Clamp(blendedFlow, 0f, flowClamp);
                 }
             }
         }

@@ -5421,6 +5421,8 @@ namespace MapGenLib
             StabilizeCaveEntrances(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation, caveCurvature);
             SealChunkEdgeCaves(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             SealRiparianCaves(subWorldBlockData, subWorldSize, caveSurfaceCache, riparianSaturation);
+            HarmonizeUndergroundLakesWithHydrology(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
+            SealHydrologyCaveIntersections(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation, riparianSaturation);
             IntegrateKarstSinkholes(subWorldBlockData, subWorldSize);
         }
 
@@ -8193,6 +8195,107 @@ namespace MapGenLib
                                     subWorldBlockData[worldX, worldY, worldZ].CurrentType = (byte)BlockTileType.SAND;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Smooth underground lake columns using the computed hydrology/flow fields so chunk seams stay stable.
+        /// </summary>
+        private static void HarmonizeUndergroundLakesWithHydrology(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int clampTop = CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 2);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float wetness = CustomMathf.Max(hydrologyMask[x, z], flowAccumulation[x, z] * 0.5f);
+                    int surface = CustomMathf.Min(surfaceCache[x, z], clampTop);
+                    int waterBottom = -1;
+                    int waterTop = -1;
+
+                    for (int y = 1; y <= surface && y < subWorldSize.SizeY - 1; y++)
+                    {
+                        byte type = subWorldBlockData[x, y, z].CurrentType;
+                        if (type == (byte)BlockTileType.WATER)
+                        {
+                            if (waterBottom == -1)
+                            {
+                                waterBottom = y;
+                            }
+                            waterTop = y;
+                        }
+                        else if (type == (byte)BlockTileType.EMPTY && waterBottom != -1)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.WATER;
+                            waterTop = y;
+                        }
+                    }
+
+                    if (waterBottom == -1)
+                    {
+                        continue;
+                    }
+
+                    if (wetness < 0.18f)
+                    {
+                        for (int y = waterBottom; y <= waterTop && y < subWorldSize.SizeY - 1; y++)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                        }
+
+                        continue;
+                    }
+
+                    int bankTop = CustomMathf.Min(waterTop + 1, subWorldSize.SizeY - 2);
+                    if (subWorldBlockData[x, bankTop, z].CurrentType == (byte)BlockTileType.EMPTY && wetness > 0.55f)
+                    {
+                        subWorldBlockData[x, bankTop, z].CurrentType = (byte)BlockTileType.SAND;
+                    }
+
+                    bool nearEdge = x == 0 || z == 0 || x == width - 1 || z == depth - 1;
+                    if (nearEdge && wetness > 0.35f)
+                    {
+                        int capY = CustomMathf.Max(1, surface - 1);
+                        subWorldBlockData[x, capY, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Seal cave ceilings near saturated hydrology to prevent thin seams across chunk boundaries.
+        /// </summary>
+        private static void SealHydrologyCaveIntersections(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation, float[,] riparianSaturation)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int clampTop = CustomMathf.Min(GlobalRiverWaterLevel, subWorldSize.SizeY - 2);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float wetness = CustomMathf.Max(
+                        CustomMathf.Max(hydrologyMask[x, z], flowAccumulation[x, z]),
+                        riparianSaturation[x, z] * 0.5f);
+                    if (wetness < 0.4f)
+                    {
+                        continue;
+                    }
+
+                    int surface = CustomMathf.Min(surfaceCache[x, z], clampTop);
+                    int sealStart = CustomMathf.Max(1, surface - 3);
+                    for (int y = sealStart; y <= surface && y < subWorldSize.SizeY - 1; y++)
+                    {
+                        if (subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY)
+                        {
+                            subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
                         }
                     }
                 }

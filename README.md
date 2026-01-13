@@ -29,11 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- **2026-01-13: Edge-cohesive hydrology + feature sequencing**
-  - Added a hydrology/flow edge-cohesion pass to server (`ImprovedTerrainCoordinator`) and Unity preview (`WorldMapController`) so river/lake/cave masks stay stitched at chunk seams.
-  - MapGeneratorLib seam blending now respects edge stability and divergence clamps to mirror the server/Unity pipelines.
-  - Recorded a refreshed client/server core-content-util roster (`config/minecraft_feature_client_server_core_content_util_2026-01-13.json`) to sequence worldgen + protocol tasks.
-  - Proto guardrails remain active on startup via `ProtocolStandardization.ValidateProtocolImplementation` + `ProtoDiagnostics.LogSummary`.
+- **2026-01-13: Hydrology sealing + map-control signatures**
+  - Underground lake/cave sealing now aligns to hydrology/flow on server (`ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`) and MapGeneratorLib previews to remove seam leaks.
+  - Server `WorldMapController` tracks a generation signature and rebuilds the terrain pipeline when configs/profiles change or chunk generation fails.
+  - `ProtocolRegistry.ValidateBindings()` asserts the EnhancedMinecraft descriptor fingerprint to catch stale protobuf assets even when validators are bypassed.
+  - New feature sequencing + terrain docs: `config/minecraft_feature_client_server_core_content_util_2026-01-13-session.json`, `docs/minecraft_features_client_server_core_content_util_2026-01-13-session.md`, `docs/terrain_generation_improvements_2026-01-13.md`.
 - **2026-01-12: Multi-layer hydrology, map-control parity, feature inventory refresh**
   - Improved river/lake/cave generators with layered noise, flow-memory stability, and extra seam stitching; mirrored in Unity `WorldGenAlgorithms`.
   - Added hash-based reloads for world/map-control JSON on server (`WorldMapControlManager`) and client (`WorldMapController`) so previews stay in lockstep with config edits.

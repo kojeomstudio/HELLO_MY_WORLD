@@ -166,6 +166,13 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, config.HydrologySeamRelaxBlend * 0.35),
                 config.HydrologyEdgeVarianceClamp);
+            ApplyHydrologyStability(
+                mask,
+                hydrologyMask,
+                flowAccumulation,
+                config.HydrologyGradientStabilityIterations,
+                config.HydrologyGradientStabilityBlend,
+                config.HydrologyGradientClamp);
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             TerrainMaskUtility.DirectionalSmooth(heightMap, mask, Math.Max(1, config.HydrologyDirectionalIterations), config.HydrologyDirectionalBlend * 0.35);
             TerrainMaskUtility.StitchEdges(mask, config.HydrologySeamRelaxBlend * 0.5);
@@ -176,6 +183,46 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeNormalizationBlend);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyHydrologyStability(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int iterations,
+            double blend,
+            double gradientClamp)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            gradientClamp = Math.Max(0.0001, gradientClamp);
+            if (iterations == 0 || blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float centre = mask[x, z];
+                        float interior = TerrainMaskUtility.SampleInterior(mask, x, z);
+                        double wetness = Math.Max(hydrology[x, z], flow[x, z] * 0.5f);
+                        double variance = TerrainMaskUtility.SampleVariance(mask, x, z);
+                        double weight = blend * (0.35 + wetness * 0.25 + variance * 0.15);
+                        double stabilised = centre * (1.0 - weight) + interior * weight;
+                        buffer[x, z] = (float)Math.Clamp(stabilised, 0.0, Math.Max(1.35, centre + gradientClamp * 0.5));
+                    }
+                }
+
+                Array.Copy(buffer, mask, buffer.Length);
+            }
         }
 
         private double ApplyEdgeBlend(double pressure, float hydrology, int x, int z, int chunkSize)

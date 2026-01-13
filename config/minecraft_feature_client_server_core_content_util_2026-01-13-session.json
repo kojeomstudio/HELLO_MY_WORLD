@@ -1,0 +1,257 @@
+{
+  "date": "2026-01-13",
+  "branch": "master",
+  "head": "973edf61",
+  "core": {
+    "server": [
+      {
+        "id": "core-01",
+        "name": "world-map-control-resilience",
+        "paths": [
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "status": "planned",
+        "notes": "Profile/config hash reload, generation signature stability, and chunk cache hygiene for map streaming."
+      },
+      {
+        "id": "core-02",
+        "name": "hydrology-envelope-sync",
+        "paths": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "status": "planned",
+        "notes": "Share hydrology/flow envelope across caves, rivers, and lakes with seam-aware masks."
+      },
+      {
+        "id": "core-03",
+        "name": "proto-registry-guardrails",
+        "paths": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "GameServer/Program.cs"
+        ],
+        "status": "planned",
+        "notes": "Validate generated EnhancedMinecraft DTO coverage before handlers register."
+      }
+    ],
+    "client": [
+      {
+        "id": "core-04",
+        "name": "unity-map-control-hash-tracking",
+        "paths": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Reload map previews when world config/profile hash changes; align with server generation signature."
+      },
+      {
+        "id": "core-05",
+        "name": "unity-hydrology-preview-envelope",
+        "paths": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "planned",
+        "notes": "Apply river/lake/cave hydrology smoothing in preview generator to mirror server masks."
+      }
+    ]
+  },
+  "content": {
+    "server": [
+      {
+        "id": "content-01",
+        "name": "river-delta-wetland-balance",
+        "paths": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+        ],
+        "status": "planned",
+        "notes": "Adjust channel pressure using flow memory, edge stabilization, and downstream seepage."
+      },
+      {
+        "id": "content-02",
+        "name": "lake-outflow-equalization",
+        "paths": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "planned",
+        "notes": "Smooth basins with hydrology variance, outflow channels, and wetland buffers near rivers."
+      },
+      {
+        "id": "content-03",
+        "name": "cave-riparian-stability",
+        "paths": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "status": "planned",
+        "notes": "Suppress moist ceilings near rivers/lakes, seal edges, and bias pillars toward saturated terrain."
+      }
+    ],
+    "client": [
+      {
+        "id": "content-04",
+        "name": "preview-river-lake-sync",
+        "paths": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "planned",
+        "notes": "Mirror server river/lake pressure fields in client previews to avoid seam mismatches."
+      },
+      {
+        "id": "content-05",
+        "name": "preview-cave-stability",
+        "paths": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "status": "planned",
+        "notes": "Blend hydrology and flow suppression into cave masking for client preview chunks."
+      }
+    ]
+  },
+  "util": {
+    "server": [
+      {
+        "id": "util-01",
+        "name": "json-config-parity",
+        "paths": [
+          "config/enhanced_world_map_control_server.json",
+          "config/world.json",
+          "GameServer/Configuration"
+        ],
+        "status": "planned",
+        "notes": "Keep world/map-control tunables data-driven via JSON; document new keys."
+      },
+      {
+        "id": "util-02",
+        "name": "proto-telemetry",
+        "paths": [
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "planned",
+        "notes": "Emit registry coverage and descriptor fingerprints for diagnostics."
+      }
+    ],
+    "client": [
+      {
+        "id": "util-03",
+        "name": "streaming-assets-sync",
+        "paths": [
+          "Assets/StreamingAssets/world-map-control.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "planned",
+        "notes": "Ensure client JSON configs mirror server exports for hydrology and map-control."
+      }
+    ]
+  },
+  "sequence": [
+    {
+      "order": 1,
+      "feature": "core-02",
+      "category": "core",
+      "scope": [
+        "server",
+        "client"
+      ],
+      "description": "Hydrology/flow envelope alignment across caves, rivers, and lakes with seam-aware smoothing."
+    },
+    {
+      "order": 2,
+      "feature": "content-01",
+      "category": "content",
+      "scope": [
+        "server"
+      ],
+      "description": "River delta/wetland balance with flow memory and edge stabilization."
+    },
+    {
+      "order": 3,
+      "feature": "content-02",
+      "category": "content",
+      "scope": [
+        "server"
+      ],
+      "description": "Lake basin/outflow equalization and wetland padding tied to hydrology variance."
+    },
+    {
+      "order": 4,
+      "feature": "content-03",
+      "category": "content",
+      "scope": [
+        "server"
+      ],
+      "description": "Riparian cave stability and sealing near saturated terrain."
+    },
+    {
+      "order": 5,
+      "feature": "core-01",
+      "category": "core",
+      "scope": [
+        "server"
+      ],
+      "description": "World map control resilience: profile/config hash reload and cache hygiene."
+    },
+    {
+      "order": 6,
+      "feature": "core-04",
+      "category": "core",
+      "scope": [
+        "client"
+      ],
+      "description": "Unity map-control hash tracking and preview reload on config drift."
+    },
+    {
+      "order": 7,
+      "feature": "core-05",
+      "category": "core",
+      "scope": [
+        "client"
+      ],
+      "description": "Hydrology envelope mirrored in client previews for rivers/lakes/caves."
+    },
+    {
+      "order": 8,
+      "feature": "core-03",
+      "category": "core",
+      "scope": [
+        "server"
+      ],
+      "description": "Proto registry guardrails before handler registration."
+    },
+    {
+      "order": 9,
+      "feature": "util-01",
+      "category": "util",
+      "scope": [
+        "server",
+        "client"
+      ],
+      "description": "Ensure JSON config parity for world/map-control tunables."
+    },
+    {
+      "order": 10,
+      "feature": "util-03",
+      "category": "util",
+      "scope": [
+        "client"
+      ],
+      "description": "Mirror StreamingAssets hydrology/map-control with server exports."
+    },
+    {
+      "order": 11,
+      "feature": "util-02",
+      "category": "util",
+      "scope": [
+        "server"
+      ],
+      "description": "Proto telemetry and descriptor fingerprint logging."
+    }
+  ]
+}

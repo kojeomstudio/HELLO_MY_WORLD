@@ -81,6 +81,8 @@ public static class ProtocolRegistry
 
     public static void ValidateBindings()
     {
+        ProtoFingerprint.AssertDescriptorFingerprint();
+
         if (EnhancedMinecraftGameReflection.Descriptor == null)
         {
             throw new InvalidOperationException(

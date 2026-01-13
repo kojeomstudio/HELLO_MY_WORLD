@@ -42,6 +42,7 @@ namespace GameServerApp.World
         private readonly string worldConfigPath;
         private DateTime profileWriteTime;
         private DateTime worldConfigWriteTime;
+        private string generationSignature;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
@@ -50,6 +51,7 @@ namespace GameServerApp.World
         private readonly object reloadLock = new();
 
         public WorldMapControlProfile ControlProfile => controlProfile;
+        public string GenerationSignature => generationSignature;
 
         public WorldMapController(
             ILogger<WorldMapController> logger,
@@ -72,14 +74,16 @@ namespace GameServerApp.World
             WorldMapControlProfileUtility.Save(controlProfile, profilePath);
             profileWriteTime = GetWriteTime(profilePath);
             worldConfigWriteTime = GetWriteTime(worldConfigPath);
+            generationSignature = ComputeGenerationSignature();
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
             cleanupTimer = new Timer(_ => CleanupOldChunks(), null, cleanupInterval, cleanupInterval);
 
             this.logger.LogInformation(
-                "[WorldMapController] Initialized. Profile hash: {Hash} (config: {ConfigPath})",
+                "[WorldMapController] Initialized. Profile hash: {Hash} (config: {ConfigPath}, signature: {Signature})",
                 controlProfile.ProfileHash,
-                generationConfig.SourcePath);
+                generationConfig.SourcePath,
+                generationSignature);
         }
 
         public async Task<ChunkData> GetChunkAsync(int chunkX, int chunkZ, CancellationToken cancellationToken = default)
@@ -157,6 +161,10 @@ namespace GameServerApp.World
             catch (Exception ex)
             {
                 logger.LogError(ex, "[WorldMapController] Failed to generate chunk {Pos}", chunkPos);
+                lock (reloadLock)
+                {
+                    ResetPipeline();
+                }
                 return new ChunkData(chunkPos.X, chunkPos.Y);
             }
         }
@@ -226,14 +234,12 @@ namespace GameServerApp.World
 
                 if (reloadNeeded)
                 {
-                    pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
-                    loadedChunks.Clear();
-                    generationTasks.Clear();
-                    accessTimes.Clear();
+                    ResetPipeline();
                     logger.LogInformation(
-                        "[WorldMapController] Reloaded map-control profile hash={Hash} (config updated: {ConfigPath})",
+                        "[WorldMapController] Reloaded map-control profile hash={Hash} (config updated: {ConfigPath}, signature: {Signature})",
                         controlProfile.ProfileHash,
-                        worldConfigPath);
+                        worldConfigPath,
+                        generationSignature);
                 }
             }
         }
@@ -248,6 +254,21 @@ namespace GameServerApp.World
             {
                 return DateTime.MinValue;
             }
+        }
+
+        private void ResetPipeline()
+        {
+            pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
+            generationSignature = ComputeGenerationSignature();
+            loadedChunks.Clear();
+            generationTasks.Clear();
+            accessTimes.Clear();
+        }
+
+        private string ComputeGenerationSignature()
+        {
+            long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
+            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{generationConfig.Water.HydrologyGradientStabilityIterations}:{generationConfig.Water.HydrologyGradientStabilityBlend}:{generationConfig.Water.HydrologyGradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}";
         }
     }
 }

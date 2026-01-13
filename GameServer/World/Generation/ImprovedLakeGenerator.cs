@@ -103,6 +103,8 @@ namespace GameServerApp.World.Generation
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
                     weight *= 1.0 + varianceAssist;
                     weight *= 0.75 + radiusFalloff * 0.25;
+                    double slopePenalty = Math.Clamp(slope * waterConfig.HydrologyGradientWeight * 0.08, 0.0, 0.35);
+                    weight *= 1.0 - slopePenalty;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, chunkSize - 1);
                     int downZ = Math.Clamp(z + downhill.Z, 0, chunkSize - 1);
@@ -139,6 +141,12 @@ namespace GameServerApp.World.Generation
                 waterConfig.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, waterConfig.HydrologySeamRelaxBlend * 0.35),
                 waterConfig.HydrologyEdgeVarianceClamp);
+            TerrainMaskUtility.ApplyGradientStability(
+                lakes,
+                waterConfig.HydrologyGradientStabilityIterations,
+                waterConfig.HydrologyGradientStabilityBlend * 0.5,
+                waterConfig.HydrologyGradientClamp);
+            TerrainMaskUtility.ClampVariance(lakes, waterConfig.HydrologyVarianceClamp);
             TerrainMaskUtility.Smooth2D(lakes, lakeConfig.LakeBasinSmoothIterations, waterConfig.HydrologySmoothBlend);
             TerrainMaskUtility.StitchEdges(lakes, waterConfig.HydrologySeamRelaxBlend * 0.65);
             TerrainMaskUtility.FillBasins(lakes, Math.Max(0.05, waterConfig.HydrologyEdgeStabilityWeight * 0.35), Math.Max(1, waterConfig.HydrologySeamRelaxIterations));

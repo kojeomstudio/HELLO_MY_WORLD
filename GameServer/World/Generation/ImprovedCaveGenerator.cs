@@ -176,6 +176,7 @@ namespace GameServerApp.World.Generation
             PlugRiparianCaves(mask, hydrologyMask, riverMask, seaLevel);
             AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
             SealEdges(mask, hydrologyMask, riverMask, config.EdgeSealStrength);
+            SealWetCeilings(mask, hydrologyMask, flowMask, seaLevel);
             return mask;
         }
 
@@ -361,6 +362,35 @@ namespace GameServerApp.World.Generation
                         double sealingBias = 0.5 + hydro * 0.35 + river * 0.25 + gradient * 0.25;
                         double sealChance = strength * Math.Clamp(sealingBias, 0.0, 1.5);
                         if (mask[x, y, z] && random.NextDouble() < sealChance)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SealWetCeilings(bool[,,] mask, float[,] hydrologyMask, float[,] flowMask, int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int clampTop = Math.Min(seaLevel, sizeY - 2);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float wetness = Math.Max(hydrologyMask[x, z], flowMask[x, z]);
+                    if (wetness < 0.4f)
+                    {
+                        continue;
+                    }
+
+                    int startY = Math.Max(1, clampTop - 2);
+                    for (int y = startY; y <= clampTop; y++)
+                    {
+                        if (mask[x, y, z])
                         {
                             mask[x, y, z] = false;
                         }

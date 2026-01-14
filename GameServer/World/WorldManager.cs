@@ -6513,7 +6513,8 @@ namespace GameServerApp.World
 
             if (waterFloor - 1 >= 0)
             {
-                chunk.SetBlock(x, waterFloor - 1, z, BlockType.Sand);
+                var bedMaterial = channelPressure >= 1.05 ? BlockType.Clay : BlockType.Sand;
+                chunk.SetBlock(x, waterFloor - 1, z, bedMaterial);
             }
 
             for (int y = waterFloor; y <= riverSurface && y < 256; y++)
@@ -9038,6 +9039,7 @@ namespace GameServerApp.World
             }
 
             ApplyRiparianPlugs(chunk, surfaceCache, hydrology);
+            ReinforceCaveCeilings(chunk, surfaceCache, hydrology);
         }
 
         private void ApplyRiparianPlugs(ChunkData chunk, int[,] surfaceCache, float[,] hydrology)
@@ -9063,6 +9065,39 @@ namespace GameServerApp.World
                     for (int depth = 0; depth < maxDepth; depth++)
                     {
                         int y = Math.Max(bedrockLevel + 1, surface - depth);
+                        var block = chunk.GetBlock(x, y, z);
+                        if (block == BlockType.Air)
+                        {
+                            chunk.SetBlock(x, y, z, BlockType.Stone);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ReinforceCaveCeilings(ChunkData chunk, int[,] surfaceCache, float[,] hydrology)
+        {
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    if (hydro < 0.55f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= bedrockLevel + 1)
+                    {
+                        continue;
+                    }
+
+                    int ceilingStart = Math.Max(bedrockLevel + 1, surface - 3);
+                    int ceilingEnd = Math.Max(bedrockLevel + 1, surface - 1);
+                    for (int y = ceilingStart; y <= ceilingEnd && y < surface; y++)
+                    {
                         var block = chunk.GetBlock(x, y, z);
                         if (block == BlockType.Air)
                         {
@@ -9173,6 +9208,8 @@ namespace GameServerApp.World
                     }
                 }
             }
+
+            ApplyLakeOutflowChannels(chunk, surfaceCache, masks);
         }
 
         private void ApplyWetlandPadding(ChunkData chunk, int[,] surfaceCache, int x, int z, float hydrologyValue)
@@ -9214,6 +9251,73 @@ namespace GameServerApp.World
                         {
                             chunk.SetBlock(nx, neighbourSurface + 1, nz, BlockType.Water);
                         }
+                    }
+                }
+            }
+        }
+
+        private void ApplyLakeOutflowChannels(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Lakes == null || masks.FlowAccumulation == null || masks.Hydrology == null)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            int steps = Math.Max(1, _worldGenConfig.Lakes.OutflowCarveDepth);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float lakeStrength = masks.Lakes[x, z];
+                    if (lakeStrength <= _worldGenConfig.Lakes.ShorelineBlend * 0.5f)
+                    {
+                        continue;
+                    }
+
+                    var flowDir = EstimateFlowDirection(surfaceCache, x, z);
+                    if (flowDir == Vector2.Zero)
+                    {
+                        continue;
+                    }
+
+                    int currentX = x;
+                    int currentZ = z;
+                    float flowInfluence = masks.FlowAccumulation[x, z];
+
+                    for (int step = 0; step < steps; step++)
+                    {
+                        currentX = Math.Clamp(currentX + (int)Math.Round(flowDir.X), 0, 15);
+                        currentZ = Math.Clamp(currentZ + (int)Math.Round(flowDir.Y), 0, 15);
+
+                        int surface = surfaceCache[currentX, currentZ];
+                        if (surface <= bedrockLevel)
+                        {
+                            surface = FindSurfaceLevel(chunk, currentX, currentZ);
+                            if (surface <= bedrockLevel)
+                            {
+                                continue;
+                            }
+
+                            surfaceCache[currentX, currentZ] = surface;
+                        }
+
+                        int targetY = Math.Max(bedrockLevel + 1, Math.Min(surface, GlobalWaterLevel));
+                        int carveDepth = Math.Clamp((int)Math.Round(lakeStrength * steps + flowInfluence * 0.5f), 1, steps + 1);
+                        for (int depth = 0; depth < carveDepth && targetY - depth >= bedrockLevel + 1; depth++)
+                        {
+                            chunk.SetBlock(currentX, targetY - depth, currentZ, BlockType.Water);
+                        }
+
+                        int bankY = Math.Max(bedrockLevel + 1, targetY - carveDepth);
+                        var bankBlock = chunk.GetBlock(currentX, bankY, currentZ);
+                        if (bankBlock == BlockType.Air || bankBlock == BlockType.Dirt || bankBlock == BlockType.Grass)
+                        {
+                            chunk.SetBlock(currentX, bankY, currentZ, BlockType.Sand);
+                        }
+
+                        surfaceCache[currentX, currentZ] = Math.Max(surfaceCache[currentX, currentZ], targetY);
                     }
                 }
             }

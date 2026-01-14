@@ -342,6 +342,7 @@ namespace GameWorld
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
@@ -1076,6 +1077,47 @@ namespace GameWorld
 
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
+        }
+
+        private void ApplyCrossChunkHydrologyStitch(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            float blendBase = Mathf.Clamp01(profile.HydrologySeamRelaxBlend + profile.HydrologyEdgeFluxBlend * 0.25f);
+            float flowBlend = Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend + profile.HydrologyFlowMemoryWeight * 0.25f);
+            float varianceClamp = Mathf.Max(0f, profile.HydrologyEdgeVarianceClamp);
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float interiorHydro = SampleInterior(hydroCopy, x, z);
+                    float interiorFlow = SampleInterior(flowCopy, x, z);
+                    float hydroTarget = hydroCopy[x, z] * (1f - blendBase * falloff * 0.5f) + interiorHydro * blendBase * falloff * 0.5f;
+                    hydroTarget += interiorFlow * flowBlend * 0.05f;
+                    if (varianceClamp > 0f)
+                    {
+                        float clampRange = varianceClamp * falloff * 0.35f;
+                        hydroTarget = Mathf.Clamp(hydroTarget, hydroCopy[x, z] - clampRange, hydroCopy[x, z] + clampRange);
+                    }
+
+                    hydrology[x, z] = Mathf.Clamp01(hydroTarget);
+
+                    float flowTarget = flowCopy[x, z] * (1f - flowBlend * falloff) + interiorFlow * flowBlend * falloff;
+                    flow[x, z] = Mathf.Clamp(flowTarget, 0f, Mathf.Max(flowCopy[x, z] + 1f, profile.HydrologyFlowDivergenceClamp * 12f));
+                }
             }
         }
 

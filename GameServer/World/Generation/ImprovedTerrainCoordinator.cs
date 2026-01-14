@@ -55,6 +55,7 @@ namespace GameServerApp.World.Generation
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
 
@@ -511,6 +512,47 @@ namespace GameServerApp.World.Generation
 
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
+        }
+
+        private void ApplyCrossChunkHydrologyStitch(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double blendBase = Math.Clamp(config.Water.HydrologySeamRelaxBlend + config.Water.HydrologyEdgeFluxBlend * 0.25, 0.05, 0.95);
+            double flowBlend = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend + config.Water.HydrologyFlowMemoryWeight * 0.25, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.0, config.Water.HydrologyEdgeVarianceClamp);
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double interiorHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double interiorFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double hydroTarget = hydroCopy[x, z] * (1.0 - blendBase * falloff * 0.5) + interiorHydro * blendBase * falloff * 0.5;
+                    hydroTarget += interiorFlow * flowBlend * 0.05;
+                    if (varianceClamp > 0.0)
+                    {
+                        double clampRange = varianceClamp * falloff * 0.35;
+                        hydroTarget = Math.Clamp(hydroTarget, hydroCopy[x, z] - clampRange, hydroCopy[x, z] + clampRange);
+                    }
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)hydroTarget);
+
+                    double flowTarget = flowCopy[x, z] * (1.0 - flowBlend * falloff) + interiorFlow * flowBlend * falloff;
+                    flow[x, z] = (float)Math.Clamp(flowTarget, 0.0, Math.Max(flowCopy[x, z] + 1.0, config.Water.HydrologyFlowDivergenceClamp * 12.0));
+                }
             }
         }
 

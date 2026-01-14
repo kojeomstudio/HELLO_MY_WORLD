@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-14: Worldgen seam fixes + lake outflows**
+  - Added cross-chunk hydrology/flow stitching for server masks and Unity previews to reduce chunk-edge seams.
+  - Reinforced wet cave ceilings and carved server-side lake outflow channels to match client previews; riverbeds now use clay when pressure is high.
+  - Refreshed feature classification (core/content/util, client/server) in `config/minecraft_feature_classification_2026-01-14.json` and `docs/minecraft_feature_classification_2026-01-14.md`.
 - **2026-01-14: Comprehensive Implementation Status Report & Compilation Verification**
   - Created comprehensive implementation status report: `docs/2026-01-14-implementation-status-report.md`
   - Created comprehensive implementation plan: `plans/2026-01-14-comprehensive-minecraft-implementation-plan.md`
@@ -296,4 +300,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

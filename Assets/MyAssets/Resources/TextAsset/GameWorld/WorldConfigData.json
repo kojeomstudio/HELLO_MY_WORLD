@@ -119,5 +119,6 @@
   "RiverSuppressionWeight": 0.35,
   "MoistureRetentionWeight": 0.35,
   "EdgeSealStrength": 0.45,
-  "CaveCeilingStabilityWeight": 0.35
+  "CaveCeilingStabilityWeight": 0.35,
+  "CaveCeilingMoistureClamp": 0.35
 }

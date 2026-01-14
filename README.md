@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-14: Cave ceiling stability + river/lake smoothing**
+  - Propagated cave ceiling stability/clamp knobs into both server carving (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`) via `WorldAreaManager`; added `CaveCeilingMoistureClamp` to `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`.
+  - River intensity smoothing now blends hydrology gradients and edge-distance weights to calm seams (`WorldManager.SmoothRiverIntensity`, `WorldGenAlgorithms.SmoothRiverIntensity`); lake candidate heatmaps gain hydrology-gradient basin stability (`ImprovedLakeGenerator`, `WorldGenAlgorithms`).
+  - Protobuf handling logs missing registry bindings through `ProtoDiagnostics.LogMissingBinding`, surfacing stale EnhancedMinecraft DTOs during `EnhancedProtocolHandler` deserialization.
+  - New feature roster snapshot: `config/minecraft_feature_client_server_core_content_util_2026-01-14.json`, `docs/minecraft_feature_client_server_core_content_util_2026-01-14.md`; session plan: `plans/2026-01-14-plan.md`.
 - **2026-01-13: Hydrology sealing + map-control signatures**
   - Underground lake/cave sealing now aligns to hydrology/flow on server (`ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`) and MapGeneratorLib previews to remove seam leaks.
   - Server `WorldMapController` tracks a generation signature and rebuilds the terrain pipeline when configs/profiles change or chunk generation fails.

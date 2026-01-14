@@ -130,6 +130,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(MapControlProfile.CaveRiverSuppressionWeight);
         WorldGenAlgorithms.CaveMoistureRetentionWeight = Mathf.Clamp01(MapControlProfile.CaveMoistureRetentionWeight);
         WorldGenAlgorithms.CaveEdgeSealStrength = Mathf.Clamp01(MapControlProfile.CaveEdgeSealStrength);
+        WorldGenAlgorithms.CaveCeilingStabilityWeight = Mathf.Clamp01(MapControlProfile.CaveCeilingStabilityWeight);
+        WorldGenAlgorithms.CaveCeilingMoistureClamp = Mathf.Clamp01(MapControlProfile.CaveCeilingMoistureClamp);
         WorldGenAlgorithms.SupportPillarChance = Mathf.Clamp01(MapControlProfile.SupportPillarChance);
 
         List<WorldAreaGenerateParam> worldAreaGenParamGroup = new List<WorldAreaGenerateParam>();

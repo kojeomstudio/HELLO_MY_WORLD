@@ -41,6 +41,7 @@ namespace GameServerApp.Network
 
             if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
             {
+                ProtoDiagnostics.LogMissingBinding(messageType);
                 return false;
             }
 

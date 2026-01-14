@@ -193,4 +193,10 @@ public static class ProtoDiagnostics
 
         Console.WriteLine("[Proto] EnhancedMinecraft handlers cover all registered messages.");
     }
+
+    public static void LogMissingBinding(MinecraftMessageType messageType)
+    {
+        Console.WriteLine($"[Proto][WARN] ProtocolRegistry is missing a binding for {messageType}. " +
+                          "Regenerate EnhancedMinecraft DTOs or update ProtocolRegistry to wire the generated message.");
+    }
 }

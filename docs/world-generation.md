@@ -27,6 +27,12 @@ Each chunk column (`16×16`) now flows through a deterministic terrain profile:
 - Caves apply ceiling moisture clamps with flow memory, suppressing seams under rivers/lakes while keeping stability near edges.
 - World-map generation signatures now mix world/map-control versions and hydrology knobs so client previews reload whenever generation inputs drift.
 
+## 2026-01-14 Cave/Lake/River Stability + Proto Guards
+- Cave ceilings now honor `CaveCeilingStabilityWeight` and `CaveCeilingMoistureClamp` across both server carving (`GameServer/World/WorldManager.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`), with values sourced from `config/world.json` and mirrored to `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json` via `WorldAreaManager`.
+- River intensity smoothing blends hydrology gradients and edge-distance weighting to calm chunk seams (`WorldManager.SmoothRiverIntensity`, `WorldGenAlgorithms.SmoothRiverIntensity`), reducing jagged banks at borders.
+- Lake candidate heatmaps include hydrology-gradient basin stability and erosion penalties before basin carving (`MapGeneratorLib/.../WorldGenAlgorithms.cs`, `GameServer/World/Generation/ImprovedLakeGenerator.cs`) so lakes avoid unstable slopes and river-adjacent seams.
+- `EnhancedProtocolHandler.TryDeserialize` now logs missing ProtocolRegistry bindings through `ProtoDiagnostics.LogMissingBinding`, surfacing stale/missing EnhancedMinecraft protobuf DTOs during packet handling.
+
 ## 2025-12-29 Map-Control & Pipeline Refresh
 
 - Replaced the duplicated `GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs` with a hydrology-aware implementation that consumes `TerrainGeneration` + `Water/Caves/Lakes` knobs from `config/world.json` (via `WorldGenerationConfig`). Caves now use warped simplex noise with moisture bias; rivers/lakes respect JSON thresholds and edge smoothing.

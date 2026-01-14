@@ -189,6 +189,8 @@ namespace MapGenLib
         public static int LakeShelfDepth = 2;
         public static int CaveRiparianPlugDepth = 2;
         public static float CaveCeilingMoistureWeight = 0.28f;
+        public static float CaveCeilingStabilityWeight = 0.35f;
+        public static float CaveCeilingMoistureClamp = 0.35f;
 
         public struct TerrainValue
         {
@@ -3056,6 +3058,8 @@ namespace MapGenLib
             int depth = riverIntensity.GetLength(1);
             int iterations = CustomMathf.Max(1, RiverIntensitySmoothIterations);
             float baseBlend = CustomMathf.Clamp01(RiverIntensitySmoothBlend);
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float edgeStabilityWeight = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight);
             var scratch = new float[width, depth];
 
             for (int iteration = 0; iteration < iterations; iteration++)
@@ -3119,7 +3123,20 @@ namespace MapGenLib
                         }
 
                         float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
-                        float blend = CustomMathf.Clamp(baseBlend + hydrology * 0.2f + flow * 0.12f + maxAlignment * 0.2f + headwater * RiverHeadwaterStabilityWeight * 0.35f, 0f, 0.95f);
+                        float seamHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                        float hydrologyDelta = CustomMathf.Abs(hydrology - seamHydro);
+                        int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                        float edgeRamp = edgeRadius > 0 ? CustomMathf.Clamp01((edgeRadius - CustomMathf.Min(edgeDistance, edgeRadius)) / (float)edgeRadius) : 0f;
+                        float blend = CustomMathf.Clamp(
+                            baseBlend
+                            + hydrology * 0.2f
+                            + flow * 0.12f
+                            + maxAlignment * 0.2f
+                            + headwater * RiverHeadwaterStabilityWeight * 0.35f
+                            + hydrologyDelta * HydrologyEdgeStabilityWeight * 0.08f
+                            + edgeRamp * edgeStabilityWeight * 0.12f,
+                            0f,
+                            0.95f);
                         scratch[x, z] = riverIntensity[x, z] * (1f - blend) + average * blend;
                     }
                 }
@@ -4434,6 +4451,9 @@ namespace MapGenLib
                     float flowMemory = SampleHydrologyAverage(flowAccumulation, x, z);
                     float flowMemoryNorm = CustomMathf.Clamp01(flowMemory / 10f);
                     float continuity = CustomMathf.Clamp01((hydrology + seamHydro + flowMemoryNorm) / 3f);
+                    float hydrologyDelta = CustomMathf.Abs(seamHydro - hydrology);
+                    float gradientPenalty = CustomMathf.Clamp01(hydrologyDelta * HydrologyEdgeStabilityWeight * 0.5f);
+                    float basinStability = 1f - gradientPenalty;
                     float relief = ComputeLocalRelief(surfaceCache, subWorldSize, x, z, 3);
                     float bowlStrength = CustomMathf.Clamp01(1f - relief / 8f);
                     float altitudeBias = 1f - CustomMathf.Clamp01(CustomMathf.Abs(surface - GlobalRiverWaterLevel) / 24f);
@@ -4449,6 +4469,8 @@ namespace MapGenLib
                     score *= 1f - CustomMathf.Clamp01(flowMemoryNorm * 0.25f + CustomMathf.Abs(flowMemoryNorm - accumulation) * 0.2f);
                     score -= CustomMathf.Clamp01(relief / 18f) * 0.2f;
                     score -= erosionPenalty * 0.25f;
+                    score *= CustomMathf.Lerp(1f, basinStability, 0.65f);
+                    score -= hydrologyDelta * HydrologyEdgeStabilityWeight * 0.15f;
                     heatmap[x, z] = CustomMathf.Clamp01(score);
                 }
             }
@@ -5710,12 +5732,17 @@ namespace MapGenLib
 
         private static void StabilizeMoistCaveCeilings(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
         {
+            float stabilityWeight = CustomMathf.Clamp01(CaveCeilingStabilityWeight);
+            float moistureClamp = CustomMathf.Max(0.05f, CaveCeilingMoistureClamp);
+
             for (int x = 1; x < subWorldSize.SizeX - 1; x++)
             {
                 for (int z = 1; z < subWorldSize.SizeZ - 1; z++)
                 {
                     float moisture = CustomMathf.Max(hydrologyMask[x, z], CustomMathf.Clamp01(flowAccumulation[x, z] / 6f));
-                    if (moisture < 0.55f)
+                    float moistureSignal = CustomMathf.Clamp01(moisture / moistureClamp);
+                    float moistureThreshold = CustomMathf.Lerp(0.55f, 0.42f, stabilityWeight);
+                    if (moistureSignal < moistureThreshold)
                     {
                         continue;
                     }
@@ -5765,7 +5792,9 @@ namespace MapGenLib
 
                     int fillTop = CustomMathf.Clamp(surface - 1, 2, subWorldSize.SizeY - 2);
                     int fillBottom = CustomMathf.Max(airBottom, fillTop - 2);
-                    float sealStrength = CustomMathf.Clamp01((0.75f - roofThickness * 0.25f) + moisture * 0.35f);
+                    float roofStability = CustomMathf.Clamp01(1f - roofThickness / 3f);
+                    float sealStrength = CustomMathf.Clamp01((0.75f - roofThickness * 0.25f) + moistureSignal * (0.35f + stabilityWeight * 0.15f));
+                    sealStrength = CustomMathf.Clamp01(sealStrength * (0.85f + stabilityWeight * 0.2f) * (0.9f + roofStability * 0.15f));
 
                     for (int y = fillTop; y >= fillBottom; y--)
                     {

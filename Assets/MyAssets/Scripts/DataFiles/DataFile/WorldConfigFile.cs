@@ -113,6 +113,7 @@ public struct WorldConfig
     public float MoistureRetentionWeight;
     public float EdgeSealStrength;
     public float CaveCeilingStabilityWeight;
+    public float CaveCeilingMoistureClamp;
 }
 
 /// <summary>
@@ -259,6 +260,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.MoistureRetentionWeight = ParseFloat(data, "MoistureRetentionWeight", 0.35f);
                 Config.EdgeSealStrength = ParseFloat(data, "EdgeSealStrength", 0.45f);
                 Config.CaveCeilingStabilityWeight = ParseFloat(data, "CaveCeilingStabilityWeight", 0.35f);
+                Config.CaveCeilingMoistureClamp = ParseFloat(data, "CaveCeilingMoistureClamp", 0.35f);
                 break;
             case JSONObject.Type.ARRAY:
                 break;
@@ -362,6 +364,7 @@ public class WorldConfigFile : BaseDataFile
         Config.MoistureRetentionWeight = profile.CaveMoistureRetentionWeight;
         Config.EdgeSealStrength = profile.CaveEdgeSealStrength;
         Config.CaveCeilingStabilityWeight = (float)profile.CaveCeilingStabilityWeight;
+        Config.CaveCeilingMoistureClamp = (float)profile.CaveCeilingMoistureClamp;
         Config.EnableRivers = profile.EnableRivers;
         Config.EnableLakes = profile.EnableLakes;
         Config.EnableCaves = profile.EnableCaves;

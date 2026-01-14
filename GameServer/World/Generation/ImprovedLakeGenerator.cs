@@ -105,6 +105,8 @@ namespace GameServerApp.World.Generation
                     weight *= 0.75 + radiusFalloff * 0.25;
                     double slopePenalty = Math.Clamp(slope * waterConfig.HydrologyGradientWeight * 0.08, 0.0, 0.35);
                     weight *= 1.0 - slopePenalty;
+                    double basinStability = 1.0 - Math.Clamp(hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.4 + slopePenalty * 0.85 + reliefPenalty * 0.35, 0.0, 0.65);
+                    weight *= basinStability;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, chunkSize - 1);
                     int downZ = Math.Clamp(z + downhill.Z, 0, chunkSize - 1);

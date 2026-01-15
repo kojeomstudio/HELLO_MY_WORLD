@@ -150,6 +150,7 @@ namespace Minecraft.World
             float[,] lakeMask = _enableLakes ? BuildLakeMask(heightMap, hydrology, flow, riverMask, chunkX, chunkZ) : new float[_chunkSize, _chunkSize];
             bool[,,]? caveMask = _enableCaves ? BuildCaveMask(heightMap, hydrology, flow, riverMask, chunkX, chunkZ) : null;
 
+            ApplyHydrologyEnvelope(riverMask, lakeMask, hydrology, flow);
             RefineTerrainForWater(heightMap, riverMask, lakeMask);
             FillTerrain(blocks, heightMap);
             ApplyRivers(blocks, heightMap, riverMask, hydrology, flow);
@@ -504,6 +505,70 @@ namespace Minecraft.World
 
             Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
             Array.Copy(flowBuffer, flow, flowBuffer.Length);
+        }
+
+        private void ApplyHydrologyEnvelope(float[,] riverMask, float[,] lakeMask, float[,] hydrology, float[,] flow)
+        {
+            bool hasRiver = riverMask != null && riverMask.Length > 0 && _enableRivers;
+            bool hasLake = lakeMask != null && lakeMask.Length > 0 && _enableLakes;
+            if (!hasRiver && !hasLake)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Mathf.Max(1, _worldConfig.Water.HydrologyEdgeBlendRadius);
+            float seamLock = Mathf.Clamp01(_worldConfig.Water.HydrologyEdgeFlowLockWeight);
+            float continuityWeight = Mathf.Clamp01(_worldConfig.Water.HydrologyContinuityWeight);
+            float memoryWeight = Mathf.Clamp01(_worldConfig.Water.HydrologyFlowMemoryWeight);
+            float varianceClamp = Mathf.Max(0.001f, _worldConfig.Water.HydrologyVarianceClamp);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    float seam = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float wetAnchor = Mathf.Max(hydro, neighbourHydro);
+                    float flowAnchor = Mathf.Max(flowValue, neighbourFlow);
+                    float continuityBoost = continuityWeight * (wetAnchor * 0.35f + flowAnchor * 0.65f);
+                    float seamBoost = seam * seamLock * 0.5f;
+
+                    if (hasRiver)
+                    {
+                        float current = riverMask[x, z];
+                        float neighbour = SampleInterior(riverMask, x, z);
+                        float target = Mathf.Max(current, neighbour * 0.6f + wetAnchor * 0.25f + flowAnchor * 0.2f);
+                        target = target * (1f + seamBoost) + continuityBoost * 0.5f + memoryWeight * neighbourFlow * 0.05f;
+                        riverMask[x, z] = Mathf.Clamp(target, 0f, varianceClamp);
+                    }
+
+                    if (hasLake)
+                    {
+                        float currentLake = lakeMask[x, z];
+                        float neighbourLake = SampleInterior(lakeMask, x, z);
+                        float basin = Mathf.Max(currentLake, neighbourLake);
+                        float targetLake = basin + wetAnchor * 0.35f + continuityBoost * 0.35f + flowAnchor * 0.15f;
+                        targetLake *= 1f + seamBoost * 0.5f;
+                        lakeMask[x, z] = Mathf.Clamp(targetLake, 0f, varianceClamp + 0.35f);
+                    }
+                }
+            }
+
+            if (hasRiver)
+            {
+                SmoothField(riverMask, Mathf.Max(1, _worldConfig.Water.HydrologyEdgeStabilityIterations), _worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.5f);
+            }
+
+            if (hasLake)
+            {
+                SmoothField(lakeMask, Mathf.Max(1, _worldConfig.Water.HydrologyEdgeStabilityIterations), _worldConfig.Water.HydrologySeamRelaxBlend * 0.5f);
+            }
         }
 
         private float[,] BuildRiverMask(int[,] heightMap, float[,] hydrology, float[,] flow, int chunkX, int chunkZ)
@@ -907,15 +972,19 @@ namespace Minecraft.World
                     int surface = heightMap[x, z];
                     float hydro = hydrology[x, z];
                     float flowValue = flow[x, z];
-                    float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydro);
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float hydrologyGradient = Mathf.Abs(neighbourHydro - hydro);
+                    float continuityBoost = Mathf.Clamp((hydro + neighbourHydro + flowValue + neighbourFlow) * 0.25f * _worldConfig.Water.HydrologyContinuityWeight, 0f, 0.85f);
                     float flowShadow = Mathf.Clamp(
                         (flowValue / Mathf.Max(1f, _worldConfig.Water.RiverDepth)) * _worldConfig.Water.HydrologyFlowShadowWeight +
                         hydrologyGradient * _worldConfig.Water.HydrologyFlowShadowSlopeWeight * 0.5f,
                         0f,
                         1f);
                     float seamStability = 1f - Mathf.Clamp(hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.35f, 0f, 0.85f);
+                    float seamContinuity = 1f + continuityBoost * 0.25f;
                     int depth = Mathf.Clamp(
-                        Mathf.RoundToInt(_worldConfig.Water.RiverDepth * (pressure + 0.35f + hydro * 0.35f + flowValue * 0.25f) * (1f - flowShadow * 0.25f)),
+                        Mathf.RoundToInt(_worldConfig.Water.RiverDepth * (pressure + 0.35f + hydro * 0.35f + flowValue * 0.25f) * (1f - flowShadow * 0.25f) * seamContinuity),
                         2,
                         _worldConfig.Water.RiverDepth + 3);
                     int waterLevel = Math.Max(1, Math.Min(surface, _seaLevel));
@@ -928,7 +997,7 @@ namespace Minecraft.World
 
                     blocks[x, bottom, z] = sandId;
 
-                    int bankDepth = Mathf.Max(1, Mathf.RoundToInt((_worldConfig.Water.RiverEdgeFeather * 4f + hydro * 2f) * seamStability));
+                    int bankDepth = Mathf.Max(1, Mathf.RoundToInt((_worldConfig.Water.RiverEdgeFeather * 4f + hydro * 2f) * seamStability * seamContinuity));
                     for (int b = 0; b < bankDepth; b++)
                     {
                         int bankY = Mathf.Max(1, surface - b);
@@ -939,7 +1008,7 @@ namespace Minecraft.World
                         }
                     }
 
-                    float wetland = Mathf.Max(pressure, hydro);
+                    float wetland = Mathf.Max(pressure, hydro + continuityBoost * 0.25f);
                     if (wetland > 0.35f && blocks[x, surface, z] == grassId)
                     {
                         blocks[x, surface, z] = dirtId;
@@ -977,7 +1046,10 @@ namespace Minecraft.World
                     int surface = heightMap[x, z];
                     float hydro = hydrology[x, z];
                     float flowValue = flow[x, z];
-                    float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydro);
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float hydrologyGradient = Mathf.Abs(neighbourHydro - hydro);
+                    float continuityBoost = Mathf.Clamp((hydro + neighbourHydro + flowValue + neighbourFlow) * 0.25f * _worldConfig.Water.HydrologyContinuityWeight, 0f, 0.85f);
                     float flowShadow = Mathf.Clamp(
                         (flowValue / Mathf.Max(1f, _worldConfig.Water.RiverDepth)) * _worldConfig.Water.HydrologyFlowShadowWeight +
                         hydrologyGradient * _worldConfig.Water.HydrologyFlowShadowSlopeWeight * 0.5f,
@@ -987,7 +1059,7 @@ namespace Minecraft.World
                     float shorelineFactor = Mathf.Clamp01((lake - 0.55f) / 0.45f);
                     int shelfDepth = Math.Max(1, _tuning.LakeShelfDepth);
                     int adjustedDepth = Mathf.Clamp(
-                        Mathf.RoundToInt(Mathf.Lerp(shelfDepth, rawDepth, shorelineFactor) * (1f - flowShadow * 0.2f) + hydro * 0.5f),
+                        Mathf.RoundToInt(Mathf.Lerp(shelfDepth, rawDepth, shorelineFactor) * (1f - flowShadow * 0.2f) * (1f + continuityBoost * 0.35f) + hydro * 0.5f),
                         _worldConfig.Lakes.MinDepth,
                         _worldConfig.Lakes.MaxDepth + 2);
                     int bottom = Math.Max(1, surface - adjustedDepth);
@@ -1007,7 +1079,7 @@ namespace Minecraft.World
 
                     blocks[x, bottom, z] = sandId;
 
-                    float wetland = Mathf.Max(lake, hydro);
+                    float wetland = Mathf.Max(lake, hydro + continuityBoost * 0.35f);
                     if (wetland > 0.45f && blocks[x, surface, z] == grassId)
                     {
                         blocks[x, surface, z] = dirtId;

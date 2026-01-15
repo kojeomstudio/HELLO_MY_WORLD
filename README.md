@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-15: Hydrology envelope + map-control signature + proto guardrails**
+  - Added seam-aware hydrology envelope for rivers/lakes/caves on server and client (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
+  - Map-control generation signatures now include a pipeline version stamp to invalidate stale previews (`GameServer/World/WorldMapControlManager.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Unity protobuf client bootstrap now runs `ProtoRuntime.EnsureInitialized()` and `ProtoDiagnostics.AssertRegistryClean()` alongside registry validation (`Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs`).
+  - Feature map for this session recorded at `docs/minecraft_features_client_server_core_content_util_2026-01-15-session-02.md` with JSON source `config/minecraft_feature_client_server_core_content_util_2026-01-15-session-02.json`.
 - **2026-01-15: Comprehensive Implementation Status & Plan**
   - Created comprehensive implementation plan: `plans/2026-01-15-comprehensive-minecraft-implementation-plan.md`
   - Created comprehensive implementation status report: `docs/2026-01-15-comprehensive-implementation-status.md`
@@ -317,4 +322,3 @@ For questions or issues, please open an issue on the repository.
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

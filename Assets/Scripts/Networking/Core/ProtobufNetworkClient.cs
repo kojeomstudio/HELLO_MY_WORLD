@@ -98,6 +98,8 @@ namespace Networking.Core
             {
                 ProtocolStandardization.ValidateProtocolImplementation();
                 ProtocolRegistry.ValidateBindings();
+                ProtoRuntime.EnsureInitialized();
+                ProtoDiagnostics.AssertRegistryClean();
                 EnhancedProtoManifest.AssertFingerprint();
             }
             catch (Exception ex)

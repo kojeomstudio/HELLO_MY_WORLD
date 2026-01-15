@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-15: Hydrology smoothing + proto binding fixes**
+  - Server hydrology/flow masks now apply variance blending, directional smoothing, and gradient stability clamps (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`) to match Unity previews and MapGeneratorLib seam handling.
+  - Unity `ProtobufNetworkClient` binds to the generated EnhancedMinecraft broadcast DTOs and runs `ProtocolRegistry.ValidateBindings()` to catch stale protobuf assets; new events expose block/entity/time/weather broadcasts to scene systems.
+  - Added session feature breakdown files: `config/minecraft_feature_client_server_core_content_util_2026-01-15.json` and `docs/minecraft_feature_core_content_util_2026-01-15.md`; documented changes in `docs/terrain_generation_and_proto_update_2026-01-15.md`.
 - **2026-01-14: Worldgen seam fixes + lake outflows**
   - Added cross-chunk hydrology/flow stitching for server masks and Unity previews to reduce chunk-edge seams.
   - Reinforced wet cave ceilings and carved server-side lake outflow channels to match client previews; riverbeds now use clay when pressure is high.

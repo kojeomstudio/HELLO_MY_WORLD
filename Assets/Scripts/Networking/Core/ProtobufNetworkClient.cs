@@ -41,6 +41,13 @@ namespace Networking.Core
         public event Action<Game.Diag.PingResponse> PingResponseReceived;
         #endif
 
+        // EnhancedMinecraft protocol events
+        public event Action<EnhancedMinecraftProtocol.BlockChangeBroadcast> EnhancedBlockChangeReceived;
+        public event Action<EnhancedMinecraftProtocol.EntitySpawnBroadcast> EntitySpawnBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.EntityDespawnBroadcast> EntityDespawnBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.TimeUpdateBroadcast> TimeUpdateBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.WeatherUpdateBroadcast> WeatherUpdateBroadcastReceived;
+
         // AI System events (Server-Authoritative)
         public event Action<AIStateSyncBroadcast> AIStateSyncReceived;
         public event Action<AIAttackEventBroadcast> AIAttackEventReceived;
@@ -75,11 +82,11 @@ namespace Networking.Core
             _messageDispatcher.RegisterHandler<PingResponse>(OnPingResponse);
             
             // Register enhanced protocol handlers
-            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntitySpawnNotification>(OnEntitySpawnNotification);
-            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityDespawnNotification>(OnEntityDespawnNotification);
-            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityStateUpdate>(OnEntityStateUpdate);
-            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WorldTimeUpdate>(OnWorldTimeUpdate);
-            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WeatherChangeNotification>(OnWeatherChangeNotification);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.BlockChangeBroadcast>(OnEnhancedBlockChangeBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntitySpawnBroadcast>(OnEntitySpawnBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityDespawnBroadcast>(OnEntityDespawnBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.TimeUpdateBroadcast>(OnTimeUpdateBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WeatherUpdateBroadcast>(OnWeatherUpdateBroadcast);
             
             _isInitialized = true;
             Debug.Log("ProtobufNetworkClient initialized");
@@ -90,6 +97,7 @@ namespace Networking.Core
             try
             {
                 ProtocolStandardization.ValidateProtocolImplementation();
+                ProtocolRegistry.ValidateBindings();
                 EnhancedProtoManifest.AssertFingerprint();
             }
             catch (Exception ex)
@@ -505,34 +513,31 @@ namespace Networking.Core
 #endif
 
         // Enhanced protocol handlers
-        private void OnEntitySpawnNotification(EnhancedMinecraftProtocol.EntitySpawnNotification notification)
+        private void OnEnhancedBlockChangeBroadcast(EnhancedMinecraftProtocol.BlockChangeBroadcast broadcast)
         {
-            Debug.Log($"Entity spawned: {notification.EntityType} at ({notification.Position.X}, {notification.Position.Y}, {notification.Position.Z})");
-            // TODO: Implement entity spawn handling
+            EnhancedBlockChangeReceived?.Invoke(broadcast);
         }
 
-        private void OnEntityDespawnNotification(EnhancedMinecraftProtocol.EntityDespawnNotification notification)
+        private void OnEntitySpawnBroadcast(EnhancedMinecraftProtocol.EntitySpawnBroadcast notification)
         {
-            Debug.Log($"Entity despawned: {notification.EntityId}");
-            // TODO: Implement entity despawn handling
+            Debug.Log($"Entity spawned: {notification.Entity?.EntityId} ({notification.Entity?.Type})");
+            EntitySpawnBroadcastReceived?.Invoke(notification);
         }
 
-        private void OnEntityStateUpdate(EnhancedMinecraftProtocol.EntityStateUpdate update)
+        private void OnEntityDespawnBroadcast(EnhancedMinecraftProtocol.EntityDespawnBroadcast notification)
         {
-            Debug.Log($"Entity state update: {update.EntityId}");
-            // TODO: Implement entity state update handling
+            Debug.Log($"Entity despawned: {notification.EntityId} ({notification.Reason})");
+            EntityDespawnBroadcastReceived?.Invoke(notification);
         }
 
-        private void OnWorldTimeUpdate(EnhancedMinecraftProtocol.WorldTimeUpdate timeUpdate)
+        private void OnTimeUpdateBroadcast(EnhancedMinecraftProtocol.TimeUpdateBroadcast timeUpdate)
         {
-            Debug.Log($"World time updated: {timeUpdate.WorldTime}");
-            // TODO: Implement world time handling
+            TimeUpdateBroadcastReceived?.Invoke(timeUpdate);
         }
 
-        private void OnWeatherChangeNotification(EnhancedMinecraftProtocol.WeatherChangeNotification weatherUpdate)
+        private void OnWeatherUpdateBroadcast(EnhancedMinecraftProtocol.WeatherUpdateBroadcast weatherUpdate)
         {
-            Debug.Log($"Weather changed: {weatherUpdate.WeatherType}");
-            // TODO: Implement weather change handling
+            WeatherUpdateBroadcastReceived?.Invoke(weatherUpdate);
         }
 
         private void OnConnectionStatusChanged(bool isConnected)
@@ -567,67 +572,3 @@ namespace Networking.Core
         System = 3
     }
 }
-                _transport.Received -= OnDataReceived;
-                
-                if (_transport is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Chat message types
-    /// </summary>
-    public enum ChatType
-    {
-        Global = 0,
-        Local = 1,
-        Whisper = 2,
-        System = 3
-    }
-}
-}
-                
-                if (_transport is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Chat message types
-    /// </summary>
-    public enum ChatType
-    {
-        Global = 0,
-        Local = 1,
-        Whisper = 2,
-        System = 3
-    }
-}
-}
-                
-                if (_transport is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Chat message types
-    /// </summary>
-    public enum ChatType
-    {
-        Global = 0,
-        Local = 1,
-        Whisper = 2,
-        System = 3
-    }
-}
-

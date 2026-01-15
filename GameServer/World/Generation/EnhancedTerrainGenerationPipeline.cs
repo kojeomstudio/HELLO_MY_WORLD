@@ -147,6 +147,7 @@ namespace GameServerApp.World.Generation
             double slopePenaltyWeight = Math.Max(0.0, config.Water.HydrologySlopePenalty);
             double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
             double varianceClamp = Math.Clamp(config.Water.HydrologyVarianceClamp, 0.0, 2.0);
+            double varianceBlend = Math.Clamp(config.Water.HydrologyVarianceBlend, 0.0, 1.0);
             double shorePush = Math.Max(0.1, config.Water.HydrologyShorePush);
             double warpFrequency = Math.Max(0.00001, config.Water.HydrologyWarpFrequency);
             double warpAmplitude = Math.Clamp(config.Water.HydrologyWarpAmplitude, 0.0, 32.0);
@@ -177,7 +178,14 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            if (varianceBlend > 0.0)
+            {
+                BlendInterior(hydrology, varianceBlend);
+            }
+
             Smooth2D(hydrology, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            DirectionalSmooth(heightMap, hydrology, config.Water.HydrologyDirectionalIterations, config.Water.HydrologyDirectionalBlend);
+            ApplyGradientStability(hydrology, config.Water.HydrologyGradientStabilityIterations, config.Water.HydrologyGradientStabilityBlend, config.Water.HydrologyGradientClamp);
             RelaxEdges(hydrology, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(hydrology, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
 
@@ -245,6 +253,8 @@ namespace GameServerApp.World.Generation
 
             Smooth2D(flow, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
             ApplyFlowMemoryWeight(flow, config.Water.HydrologyFlowMemoryWeight, config.Water.HydrologyFlowDivergenceClamp);
+            DirectionalSmooth(heightMap, flow, config.Water.HydrologyDirectionalIterations, config.Water.HydrologyDirectionalBlend);
+            ApplyGradientStability(flow, config.Water.HydrologyGradientStabilityIterations, config.Water.HydrologyGradientStabilityBlend, config.Water.HydrologyGradientClamp);
             RelaxEdges(flow, config.Water.HydrologyEdgeNormalizationIterations, config.Water.HydrologyEdgeNormalizationBlend);
             RelaxEdges(flow, config.Water.HydrologySeamRelaxIterations, config.Water.HydrologySeamRelaxBlend);
             return flow;
@@ -729,6 +739,159 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, mask, buffer.Length);
+        }
+
+        private static void BlendInterior(float[,] field, double blend)
+        {
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    float neighbour = SampleInterior(field, x, z);
+                    buffer[x, z] = (float)(field[x, z] * (1.0 - blend) + neighbour * blend);
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private void DirectionalSmooth(int[,] heightMap, float[,] field, int iterations, double blend)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (iterations == 0 || blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        var downhill = ComputeDownhillDirection(heightMap, x, z);
+                        if (downhill.dx == 0 && downhill.dz == 0)
+                        {
+                            buffer[x, z] = field[x, z];
+                            continue;
+                        }
+
+                        int nx = Math.Clamp(x + downhill.dx, 0, sizeX - 1);
+                        int nz = Math.Clamp(z + downhill.dz, 0, sizeZ - 1);
+                        float target = field[nx, nz];
+                        buffer[x, z] = (float)(field[x, z] * (1.0 - blend) + target * blend);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private void ApplyGradientStability(float[,] field, int iterations, double blend, double clamp)
+        {
+            iterations = Math.Max(0, iterations);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            clamp = Math.Max(0.001, clamp);
+            if (iterations == 0 || blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = new float[sizeX, sizeZ];
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        float centre = field[x, z];
+                        float neighbour = SampleInterior(field, x, z);
+
+                        double gradient = 0.0;
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                                {
+                                    continue;
+                                }
+
+                                gradient = Math.Max(gradient, Math.Abs(field[nx, nz] - centre));
+                            }
+                        }
+
+                        double gradientFactor = 1.0 - Math.Clamp(gradient / clamp, 0.0, 1.0);
+                        double target = neighbour * gradientFactor + centre * (1.0 - gradientFactor * 0.35);
+                        buffer[x, z] = (float)(centre + (target - centre) * blend);
+                    }
+                }
+
+                Array.Copy(buffer, field, buffer.Length);
+            }
+        }
+
+        private (int dx, int dz) ComputeDownhillDirection(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int current = heightMap[x, z];
+            int bestDrop = 0;
+            int bestDx = 0;
+            int bestDz = 0;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int drop = current - heightMap[nx, nz];
+                    if (drop > bestDrop)
+                    {
+                        bestDrop = drop;
+                        bestDx = dx;
+                        bestDz = dz;
+                    }
+                }
+            }
+
+            return (bestDx, bestDz);
         }
 
         private static float SampleInterior(float[,] field, int x, int z)

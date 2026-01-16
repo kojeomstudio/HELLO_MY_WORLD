@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GameServerApp;
 using GameServerApp.Configuration;
 using GameServerApp.World.Generation;
+using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp.World
 {
@@ -16,7 +17,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapControlManager
     {
-        private const string PipelineVersion = "2026-01-15-hydrology-envelope";
+        private const string PipelineVersion = "2026-01-16-hydrology-envelope+proto";
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;
@@ -323,8 +324,10 @@ namespace GameServerApp.World
             double gradientStabilityBlend = generationConfig.Water.HydrologyGradientStabilityBlend;
             int gradientStabilityIterations = generationConfig.Water.HydrologyGradientStabilityIterations;
             double gradientClamp = generationConfig.Water.HydrologyGradientClamp;
+            string protoBaseline = ProtoFingerprint.DescriptorFingerprint;
+            string protoComputed = ProtoFingerprint.ComputeFingerprint();
 
-            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}:{generationConfig.Water.HydrologyVarianceBlend}:{generationConfig.Water.HydrologyVarianceClamp}:{generationConfig.Water.HydrologyEdgeStabilityWeight}:{generationConfig.Water.HydrologyEdgeFlowLockWeight}:{generationConfig.Water.HydrologyEdgeFlowBias}:{generationConfig.Water.HydrologyDirectionalBlend}:{generationConfig.Water.HydrologyDirectionalIterations}:{generationConfig.Water.HydrologyFlowDivergenceClamp}:{generationConfig.Water.HydrologySeamRelaxBlend}:{generationConfig.Water.HydrologySeamRelaxIterations}:{generationConfig.Caves.EdgeSealStrength}:{generationConfig.Caves.SupportDensity}:{generationConfig.Caves.SupportPillarChance}:{generationConfig.Lakes.RiverProximitySuppression}:{worldConfigHash}:{profileContentHash}";
+            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{protoBaseline}:{protoComputed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}:{generationConfig.Water.HydrologyVarianceBlend}:{generationConfig.Water.HydrologyVarianceClamp}:{generationConfig.Water.HydrologyEdgeStabilityWeight}:{generationConfig.Water.HydrologyEdgeFlowLockWeight}:{generationConfig.Water.HydrologyEdgeFlowBias}:{generationConfig.Water.HydrologyDirectionalBlend}:{generationConfig.Water.HydrologyDirectionalIterations}:{generationConfig.Water.HydrologyFlowDivergenceClamp}:{generationConfig.Water.HydrologySeamRelaxBlend}:{generationConfig.Water.HydrologySeamRelaxIterations}:{generationConfig.Caves.EdgeSealStrength}:{generationConfig.Caves.SupportDensity}:{generationConfig.Caves.SupportPillarChance}:{generationConfig.Lakes.RiverProximitySuppression}:{worldConfigHash}:{profileContentHash}";
         }
     }
 

@@ -28,6 +28,15 @@ public static class ProtoDiagnostics
         IReadOnlyList<string> UnboundDescriptors,
         IReadOnlyList<string> OrphanedDescriptors);
 
+    private static void EnsureFingerprint(ProtoReferenceReport report)
+    {
+        if (!report.DescriptorFingerprint.Equals(report.ComputedFingerprint, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "[Proto] Descriptor fingerprint mismatch detected. Regenerate EnhancedMinecraft protobuf outputs (proto/*.proto -> SharedProtocol/EnhancedMinecraft + Assets/Generated/Protobuf).");
+        }
+    }
+
     public static ProtoReferenceReport BuildReferenceReport()
     {
         var descriptor = EnhancedMinecraftGameReflection.Descriptor;
@@ -87,9 +96,16 @@ public static class ProtoDiagnostics
             orphaned);
     }
 
+    public static void AssertFingerprint()
+    {
+        var report = BuildReferenceReport();
+        EnsureFingerprint(report);
+    }
+
     public static void AssertRegistryClean()
     {
         var report = BuildReferenceReport();
+        EnsureFingerprint(report);
 
         if (report.MissingRegistrations.Count > 0)
         {

@@ -21,6 +21,7 @@ namespace GameServerApp
             ProtocolValidator.ValidateEnhancedContracts();
             ProtocolStandardization.ValidateProtocolImplementation();
             ProtoDiagnostics.LogSummary();
+            ProtoDiagnostics.AssertRegistryClean();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))

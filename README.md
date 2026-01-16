@@ -29,7 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-
+- **2026-01-16: Hydrology envelope + proto fingerprint enforcement**
+  - Refreshed feature roster by Core/Content/Utility for client/server (`docs/minecraft_features_core_content_util_2026-01-16.md`, JSON companion).
+  - Tightened hydrology envelope + edge stabilization for rivers/lakes/caves on server (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`) and Unity preview (`MapGeneratorLib/.../WorldGenAlgorithms.cs`).
+  - World-map generation signature now stamps proto fingerprints alongside profile hashes (`GameServer/World/WorldMapControlManager.cs`).
+  - `ProtoDiagnostics.AssertRegistryClean()` enforces descriptor fingerprints during bootstrap (`SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs`, `GameServer/Program.cs`).
 - **2026-01-15: Comprehensive Implementation Review & Analysis**
   - Created comprehensive work plan: `plans/2026-01-15-comprehensive-minecraft-implementation-work-plan.md`
   - Verified and categorized all Minecraft features into Core, Content, Utility categories
@@ -381,4 +385,3 @@ For questions or issues, please open an issue on the repository.
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

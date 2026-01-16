@@ -2815,6 +2815,78 @@ namespace MapGenLib
             return CustomMathf.Clamp01(slope / CustomMathf.Max(1f, HydrologyShorePush * 0.9f));
         }
 
+        private static void ApplyHydrologyEnvelope(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, float[,] riverMask = null, float[,] lakeMask = null)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float seamLock = CustomMathf.Clamp01(HydrologyEdgeFlowLockWeight);
+            float continuityWeight = CustomMathf.Clamp01(HydrologyContinuityWeight);
+            float memoryWeight = CustomMathf.Clamp01(HydrologyFlowMemoryWeight);
+            float varianceClamp = CustomMathf.Max(0.001f, HydrologyVarianceClamp);
+            float edgeVarianceClamp = CustomMathf.Max(0.001f, HydrologyEdgeVarianceClamp);
+            float flowShadowWeight = CustomMathf.Clamp01(HydrologyFlowShadowWeight);
+            float flowShadowSlopeWeight = CustomMathf.Clamp01(HydrologyFlowShadowSlopeWeight);
+
+            var hydroBuffer = (float[,])hydrologyMask.Clone();
+            var flowBuffer = (float[,])flowAccumulation.Clone();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float hydro = hydrologyMask[x, z];
+                    float flow = flowAccumulation[x, z];
+                    float neighbourHydro = SampleHydrologyAverage(hydrologyMask, x, z);
+                    float neighbourFlow = SampleHydrologyAverage(flowAccumulation, x, z);
+                    float hydrologyGradient = CustomMathf.Abs(neighbourHydro - hydro);
+                    float flowGradient = CustomMathf.Abs(neighbourFlow - flow);
+                    float wetAnchor = CustomMathf.Max(hydro, neighbourHydro);
+                    float flowAnchor = CustomMathf.Max(flow, neighbourFlow);
+                    float continuityBoost = continuityWeight * (wetAnchor * 0.35f + flowAnchor * 0.65f);
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
+                    float seam = 1f - CustomMathf.Clamp01(edgeDistance / CustomMathf.Max(1f, edgeRadius + 1));
+                    float seamContinuity = seam * seamLock + continuityBoost * 0.5f;
+                    float envelope = wetAnchor;
+                    if (riverMask != null)
+                    {
+                        envelope = CustomMathf.Max(envelope, riverMask[x, z]);
+                    }
+
+                    if (lakeMask != null)
+                    {
+                        envelope = CustomMathf.Max(envelope, lakeMask[x, z]);
+                    }
+
+                    float stability = 1f - CustomMathf.Clamp(hydrologyGradient * edgeVarianceClamp + flowGradient * 0.25f, 0f, 0.9f);
+                    float envelopeBlend = CustomMathf.Clamp(seamContinuity + continuityBoost * 0.25f, 0f, 1.1f);
+                    float flowShadow = CustomMathf.Clamp(flow * flowShadowWeight + hydrologyGradient * flowShadowSlopeWeight, 0f, 1f);
+
+                    float targetHydro = CustomMathf.Max(hydro, envelope * (0.45f + memoryWeight * 0.35f) + wetAnchor * 0.25f + flowAnchor * 0.15f);
+                    targetHydro = CustomMathf.Clamp(targetHydro * (1f - flowShadow * 0.25f), 0f, varianceClamp);
+                    hydroBuffer[x, z] = CustomMathf.Clamp(
+                        hydrologyMask[x, z] * (1f - envelopeBlend * 0.25f) + targetHydro * envelopeBlend * stability,
+                        0f,
+                        varianceClamp);
+
+                    float targetFlow = CustomMathf.Max(flow, flowAnchor + envelope * memoryWeight * 0.25f + continuityBoost * 0.35f);
+                    targetFlow = CustomMathf.Clamp(targetFlow * (1f - flowShadow * 0.15f) + wetAnchor * 0.05f, 0f, HydrologyFlowDivergenceClamp * 12f + 2f);
+                    flowBuffer[x, z] = CustomMathf.Clamp(
+                        flowAccumulation[x, z] * (1f - envelopeBlend * 0.35f) + targetFlow * (envelopeBlend + 0.15f) * stability,
+                        0f,
+                        CustomMathf.Max(flow + 1.5f, HydrologyFlowDivergenceClamp * 12f));
+                }
+            }
+
+            Array.Copy(hydroBuffer, hydrologyMask, hydroBuffer.Length);
+            Array.Copy(flowBuffer, flowAccumulation, flowBuffer.Length);
+        }
+
         private static float[,] BuildRiparianSaturationMap(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
         {
             float[,] riparian = new float[subWorldSize.SizeX, subWorldSize.SizeZ];
@@ -3294,6 +3366,7 @@ namespace MapGenLib
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
             ApplyHydrologyEdgeBleed(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEnvelope(subWorldSize, hydrologyMask, flowAccumulation);
             CustomVector2[,] hydrologyGradient = BuildHydrologyGradient(hydrologyMask, flowAccumulation, surfaceCache);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -4552,6 +4625,7 @@ namespace MapGenLib
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
             ApplyHydrologyEdgeBleed(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEnvelope(subWorldSize, hydrologyMask, flowAccumulation);
             int basinSmoothIterations = CustomMathf.Max(1, LakeBasinSmoothIterations);
             float basinBlend = CustomMathf.Clamp(HydrologySmoothBlend + 0.08f, 0f, 0.95f);
             SmoothScalarField(hydrologyMask, basinSmoothIterations, basinBlend);
@@ -4561,6 +4635,7 @@ namespace MapGenLib
             float[,] erosionRiskField = BuildErosionRiskField(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] lakeCandidateHeatmap = BuildLakeCandidateHeatmap(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, erosionRiskField);
             float[,] riverIntensityPreview = BuildRiverIntensityPreview(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation, riparianSaturation, erosionRiskField);
+            ApplyHydrologyEnvelope(subWorldSize, hydrologyMask, flowAccumulation, riverIntensityPreview, lakeCandidateHeatmap);
             float lakeSpawnBias = CustomMathf.Clamp(LakeSpawnWeightBias, 0f, 1.3f);
 
             int lakeAttempts = Utilitys.RandomInteger(1, 3);
@@ -5430,6 +5505,7 @@ namespace MapGenLib
             ApplyRiparianHydrologyBuffer(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             FeatherHydrologyEdges(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             ApplyHydrologyEdgeBleed(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            ApplyHydrologyEnvelope(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             float[,] riparianSaturation = BuildRiparianSaturationMap(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             float[,] caveCurvature = BuildHydrologyCurvatureField(caveHydrologyMask, caveFlowAccumulation);
             AddHydrologySupportColumns(subWorldBlockData, subWorldSize, caveStabilityField, caveHydrologyMask, caveFlowAccumulation);
@@ -5456,6 +5532,7 @@ namespace MapGenLib
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             StabilizeHydrologyVariance(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             ApplyHydrologyFlowMemory(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEnvelope(subWorldSize, hydrologyMask, flowAccumulation);
             StabilizeHydrologyGradients(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             float[,] hydrologyCurvature = BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
             StabilizeHydrologyWithCurvature(subWorldSize, hydrologyMask, flowAccumulation, hydrologyCurvature);

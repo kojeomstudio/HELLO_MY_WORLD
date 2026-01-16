@@ -703,6 +703,7 @@ namespace Minecraft.World
                     double seamHydro = SampleInterior(hydrology, x, z);
                     double interiorFlow = SampleInterior(flow, x, z) / 6.0;
                     double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
+                    double flowGradient = Math.Abs(interiorFlow - flowSample);
                     double hydrologyVariance = SampleVariance(hydrology, x, z);
                     double seamAnchor = (hydrologySample + seamHydro + flowSample + interiorFlow) * 0.25;
                     float flowShadow = Mathf.Clamp(
@@ -721,6 +722,7 @@ namespace Minecraft.World
                     weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     weight -= hydrologyGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.25;
+                    weight -= flowGradient * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.15;
                     weight -= reliefPenalty * _worldConfig.Water.RiverReliefPenaltyWeight;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
@@ -784,6 +786,7 @@ namespace Minecraft.World
                     float seamMemory = (flowSample + SampleInterior(flow, x, z)) * 0.5f;
                     float hydrologyGradient = Mathf.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
                     float flowGradient = Mathf.Abs(SampleInterior(flow, x, z) - flowSample);
+                    float hydrologyEnvelope = Mathf.Min(1f, Mathf.Max(hydrologySample, SampleInterior(hydrology, x, z)) + flowSample * 0.35f + hydrologyGradient * 0.35f);
                     float flowShadow = Mathf.Clamp(flowSample * _worldConfig.Caves.FlowStabilityWeight + hydrologySample * _worldConfig.Caves.HydrologyStabilityWeight, 0f, 1.5f);
                     float hydrologyVariance = SampleVariance(hydrology, x, z, 2);
                     float ceilingMoisturePenalty = Mathf.Clamp(hydrologySample * ceilingMoistureWeight + flowSample * ceilingMoistureWeight * 0.5f + hydrologyGradient * ceilingMoistureWeight * 0.25f, 0f, ceilingMoistureClamp);
@@ -793,6 +796,7 @@ namespace Minecraft.World
                         hydrologyGradient * 0.25f +
                         flowGradient * 0.25f +
                         riverMask[x, z] * _worldConfig.Caves.RiverSuppressionWeight * 0.5f +
+                        hydrologyEnvelope * _worldConfig.Caves.HydrologyStabilityWeight * 0.25f +
                         ceilingMoisturePenalty * 0.5f +
                         variancePenalty * 0.5f,
                         0f,
@@ -800,9 +804,15 @@ namespace Minecraft.World
                     stabilityPenalty *= 1f - Mathf.Clamp(hydrologyGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.35f);
                     float moistureRetention = Mathf.Clamp01(1f - (hydrologySample * _tuning.CaveMoistureRetentionWeight + flowSample * _tuning.CaveMoistureRetentionWeight * 0.5f));
                     int riparianPlugDepth = Math.Max(0, _worldConfig.Caves.RiparianPlugDepth);
+                    float seamGuard = 1f - Mathf.Clamp((hydrologyGradient + flowGradient) * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.35f, 0f, 0.65f);
 
                     for (int y = minCave; y < maxCave; y++)
                     {
+                        if (seamGuard < 0.05f && (x == 0 || z == 0 || x == _chunkSize - 1 || z == _chunkSize - 1))
+                        {
+                            continue;
+                        }
+
                         if (riparianPlugDepth > 0 && riverMask[x, z] > 0.55f && y >= Math.Max(1, _seaLevel - riparianPlugDepth))
                         {
                             continue;
@@ -820,6 +830,7 @@ namespace Minecraft.World
                             + ceilingMoisturePenalty * 0.2f
                             + (1f - moistureRetention) * 0.12f
                             + Mathf.Clamp(flowShadow * 0.15f, 0f, 0.25f)
+                            + hydrologyEnvelope * _worldConfig.Caves.HydrologyStabilityWeight * 0.15f
                             + Mathf.Clamp(flowGradient * _worldConfig.Caves.EdgeSealStrength * 0.2f, 0f, 0.2f)
                             + variancePenalty * 0.25f;
 

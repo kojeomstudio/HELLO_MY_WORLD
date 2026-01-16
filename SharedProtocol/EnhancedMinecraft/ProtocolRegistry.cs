@@ -89,6 +89,18 @@ public static class ProtocolRegistry
                 "EnhancedMinecraftGameReflection.Descriptor is null. Ensure generated Google.Protobuf DTOs are referenced and initialized before registering bindings.");
         }
 
+        var duplicateDescriptors = Bindings
+            .GroupBy(binding => binding.DescriptorName, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .ToArray();
+        if (duplicateDescriptors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft protocol registry has duplicate descriptor bindings: " +
+                string.Join(", ", duplicateDescriptors.Select(group => group.Key)) +
+                ". Update ProtocolRegistry so each MinecraftMessageType maps to a distinct generated DTO.");
+        }
+
         foreach (var binding in Bindings)
         {
             var prototype = binding.Factory();

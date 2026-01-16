@@ -29,6 +29,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-17: Hydrology seam blending + proto registry guard**
+  - Server hydrology-flow blending now drives river/lake/cave masks to reduce chunk seams (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`).
+  - Unity preview caves/lakes use the same hydrology envelope and seam guard to match server sealing (`Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
+  - Protocol registry now rejects duplicate descriptor bindings after protoc runs, preventing stale `using` references (`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`).
+  - Current feature map (Core/Content/Util) lives at `docs/minecraft_feature_core_content_util_2026-01-17.md` with JSON source `docs/minecraft_feature_core_content_util_2026-01-17.json`.
+  - Details and test plan: `docs/terrain_generation_and_proto_update_2026-01-17.md`.
 - **2026-01-16: Comprehensive Protocol & Configuration Audit**
   - Created comprehensive work plan: `plans/2026-01-16-comprehensive-minecraft-implementation-work-plan.md`
   - Created comprehensive feature categorization: `plans/minecraft_feature_categorization_2026-01-16.md`
@@ -400,4 +406,3 @@ For questions or issues, please open an issue on the repository.
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

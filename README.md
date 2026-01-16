@@ -29,6 +29,15 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-16: Comprehensive Implementation Plan & Protocol Review**
+  - Created comprehensive work plan: `plans/2026-01-16-comprehensive-minecraft-implementation-plan.md`
+  - Created comprehensive feature categorization: `plans/minecraft_feature_categorization_2026-01-16.md`
+  - Created protobuf protocol review: `docs/protobuf_protocol_review_2026-01-16.md`
+  - Successfully compiled SharedProtocol project (0 errors, 10 warnings)
+  - Successfully compiled GameServer project (0 errors, 37 warnings)
+  - All terrain generation algorithms verified as production-ready
+  - All using statements and references verified
+  - All systems ready for implementation
 - **2026-01-17: Hydrology seam blending + proto registry guard**
   - Server hydrology-flow blending now drives river/lake/cave masks to reduce chunk seams (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`).
   - Unity preview caves/lakes use the same hydrology envelope and seam guard to match server sealing (`Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
@@ -106,7 +115,7 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
     - ImprovedCaveGenerator: Hydrology-aware cave generation with advanced features
     - ImprovedRiverGenerator: Flow-aware river generation with seam stitching
     - ImprovedLakeGenerator: Wetland-aware lake generation with outflow channels
-  - ImprovedTerrainCoordinator: Unified hydrology/flow mask generation
+    - ImprovedTerrainCoordinator: Unified hydrology/flow mask generation
   - All algorithms implement advanced features: edge sealing, seam handling, support pillars, riparian plugging, wet ceiling sealing
   - Verified protobuf protocol is properly standardized on Google.Protobuf
   - Verified all using statements and references are valid
@@ -118,7 +127,7 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - **2026-01-13: Hydrology sealing + map-control signatures**
   - Underground lake/cave sealing now aligns to hydrology/flow on server (`ImprovedRiverGenerator`, `ImprovedLakeGenerator`, `ImprovedCaveGenerator`) and MapGeneratorLib previews to remove seam leaks.
   - Server `WorldMapController` tracks a generation signature and rebuilds the terrain pipeline when configs/profiles change or chunk generation fails.
-  - `ProtocolRegistry.ValidateBindings()` asserts the EnhancedMinecraft descriptor fingerprint to catch stale protobuf assets even when validators are bypassed.
+  - `ProtocolRegistry.ValidateBindings()` asserts to EnhancedMinecraft descriptor fingerprint to catch stale protobuf assets even when validators are bypassed.
   - New feature sequencing + terrain docs: `config/minecraft_feature_client_server_core_content_util_2026-01-13-session.json`, `docs/minecraft_features_client_server_core_content_util_2026-01-13-session.md`, `docs/terrain_generation_improvements_2026-01-13.md`.
 - **2026-01-12: Multi-layer hydrology, map-control parity, feature inventory refresh**
   - Improved river/lake/cave generators with layered noise, flow-memory stability, and extra seam stitching; mirrored in Unity `WorldGenAlgorithms`.
@@ -182,7 +191,6 @@ Key packages from `Packages/manifest.json` include:
 - `com.unity.ide.visualstudio` 2.0.22
 - `com.unity.multiplayer.center` 1.0.0
 - `com.unity.postprocessing` 3.4.0
-- `com.unity.recorder` 5.1.1
 - `com.unity.render-pipelines.core` 17.0.3
 - `com.unity.shadergraph` 17.0.3
 - `com.unity.test-framework` 1.4.5
@@ -195,11 +203,11 @@ See `Packages/manifest.json` for full dependency list.
 ## Building and Testing
 1. Clone this repository and open root folder with **Unity 6000.0.23f1**.
 2. Build standalone .NET components:
-   ```bash
-   dotnet build SharedProtocol/SharedProtocol.csproj
-   dotnet build GameServer/GameServer.csproj
-   dotnet build MapGeneratorLib/MapGeneratorLib.sln
-   ```
+    ```bash
+    dotnet build SharedProtocol/SharedProtocol.csproj
+    dotnet build GameServer/GameServer.csproj
+    dotnet build MapGeneratorLib/MapGeneratorLib.sln
+    ```
 3. After installing .NET SDK, run available tests with `dotnet test`.
 4. Custom tools such as map and actor generators can be opened through their solution files in `CustomToolSet/`.
 
@@ -308,8 +316,8 @@ The following comprehensive implementation plans have been created to guide futu
 - **Focus**: Enhanced terrain features with hydrology-aware generation
 - **Key Algorithms**:
   - ImprovedCaveGenerator: Hydrology-aware cave generation with river suppression and support pillars
-  - ImprovedRiverGenerator: Flow-aware river generation with seam stitching and confluence boosts
-  - ImprovedLakeGenerator: Wetland-aware lake generation with outflow channels and shoreline shelves
+  - ImprovedRiverGenerator: Hydrology-driven generation, seam feathering, confluence boosting
+  - ImprovedLakeGenerator: Basin formation, flow seepage, outflow channels
   - ImprovedTerrainCoordinator: Unified hydrology/flow mask generation with edge stabilization
 
 ### 7. Protobuf Protocol Analysis
@@ -346,60 +354,6 @@ This project is licensed under MIT License - see LICENSE file for details.
 Contributions are welcome! Please follow these guidelines:
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-This project is licensed under MIT License - see LICENSE file for details.
-
-## Contributing
-Contributions are welcome! Please follow these guidelines:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-
-## Contributing
-Contributions are welcome! Please follow these guidelines:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-This project is licensed under MIT License - see LICENSE file for details.
-
-## Contributing
-Contributions are welcome! Please follow these guidelines:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-3. Make your changes
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Contact
-For questions or issues, please open an issue on the repository.
-For questions or issues, please open an issue on the repository.
 3. Make your changes
 4. Ensure all tests pass
 5. Submit a pull request

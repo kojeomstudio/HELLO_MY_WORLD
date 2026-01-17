@@ -88,6 +88,7 @@ public static class ProtocolValidator
         ValidateGeneratedDescriptorCoverage();
         ValidateOptionalDescriptorVisibility();
         ValidateOptionalPrototypes();
+        LogOptionalBindingCoverage();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }
@@ -806,6 +807,24 @@ public static class ProtocolValidator
             if (!ProtocolRegistry.TryCreatePrototype(messageType, out IMessage? prototype) || prototype == null)
             {
                 Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft packet '{messageType}' is registered but no generated prototype was resolved. Regenerate protobuf DTOs or update ProtocolRegistry so handlers remain wired when promoting this packet to required.");
+            }
+        }
+    }
+
+    private static void LogOptionalBindingCoverage()
+    {
+        foreach (var messageType in OptionalMessages)
+        {
+            bool registered = ProtocolRegistry.IsRegistered(messageType);
+            if (!registered)
+            {
+                Console.WriteLine($"[Proto][INFO] Optional EnhancedMinecraft packet '{messageType}' is not registered in ProtocolRegistry. Register it or regenerate DTOs if the packet becomes required.");
+                continue;
+            }
+
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out _))
+            {
+                Console.WriteLine($"[Proto][WARN] Optional EnhancedMinecraft packet '{messageType}' is registered but prototype resolution failed. Regenerate protobuf DTOs or fix using directives so optional messages stay compatible.");
             }
         }
     }

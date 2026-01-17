@@ -55,6 +55,7 @@ namespace GameServerApp.World.Generation
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyHydrologyEdgeEnvelope(hydrology, flow);
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
@@ -447,6 +448,45 @@ namespace GameServerApp.World.Generation
                     double blendedFlow = flowValue * (1.0 - blend * 0.35) + flowAnchor * blend * 0.35;
                     blendedFlow = Math.Clamp(blendedFlow, 0.0, flowClamp * (1.0 - flowShadow * 0.1));
                     flow[x, z] = (float)blendedFlow;
+                }
+            }
+        }
+
+        private void ApplyHydrologyEdgeEnvelope(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double continuityWeight = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance >= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double edgeWeight = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double hydro = hydrology[x, z];
+                    double flowValue = flow[x, z];
+                    double interiorHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double interiorFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
+                    double gradient = Math.Abs(interiorHydro - hydro) + Math.Abs(interiorFlow - flowValue) * 0.35;
+                    double stability = 1.0 - Math.Clamp(gradient * config.Water.HydrologyEdgeVarianceClamp * 0.5, 0.0, 0.85);
+                    double seamAnchor = (hydro + interiorHydro + flowValue * 0.5 + interiorFlow * 0.5) / 3.0;
+                    double targetHydro = hydro * (1.0 - edgeWeight * 0.25) + seamAnchor * edgeWeight * (0.65 + continuityWeight * 0.35);
+                    targetHydro += interiorFlow * memoryWeight * 0.05;
+                    hydrology[x, z] = (float)Math.Clamp(targetHydro * stability, 0.0, varianceClamp);
+
+                    double targetFlow = flowValue * (1.0 - edgeWeight * 0.25) + Math.Max(flowValue, interiorFlow) * edgeWeight;
+                    targetFlow += seamAnchor * memoryWeight * 0.1;
+                    flow[x, z] = (float)Math.Clamp(targetFlow * stability, 0.0, flowClamp + 2.0);
                 }
             }
         }

@@ -26,7 +26,7 @@ namespace GameWorld
         [SerializeField] private int viewRadiusChunks = 4;
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
 
-        private const string PipelineVersion = "2026-01-15-hydrology-envelope";
+        private const string PipelineVersion = "2026-01-17-hydrology-edge-envelope+proto";
         private WorldMapControlProfile profile = null!;
         private EnhancedTerrainGenerator generator = null!;
         private CancellationTokenSource cancellation = null!;
@@ -343,6 +343,7 @@ namespace GameWorld
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyHydrologyEdgeEnvelope(hydrology, flow);
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
@@ -364,7 +365,7 @@ namespace GameWorld
 
         private string ComputeGenerationSignature(WorldMapControlProfile controlProfile, WorldConfig config)
         {
-            return $"{PipelineVersion}:{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyWatershedStitchRadius}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Caves.CeilingMoistureClamp}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}:{config.Water.HydrologyEdgeNormalizationBlend}:{config.Water.HydrologyEdgeNormalizationIterations}:{config.Water.HydrologyFlowMemoryWeight}:{config.Water.RiverMeanderJitter}:{config.Lakes.VarianceWeight}:{config.Lakes.OutflowStabilityWeight}:{config.Water.HydrologyFlowShadowWeight}:{config.Water.HydrologyFlowShadowSlopeWeight}:{config.Lakes.WetlandBufferRadius}:{config.Water.LakeInflowBlendWeight}:{config.Water.HydrologyVarianceBlend}:{config.Water.HydrologyVarianceClamp}:{config.Water.HydrologyEdgeStabilityWeight}:{config.Water.HydrologyEdgeFlowLockWeight}:{config.Water.HydrologyEdgeFlowBias}:{config.Water.HydrologyDirectionalBlend}:{config.Water.HydrologyDirectionalIterations}:{config.Water.HydrologyFlowDivergenceClamp}:{config.Water.HydrologySeamRelaxBlend}:{config.Water.HydrologySeamRelaxIterations}:{config.Caves.EdgeSealStrength}:{config.Caves.SupportDensity}:{config.Caves.SupportPillarChance}:{config.Lakes.RiverProximitySuppression}";
+            return $"{PipelineVersion}:{config.WorldName}:{config.Seed}:{config.MapControlProfileVersion}:{controlProfile.ProfileHash}:{controlProfile.Version}:{controlProfile.ChunkSize}:{config.WorldHeight}:{config.RenderDistance}:{config.SimulationDistance}:{controlProfile.GlobalWaterLevel}:{config.Terrain.SeaLevel}:{config.Water.HydrologyFlowPersistence}:{config.Water.HydrologyWatershedStitchWeight}:{config.Water.HydrologyWatershedStitchRadius}:{config.Water.HydrologyGradientStabilityIterations}:{config.Water.HydrologyGradientStabilityBlend}:{config.Water.HydrologyGradientClamp}:{config.Lakes.FlowSeepageWeight}:{config.Caves.CeilingMoistureWeight}:{config.Caves.CeilingMoistureClamp}:{config.Water.HydrologyEdgeBlendRadius}:{config.Water.HydrologyEdgeVarianceClamp}:{config.Water.HydrologyEdgeNormalizationBlend}:{config.Water.HydrologyEdgeNormalizationIterations}:{config.Water.HydrologyFlowMemoryWeight}:{config.Water.HydrologyContinuityWeight}:{config.Water.RiverMeanderJitter}:{config.Lakes.VarianceWeight}:{config.Lakes.OutflowStabilityWeight}:{config.Water.HydrologyFlowShadowWeight}:{config.Water.HydrologyFlowShadowSlopeWeight}:{config.Lakes.WetlandBufferRadius}:{config.Water.LakeInflowBlendWeight}:{config.Water.HydrologyVarianceBlend}:{config.Water.HydrologyVarianceClamp}:{config.Water.HydrologyEdgeStabilityWeight}:{config.Water.HydrologyEdgeFlowLockWeight}:{config.Water.HydrologyEdgeFlowBias}:{config.Water.HydrologyEdgeFluxBlend}:{config.Water.HydrologyDirectionalBlend}:{config.Water.HydrologyDirectionalIterations}:{config.Water.HydrologyFlowDivergenceClamp}:{config.Water.HydrologySeamRelaxBlend}:{config.Water.HydrologySeamRelaxIterations}:{config.Caves.EdgeSealStrength}:{config.Caves.SupportDensity}:{config.Caves.SupportPillarChance}:{config.Lakes.RiverProximitySuppression}";
         }
 
         private int[,] BuildHeightMap(Vector2Int chunkPos)
@@ -1018,6 +1019,45 @@ namespace GameWorld
                     float blendedFlow = flowValue * (1f - blend * 0.35f) + flowAnchor * blend * 0.35f;
                     blendedFlow = Mathf.Clamp(blendedFlow, 0f, flowClamp * (1f - flowShadow * 0.1f));
                     flow[x, z] = blendedFlow;
+                }
+            }
+        }
+
+        private void ApplyHydrologyEdgeEnvelope(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            float continuityWeight = Mathf.Clamp01(profile.HydrologyContinuityWeight);
+            float memoryWeight = Mathf.Clamp01(profile.HydrologyFlowMemoryWeight);
+            float varianceClamp = Math.Max(0.001f, profile.HydrologyVarianceClamp);
+            float flowClamp = Math.Max(0.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance >= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float edgeWeight = 1f - Mathf.Clamp(edgeDistance / (float)(edgeRadius + 1), 0f, 1f);
+                    float hydro = hydrology[x, z];
+                    float flowValue = flow[x, z];
+                    float interiorHydro = SampleInterior(hydrology, x, z);
+                    float interiorFlow = SampleInterior(flow, x, z);
+                    float gradient = Mathf.Abs(interiorHydro - hydro) + Mathf.Abs(interiorFlow - flowValue) * 0.35f;
+                    float stability = 1f - Mathf.Clamp(gradient * profile.HydrologyEdgeVarianceClamp * 0.5f, 0f, 0.85f);
+                    float seamAnchor = (hydro + interiorHydro + flowValue * 0.5f + interiorFlow * 0.5f) / 3f;
+                    float targetHydro = hydro * (1f - edgeWeight * 0.25f) + seamAnchor * edgeWeight * (0.65f + continuityWeight * 0.35f);
+                    targetHydro += interiorFlow * memoryWeight * 0.05f;
+                    hydrology[x, z] = Mathf.Clamp(targetHydro * stability, 0f, varianceClamp);
+
+                    float targetFlow = flowValue * (1f - edgeWeight * 0.25f) + Mathf.Max(flowValue, interiorFlow) * edgeWeight;
+                    targetFlow += seamAnchor * memoryWeight * 0.1f;
+                    flow[x, z] = Mathf.Clamp(targetFlow * stability, 0f, flowClamp + 2f);
                 }
             }
         }

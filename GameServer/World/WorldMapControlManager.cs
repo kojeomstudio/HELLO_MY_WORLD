@@ -17,7 +17,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapControlManager
     {
-        private const string PipelineVersion = "2026-01-16-hydrology-envelope+proto";
+        private const string PipelineVersion = "2026-01-17-hydrology-edge-envelope+proto";
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;
@@ -28,7 +28,7 @@ namespace GameServerApp.World
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
-        private string generationSignature;
+        private string generationSignature = string.Empty;
         private string worldConfigHash;
         private string profileContentHash;
 
@@ -45,7 +45,7 @@ namespace GameServerApp.World
             worldConfigHash = ComputeFileHash(this.generationConfig.SourcePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
             maxCachedChunks = Math.Max(this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance, this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
-            generationSignature = ComputeGenerationSignature();
+            RefreshGenerationSignature(rebuildPipeline: false);
         }
 
         public Task<WorldMapResponse> HandleAsync(WorldMapRequest request)
@@ -202,7 +202,7 @@ namespace GameServerApp.World
                 chunkCache.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
-                generationSignature = ComputeGenerationSignature();
+                RefreshGenerationSignature(rebuildPipeline: false);
                 profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
                 profileContentHash = currentProfileContentHash;
                 return controlProfile;
@@ -219,7 +219,7 @@ namespace GameServerApp.World
                 profileContentHash = currentProfileContentHash;
             }
 
-            generationSignature = ComputeGenerationSignature();
+            RefreshGenerationSignature(rebuildPipeline: false);
             return controlProfile;
         }
 
@@ -260,7 +260,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
             chunkCache.Clear();
             profileChanged = true;
-            generationSignature = ComputeGenerationSignature();
+            RefreshGenerationSignature(rebuildPipeline: false);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
         }
@@ -318,6 +318,23 @@ namespace GameServerApp.World
             }
         }
 
+        private void RefreshGenerationSignature(bool rebuildPipeline)
+        {
+            string newSignature = ComputeGenerationSignature();
+            if (string.Equals(newSignature, generationSignature, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            generationSignature = newSignature;
+            chunkCache.Clear();
+
+            if (rebuildPipeline)
+            {
+                pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+            }
+        }
+
         private string ComputeGenerationSignature()
         {
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
@@ -327,7 +344,7 @@ namespace GameServerApp.World
             string protoBaseline = ProtoFingerprint.DescriptorFingerprint;
             string protoComputed = ProtoFingerprint.ComputeFingerprint();
 
-            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{protoBaseline}:{protoComputed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}:{generationConfig.Water.HydrologyVarianceBlend}:{generationConfig.Water.HydrologyVarianceClamp}:{generationConfig.Water.HydrologyEdgeStabilityWeight}:{generationConfig.Water.HydrologyEdgeFlowLockWeight}:{generationConfig.Water.HydrologyEdgeFlowBias}:{generationConfig.Water.HydrologyDirectionalBlend}:{generationConfig.Water.HydrologyDirectionalIterations}:{generationConfig.Water.HydrologyFlowDivergenceClamp}:{generationConfig.Water.HydrologySeamRelaxBlend}:{generationConfig.Water.HydrologySeamRelaxIterations}:{generationConfig.Caves.EdgeSealStrength}:{generationConfig.Caves.SupportDensity}:{generationConfig.Caves.SupportPillarChance}:{generationConfig.Lakes.RiverProximitySuppression}:{worldConfigHash}:{profileContentHash}";
+            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{protoBaseline}:{protoComputed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.HydrologyContinuityWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}:{generationConfig.Water.HydrologyVarianceBlend}:{generationConfig.Water.HydrologyVarianceClamp}:{generationConfig.Water.HydrologyEdgeStabilityWeight}:{generationConfig.Water.HydrologyEdgeFlowLockWeight}:{generationConfig.Water.HydrologyEdgeFlowBias}:{generationConfig.Water.HydrologyEdgeFluxBlend}:{generationConfig.Water.HydrologyDirectionalBlend}:{generationConfig.Water.HydrologyDirectionalIterations}:{generationConfig.Water.HydrologyFlowDivergenceClamp}:{generationConfig.Water.HydrologySeamRelaxBlend}:{generationConfig.Water.HydrologySeamRelaxIterations}:{generationConfig.Caves.EdgeSealStrength}:{generationConfig.Caves.SupportDensity}:{generationConfig.Caves.SupportPillarChance}:{generationConfig.Lakes.RiverProximitySuppression}:{worldConfigHash}:{profileContentHash}";
         }
     }
 

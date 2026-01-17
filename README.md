@@ -38,11 +38,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
   - All terrain generation algorithms verified as production-ready
   - All using statements and references verified
   - All systems ready for implementation
-- **2026-01-17: Hydrology seam blending + proto registry guard**
-  - Hydrology edge normalization aligns lake/cave moisture across chunk seams (`MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`) and Unity previews (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`); profile values forwarded via `Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs`.
-  - Protocol registry validates registered message types against the generated descriptor set to catch stale protoc output (`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`).
-  - Current feature map (Core/Content/Util) lives at `docs/minecraft_feature_core_content_util_2026-01-17.md` with JSON source `config/minecraft_feature_client_server_core_content_util_2026-01-17.json`; session plan at `plans/2026-01-17-session-plan-02.md`.
-  - Details and test plan: `docs/2026-01-17-worldgen-proto-update.md`.
+- **2026-01-17: Hydrology edge envelope & proto optional coverage**
+  - Added a hydrology edge envelope smoothing pass across server generation, Unity previews, and map tooling (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`); pipeline signature bumped to `2026-01-17-hydrology-edge-envelope+proto`.
+  - World map control now refreshes cached chunks when generation signatures change and signatures include hydrology continuity/edge flux weights.
+  - Protocol validation logs optional EnhancedMinecraft packet coverage while continuing to guard required bindings (`SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`).
+  - Feature map + JSON source: `docs/minecraft_feature_core_content_util_2026-01-17-session-03.md`, `config/minecraft_feature_client_server_core_content_util_2026-01-17-session-03.json`; session plan: `plans/2026-01-17-session-plan-03.md`.
+  - Change log and test plan: `docs/terrain_generation_and_proto_update_2026-01-17.md`.
 - **2026-01-16: Comprehensive Protocol & Configuration Audit**
   - Created comprehensive work plan: `plans/2026-01-16-comprehensive-minecraft-implementation-work-plan.md`
   - Created comprehensive feature categorization: `plans/minecraft_feature_categorization_2026-01-16.md`

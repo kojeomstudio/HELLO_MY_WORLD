@@ -2887,6 +2887,45 @@ namespace MapGenLib
             return CustomMathf.Clamp01(slope / CustomMathf.Max(1f, HydrologyShorePush * 0.9f));
         }
 
+        private static void ApplyHydrologyEdgeEnvelope(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float continuityWeight = CustomMathf.Clamp01(HydrologyContinuityWeight);
+            float memoryWeight = CustomMathf.Clamp01(HydrologyFlowMemoryWeight);
+            float varianceClamp = CustomMathf.Max(0.0001f, HydrologyVarianceClamp);
+            float flowClamp = CustomMathf.Max(0.5f, HydrologyFlowDivergenceClamp * 12f);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, width - 1 - x), CustomMathf.Min(z, depth - 1 - z));
+                    if (edgeDistance >= edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float edgeWeight = 1f - CustomMathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float hydro = hydrologyMask[x, z];
+                    float flow = flowAccumulation[x, z];
+                    float interiorHydro = SampleInterior(hydrologyMask, x, z);
+                    float interiorFlow = SampleInterior(flowAccumulation, x, z);
+                    float gradient = CustomMathf.Abs(interiorHydro - hydro) + CustomMathf.Abs(interiorFlow - flow) * 0.35f;
+                    float stability = 1f - CustomMathf.Clamp01(gradient * HydrologyEdgeVarianceClamp * 0.5f);
+                    float seamAnchor = (hydro + interiorHydro + flow * 0.5f + interiorFlow * 0.5f) / 3f;
+                    float targetHydro = hydro * (1f - edgeWeight * 0.25f) + seamAnchor * edgeWeight * (0.65f + continuityWeight * 0.35f);
+                    targetHydro += interiorFlow * memoryWeight * 0.05f;
+                    hydrologyMask[x, z] = CustomMathf.Clamp(targetHydro * stability, 0f, varianceClamp);
+
+                    float targetFlow = flow * (1f - edgeWeight * 0.25f) + CustomMathf.Max(flow, interiorFlow) * edgeWeight;
+                    targetFlow += seamAnchor * memoryWeight * 0.1f;
+                    flowAccumulation[x, z] = CustomMathf.Clamp(targetFlow * stability, 0f, flowClamp + 2f);
+                }
+            }
+        }
+
         private static void ApplyHydrologyEnvelope(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation, float[,] riverMask = null, float[,] lakeMask = null)
         {
             if (hydrologyMask == null || flowAccumulation == null)
@@ -3435,6 +3474,7 @@ namespace MapGenLib
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
             HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEdgeEnvelope(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
@@ -4701,6 +4741,7 @@ namespace MapGenLib
             HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, hydrologyMask, flowAccumulation, surfaceCache);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
+            ApplyHydrologyEdgeEnvelope(subWorldSize, hydrologyMask, flowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, hydrologyMask, flowAccumulation);
             FeatherHydrologyEdges(subWorldSize, hydrologyMask, flowAccumulation);
@@ -5581,6 +5622,7 @@ namespace MapGenLib
             HarmonizeHydrologyWithSurface(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ClampHydrologyToWaterTable(subWorldSize, caveHydrologyMask, caveFlowAccumulation, caveSurfaceCache);
             RelaxHydrologySeams(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
+            ApplyHydrologyEdgeEnvelope(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             AnchorHydrologyToSlope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ApplyRiparianHydrologyBuffer(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             FeatherHydrologyEdges(subWorldSize, caveHydrologyMask, caveFlowAccumulation);

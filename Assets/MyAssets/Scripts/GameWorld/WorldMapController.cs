@@ -583,6 +583,8 @@ namespace GameWorld
                     double seepage = (flowSample + hydrologyGradient + flowMemory * 0.5) * flowSeepageWeight;
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     double varianceAssist = Math.Clamp((hydrologyGradient + flowGradient) * profile.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
+                    double seamNormalization = 1.0 - Math.Clamp(hydrologyGradient * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.55);
+                    double flowConsistency = 1.0 - Math.Clamp(Math.Abs(flowMemory - flowSample) * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.5);
                     weight -= slope * profile.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * profile.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverPressure * 0.5;
@@ -590,7 +592,9 @@ namespace GameWorld
                     weight *= 0.75 + radiusFalloff * 0.25;
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrologySample) * profile.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamContinuity;
-                    weight *= 1.0 + varianceAssist;
+                    weight += varianceAssist * 0.25;
+                    weight *= seamNormalization;
+                    weight *= Math.Clamp(flowConsistency, 0.6, 1.05);
 
                     double seamRelax = Math.Clamp(profile.HydrologySeamRelaxBlend, 0.0, 1.0);
                     double wetlandThreshold = profile.LakeWetlandSaturationThreshold - hydrologySample * 0.05 - seamRelax * 0.05;

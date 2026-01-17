@@ -101,6 +101,15 @@ public static class ProtocolRegistry
                 ". Update ProtocolRegistry so each MinecraftMessageType maps to a distinct generated DTO.");
         }
 
+        var descriptorNames = EnhancedMinecraftGameReflection.Descriptor?.MessageTypes
+            .Select(descriptor => descriptor.Name)
+            .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
+        if (descriptorNames.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft descriptor set is empty. Ensure Assets/Generated/Protobuf/EnhancedMinecraftGame.cs is referenced and protoc outputs are up to date.");
+        }
+
         foreach (var binding in Bindings)
         {
             var prototype = binding.Factory();
@@ -109,6 +118,12 @@ public static class ProtocolRegistry
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' is missing a descriptor. Regenerate protobuf assets.");
+            }
+
+            if (!descriptorNames.Contains(binding.DescriptorName))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' expects generated descriptor '{binding.DescriptorName}' but it is missing from EnhancedMinecraftGameReflection. Regenerate protoc outputs or update using directives so the registry binds to the current generated DTOs.");
             }
 
             if (!string.Equals(binding.DescriptorName, descriptorName, StringComparison.Ordinal))

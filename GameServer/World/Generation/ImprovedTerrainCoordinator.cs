@@ -461,6 +461,8 @@ namespace GameServerApp.World.Generation
             double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
             double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+            double normalization = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double stabilityBoost = 1.0 + Math.Clamp(config.Water.HydrologyEdgeStabilityIterations * 0.05, 0.0, 0.3);
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -477,16 +479,19 @@ namespace GameServerApp.World.Generation
                     double flowValue = flow[x, z];
                     double interiorHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
                     double interiorFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
+                    double seamMemory = (hydro + interiorHydro + flowValue + interiorFlow) * 0.25;
                     double gradient = Math.Abs(interiorHydro - hydro) + Math.Abs(interiorFlow - flowValue) * 0.35;
                     double stability = 1.0 - Math.Clamp(gradient * config.Water.HydrologyEdgeVarianceClamp * 0.5, 0.0, 0.85);
                     double seamAnchor = (hydro + interiorHydro + flowValue * 0.5 + interiorFlow * 0.5) / 3.0;
                     double targetHydro = hydro * (1.0 - edgeWeight * 0.25) + seamAnchor * edgeWeight * (0.65 + continuityWeight * 0.35);
                     targetHydro += interiorFlow * memoryWeight * 0.05;
-                    hydrology[x, z] = (float)Math.Clamp(targetHydro * stability, 0.0, varianceClamp);
+                    targetHydro = targetHydro * (1.0 - normalization * 0.25) + seamMemory * normalization * 0.25;
+                    hydrology[x, z] = (float)Math.Clamp(targetHydro * stability * stabilityBoost, 0.0, varianceClamp);
 
                     double targetFlow = flowValue * (1.0 - edgeWeight * 0.25) + Math.Max(flowValue, interiorFlow) * edgeWeight;
                     targetFlow += seamAnchor * memoryWeight * 0.1;
-                    flow[x, z] = (float)Math.Clamp(targetFlow * stability, 0.0, flowClamp + 2.0);
+                    targetFlow = targetFlow * (1.0 - normalization * 0.25) + (seamMemory + interiorFlow) * normalization * 0.25;
+                    flow[x, z] = (float)Math.Clamp(targetFlow * stability * stabilityBoost, 0.0, flowClamp + 2.0);
                 }
             }
         }

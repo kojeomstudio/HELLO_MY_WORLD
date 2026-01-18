@@ -5797,6 +5797,11 @@ namespace MapGenLib
 
                     float wetness = CustomMathf.Clamp01(hydrologyMask[x, z] + flowAccumulation[x, z] * 0.15f);
                     float edgeBlend = CustomMathf.Clamp01(sealBase * (1f - edgeDistance / (float)radius) * (0.85f + wetness * 0.35f));
+                    float interiorHydro = SampleInterior(hydrologyMask, x, z);
+                    float interiorFlow = SampleInterior(flowAccumulation, x, z);
+                    float gradient = CustomMathf.Abs(interiorHydro - hydrologyMask[x, z]) + CustomMathf.Abs(interiorFlow - flowAccumulation[x, z]) * 0.35f;
+                    float stability = 1f - CustomMathf.Clamp01(gradient * HydrologyEdgeVarianceClamp * 0.5f);
+                    edgeBlend *= stability;
                     int sealThickness = CustomMathf.Clamp(CustomMathf.RoundToInt(1 + cavityHeight * (0.15f + wetness * 0.2f)), 1, CustomMathf.Min(3, cavityHeight - 1));
                     int sealStart = CustomMathf.Max(bottom + cavityHeight - sealThickness, bottom + 1);
                     byte fillBlock = (byte)(wetness > 0.6f ? BlockTileType.STONE_BIG : BlockTileType.STONE_SMALL);

@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-18: Hydrology continuity & proto map-control guard**
+  - Hydrology edge envelope blends seam memory/normalization in both base and improved pipelines; MapGeneratorLib sealing mirrors the stability changes (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
+  - Rivers/lakes now damp channel pressure with flow/hydrology gradients and penalize steep outflows; caves add riparian ceiling guards (`GameServer/World/Generation/ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`).
+  - World map control pipeline version bumped to `2026-01-18-hydrology-continuity+proto`; generation signatures include proto fingerprints and edge stability iterations with fingerprint assertions on server/client (`GameServer/World/WorldMapControlManager.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Docs & data: `docs/terrain_generation_and_proto_update_2026-01-18.md`, `docs/minecraft_features_client_server_core_content_util_2026-01-18.md`, `config/minecraft_feature_client_server_core_content_util_2026-01-18.json`.
 - **2026-01-16: Comprehensive Implementation Plan & Protocol Review**
   - Created comprehensive work plan: `plans/2026-01-16-comprehensive-minecraft-implementation-plan.md`
   - Created comprehensive feature categorization: `plans/minecraft_feature_categorization_2026-01-16.md`

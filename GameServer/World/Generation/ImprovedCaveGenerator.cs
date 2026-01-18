@@ -97,6 +97,11 @@ namespace GameServerApp.World.Generation
                     stability *= 1.0 - ceilingClamp * 0.15;
                     stability *= seamContinuity;
                     stability *= 1.0 - continuityPenalty * 0.15;
+                    double riparianCeilingGuard = Math.Clamp(
+                        (hydrologyGradient + flowGradient + riverPressure + seamMemory) * config.CeilingStabilityWeight * 0.25,
+                        0.0,
+                        0.5);
+                    stability *= 1.0 - riparianCeilingGuard * 0.35;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemory * config.MoistureRetentionWeight * 0.35;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -158,6 +163,7 @@ namespace GameServerApp.World.Generation
                         threshold += stabilityPenalty * 0.25;
                         threshold += ceilingMoisturePenalty * 0.2;
                         threshold += ceilingClamp * 0.1;
+                        threshold += riparianCeilingGuard * 0.2;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);

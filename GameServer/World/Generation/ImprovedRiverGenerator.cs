@@ -95,6 +95,7 @@ namespace GameServerApp.World.Generation
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
+                    double flowGradient = Math.Abs(interiorFlow - flow);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
                     double flowAlignment = 1.0 + Math.Clamp(flow * config.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
                     double seamStitch = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrologyMask[x, z]) * config.HydrologyEdgeFluxBlend, -0.35, 0.35);
@@ -125,6 +126,7 @@ namespace GameServerApp.World.Generation
                     pressure *= seamGuard;
                     pressure *= 1.0 + flowMemoryContinuity * 0.25;
                     pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
+                    pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * config.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.4);
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
                     if (confluenceBoost > 0.0)
                     {

@@ -242,6 +242,8 @@ namespace GameServerApp.World.Generation
                     int currentX = x;
                     int currentZ = z;
                     float channelStrength = lakeStrength;
+                    float lastFlow = flow[x, z];
+                    int originHeight = heightMap[x, z];
 
                     for (int step = 0; step < outflowDepth; step++)
                     {
@@ -251,8 +253,15 @@ namespace GameServerApp.World.Generation
                         float flowInfluence = TerrainMaskUtility.Clamp01(flow[currentX, currentZ] * (float)inflowBlendWeight);
                         float blended = Math.Max(channelStrength * 0.65f, lakeStrength * 0.35f);
                         float stability = (float)stabilityBlend;
+                        float flowGradient = Math.Abs(flow[currentX, currentZ] - lastFlow);
+                        float gradientPenalty = Math.Clamp(flowGradient * (float)outflowStabilityWeight * 0.5f, 0f, 0.35f);
+                        int elevationDelta = Math.Abs(heightMap[currentX, currentZ] - originHeight);
+                        float slopePenalty = Math.Clamp(elevationDelta / Math.Max(1f, outflowDepth * 2f), 0f, 1f);
                         float outflowValue = blended * stability + flowInfluence * (1f - stability);
+                        outflowValue *= 1f - gradientPenalty;
+                        outflowValue *= 1f - slopePenalty * (float)outflowStabilityWeight * 0.35f;
                         buffer[currentX, currentZ] = Math.Max(buffer[currentX, currentZ], outflowValue);
+                        lastFlow = flow[currentX, currentZ];
 
                         if (downhill == (0, 0))
                         {

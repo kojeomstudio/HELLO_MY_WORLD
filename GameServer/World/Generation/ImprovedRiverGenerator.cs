@@ -37,6 +37,10 @@ namespace GameServerApp.World.Generation
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
             double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double edgeNormalizationStrength = Math.Clamp(config.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double waterTableClampWeight = Math.Clamp(config.HydrologyWaterTableClampWeight, 0.0, 1.0);
+            double waterTableClampRange = Math.Max(1.0, config.HydrologyWaterTableClampRange);
+            double waterTableSlopeWeight = Math.Clamp(config.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
+            double depthBias = Math.Clamp(config.RiverDepth / 12.0, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -120,6 +124,15 @@ namespace GameServerApp.World.Generation
                     pressure *= flowAlignment * seamStitch * meanderFactor;
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure *= 1.0 + seamAnchor * edgeNormalization * 0.15;
+                    double waterTableDistance = seaLevel - height;
+                    double waterBias = 1.0 - Math.Clamp(Math.Abs(waterTableDistance) / waterTableClampRange, 0.0, 1.0);
+                    double waterClamp = 1.0 + waterBias * waterTableClampWeight * (waterTableDistance >= 0 ? 0.45 : -0.25);
+                    double waterSlopePenalty = Math.Clamp(gradient * waterTableSlopeWeight * 0.05, 0.0, 0.45);
+                    double waterMemory = (hydrology + seamHydro + flowMemory) * waterTableClampWeight * 0.08;
+                    pressure *= Math.Max(0.65, waterClamp);
+                    pressure *= 1.0 - waterSlopePenalty;
+                    pressure *= 1.0 + waterMemory;
+                    pressure *= 1.0 + depthBias * 0.05;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
@@ -175,6 +188,7 @@ namespace GameServerApp.World.Generation
                 config.HydrologyGradientStabilityIterations,
                 config.HydrologyGradientStabilityBlend,
                 config.HydrologyGradientClamp);
+            TerrainMaskUtility.ClampVariance(mask, config.HydrologyVarianceClamp);
             TerrainMaskUtility.Smooth2D(mask, config.RiverIntensitySmoothIterations, config.RiverIntensitySmoothBlend);
             TerrainMaskUtility.DirectionalSmooth(heightMap, mask, Math.Max(1, config.HydrologyDirectionalIterations), config.HydrologyDirectionalBlend * 0.35);
             TerrainMaskUtility.StitchEdges(mask, config.HydrologySeamRelaxBlend * 0.5);

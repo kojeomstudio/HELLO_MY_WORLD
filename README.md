@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-18: Water-table clamps & proto signature expansion**
+  - Rivers, lakes, and caves honor water-table clamps, shelf depths, and flooded-cave thresholds for steadier hydrology (`GameServer/World/Generation/ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`).
+  - World map control signatures now include water-table/lake-depth/flooded-cave fields and revalidate proto fingerprints; Unity preview mirrors shelf shaping (`GameServer/World/WorldMapControlManager.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Data/docs refreshed: cleaned `config/enhanced_terrain_generation.json` (v1.1.0), feature catalog `docs/minecraft_feature_client_server_core_content_util_2026-01-18-session-04.md` + `config/minecraft_feature_client_server_core_content_util_2026-01-18-session-04.json`, and changelog `docs/2026-01-18-worldmap-hydrology-update.md`.
 - **2026-01-18: Hydrology continuity & proto map-control guard**
   - Hydrology edge envelope blends seam memory/normalization in both base and improved pipelines; MapGeneratorLib sealing mirrors the stability changes (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
   - Rivers/lakes now damp channel pressure with flow/hydrology gradients and penalize steep outflows; caves add riparian ceiling guards (`GameServer/World/Generation/ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`).

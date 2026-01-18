@@ -40,6 +40,11 @@ namespace GameServerApp.World.Generation
             double vertical = Math.Max(0.0001, config.VerticalFrequency);
             double ceilingMoistureWeight = Math.Clamp(config.CeilingMoistureWeight, 0.0, 1.0);
             double ceilingMoistureClampWeight = Math.Clamp(config.CeilingMoistureClamp, 0.0, 1.0);
+            double floodedNoiseFrequency = Math.Max(0.0001, config.FloodedCaveNoiseFrequency);
+            double floodedThreshold = Math.Clamp(config.FloodedCaveThreshold, 0.0, 2.0);
+            double floodedProximityWeight = Math.Clamp(config.FloodedCaveProximityToWaterTableWeight, 0.0, 1.0);
+            double lavaThreshold = Math.Clamp(config.LavaThreshold, 0.0, 1.0);
+            double waterThreshold = Math.Clamp(config.WaterThreshold, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -50,6 +55,15 @@ namespace GameServerApp.World.Generation
                     {
                         continue;
                     }
+
+                    double floodedNoiseBase = SimplexNoise.Generate(
+                        (chunkX * chunkSize + x) * floodedNoiseFrequency + 17.0,
+                        (chunkZ * chunkSize + z) * floodedNoiseFrequency - 9.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        random.Next()) * 0.5 + 0.5;
 
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
                     float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
@@ -168,6 +182,25 @@ namespace GameServerApp.World.Generation
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);
                         threshold += flowMemoryClamp * 0.15;
+                        double depthBelowSea = seaLevel - y;
+                        double floodedBias = Math.Clamp(depthBelowSea / Math.Max(1.0, seaLevel), -1.0, 1.0) * floodedProximityWeight;
+                        double floodedNoise = floodedNoiseBase;
+                        double floodedPressure = floodedNoise + floodedBias + hydrology * floodedProximityWeight * 0.5;
+                        if (floodedPressure > floodedThreshold)
+                        {
+                            threshold += Math.Clamp((floodedPressure - floodedThreshold) * 0.25, 0.0, 0.25);
+                        }
+
+                        if (hydrology > waterThreshold && y < seaLevel - 2)
+                        {
+                            threshold += Math.Clamp((hydrology - waterThreshold) * 0.15, 0.0, 0.25);
+                        }
+
+                        double depthRatio = (double)y / Math.Max(1, surface);
+                        if (depthRatio < lavaThreshold * 0.5)
+                        {
+                            threshold -= Math.Clamp((lavaThreshold * 0.5 - depthRatio) * 0.1, 0.0, 0.1);
+                        }
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (density > threshold && stability > 0.08)

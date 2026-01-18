@@ -40,6 +40,12 @@ namespace GameServerApp.World.Generation
             double varianceWeight = Math.Clamp(lakeConfig.VarianceWeight, 0.0, 1.0);
             double outflowStabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
             double edgeNormalizationStrength = Math.Clamp(waterConfig.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double waterTableClampWeight = Math.Clamp(waterConfig.HydrologyWaterTableClampWeight, 0.0, 1.0);
+            double waterTableClampRange = Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange);
+            double waterTableSlopeWeight = Math.Clamp(waterConfig.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
+            int minDepth = Math.Max(1, lakeConfig.MinDepth);
+            int maxDepth = Math.Max(minDepth, lakeConfig.MaxDepth);
+            int shelfDepth = Math.Max(0, lakeConfig.ShelfDepth);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -83,6 +89,10 @@ namespace GameServerApp.World.Generation
                         0.55,
                         random.Next())) * lakeConfig.ShorelineBlend * 0.25;
 
+                    double depthBelowSea = seaLevel - heightMap[x, z];
+                    double depthPenalty = Math.Clamp(Math.Max(0.0, minDepth - depthBelowSea) / Math.Max(1.0, minDepth), 0.0, 1.0);
+                    double waterClamp = 1.0 + Math.Clamp(1.0 - Math.Abs(depthBelowSea) / waterTableClampRange, 0.0, 1.0) * waterTableClampWeight * (depthBelowSea >= 0 ? 0.45 : -0.25);
+                    double waterSlopePenalty = Math.Clamp(slope * waterTableSlopeWeight * 0.05, 0.0, 0.45);
                     double wetness = hydrology * 0.65 + flow * 0.35;
                     double rimWeight = 0.25 + Math.Clamp(waterConfig.HydrologyVarianceBlend, 0.0, 1.0) * 0.2;
                     double layeredNoise = (basinNoise * 0.42) + (rimNoise * rimWeight) + (macroNoise * 0.2) + (detailNoise * 0.15);
@@ -101,6 +111,9 @@ namespace GameServerApp.World.Generation
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
+                    weight *= Math.Max(0.55, waterClamp);
+                    weight *= 1.0 - waterSlopePenalty;
+                    weight *= 1.0 - depthPenalty * 0.6;
                     weight *= 1.0 + varianceAssist;
                     weight *= 0.75 + radiusFalloff * 0.25;
                     double slopePenalty = Math.Clamp(slope * waterConfig.HydrologyGradientWeight * 0.08, 0.0, 0.35);
@@ -131,13 +144,14 @@ namespace GameServerApp.World.Generation
                     weight = weight * (1.0 - edgeNormalization * 0.2) + (seamAnchor + seamMemory * 0.35) * edgeNormalization * 0.25;
                     weight = weight * (1.0 - seamRelax * 0.1) + seamAnchor * seamRelax * 0.05;
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05;
-                    if (weight > wetlandThreshold && heightMap[x, z] > seaLevel - lakeConfig.MaxDepth)
+                    if (weight > wetlandThreshold && depthBelowSea <= maxDepth && depthBelowSea >= -shelfDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);
                     }
                 }
             }
 
+            TerrainMaskUtility.ClampVariance(lakes, waterConfig.HydrologyVarianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(
                 lakes,
                 waterConfig.HydrologyEdgeBlendRadius,
@@ -158,6 +172,7 @@ namespace GameServerApp.World.Generation
                 waterConfig.HydrologyEdgeBlendRadius,
                 waterConfig.HydrologyEdgeNormalizationIterations,
                 waterConfig.HydrologyEdgeNormalizationBlend);
+            ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             return lakes;
@@ -206,6 +221,38 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void ApplyLakeShelves(float[,] field, int[,] heightMap, int seaLevel, int shelfDepth, int maxDepth)
+        {
+            shelfDepth = Math.Max(0, shelfDepth);
+            if (shelfDepth == 0)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float value = field[x, z];
+                    if (value <= 0f)
+                    {
+                        continue;
+                    }
+
+                    int depthBelowSea = seaLevel - heightMap[x, z];
+                    if (depthBelowSea < 0 || depthBelowSea > maxDepth)
+                    {
+                        continue;
+                    }
+
+                    float shelfBlend = 1f - Math.Clamp(Math.Abs(depthBelowSea) / (float)Math.Max(1, shelfDepth), 0f, 1f);
+                    field[x, z] = Math.Max(value, value * (0.85f + shelfBlend * 0.15f));
+                }
+            }
         }
 
         private static void ApplyOutflowChannels(float[,] lakes, int[,] heightMap, float[,] flow, double inflowBlendWeight, int outflowDepth, double outflowStabilityWeight)

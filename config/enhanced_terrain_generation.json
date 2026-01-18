@@ -1,237 +1,118 @@
 {
   "comment": "Enhanced terrain generation configuration for caves, rivers, and lakes",
-  "version": "1.0.0",
-  "lastUpdated": "2026-01-11",
-  
-  "enhancedCaveConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "caveGeneration": {
-      "baseCaveProbability": 0.05,
-      "caveDensityMultiplier": 1.0,
-      "caveSizeMultiplier": 1.0,
-      "caveBranchProbability": 0.15,
-      "maxCaveLength": 100,
-      "minCaveLength": 20
+  "version": "1.1.0",
+  "lastUpdated": "2026-01-18",
+  "water": {
+    "globalWaterLevel": 62,
+    "riverCenterThreshold": 0.0125,
+    "riverBankThreshold": 0.028,
+    "riverNoiseScale": 0.015,
+    "riverDepth": 6,
+    "hydrology": {
+      "smoothIterations": 2,
+      "smoothBlend": 0.6,
+      "shorePush": 5.0,
+      "slopePenalty": 6.0,
+      "flowGain": 0.5,
+      "flowPersistence": 0.68,
+      "flowMemoryWeight": 0.35,
+      "continuityWeight": 0.35,
+      "edgeBlendRadius": 3,
+      "edgeVarianceClamp": 0.32,
+      "edgeNormalizationBlend": 0.38,
+      "edgeNormalizationIterations": 2,
+      "edgeStabilityIterations": 1,
+      "edgeStabilityWeight": 0.32,
+      "edgeFlowBias": 0.35,
+      "edgeTangentWeight": 0.45,
+      "edgeFlowLockWeight": 0.38,
+      "edgeFluxBlend": 0.55,
+      "varianceBlend": 0.55,
+      "varianceClamp": 0.65,
+      "waterTableClampWeight": 0.42,
+      "waterTableClampRange": 18,
+      "waterTableSlopeWeight": 0.55,
+      "gradientWeight": 0.35,
+      "gradientSlopeWeight": 0.42,
+      "gradientClamp": 1.65,
+      "gradientStabilityIterations": 1,
+      "gradientStabilityBlend": 0.45,
+      "directionalIterations": 1,
+      "directionalBlend": 0.42,
+      "flowDivergenceClamp": 0.55,
+      "curvatureWeight": 0.32,
+      "warpFrequency": 0.0009,
+      "warpAmplitude": 9.0,
+      "riparianSmoothIterations": 2,
+      "riparianSmoothBlend": 0.6,
+      "riparianSaturationBoost": 0.18,
+      "riparianBufferRadius": 1,
+      "seamRelaxIterations": 2,
+      "seamRelaxBlend": 0.5
     },
-    
-    "caveTypes": {
-      "normalCave": {
-        "enabled": true,
-        "probability": 0.7,
-        "minDepth": 10,
-        "maxDepth": 60
-      },
-      "lavaCave": {
-        "enabled": true,
-        "probability": 0.15,
-        "minDepth": 50,
-        "maxDepth": 120
-      },
-      "iceCave": {
-        "enabled": true,
-        "probability": 0.08,
-        "minDepth": 10,
-        "maxDepth": 50,
-        "biomes": ["Snowy", "IceSpikes", "Tundra"]
-      },
-      "mushroomCave": {
-        "enabled": true,
-        "probability": 0.05,
-        "minDepth": 20,
-        "maxDepth": 80
-      },
-      "crystalCave": {
-        "enabled": true,
-        "probability": 0.02,
-        "minDepth": 30,
-        "maxDepth": 100
-      }
+    "flowShadow": {
+      "weight": 0.45,
+      "slopeWeight": 0.35
     },
-    
-    "caveDecorations": {
-      "stalactiteProbability": 0.1,
-      "stalagmiteProbability": 0.1,
-      "vineProbability": 0.05,
-      "mossProbability": 0.08,
-      "mineralDepositProbability": 0.03
-    },
-    
-    "connectivity": {
-      "caveToCaveConnectionProbability": 0.2,
-      "caveToSurfaceConnectionProbability": 0.05,
-      "minConnectionDistance": 5,
-      "maxConnectionDistance": 50
-    },
-    
-    "cellularAutomata": {
-      "iterations": 3,
-      "neighborThreshold": 4,
-      "smoothIterations": 2
-    },
-    
-    "depthBasedGeneration": {
-      "surfaceCaveDepth": 10,
-      "midDepthCaveDepth": 50,
-      "deepCaveDepth": 100,
-      "depthProbabilityMultiplier": 1.0
-    },
-    
-    "biomeSpecificGeneration": {
-      "enabled": true,
-      "desertCaveMultiplier": 0.5,
-      "jungleCaveMultiplier": 1.2,
-      "swampCaveMultiplier": 0.8,
-      "mountainCaveMultiplier": 1.5
+    "river": {
+      "confluenceBoost": 0.35,
+      "flowAlignmentWeight": 0.28,
+      "gradientPenalty": 0.42,
+      "headwaterStabilityWeight": 0.35,
+      "anisotropyWeight": 0.32,
+      "meanderJitter": 0.18,
+      "reliefPenaltyWeight": 0.25,
+      "bankErosionWeight": 0.18,
+      "edgeFeather": 0.45,
+      "mouthSmoothRadius": 3,
+      "deltaWetlandStrength": 0.45,
+      "intensitySmoothIterations": 3,
+      "intensitySmoothBlend": 0.58
     }
   },
-  
-  "enhancedRiverConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "watershedRouting": {
-      "enabled": true,
-      "algorithm": "D8",
-      "flowAccumulationThreshold": 5,
-      "minRiverLength": 20,
-      "maxRiverLength": 500
-    },
-    
-    "tributaryNetwork": {
-      "enabled": true,
-      "maxTributaryDepth": 4,
-      "tributaryBranchProbability": 0.3,
-      "minTributaryLength": 10,
-      "maxTributaryLength": 100
-    },
-    
-    "riverMeandering": {
-      "enabled": true,
-      "amplitude": 3.0,
-      "frequency": 0.1,
-      "phaseOffset": 0.0,
-      "meanderProbability": 0.7
-    },
-    
-    "riverErosion": {
-      "oxbowLakes": {
-        "enabled": true,
-        "formationProbability": 0.05,
-        "minRiverCurvature": 0.5
-      },
-      "sedimentDeposition": {
-        "enabled": true,
-        "depositionRate": 0.01,
-        "erosionRate": 0.005
-      },
-      "bankCollapse": {
-        "enabled": true,
-        "collapseProbability": 0.02,
-        "collapseDepth": 2
-      }
-    },
-    
-    "riverProperties": {
-      "baseWidth": 2,
-      "widthVariation": 0.5,
-      "baseDepth": 1,
-      "depthVariation": 0.3,
-      "baseVelocity": 1.0,
-      "velocityVariation": 0.2,
-      "turbulence": 0.1
-    },
-    
-    "riverToLakeConnection": {
-      "enabled": true,
-      "connectionProbability": 0.3,
-      "minLakeSize": 10,
-      "maxLakeSize": 100
-    },
-    
-    "riverTypes": {
-      "mountainRiver": {
-        "enabled": true,
-        "steepness": 0.8,
-        "velocityMultiplier": 1.5,
-        "widthMultiplier": 0.7
-      },
-      "plainRiver": {
-        "enabled": true,
-        "steepness": 0.3,
-        "velocityMultiplier": 1.0,
-        "widthMultiplier": 1.2
-      },
-      "jungleRiver": {
-        "enabled": true,
-        "steepness": 0.4,
-        "velocityMultiplier": 0.8,
-        "widthMultiplier": 1.5
-      }
-    }
+  "caves": {
+    "enable": true,
+    "threshold": 0.45,
+    "horizontalFrequency": 0.0026,
+    "verticalFrequency": 0.018,
+    "supportDensity": 0.6,
+    "supportPillarChance": 0.28,
+    "hydrologyStabilityWeight": 0.45,
+    "flowStabilityWeight": 0.25,
+    "roughnessStabilityWeight": 0.1,
+    "riverSuppressionWeight": 0.35,
+    "moistureRetentionWeight": 0.35,
+    "edgeSealStrength": 0.45,
+    "riparianPlugDepth": 2,
+    "stabilitySmoothIterations": 1,
+    "stabilitySmoothBlend": 0.55,
+    "ceilingStabilityWeight": 0.35,
+    "ceilingMoistureWeight": 0.28,
+    "ceilingMoistureClamp": 0.35,
+    "floodedCaveNoiseFrequency": 0.0031,
+    "floodedCaveProximityToWaterTableWeight": 0.6,
+    "floodedCaveThreshold": 0.75,
+    "lavaThreshold": 0.28,
+    "waterThreshold": 0.34
   },
-  
-  "enhancedLakeConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "surfaceLakeParameters": {
-      "minHydrologyForLake": 0.5,
-      "depressionBasinThreshold": 2.0,
-      "minLakeArea": 10,
-      "minLakeDepth": 1.0,
-      "lakeLevelBelowRim": 0.5
-    },
-    
-    "lakeTypeThresholds": {
-      "alpineLakeMinElevation": 50.0
-    },
-    
-    "lakeBottomParameters": {
-      "shallowWaterDepth": 2.0,
-      "mediumWaterDepth": 5.0,
-      "baseSedimentFactor": 0.3,
-      "swampSedimentMultiplier": 1.5,
-      "temperateSedimentMultiplier": 1.0
-    },
-    
-    "shoreParameters": {
-      "alpineRockyShoreProbability": 0.7,
-      "temperateSandyShoreProbability": 0.4
-    },
-    
-    "undergroundLakeParameters": {
-      "minCaveVolumeForLake": 50,
-      "maxCaveVolumeForLake": 500,
-      "minDepthForUndergroundLake": 10.0,
-      "geothermalLakeMinDepth": 40.0,
-      "aquiferMinDepthRatio": 0.3,
-      "aquiferMaxDepthRatio": 0.6
-    },
-    
-    "undergroundLakeFeatures": {
-      "thermalVents": {
-        "minCount": 1,
-        "maxCount": 3,
-        "minIntensity": 0.5,
-        "maxIntensity": 2.0
-      },
-      "springSources": {
-        "minCount": 1,
-        "maxCount": 2,
-        "minFlowRate": 0.1,
-        "maxFlowRate": 1.0
-      },
-      "caveFormations": {
-        "minCount": 2,
-        "maxCount": 5,
-        "minSize": 0.5,
-        "maxSize": 2.0
-      }
-    }
+  "lakes": {
+    "minDepth": 3,
+    "maxDepth": 9,
+    "shelfDepth": 2,
+    "maxRadius": 9,
+    "basinSmoothIterations": 2,
+    "spawnWeightBias": 0.3,
+    "shorelineBlend": 0.66,
+    "riverProximitySuppression": 0.35,
+    "wetlandSaturationThreshold": 0.55,
+    "outflowCarveDepth": 2,
+    "outflowStabilityWeight": 0.3,
+    "wetlandBufferRadius": 2,
+    "flowSeepageWeight": 0.25,
+    "varianceWeight": 0.25,
+    "rimErosionWeight": 0.3,
+    "inflowBlendWeight": 0.42
   },
-  
   "coordination": {
     "caveRiverInteraction": {
       "enabled": true,
@@ -250,255 +131,3 @@
     }
   }
 }
-  "comment": "Enhanced terrain generation configuration for caves, rivers, and lakes",
-  "version": "1.0.0",
-  "lastUpdated": "2026-01-11",
-  
-  "enhancedCaveConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "caveGeneration": {
-      "baseCaveProbability": 0.05,
-      "caveDensityMultiplier": 1.0,
-      "caveSizeMultiplier": 1.0,
-      "caveBranchProbability": 0.15,
-      "maxCaveLength": 100,
-      "minCaveLength": 20
-    },
-    
-    "caveTypes": {
-      "normalCave": {
-        "enabled": true,
-        "probability": 0.7,
-        "minDepth": 10,
-        "maxDepth": 60
-      },
-      "lavaCave": {
-        "enabled": true,
-        "probability": 0.15,
-        "minDepth": 50,
-        "maxDepth": 120
-      },
-      "iceCave": {
-        "enabled": true,
-        "probability": 0.08,
-        "minDepth": 10,
-        "maxDepth": 50,
-        "biomes": ["Snowy", "IceSpikes", "Tundra"]
-      },
-      "mushroomCave": {
-        "enabled": true,
-        "probability": 0.05,
-        "minDepth": 20,
-        "maxDepth": 80
-      },
-      "crystalCave": {
-        "enabled": true,
-        "probability": 0.02,
-        "minDepth": 30,
-        "maxDepth": 100
-      }
-    },
-    
-    "caveDecorations": {
-      "stalactiteProbability": 0.1,
-      "stalagmiteProbability": 0.1,
-      "vineProbability": 0.05,
-      "mossProbability": 0.08,
-      "mineralDepositProbability": 0.03
-    },
-    
-    "connectivity": {
-      "caveToCaveConnectionProbability": 0.2,
-      "caveToSurfaceConnectionProbability": 0.05,
-      "minConnectionDistance": 5,
-      "maxConnectionDistance": 50
-    },
-    
-    "cellularAutomata": {
-      "iterations": 3,
-      "neighborThreshold": 4,
-      "smoothIterations": 2
-    },
-    
-    "depthBasedGeneration": {
-      "surfaceCaveDepth": 10,
-      "midDepthCaveDepth": 50,
-      "deepCaveDepth": 100,
-      "depthProbabilityMultiplier": 1.0
-    },
-    
-    "biomeSpecificGeneration": {
-      "enabled": true,
-      "desertCaveMultiplier": 0.5,
-      "jungleCaveMultiplier": 1.2,
-      "swampCaveMultiplier": 0.8,
-      "mountainCaveMultiplier": 1.5
-    }
-  },
-  
-  "enhancedRiverConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "watershedRouting": {
-      "enabled": true,
-      "algorithm": "D8",
-      "flowAccumulationThreshold": 5,
-      "minRiverLength": 20,
-      "maxRiverLength": 500
-    },
-    
-    "tributaryNetwork": {
-      "enabled": true,
-      "maxTributaryDepth": 4,
-      "tributaryBranchProbability": 0.3,
-      "minTributaryLength": 10,
-      "maxTributaryLength": 100
-    },
-    
-    "riverMeandering": {
-      "enabled": true,
-      "amplitude": 3.0,
-      "frequency": 0.1,
-      "phaseOffset": 0.0,
-      "meanderProbability": 0.7
-    },
-    
-    "riverErosion": {
-      "oxbowLakes": {
-        "enabled": true,
-        "formationProbability": 0.05,
-        "minRiverCurvature": 0.5
-      },
-      "sedimentDeposition": {
-        "enabled": true,
-        "depositionRate": 0.01,
-        "erosionRate": 0.005
-      },
-      "bankCollapse": {
-        "enabled": true,
-        "collapseProbability": 0.02,
-        "collapseDepth": 2
-      }
-    },
-    
-    "riverProperties": {
-      "baseWidth": 2,
-      "widthVariation": 0.5,
-      "baseDepth": 1,
-      "depthVariation": 0.3,
-      "baseVelocity": 1.0,
-      "velocityVariation": 0.2,
-      "turbulence": 0.1
-    },
-    
-    "riverToLakeConnection": {
-      "enabled": true,
-      "connectionProbability": 0.3,
-      "minLakeSize": 10,
-      "maxLakeSize": 100
-    },
-    
-    "riverTypes": {
-      "mountainRiver": {
-        "enabled": true,
-        "steepness": 0.8,
-        "velocityMultiplier": 1.5,
-        "widthMultiplier": 0.7
-      },
-      "plainRiver": {
-        "enabled": true,
-        "steepness": 0.3,
-        "velocityMultiplier": 1.0,
-        "widthMultiplier": 1.2
-      },
-      "jungleRiver": {
-        "enabled": true,
-        "steepness": 0.4,
-        "velocityMultiplier": 0.8,
-        "widthMultiplier": 1.5
-      }
-    }
-  },
-  
-  "enhancedLakeConfig": {
-    "chunkSize": 16,
-    "worldHeight": 128,
-    
-    "surfaceLakeParameters": {
-      "minHydrologyForLake": 0.5,
-      "depressionBasinThreshold": 2.0,
-      "minLakeArea": 10,
-      "minLakeDepth": 1.0,
-      "lakeLevelBelowRim": 0.5
-    },
-    
-    "lakeTypeThresholds": {
-      "alpineLakeMinElevation": 50.0
-    },
-    
-    "lakeBottomParameters": {
-      "shallowWaterDepth": 2.0,
-      "mediumWaterDepth": 5.0,
-      "baseSedimentFactor": 0.3,
-      "swampSedimentMultiplier": 1.5,
-      "temperateSedimentMultiplier": 1.0
-    },
-    
-    "shoreParameters": {
-      "alpineRockyShoreProbability": 0.7,
-      "temperateSandyShoreProbability": 0.4
-    },
-    
-    "undergroundLakeParameters": {
-      "minCaveVolumeForLake": 50,
-      "maxCaveVolumeForLake": 500,
-      "minDepthForUndergroundLake": 10.0,
-      "geothermalLakeMinDepth": 40.0,
-      "aquiferMinDepthRatio": 0.3,
-      "aquiferMaxDepthRatio": 0.6
-    },
-    
-    "undergroundLakeFeatures": {
-      "thermalVents": {
-        "minCount": 1,
-        "maxCount": 3,
-        "minIntensity": 0.5,
-        "maxIntensity": 2.0
-      },
-      "springSources": {
-        "minCount": 1,
-        "maxCount": 2,
-        "minFlowRate": 0.1,
-        "maxFlowRate": 1.0
-      },
-      "caveFormations": {
-        "minCount": 2,
-        "maxCount": 5,
-        "minSize": 0.5,
-        "maxSize": 2.0
-      }
-    }
-  },
-  
-  "coordination": {
-    "caveRiverInteraction": {
-      "enabled": true,
-      "riverSuppressionInCaves": 0.8,
-      "caveAvoidanceNearRivers": 0.7
-    },
-    "caveLakeInteraction": {
-      "enabled": true,
-      "lakeSuppressionInCaves": 0.6,
-      "caveConnectionToLakes": 0.3
-    },
-    "riverLakeInteraction": {
-      "enabled": true,
-      "riverInflowToLakes": 0.8,
-      "riverOutflowFromLakes": 0.9
-    }
-  }
-}
-

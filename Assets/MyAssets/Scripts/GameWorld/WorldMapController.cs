@@ -413,13 +413,19 @@ namespace GameWorld
                     float hydrologySample = hydrology[x, z];
                     float flowSample = flowMask[x, z];
                     float riverPressure = riverMask != null ? riverMask[x, z] : 0f;
-                    double flowMemory = Math.Clamp((flowSample + SampleInterior(flowMask, x, z)) * 0.5, 0.0, 1.0);
+                    float seamHydro = SampleInterior(hydrology, x, z);
+                    float seamFlow = SampleInterior(flowMask, x, z);
+                    float seamRiver = riverMask != null ? SampleInterior(riverMask, x, z) : riverPressure;
+                    double flowMemory = Math.Clamp((flowSample + seamFlow) * 0.5, 0.0, 1.0);
                     double wetnessRetention = hydrologySample * worldConfig.Caves.MoistureRetentionWeight + flowMemory * worldConfig.Caves.MoistureRetentionWeight * 0.35;
                     double edgeFactor = ComputeEdgeFalloff(x, z);
-                    double hydrologyGradient = Math.Abs(SampleInterior(hydrology, x, z) - hydrologySample);
-                    double flowGradient = Math.Abs(SampleInterior(flowMask, x, z) - flowSample);
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
+                    double flowGradient = Math.Abs(seamFlow - flowSample);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * worldConfig.Caves.EdgeSealStrength, 0.0, 0.45);
                     double continuityClamp = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * worldConfig.Caves.EdgeSealStrength * 0.2, 0.0, 0.45);
+                    double seamContinuity = 1.0 - Math.Clamp(hydrologyGradient * worldConfig.Caves.EdgeSealStrength * 0.5, 0.0, 0.65);
+                    seamContinuity *= 1.0 - Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.EdgeSealStrength * 0.25, 0.0, 0.45);
+                    double riparianPenalty = Math.Clamp(seamRiver * worldConfig.Caves.RiverSuppressionWeight, 0.0, 0.9);
                     double ceilingClamp = Math.Clamp(
                         hydrologySample * worldConfig.Caves.CeilingMoistureWeight +
                         flowMemory * worldConfig.Caves.CeilingMoistureWeight * 0.5 +
@@ -427,6 +433,8 @@ namespace GameWorld
                         0.0,
                         1.0);
                     double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor) * seamStability * continuityClamp;
+                    stability *= 1.0 - riparianPenalty * 0.25;
+                    stability *= Math.Max(0.35, seamContinuity);
                     stability *= 1.0 - ceilingClamp * 0.15;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)

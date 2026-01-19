@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-19: Terrain seam smoothing & riparian cave guard**
+  - Rivers now apply hydrology-aware continuity smoothing near chunk seams; lakes score against river pressure to keep wetlands stable (`MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
+  - Cave stability accounts for seam hydrology/flow continuity and riparian saturation; Unity preview mirrors the riparian/seam penalties (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - New docs and plans: `docs/worldgen_terrain_improvements_2026-01-19.md`, `docs/minecraft_feature_core_content_util_2026-01-19.md`, `plans/2026-01-19-plan.md`.
 - **2026-01-18: Session 05 - Comprehensive Implementation & Validation**
   - Created comprehensive implementation plan: `plans/2026-01-18-session-05-comprehensive-implementation-plan.md`
   - Created comprehensive feature categorization: `docs/minecraft-features-categorized-comprehensive.md`
@@ -394,4 +398,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

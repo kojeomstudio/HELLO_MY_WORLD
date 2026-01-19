@@ -111,6 +111,24 @@
             "Environment-specific configs",
             "Configuration versioning"
           ]
+        },
+        {
+          "id": "core_007",
+          "name": "World Map Control & Hydrology Sync",
+          "description": "Data-driven map-control pipeline aligning server chunk generation with client previews for rivers, lakes, and caves.",
+          "status": "in_progress",
+          "priority": "critical",
+          "components": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ],
+          "improvements_needed": [
+            "Erosion risk field parity between server and client",
+            "Hydrology edge normalization bound to profile hash",
+            "Protobuf-backed map-control streaming validation"
+          ]
         }
       ]
     },
@@ -343,6 +361,25 @@
             "Rendering performance improvements",
             "Asset loading optimization"
           ]
+        },
+        {
+          "id": "util_006",
+          "name": "Protocol Health & Diagnostics",
+          "description": "Protobuf DTO registry validation, handler coverage tracking, and packet fingerprint logging across server and client.",
+          "status": "in_progress",
+          "priority": "high",
+          "components": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+            "GameServer/Handlers",
+            "Assets/Scripts/Network/ProtobufNetworkClient.cs"
+          ],
+          "improvements_needed": [
+            "Handler registration audit",
+            "Startup fingerprint export",
+            "In-client desync reporting",
+            "Automated proto rebuild checks"
+          ]
         }
       ]
     }
@@ -355,7 +392,8 @@
         "core_002",
         "core_003",
         "core_004",
-        "core_005"
+        "core_005",
+        "core_007"
       ],
       "estimated_time": "2-3 weeks"
     },
@@ -384,7 +422,8 @@
         "util_002",
         "util_003",
         "util_004",
-        "util_005"
+        "util_005",
+        "util_006"
       ],
       "estimated_time": "2-3 weeks"
     }
@@ -412,6 +451,6 @@
       "authentication": "Secure authentication with encryption"
     }
   },
-  "last_updated": "2025-12-28T06:32:00Z",
+  "last_updated": "2026-01-19T16:30:00Z",
   "version": "1.0.0"
 }

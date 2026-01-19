@@ -29,6 +29,10 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-19: Erosion-risk worldgen sync & proto diagnostics**
+  - Server terrain pipeline now builds an erosion-risk mask feeding rivers, lakes, and caves for seam-stable carving (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`).
+  - Feature map refreshed with latest core/content/util split and session sequencing (`minecraft_feature_core_content_util.json`, `config/minecraft_feature_client_server_core_content_util_2026-01-19-session-06.json`, `docs/2026-01-19-feature-categorization-update.md`).
+  - Protobuf validation now logs registry coverage summaries to catch missing generated bindings (`SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs` → `ProtoDiagnostics.LogSummary()`).
 - **2026-01-19: Comprehensive System Review & Data-Driven Approach Validation**
   - Fixed critical duplicate data issue in `config/biomes.json` (removed lines 131-387)
   - Created comprehensive review documents:
@@ -441,4 +445,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

@@ -33,6 +33,7 @@ namespace GameServerApp.World.Generation
             float[,] hydrologyMask,
             float[,] flowMask,
             float[,]? riverMask,
+            float[,] erosionRisk,
             int seaLevel)
         {
             var mask = new bool[chunkSize, worldHeight, chunkSize];
@@ -71,6 +72,7 @@ namespace GameServerApp.World.Generation
                     float seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     float seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double flowGradient = Math.Abs(seamFlow - flow);
@@ -85,6 +87,7 @@ namespace GameServerApp.World.Generation
                         hydrologyGradient * 0.25 +
                         riverPressure * 0.25 +
                         flowGradient * 0.25 +
+                        erosion * config.RiverSuppressionWeight * 0.35 +
                         variancePenalty * 0.6,
                         0.0,
                         0.95);
@@ -111,12 +114,14 @@ namespace GameServerApp.World.Generation
                     stability *= 1.0 - ceilingClamp * 0.15;
                     stability *= seamContinuity;
                     stability *= 1.0 - continuityPenalty * 0.15;
+                    stability *= 1.0 - Math.Clamp(erosion * config.EdgeSealStrength * 0.3, 0.0, 0.3);
                     double riparianCeilingGuard = Math.Clamp(
                         (hydrologyGradient + flowGradient + riverPressure + seamMemory) * config.CeilingStabilityWeight * 0.25,
                         0.0,
                         0.5);
                     stability *= 1.0 - riparianCeilingGuard * 0.35;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemory * config.MoistureRetentionWeight * 0.35;
+                    wetnessRetention += erosion * config.MoistureRetentionWeight * 0.2;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -182,6 +187,7 @@ namespace GameServerApp.World.Generation
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);
                         threshold += flowMemoryClamp * 0.15;
+                        threshold += erosion * config.RiverSuppressionWeight * 0.2;
                         double depthBelowSea = seaLevel - y;
                         double floodedBias = Math.Clamp(depthBelowSea / Math.Max(1.0, seaLevel), -1.0, 1.0) * floodedProximityWeight;
                         double floodedNoise = floodedNoiseBase;

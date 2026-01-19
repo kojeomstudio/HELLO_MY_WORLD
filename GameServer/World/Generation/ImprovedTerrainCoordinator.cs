@@ -13,6 +13,7 @@ namespace GameServerApp.World.Generation
         public bool[,,]? Caves { get; init; }
         public float[,]? Rivers { get; init; }
         public float[,]? Lakes { get; init; }
+        public float[,]? ErosionRisk { get; init; }
         public float[,] Hydrology { get; init; } = default!;
         public float[,] FlowAccumulation { get; init; } = default!;
     }
@@ -59,17 +60,18 @@ namespace GameServerApp.World.Generation
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
+            var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
 
             float[,]? riverMask = config.Water.EnableRivers
-                ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, seaLevel)
+                ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
                 : null;
 
             float[,]? lakeMask = config.Water.EnableLakes
-                ? lakeGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, riverMask, seaLevel)
+                ? lakeGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, riverMask, erosionRisk, seaLevel)
                 : null;
 
             bool[,,]? caveMask = config.Caves.EnableCaves
-                ? caveGenerator.BuildMask(chunkX, chunkZ, size, worldHeight, heightMap, hydrology, flow, riverMask, seaLevel)
+                ? caveGenerator.BuildMask(chunkX, chunkZ, size, worldHeight, heightMap, hydrology, flow, riverMask, erosionRisk, seaLevel)
                 : null;
 
             return new TerrainMaskResult
@@ -77,6 +79,7 @@ namespace GameServerApp.World.Generation
                 Caves = caveMask,
                 Rivers = riverMask,
                 Lakes = lakeMask,
+                ErosionRisk = erosionRisk,
                 Hydrology = hydrology,
                 FlowAccumulation = flow
             };
@@ -736,6 +739,39 @@ namespace GameServerApp.World.Generation
                         Math.Max(0.5, flowClamp));
                 }
             }
+        }
+
+        private float[,] BuildErosionRiskField(int[,] heightMap, float[,] hydrology, float[,] flow, int size)
+        {
+            var risk = new float[size, size];
+            double surfaceRange = Math.Max(1, worldHeight);
+
+            for (int x = 0; x < size; x++)
+            {
+                for (int z = 0; z < size; z++)
+                {
+                    int surface = heightMap[x, z];
+                    if (surface <= 0)
+                    {
+                        risk[x, z] = 0f;
+                        continue;
+                    }
+
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double slopeNorm = Math.Clamp(slope / 10.0, 0.0, 1.0);
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double flowNorm = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double altitude = Math.Clamp(surface / surfaceRange, 0.0, 1.0);
+                    double valley = Math.Clamp((config.Water.GlobalWaterLevel - surface) / 16.0, 0.0, 1.0);
+                    double exposure = Math.Clamp((1.0 - altitude) * 0.65 + valley * 0.45, 0.0, 1.0);
+                    double combined = hydro * 0.4 + flowNorm * 0.28 + exposure * 0.2 + slopeNorm * 0.15;
+
+                    risk[x, z] = (float)Math.Clamp(combined, 0.0, 1.0);
+                }
+            }
+
+            TerrainMaskUtility.Smooth2D(risk, config.Water.HydrologySmoothIterations, config.Water.HydrologySmoothBlend);
+            return risk;
         }
 
         private static double SampleCurvature(int[,] heightMap, int x, int z)

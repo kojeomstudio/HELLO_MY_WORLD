@@ -28,6 +28,7 @@ namespace GameServerApp.World.Generation
             float[,] hydrologyMask,
             float[,] flowAccumulation,
             float[,]? riverMask,
+            float[,] erosionRisk,
             int seaLevel)
         {
             var lakes = new float[chunkSize, chunkSize];
@@ -46,6 +47,7 @@ namespace GameServerApp.World.Generation
             int minDepth = Math.Max(1, lakeConfig.MinDepth);
             int maxDepth = Math.Max(minDepth, lakeConfig.MaxDepth);
             int shelfDepth = Math.Max(0, lakeConfig.ShelfDepth);
+            double rimErosionWeight = Math.Clamp(waterConfig.LakeRimErosionWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -64,6 +66,7 @@ namespace GameServerApp.World.Generation
                     double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     double interiorFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                     double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
                     double inflowBlend = riverMask != null ? riverMask[x, z] * waterConfig.LakeInflowBlendWeight : 0.0;
                     double reliefPenalty = Math.Max(0, heightMap[x, z] - seaLevel) / Math.Max(1, seaLevel);
@@ -109,6 +112,7 @@ namespace GameServerApp.World.Generation
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverSuppression * 0.5;
                     weight -= reliefPenalty * waterConfig.RiverReliefPenaltyWeight;
+                    weight -= erosion * rimErosionWeight * 0.25;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
                     weight *= Math.Max(0.55, waterClamp);
@@ -119,6 +123,7 @@ namespace GameServerApp.World.Generation
                     double slopePenalty = Math.Clamp(slope * waterConfig.HydrologyGradientWeight * 0.08, 0.0, 0.35);
                     weight *= 1.0 - slopePenalty;
                     double basinStability = 1.0 - Math.Clamp(hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.4 + slopePenalty * 0.85 + reliefPenalty * 0.35, 0.0, 0.65);
+                    basinStability *= 1.0 - Math.Clamp(erosion * rimErosionWeight * 0.4, 0.0, 0.4);
                     weight *= basinStability;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, chunkSize - 1);

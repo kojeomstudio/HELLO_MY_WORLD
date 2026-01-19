@@ -25,6 +25,7 @@ namespace GameServerApp.World.Generation
             int[,] heightMap,
             float[,] hydrologyMask,
             float[,] flowAccumulation,
+            float[,] erosionRisk,
             int seaLevel)
         {
             var mask = new float[chunkSize, chunkSize];
@@ -41,6 +42,7 @@ namespace GameServerApp.World.Generation
             double waterTableClampRange = Math.Max(1.0, config.HydrologyWaterTableClampRange);
             double waterTableSlopeWeight = Math.Clamp(config.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
             double depthBias = Math.Clamp(config.RiverDepth / 12.0, 0.0, 1.0);
+            double riverBankErosionWeight = Math.Clamp(config.RiverBankErosionWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -89,6 +91,7 @@ namespace GameServerApp.World.Generation
                     double layeredNoise = (baseNoise * 0.55) + (macroNoise * 0.25) + (detailNoise * 0.2);
 
                     double hydrology = hydrologyMask[x, z];
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
                     double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                     double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
@@ -114,8 +117,9 @@ namespace GameServerApp.World.Generation
                     continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
                     double seamAnchor = hydrology * 0.25 + seamHydro * 0.25 + flow * 0.25 + flowMemory * 0.25;
 
-                    double riverMask = config.RiverBankThreshold - layeredNoise;
+                    double riverMask = config.RiverBankThreshold - layeredNoise - erosion * riverBankErosionWeight * 0.08;
                     double pressure = Math.Max(0.0, riverMask);
+                    double erosionBrake = 1.0 - Math.Clamp(erosion * riverBankErosionWeight * 0.45, 0.0, 0.45);
                     pressure *= 1.0 + hydrology * config.HydrologyContinuityWeight;
                     pressure *= 1.0 + flow * config.RiverFlowAlignmentWeight;
                     pressure *= 1.0 + directionality * config.RiverAnisotropyWeight * 0.2;
@@ -153,6 +157,8 @@ namespace GameServerApp.World.Generation
                     double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * config.HydrologyVarianceBlend * 0.15, -0.35, 0.45);
                     pressure = pressure * (1.0 - floodplain * 0.2) + floodplain * 0.1;
                     pressure *= 1.0 + varianceAssist;
+                    pressure *= erosionBrake;
+                    pressure *= 1.0 - Math.Clamp(erosion * reliefPenalty * 0.25, 0.0, 0.25);
 
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);

@@ -89,6 +89,7 @@ public static class ProtocolValidator
         ValidateOptionalDescriptorVisibility();
         ValidateOptionalPrototypes();
         LogOptionalBindingCoverage();
+        ProtoDiagnostics.LogSummary();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
     }

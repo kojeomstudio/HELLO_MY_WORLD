@@ -47,6 +47,8 @@
   "HydrologyFlowShadowWeight": 0.45,
   "HydrologyFlowShadowSlopeWeight": 0.35,
   "HydrologyContinuityWeight": 0.35,
+  "HydrologyPressureBlend": 0.35,
+  "HydrologyPressureGradientClamp": 0.18,
   "HydrologyEdgeFlowBias": 0.35,
   "HydrologyEdgeTangentWeight": 0.45,
   "HydrologyEdgeFlowLockWeight": 0.38,

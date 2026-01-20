@@ -28,6 +28,8 @@
   "hydrologyEdgeNormalizationIterations": 2,
   "hydrologyFlowMemoryWeight": 0.35,
   "hydrologyContinuityWeight": 0.35,
+  "hydrologyPressureBlend": 0.35,
+  "hydrologyPressureGradientClamp": 0.18,
   "hydrologyEdgeFlowBias": 0.35,
   "hydrologyEdgeTangentWeight": 0.45,
   "hydrologyEdgeFlowLockWeight": 0.38,

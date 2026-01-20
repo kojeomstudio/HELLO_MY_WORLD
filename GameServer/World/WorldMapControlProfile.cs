@@ -43,6 +43,8 @@ namespace GameServerApp.World
         public int HydrologyEdgeNormalizationIterations { get; set; }
         public double HydrologyFlowMemoryWeight { get; set; }
         public double HydrologyContinuityWeight { get; set; }
+        public double HydrologyPressureBlend { get; set; }
+        public double HydrologyPressureGradientClamp { get; set; }
         public double HydrologyEdgeFlowBias { get; set; }
         public double HydrologyEdgeTangentWeight { get; set; }
         public double HydrologyEdgeFlowLockWeight { get; set; }
@@ -160,6 +162,8 @@ namespace GameServerApp.World
                 HydrologyEdgeNormalizationIterations = Math.Max(0, config.Water.HydrologyEdgeNormalizationIterations),
                 HydrologyFlowMemoryWeight = config.Water.HydrologyFlowMemoryWeight,
                 HydrologyContinuityWeight = config.Water.HydrologyContinuityWeight,
+                HydrologyPressureBlend = config.Water.HydrologyPressureBlend,
+                HydrologyPressureGradientClamp = config.Water.HydrologyPressureGradientClamp,
                 HydrologyEdgeFlowBias = config.Water.HydrologyEdgeFlowBias,
                 HydrologyEdgeTangentWeight = config.Water.HydrologyEdgeTangentWeight,
                 HydrologyEdgeFlowLockWeight = config.Water.HydrologyEdgeFlowLockWeight,
@@ -274,6 +278,8 @@ namespace GameServerApp.World
                 .Append(profile.HydrologyEdgeNormalizationIterations).Append('|')
                 .Append(profile.HydrologyFlowMemoryWeight).Append('|')
                 .Append(profile.HydrologyContinuityWeight).Append('|')
+                .Append(profile.HydrologyPressureBlend).Append('|')
+                .Append(profile.HydrologyPressureGradientClamp).Append('|')
                 .Append(profile.HydrologyEdgeFlowBias).Append('|')
                 .Append(profile.HydrologyEdgeTangentWeight).Append('|')
                 .Append(profile.HydrologyEdgeFlowLockWeight).Append('|')

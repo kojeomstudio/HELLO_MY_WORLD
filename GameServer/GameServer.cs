@@ -77,6 +77,7 @@ namespace GameServerApp
             _antiCheat = new Middleware.AntiCheatMiddleware();
 
             RegisterMessageHandlers();
+            ProtocolValidator.ValidateHandlerBindings(_minecraftDispatcher);
 
             _maintenanceTimer = new Timer(PerformMaintenance, null,
                 TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));

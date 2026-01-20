@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-20: Hydrology pressure balance & proto handler guard**
+  - Added hydrology pressure balancing for rivers/lakes/caves with new JSON knobs `HydrologyPressureBlend`/`HydrologyPressureGradientClamp`, mirrored across server + Unity previews (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `EnhancedTerrainGenerationPipeline.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
+  - World map control profile exports the new pressure knobs and Unity world config consumes them for chunk previews (`GameServer/World/WorldMapControlProfile.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`).
+  - Server bootstrap now validates handler bindings against generated protobuf contracts to catch stale/missing `using` references before serving traffic (`GameServer/GameServer.cs`, `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`).
+  - Updated core/content/util feature inventory for the session (`config/minecraft_feature_client_server_core_content_util_2026-01-20.json`).
 - **2026-01-19: Session 07 - Comprehensive Implementation & Verification**
   - Created comprehensive work plan: `plans/2026-01-19-session-07-comprehensive-implementation-plan.md`
   - Created comprehensive feature categorization: `docs/2026-01-19-comprehensive-feature-categorization.md` (116 features)
@@ -441,4 +446,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

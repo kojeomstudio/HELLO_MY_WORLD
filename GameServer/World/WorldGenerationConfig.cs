@@ -112,6 +112,8 @@ namespace GameServerApp.World
         public double HydrologyFlowShadowWeight { get; set; } = 0.45;
         public double HydrologyFlowShadowSlopeWeight { get; set; } = 0.35;
         public double HydrologyContinuityWeight { get; set; } = 0.35;
+        public double HydrologyPressureBlend { get; set; } = 0.35;
+        public double HydrologyPressureGradientClamp { get; set; } = 0.18;
         public double HydrologyEdgeFlowBias { get; set; } = 0.35;
         public double HydrologyEdgeTangentWeight { get; set; } = 0.45;
         public double HydrologyEdgeFlowLockWeight { get; set; } = 0.38;

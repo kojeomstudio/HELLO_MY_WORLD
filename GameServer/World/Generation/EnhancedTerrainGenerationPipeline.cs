@@ -92,6 +92,14 @@ namespace GameServerApp.World.Generation
                 BlendHydrologyWithFlow(heightMap, hydrologyMask, flowAccumulation);
                 NormalizeHydrologyFlowEdges(hydrologyMask, flowAccumulation);
                 ApplyHydrologyEdgeEnvelope(hydrologyMask, flowAccumulation);
+                if (improvedMasks == null)
+                {
+                    TerrainMaskUtility.BalanceHydrologyPressure(
+                        hydrologyMask,
+                        flowAccumulation,
+                        config.Water.HydrologyPressureBlend,
+                        config.Water.HydrologyPressureGradientClamp);
+                }
             }
 
             float[,]? riverMask = enableRivers

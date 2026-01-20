@@ -116,6 +116,8 @@ namespace MapGenLib
         public static float HydrologyFlowShadowWeight = 0.45f;
         public static float HydrologyFlowShadowSlopeWeight = 0.35f;
         public static float HydrologyContinuityWeight = 0.35f;
+        public static float HydrologyPressureBlend = 0.35f;
+        public static float HydrologyPressureGradientClamp = 0.18f;
         public static float HydrologyEdgeFlowBias = 0.35f;
         public static float HydrologyEdgeTangentWeight = 0.45f;
         public static float HydrologyEdgeFlowLockWeight = 0.38f;
@@ -2752,6 +2754,83 @@ namespace MapGenLib
                         flow * (1f - blend * 0.35f) + flowAnchor * blend * 0.35f,
                         0f,
                         clampMax);
+                }
+            }
+
+            BalanceHydrologyPressure(subWorldSize, hydrologyMask, flowAccumulation);
+        }
+
+        private static void BalanceHydrologyPressure(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            float blendWeight = CustomMathf.Clamp01(HydrologyPressureBlend);
+            float gradientClamp = CustomMathf.Max(0f, HydrologyPressureGradientClamp);
+            float flowWeight = CustomMathf.Clamp01(HydrologyFlowPersistence * 0.5f + 0.25f);
+            if (blendWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = subWorldSize.SizeX;
+            int sizeZ = subWorldSize.SizeZ;
+            var hydroCopy = (float[,])hydrologyMask.Clone();
+            var flowCopy = (float[,])flowAccumulation.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float pressure = hydroCopy[x, z] + flowCopy[x, z] * flowWeight;
+                    float neighborSum = 0f;
+                    float weightSum = 0f;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nx >= sizeX || nz < 0 || nz >= sizeZ)
+                            {
+                                continue;
+                            }
+
+                            float neighborPressure = hydroCopy[nx, nz] + flowCopy[nx, nz] * flowWeight;
+                            float weight = dx == 0 || dz == 0 ? 1f : 0.65f;
+                            neighborSum += neighborPressure * weight;
+                            weightSum += weight;
+                        }
+                    }
+
+                    if (weightSum <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float averagePressure = neighborSum / weightSum;
+                    float delta = CustomMathf.Clamp(averagePressure - pressure, -gradientClamp, gradientClamp);
+                    float variance = ComputeLocalVariance(hydroCopy, x, z, 1);
+                    float varianceDamp = 1f - CustomMathf.Clamp01(variance * 0.5f);
+                    float blend = blendWeight * (0.8f + varianceDamp * 0.2f);
+
+                    float targetPressure = pressure + delta;
+                    float targetHydro = hydroCopy[x, z] + delta * 0.65f;
+                    float targetFlow = flowCopy[x, z] + (targetPressure - targetHydro) * 0.5f / CustomMathf.Max(0.001f, flowWeight);
+
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(hydroCopy[x, z] * (1f - blend) + targetHydro * blend);
+                    flowAccumulation[x, z] = CustomMathf.Clamp(
+                        flowCopy[x, z] * (1f - blend * 0.5f) + targetFlow * (blend * 0.5f),
+                        0f,
+                        CustomMathf.Max(8f, flowCopy[x, z] + CustomMathf.Abs(delta) * 6f));
                 }
             }
         }

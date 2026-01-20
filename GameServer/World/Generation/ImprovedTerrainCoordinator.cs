@@ -60,6 +60,11 @@ namespace GameServerApp.World.Generation
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
+            TerrainMaskUtility.BalanceHydrologyPressure(
+                hydrology,
+                flow,
+                config.Water.HydrologyPressureBlend,
+                config.Water.HydrologyPressureGradientClamp);
             var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
 
             float[,]? riverMask = config.Water.EnableRivers
@@ -1308,6 +1313,81 @@ namespace GameServerApp.World.Generation
 
                     hydrology[x, z] = Clamp01(hydroCopy[x, z] * (1.0 - blend) + targetHydro * blend);
                     flow[x, z] = (float)Math.Clamp(flowCopy[x, z] * (1.0 - blend * 0.5) + targetFlow * blend, 0.0, Math.Max(2.5, targetFlow * 1.5 + 0.5));
+                }
+            }
+        }
+
+        public static void BalanceHydrologyPressure(float[,] hydrology, float[,] flow, double blendWeight, double gradientClamp, double flowWeight = 0.5)
+        {
+            if (hydrology == null || flow == null)
+            {
+                return;
+            }
+
+            blendWeight = Math.Clamp(blendWeight, 0.0, 1.0);
+            gradientClamp = Math.Max(0.0, gradientClamp);
+            flowWeight = Math.Clamp(flowWeight, 0.0, 1.0);
+            if (blendWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double pressure = hydroCopy[x, z] + flowCopy[x, z] * flowWeight;
+                    double neighborSum = 0.0;
+                    double neighborWeight = 0.0;
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= sizeX || nz >= sizeZ)
+                            {
+                                continue;
+                            }
+
+                            double neighborPressure = hydroCopy[nx, nz] + flowCopy[nx, nz] * flowWeight;
+                            double weight = dx == 0 || dz == 0 ? 1.0 : 0.65;
+                            neighborSum += neighborPressure * weight;
+                            neighborWeight += weight;
+                        }
+                    }
+
+                    if (neighborWeight <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double averagePressure = neighborSum / neighborWeight;
+                    double delta = Math.Clamp(averagePressure - pressure, -gradientClamp, gradientClamp);
+                    double variance = SampleVariance(hydroCopy, x, z);
+                    double varianceDamp = 1.0 - Math.Clamp(variance * 0.5, 0.0, 0.35);
+                    double blend = blendWeight * varianceDamp;
+
+                    double targetPressure = pressure + delta;
+                    double targetHydro = hydroCopy[x, z] + delta * 0.65;
+                    double targetFlow = flowCopy[x, z] + (targetPressure - targetHydro) * 0.5 / Math.Max(0.001, flowWeight);
+
+                    hydrology[x, z] = Clamp01(hydroCopy[x, z] * (1.0 - blend) + Clamp01(targetHydro) * blend);
+                    flow[x, z] = (float)Math.Clamp(
+                        flowCopy[x, z] * (1.0 - blend * 0.5) + targetFlow * (blend * 0.5),
+                        0.0,
+                        Math.Max(8.0, flowCopy[x, z] + Math.Abs(delta) * 6.0));
                 }
             }
         }

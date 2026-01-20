@@ -29,11 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- **2026-01-20: Hydrology pressure balance & proto handler guard**
-  - Added hydrology pressure balancing for rivers/lakes/caves with new JSON knobs `HydrologyPressureBlend`/`HydrologyPressureGradientClamp`, mirrored across server + Unity previews (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `EnhancedTerrainGenerationPipeline.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
-  - World map control profile exports the new pressure knobs and Unity world config consumes them for chunk previews (`GameServer/World/WorldMapControlProfile.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`, `Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json`).
-  - Server bootstrap now validates handler bindings against generated protobuf contracts to catch stale/missing `using` references before serving traffic (`GameServer/GameServer.cs`, `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`).
-  - Updated core/content/util feature inventory for the session (`config/minecraft_feature_client_server_core_content_util_2026-01-20.json`).
+- **2026-01-20: Hydrology seam guards + map-control parity**
+  - Stabilized caves (neighbour pruning), added river bank erosion, and sealed lake rims across server generation and Unity previews (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
+  - Map-control profile bumped to version 2 with a new pipeline signature for parity between server and client loaders (`GameServer/World/WorldMapController.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`, `config/world.json`, `Assets/StreamingAssets/world-config.json`).
+  - Protobuf hygiene: removed unused protobuf-net imports from the enhanced handler base and refreshed the validation report (`SharedProtocol/EnhancedMinecraft/UnifiedMessageHandler.cs`, `docs/protobuf_protocol_validation_report.md`).
+  - Planning/docs refreshed for the session under `plans/2026-01-20-comprehensive-minecraft-implementation-work-plan.md` and `docs/minecraft_feature_core_content_util_2026-01-20.md`.
 - **2026-01-19: Session 07 - Comprehensive Implementation & Verification**
   - Created comprehensive work plan: `plans/2026-01-19-session-07-comprehensive-implementation-plan.md`
   - Created comprehensive feature categorization: `docs/2026-01-19-comprehensive-feature-categorization.md` (116 features)

@@ -760,6 +760,7 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeVarianceClamp);
             SmoothField(lakes, _worldConfig.Lakes.LakeBasinSmoothIterations, _worldConfig.Water.HydrologySmoothBlend);
             ApplyRiparianBuffer(lakes, Math.Min(_tuning.LakeWetlandBufferRadius, _worldConfig.Lakes.MaxRadius), _tuning.LakeShorelineBlend);
+            SealLakeRims(lakes, hydrology, flow);
             NormalizeEdges(
                 lakes,
                 _worldConfig.Water.HydrologyEdgeBlendRadius,
@@ -767,6 +768,52 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeNormalizationBlend);
             ApplyOutflowChannels(lakes, heightMap, flow, _worldConfig.Water.LakeInflowBlendWeight, _tuning.LakeOutflowCarveDepth, outflowStabilityWeight);
             return lakes;
+        }
+
+        private void SealLakeRims(float[,] lakeMask, float[,] hydrology, float[,] flow)
+        {
+            float rimWeight = Mathf.Clamp01(_worldConfig.Water.LakeRimErosionWeight);
+            if (rimWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = lakeMask.GetLength(0);
+            int sizeZ = lakeMask.GetLength(1);
+            var buffer = (float[,])lakeMask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float value = buffer[x, z];
+                    if (value <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float hydro = hydrology[x, z];
+                    float flowSample = flow[x, z];
+                    float neighbourHydro = SampleInterior(hydrology, x, z);
+                    float neighbourFlow = SampleInterior(flow, x, z);
+                    float hydroGradient = Mathf.Abs(neighbourHydro - hydro);
+                    float flowGradient = Mathf.Abs(neighbourFlow - flowSample);
+                    float seamGuard = 1f - Mathf.Clamp(
+                        (hydroGradient + flowGradient) * _worldConfig.Water.HydrologyEdgeStabilityWeight * 0.35f,
+                        0f,
+                        0.75f);
+
+                    float rimLoss = rimWeight * (hydroGradient + flowGradient) * 0.5f;
+                    if (x == 0 || z == 0 || x == sizeX - 1 || z == sizeZ - 1)
+                    {
+                        rimLoss += _worldConfig.Water.RiverSeamFillStrength * 0.35f;
+                    }
+
+                    lakeMask[x, z] = Mathf.Max(0f, value * seamGuard * (1f - Mathf.Clamp01(rimLoss)));
+                }
+            }
+
+            SmoothField(lakeMask, Mathf.Max(1, _worldConfig.Lakes.LakeBasinSmoothIterations), Mathf.Clamp01(_worldConfig.Water.HydrologySmoothBlend * 0.65f));
         }
 
         private bool[,,] BuildCaveMask(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask, int chunkX, int chunkZ)
@@ -843,7 +890,74 @@ namespace Minecraft.World
             }
 
             SmoothField(mask, _worldConfig.Caves.StabilitySmoothIterations, _worldConfig.Caves.StabilitySmoothBlend, _worldConfig.Caves.SupportDensity);
+            PruneIsolatedCaves(mask, heightMap);
             return mask;
+        }
+
+        private void PruneIsolatedCaves(bool[,,] mask, int[,] heightMap)
+        {
+            int iterations = Mathf.Max(1, _worldConfig.Caves.StabilitySmoothIterations);
+            int pruneThreshold = Mathf.Clamp(Mathf.RoundToInt(_worldConfig.Caves.SupportDensity * 5f), 2, 6);
+            int fillThreshold = Mathf.Clamp(pruneThreshold + 2, 4, 10);
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                var source = (bool[,,])mask.Clone();
+                for (int x = 0; x < _chunkSize; x++)
+                {
+                    for (int z = 0; z < _chunkSize; z++)
+                    {
+                        int limitY = Mathf.Min(_worldHeight - 2, heightMap[x, z]);
+                        for (int y = 1; y < limitY; y++)
+                        {
+                            bool open = source[x, y, z];
+                            int neighbours = CountCaveNeighbours(source, x, y, z);
+
+                            if (open && neighbours < pruneThreshold)
+                            {
+                                mask[x, y, z] = false;
+                            }
+                            else if (!open && neighbours >= fillThreshold)
+                            {
+                                mask[x, y, z] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private int CountCaveNeighbours(bool[,,] mask, int x, int y, int z)
+        {
+            int count = 0;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        if (dx == 0 && dy == 0 && dz == 0)
+                        {
+                            continue;
+                        }
+
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        int nz = z + dz;
+                        if (nx < 0 || ny < 0 || nz < 0 || nx >= _chunkSize || ny >= _worldHeight || nz >= _chunkSize)
+                        {
+                            continue;
+                        }
+
+                        if (mask[nx, ny, nz])
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            return count;
         }
 
         private void RefineTerrainForWater(int[,] heightMap, float[,] riverMask, float[,] lakeMask)

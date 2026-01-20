@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
-using ProtoBuf;
+using NetSerializer = ProtoBuf.Serializer;
 
 namespace SharedProtocol.EnhancedMinecraft
 {
@@ -52,7 +52,7 @@ namespace SharedProtocol.EnhancedMinecraft
                 else
                 {
                     using var stream = new MemoryStream();
-                    Serializer.Serialize(stream, response);
+                    NetSerializer.Serialize(stream, response);
                     payload = stream.ToArray();
                 }
 
@@ -74,7 +74,7 @@ namespace SharedProtocol.EnhancedMinecraft
             try
             {
                 using var stream = new MemoryStream(data);
-                return Serializer.Deserialize<TMessage>(stream);
+                return NetSerializer.Deserialize<TMessage>(stream);
             }
             catch (Exception ex)
             {
@@ -172,8 +172,8 @@ namespace SharedProtocol.EnhancedMinecraft
             try
             {
                 using var stream = new MemoryStream(data);
-                return Serializer.Deserialize<TMessage>(stream);
-            }
+                return NetSerializer.Deserialize<TMessage>(stream);
+        }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to deserialize legacy message {MessageType}: {ex.Message}");

@@ -659,6 +659,7 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            StabilizeCaveMask(mask, heightMap, caves.StabilitySmoothIterations, caves.StabilitySmoothBlend);
             return mask;
         }
 
@@ -696,6 +697,7 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            StabilizeCaveMask(mask, heightMap, config.Caves.StabilitySmoothIterations, config.Caves.StabilitySmoothBlend);
             return mask;
         }
 
@@ -901,11 +903,13 @@ namespace GameServerApp.World.Generation
         {
             if (riverMask != null)
             {
+                ApplyRiverBankErosion(heightMap, riverMask);
                 FeatherMaskEdges(riverMask, config.Water.RiverEdgeFeather, config.Water.RiverSeamFillStrength);
             }
 
             if (lakeMask != null)
             {
+                SealLakeRims(lakeMask, hydrologyMask, flowMask);
                 FeatherMaskEdges(lakeMask, config.Water.HydrologySmoothBlend * 0.25, config.Water.HydrologySeamRelaxBlend * 0.5);
             }
 
@@ -1031,6 +1035,120 @@ namespace GameServerApp.World.Generation
                     }
                 }
             }
+        }
+
+        private void ApplyRiverBankErosion(int[,] heightMap, float[,] riverMask)
+        {
+            double erosionWeight = Math.Clamp(config.Water.RiverBankErosionWeight, 0.0, 1.0);
+            if (erosionWeight <= 0.0)
+            {
+                return;
+            }
+
+            int radius = Math.Max(1, (int)Math.Ceiling(config.Water.RiverDepth * erosionWeight * 0.5));
+            double threshold = config.Water.RiverBankThreshold * 0.35;
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    float pressure = riverMask[x, z];
+                    if (pressure <= threshold)
+                    {
+                        continue;
+                    }
+
+                    int erosion = Math.Max(1, (int)Math.Round(pressure * config.Water.RiverDepth * erosionWeight));
+                    int targetHeight = Math.Max(bedrockLevel + 1, heightMap[x, z] - erosion);
+                    if (targetHeight < heightMap[x, z])
+                    {
+                        heightMap[x, z] = targetHeight;
+                    }
+
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            if (dx == 0 && dz == 0)
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (nx < 0 || nz < 0 || nx >= chunkSize || nz >= chunkSize)
+                            {
+                                continue;
+                            }
+
+                            double falloff = 1.0 - (Math.Abs(dx) + Math.Abs(dz)) / (double)(radius + 1);
+                            if (falloff <= 0.0)
+                            {
+                                continue;
+                            }
+
+                            int neighbourErosion = Math.Max(0, (int)Math.Round(erosion * falloff * 0.5));
+                            if (neighbourErosion <= 0)
+                            {
+                                continue;
+                            }
+
+                            int neighbourHeight = Math.Max(bedrockLevel + 1, heightMap[nx, nz] - neighbourErosion);
+                            heightMap[nx, nz] = neighbourHeight;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SealLakeRims(float[,] lakeMask, float[,]? hydrologyMask, float[,]? flowMask)
+        {
+            if (lakeMask == null)
+            {
+                return;
+            }
+
+            double rimWeight = Math.Clamp(config.Water.LakeRimErosionWeight, 0.0, 1.0);
+            if (rimWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = lakeMask.GetLength(0);
+            int sizeZ = lakeMask.GetLength(1);
+            var buffer = (float[,])lakeMask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float value = buffer[x, z];
+                    if (value <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float hydro = hydrologyMask != null ? hydrologyMask[x, z] : 0f;
+                    float flow = flowMask != null ? flowMask[x, z] : 0f;
+                    float neighbourHydro = hydrologyMask != null ? SampleInterior(hydrologyMask, x, z) : hydro;
+                    float neighbourFlow = flowMask != null ? SampleInterior(flowMask, x, z) : flow;
+                    float hydroGradient = Math.Abs(neighbourHydro - hydro);
+                    float flowGradient = Math.Abs(neighbourFlow - flow);
+                    float seamGuard = 1f - Math.Clamp(
+                        (hydroGradient + flowGradient) * (float)config.Water.HydrologyEdgeStabilityWeight * 0.35f,
+                        0f,
+                        0.75f);
+                    float edgePenalty = (x == 0 || z == 0 || x == sizeX - 1 || z == sizeZ - 1)
+                        ? (float)config.Water.RiverSeamFillStrength * 0.35f
+                        : 0f;
+
+                    float rimLoss = (float)(rimWeight * (hydroGradient + flowGradient) * 0.5f) + edgePenalty;
+                    rimLoss = Math.Clamp(rimLoss, 0f, 0.85f);
+                    lakeMask[x, z] = Math.Max(0f, value * seamGuard * (1f - rimLoss));
+                }
+            }
+
+            Smooth2D(lakeMask, Math.Max(1, config.Lakes.LakeBasinSmoothIterations), Math.Clamp(config.Water.HydrologySmoothBlend * 0.65, 0.0, 1.0));
         }
 
         private static void FeatherMaskEdges(float[,] mask, double feather, double seamFill)
@@ -1217,6 +1335,74 @@ namespace GameServerApp.World.Generation
             }
 
             return (bestDx, bestDz);
+        }
+
+        private void StabilizeCaveMask(bool[,,] mask, int[,] heightMap, int iterations, double blend)
+        {
+            iterations = Math.Max(1, Math.Min(4, iterations));
+            blend = Math.Clamp(blend, 0.0, 1.0);
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                var source = (bool[,,])mask.Clone();
+                int pruneThreshold = blend >= 0.5 ? 3 : 2;
+                int fillThreshold = blend >= 0.5 ? 6 : 7;
+
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int z = 0; z < chunkSize; z++)
+                    {
+                        int limitY = Math.Min(worldHeight - 4, heightMap[x, z]);
+                        for (int y = bedrockLevel + 1; y < limitY; y++)
+                        {
+                            bool open = source[x, y, z];
+                            int neighbours = CountOpenNeighbours(source, x, y, z);
+
+                            if (open && neighbours < pruneThreshold)
+                            {
+                                mask[x, y, z] = false;
+                            }
+                            else if (!open && neighbours >= fillThreshold)
+                            {
+                                mask[x, y, z] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private int CountOpenNeighbours(bool[,,] mask, int x, int y, int z)
+        {
+            int count = 0;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        if (dx == 0 && dy == 0 && dz == 0)
+                        {
+                            continue;
+                        }
+
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        int nz = z + dz;
+                        if (nx < 0 || ny < 0 || nz < 0 || nx >= chunkSize || ny >= worldHeight || nz >= chunkSize)
+                        {
+                            continue;
+                        }
+
+                        if (mask[nx, ny, nz])
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            return count;
         }
 
         private static float SampleInterior(float[,] field, int x, int z)

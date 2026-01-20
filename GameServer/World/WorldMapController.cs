@@ -33,6 +33,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapController : IDisposable
     {
+        private const string PipelineVersion = "2026-01-20-hydrology-rim-guard";
         private readonly ILogger<WorldMapController> logger;
         private readonly WorldSettings worldSettings;
         private WorldGenerationConfig generationConfig;
@@ -268,7 +269,7 @@ namespace GameServerApp.World
         private string ComputeGenerationSignature()
         {
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
-            return $"{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{generationConfig.Water.HydrologyGradientStabilityIterations}:{generationConfig.Water.HydrologyGradientStabilityBlend}:{generationConfig.Water.HydrologyGradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}";
+            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{generationConfig.Water.HydrologyGradientStabilityIterations}:{generationConfig.Water.HydrologyGradientStabilityBlend}:{generationConfig.Water.HydrologyGradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}";
         }
     }
 }

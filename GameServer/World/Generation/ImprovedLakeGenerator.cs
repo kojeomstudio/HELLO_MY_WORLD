@@ -101,12 +101,17 @@ namespace GameServerApp.World.Generation
                     double layeredNoise = (basinNoise * 0.42) + (rimNoise * rimWeight) + (macroNoise * 0.2) + (detailNoise * 0.15);
                     double weight = layeredNoise + wetness * 0.4 + lakeConfig.SpawnWeightBias;
                     weight += inflowBlend * 0.35 * (1.0 - flowShadow * 0.5);
+                    double riparianCohesion = Math.Clamp((hydrology + seamHydro) * waterConfig.RiparianSaturationBoost * 0.5, 0.0, 0.65);
                     double seamAnchor = (hydrology + seamHydro + flow + flowMemory) * 0.25;
                     double seamMemory = (hydrology + seamHydro + flowMemory) * 0.333;
                     double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight + seamMemory) * flowSeepageWeight * 0.15;
                     double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight + seamMemory * 0.35) * flowSeepageWeight;
+                    double flowPersistence = Math.Clamp(waterConfig.HydrologyFlowPersistence, 0.0, 1.0);
+                    double memoryCohesion = (seamMemory + flowMemory) * flowPersistence * 0.15;
                     weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
+                    weight += riparianCohesion * (1.0 - flowShadow * 0.35);
+                    weight += memoryCohesion * (1.0 - flowShadow * 0.5);
                     double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * waterConfig.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
@@ -137,6 +142,7 @@ namespace GameServerApp.World.Generation
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     weight *= 1.0 - flowShadow * 0.35;
+                    weight *= 1.0 + riparianCohesion * 0.15;
                     double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
                     double edgeRepair = watershedBlend * edgeFalloff;
                     if (edgeRepair > 0.0)
@@ -148,7 +154,7 @@ namespace GameServerApp.World.Generation
                     double seamRelax = Math.Clamp(waterConfig.HydrologySeamRelaxBlend, 0.0, 1.0);
                     weight = weight * (1.0 - edgeNormalization * 0.2) + (seamAnchor + seamMemory * 0.35) * edgeNormalization * 0.25;
                     weight = weight * (1.0 - seamRelax * 0.1) + seamAnchor * seamRelax * 0.05;
-                    double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05;
+                    double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05 - riparianCohesion * 0.08;
                     if (weight > wetlandThreshold && depthBelowSea <= maxDepth && depthBelowSea >= -shelfDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);

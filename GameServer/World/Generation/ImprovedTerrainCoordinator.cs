@@ -616,6 +616,8 @@ namespace GameServerApp.World.Generation
             int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
             double seamBlend = Math.Clamp(config.Water.HydrologySeamRelaxBlend + config.Water.HydrologyEdgeStabilityWeight * 0.35, 0.05, 0.95);
             double memoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double riparianBoost = Math.Clamp(config.Water.RiparianSaturationBoost, 0.0, 1.0);
+            double edgeFlux = Math.Clamp(config.Water.HydrologyEdgeFluxBlend, 0.0, 1.0);
             double varianceClamp = Math.Max(0.0, config.Water.HydrologyEdgeVarianceClamp);
             double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
             double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
@@ -634,11 +636,12 @@ namespace GameServerApp.World.Generation
                     }
 
                     double falloff = 1.0 - edgeDistance / (double)(edgeRadius + 1);
-                    double blend = seamBlend * falloff;
+                    double blend = seamBlend * falloff * (1.0 + riparianBoost * falloff * 0.35);
                     double hydro = hydroCopy[x, z];
                     double flowValue = flowCopy[x, z];
                     double neighbourHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
                     double neighbourFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double seamMemory = (hydro + neighbourHydro + flowValue + neighbourFlow) * 0.25;
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
                     int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
                     int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
@@ -653,16 +656,20 @@ namespace GameServerApp.World.Generation
                         0.0,
                         0.85);
 
-                    double anchorHydro = hydro * (0.6 + memoryWeight * 0.25) + neighbourHydro * 0.25 + directionalHydro * 0.15;
+                    double seamAnchor = hydro * 0.3 + neighbourHydro * 0.3 + seamMemory * 0.4;
+                    double riparianCohesion = Math.Clamp(seamAnchor * riparianBoost + hydroGradient * edgeFlux * 0.5, 0.0, 1.0);
+                    double anchorHydro = hydro * (0.55 + memoryWeight * 0.25) + neighbourHydro * 0.25 + directionalHydro * 0.15 + seamMemory * edgeFlux * 0.1;
                     double directionalBias = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.15;
                     double edgeAnchor = hydro * (1.0 - varianceClamp * falloff * 0.35) + neighbourHydro * varianceClamp * falloff * 0.35;
                     double harmonized = hydro * (1.0 - blend) + anchorHydro * blend;
                     harmonized = harmonized * stability + edgeAnchor * (1.0 - stability) * 0.25;
+                    harmonized = harmonized * (1.0 - riparianCohesion * 0.35) + seamAnchor * riparianCohesion * 0.35;
                     harmonized *= 1.0 - Math.Clamp(hydroGradient * gradientWeight * 0.15 + directionalBias, 0.0, 0.4);
                     double clampDelta = varianceClamp * falloff;
                     hydrology[x, z] = (float)Math.Clamp(harmonized, hydro - clampDelta, hydro + clampDelta);
 
-                    double flowAnchor = flowValue * (0.6 + memoryWeight * 0.25) + neighbourFlow * 0.25 + directionalFlow * 0.15 + hydroGradient * memoryWeight * 0.1;
+                    double flowAnchor = flowValue * (0.55 + memoryWeight * 0.25) + neighbourFlow * 0.25 + directionalFlow * 0.15 + hydroGradient * memoryWeight * 0.1;
+                    flowAnchor += seamMemory * riparianBoost * 0.15;
                     double blendedFlow = flowValue * (1.0 - blend * 0.35) + flowAnchor * blend * 0.35;
                     blendedFlow = Math.Clamp(blendedFlow, 0.0, flowClamp * (1.0 + varianceClamp * 0.15));
                     flow[x, z] = (float)blendedFlow;

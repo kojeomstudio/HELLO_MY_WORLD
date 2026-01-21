@@ -25,6 +25,8 @@ namespace GameServerApp.Network
             _networkConfig = configManager.GetConfiguration<NetworkConfiguration>();
             ProtocolRegistry.ValidateBindings();
             ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateEnhancedContracts();
+            ProtoFingerprint.AssertDescriptorFingerprint();
             ProtoDiagnostics.AssertRegistryClean();
             ProtocolStandardization.ValidateProtocolImplementation();
         }

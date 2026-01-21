@@ -17,7 +17,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapControlManager
     {
-        private const string PipelineVersion = "2026-01-18-hydrology-continuity+proto";
+        private const string PipelineVersion = "2026-01-21-hydrology-edge-cohesion+proto";
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;

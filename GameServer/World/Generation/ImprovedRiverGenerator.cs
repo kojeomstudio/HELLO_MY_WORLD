@@ -237,9 +237,14 @@ namespace GameServerApp.World.Generation
                         float interior = TerrainMaskUtility.SampleInterior(mask, x, z);
                         double wetness = Math.Max(hydrology[x, z], flow[x, z] * 0.5f);
                         double variance = TerrainMaskUtility.SampleVariance(mask, x, z);
-                        double weight = blend * (0.35 + wetness * 0.25 + variance * 0.15);
+                        double hydroGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrology, x, z) - hydrology[x, z]);
+                        double flowGradient = Math.Abs(TerrainMaskUtility.SampleInterior(flow, x, z) - flow[x, z]);
+                        double gradient = Math.Min(1.0, hydroGradient + flowGradient * 0.5);
+                        double weight = blend * (0.35 + wetness * 0.25 + variance * 0.15 + gradient * 0.2);
                         double stabilised = centre * (1.0 - weight) + interior * weight;
-                        buffer[x, z] = (float)Math.Clamp(stabilised, 0.0, Math.Max(1.35, centre + gradientClamp * 0.5));
+                        stabilised *= 1.0 - Math.Clamp(gradient * blend * 0.25, 0.0, 0.35);
+                        stabilised += hydroGradient * blend * 0.05;
+                        buffer[x, z] = (float)Math.Clamp(stabilised, 0.0, Math.Max(1.35, centre + gradientClamp * (0.5 + gradient * 0.35)));
                     }
                 }
 

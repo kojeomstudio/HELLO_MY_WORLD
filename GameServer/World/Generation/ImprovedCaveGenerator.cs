@@ -122,6 +122,10 @@ namespace GameServerApp.World.Generation
                     stability *= 1.0 - riparianCeilingGuard * 0.35;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemory * config.MoistureRetentionWeight * 0.35;
                     wetnessRetention += erosion * config.MoistureRetentionWeight * 0.2;
+                    double riparianSuppression = Math.Clamp(
+                        (riverPressure + hydrologyGradient + flowGradient + seamMemory) * config.RiverSuppressionWeight * 0.5,
+                        0.0,
+                        0.6);
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -179,6 +183,7 @@ namespace GameServerApp.World.Generation
                         threshold += seamMemory * config.FlowStabilityWeight * 0.15;
                         threshold += Math.Clamp(hydrologyGradient * (config.EdgeSealStrength + config.HydrologyStabilityWeight * 0.25), 0.0, 0.35);
                         threshold += Math.Clamp(flowGradient * config.EdgeSealStrength * 0.2, 0.0, 0.2);
+                        threshold += riparianSuppression * 0.25;
                         threshold += stabilityPenalty * 0.25;
                         threshold += ceilingMoisturePenalty * 0.2;
                         threshold += ceilingClamp * 0.1;
@@ -188,6 +193,10 @@ namespace GameServerApp.World.Generation
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);
                         threshold += flowMemoryClamp * 0.15;
                         threshold += erosion * config.RiverSuppressionWeight * 0.2;
+                        if (y >= surface - Math.Max(2, config.RiparianPlugDepth) && riparianSuppression > 0.2)
+                        {
+                            continue;
+                        }
                         double depthBelowSea = seaLevel - y;
                         double floodedBias = Math.Clamp(depthBelowSea / Math.Max(1.0, seaLevel), -1.0, 1.0) * floodedProximityWeight;
                         double floodedNoise = floodedNoiseBase;

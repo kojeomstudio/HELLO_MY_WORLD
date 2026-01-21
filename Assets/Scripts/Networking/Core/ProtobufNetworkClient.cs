@@ -98,6 +98,8 @@ namespace Networking.Core
             {
                 ProtocolStandardization.ValidateProtocolImplementation();
                 ProtocolRegistry.ValidateBindings();
+                ProtocolValidator.ValidateEnhancedContracts();
+                ProtoFingerprint.AssertDescriptorFingerprint();
                 ProtoRuntime.EnsureInitialized();
                 ProtoDiagnostics.AssertRegistryClean();
                 EnhancedProtoManifest.AssertFingerprint();

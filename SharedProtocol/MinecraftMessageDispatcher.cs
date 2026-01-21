@@ -42,6 +42,12 @@ namespace SharedProtocol
                         $"EnhancedMinecraft registry failed to resolve '{messageType}'. Regenerate protobuf assets and rebuild SharedProtocol.");
                 }
 
+                if (!typeof(IMessage).IsAssignableFrom(typeof(T)))
+                {
+                    throw new InvalidOperationException(
+                        $"EnhancedMinecraft protocol '{messageType}' must use Google.Protobuf generated DTOs. Update the handler contract to the generated message type ({prototype.Descriptor?.ClrType?.Name ?? "unknown"}) and regenerate protobuf assets if necessary.");
+                }
+
                 var descriptorType = prototype.Descriptor?.ClrType;
                 if (descriptorType != null && descriptorType != typeof(T))
                 {
@@ -53,6 +59,11 @@ namespace SharedProtocol
             {
                 Console.WriteLine(
                     $"[Proto][WARN] Handler registered for '{messageType}' without an EnhancedMinecraft binding. If this packet should use protobuf, add it to ProtocolRegistry or mark it optional.");
+            }
+            else if (!typeof(IMessage).IsAssignableFrom(typeof(T)))
+            {
+                Console.WriteLine(
+                    $"[Proto][INFO] Handler for optional message '{messageType}' is using protobuf-net fallback ({typeof(T).Name}). Consider migrating to Google.Protobuf to align with EnhancedMinecraftProtocol.");
             }
 
             _handlers[messageType] = handler;

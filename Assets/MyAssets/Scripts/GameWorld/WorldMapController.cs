@@ -27,7 +27,7 @@ namespace GameWorld
         [SerializeField] private int viewRadiusChunks = 4;
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
 
-        private const string PipelineVersion = "2026-01-21-hydrology-edge-cohesion+proto";
+        private const string PipelineVersion = "2026-01-21-erosion-damping+proto-guard";
         private WorldMapControlProfile profile = null!;
         private EnhancedTerrainGenerator generator = null!;
         private CancellationTokenSource cancellation = null!;
@@ -349,10 +349,12 @@ namespace GameWorld
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
             HarmonizeHydrologyWithSurface(heightMap, hydrology, flow);
+            var erosionRisk = BuildErosionRiskMask(heightMap, hydrology, flow);
+            ApplyErosionDamping(hydrology, flow, erosionRisk);
 
-            var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow) : new float[chunkSize, chunkSize];
-            var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, riverMask) : new float[chunkSize, chunkSize];
-            var caveMask = profile.EnableCaves ? BuildCaveMask(chunkPos, heightMap, hydrology, flow, riverMask) : new bool[chunkSize, worldHeight, chunkSize];
+            var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
+            var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
+            var caveMask = profile.EnableCaves ? BuildCaveMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new bool[chunkSize, worldHeight, chunkSize];
 
             ApplyHydrologyToHeight(heightMap, riverMask, lakeMask, hydrology, flow);
 
@@ -399,7 +401,7 @@ namespace GameWorld
             return heightMap;
         }
 
-        private bool[,,] BuildCaveMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flowMask, float[,] riverMask)
+        private bool[,,] BuildCaveMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flowMask, float[,] erosionRisk, float[,] riverMask)
         {
             var mask = new bool[chunkSize, worldHeight, chunkSize];
             double horizontal = Math.Max(0.0001, worldConfig.Caves.HorizontalFrequency);
@@ -426,6 +428,7 @@ namespace GameWorld
                     double seamContinuity = 1.0 - Math.Clamp(hydrologyGradient * worldConfig.Caves.EdgeSealStrength * 0.5, 0.0, 0.65);
                     seamContinuity *= 1.0 - Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.EdgeSealStrength * 0.25, 0.0, 0.45);
                     double riparianPenalty = Math.Clamp(seamRiver * worldConfig.Caves.RiverSuppressionWeight, 0.0, 0.9);
+                    double erosionPenalty = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double ceilingClamp = Math.Clamp(
                         hydrologySample * worldConfig.Caves.CeilingMoistureWeight +
                         flowMemory * worldConfig.Caves.CeilingMoistureWeight * 0.5 +
@@ -435,6 +438,7 @@ namespace GameWorld
                     double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor) * seamStability * continuityClamp;
                     stability *= 1.0 - riparianPenalty * 0.25;
                     stability *= Math.Max(0.35, seamContinuity);
+                    stability *= 1.0 - Math.Clamp(erosionPenalty * worldConfig.Caves.EdgeSealStrength * 0.35, 0.0, 0.35);
                     stability *= 1.0 - ceilingClamp * 0.15;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
@@ -472,7 +476,7 @@ namespace GameWorld
             return mask;
         }
 
-        private float[,] BuildRiverMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow)
+        private float[,] BuildRiverMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
         {
             var mask = new float[chunkSize, chunkSize];
             double noiseScale = Math.Max(0.0001, profile.RiverNoiseScale);
@@ -502,8 +506,10 @@ namespace GameWorld
                     double seamHydro = SampleInterior(hydrology, x, z);
                     double seamStitch = 1.0 + Math.Clamp((seamHydro - hydrologySample) * profile.HydrologyEdgeFluxBlend, -0.35, 0.35);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double erosionMemory = Math.Clamp(SampleInterior(erosionRisk, x, z), 0.0f, 1.0f);
 
-                    double riverMask = profile.RiverBankThreshold - baseNoise;
+                    double riverMask = profile.RiverBankThreshold - baseNoise - erosion * profile.RiverBankErosionWeight * 0.08;
                     double pressure = Math.Max(0.0, riverMask);
                     pressure *= 1.0 + hydrologySample * profile.HydrologyContinuityWeight;
                     pressure *= 1.0 + flowSample * profile.RiverFlowAlignmentWeight;
@@ -512,6 +518,8 @@ namespace GameWorld
                     pressure *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight, 0.0, 0.35);
                     pressure *= flowAlignment * seamStitch;
                     pressure *= 1.0 + (flowMemory + hydrologySample) * profile.HydrologyFlowPersistence * 0.2;
+                    pressure *= 1.0 - Math.Clamp(erosion * profile.RiverBankErosionWeight * 0.45, 0.0, 0.45);
+                    pressure *= 1.0 - Math.Clamp((hydrologyGradient + erosionMemory) * profile.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.35);
                     double waterTableDistance = seaLevel - heightMap[x, z];
                     double waterBias = 1.0 - Math.Clamp(Math.Abs(waterTableDistance) / waterTableClampRange, 0.0, 1.0);
                     double waterClamp = 1.0 + waterBias * waterTableClampWeight * (waterTableDistance >= 0 ? 0.45 : -0.25);
@@ -533,6 +541,8 @@ namespace GameWorld
                     double varianceAssist = Math.Clamp((hydrologyGradient + flowSample) * profile.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     pressure = pressure * (1.0 - floodplain * 0.2) + floodplain * 0.1;
                     pressure *= 1.0 + varianceAssist;
+                    pressure *= 1.0 - Math.Clamp(erosion * profile.RiverReliefPenaltyWeight * 0.35, 0.0, 0.35);
+                    pressure *= 1.0 - Math.Clamp((erosionMemory + erosion) * profile.RiverBankErosionWeight * 0.25, 0.0, 0.35);
 
                     double headwater = 1.0 - Math.Clamp(flowSample * profile.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
@@ -568,7 +578,7 @@ namespace GameWorld
             return pressure * (1.0 - hydrologyPull) + hydrologyPull;
         }
 
-        private float[,] BuildLakeMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask)
+        private float[,] BuildLakeMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk, float[,] riverMask)
         {
             var lakes = new float[chunkSize, chunkSize];
             double flowSeepageWeight = Math.Clamp(worldConfig.Lakes.FlowSeepageWeight, 0.0, 1.0);
@@ -610,6 +620,8 @@ namespace GameWorld
                         hydrologyGradient * worldConfig.Water.HydrologyFlowShadowSlopeWeight * 0.5,
                         0.0,
                         0.7);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double erosionMemory = Math.Clamp(SampleInterior(erosionRisk, x, z), 0.0f, 1.0f);
                     double depthBelowSea = seaLevel - heightMap[x, z];
                     double depthPenalty = Math.Clamp(Math.Max(0.0, minDepth - depthBelowSea) / Math.Max(1.0, minDepth), 0.0, 1.0);
                     double waterClamp = 1.0 + Math.Clamp(1.0 - Math.Abs(depthBelowSea) / waterTableClampRange, 0.0, 1.0) * waterTableClampWeight * (depthBelowSea >= 0 ? 0.45 : -0.25);
@@ -625,6 +637,8 @@ namespace GameWorld
                     double seamNormalization = 1.0 - Math.Clamp(hydrologyGradient * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.55);
                     double flowConsistency = 1.0 - Math.Clamp(Math.Abs(flowMemory - flowSample) * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.5);
                     weight -= slope * profile.LakeRimErosionWeight * 0.05;
+                    weight -= erosion * profile.LakeRimErosionWeight * 0.35;
+                    weight -= erosionMemory * profile.LakeRimErosionWeight * 0.2;
                     weight -= hydrologyGradient * profile.HydrologyEdgeStabilityWeight * 0.25;
                     weight -= riverPressure * 0.5;
                     weight -= reliefPenalty * profile.RiverReliefPenaltyWeight;
@@ -876,6 +890,85 @@ namespace GameWorld
             RelaxEdges(flow, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
             RelaxEdges(flow, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
             return flow;
+        }
+
+        private float[,] BuildErosionRiskMask(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            var risk = new float[chunkSize, chunkSize];
+            float surfaceRange = Mathf.Max(1, worldHeight);
+
+            for (int x = 0; x < chunkSize; x++)
+            {
+                for (int z = 0; z < chunkSize; z++)
+                {
+                    int surface = heightMap[x, z];
+                    if (surface <= 0)
+                    {
+                        risk[x, z] = 0f;
+                        continue;
+                    }
+
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double slopeNorm = Math.Clamp(slope / 10.0, 0.0, 1.0);
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double flowNorm = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double altitude = Math.Clamp(surface / surfaceRange, 0.0, 1.0);
+                    double valley = Math.Clamp((profile.GlobalWaterLevel - surface) / 16.0, 0.0, 1.0);
+                    double exposure = Math.Clamp((1.0 - altitude) * 0.65 + valley * 0.45, 0.0, 1.0);
+                    double combined = hydro * 0.4 + flowNorm * 0.28 + exposure * 0.2 + slopeNorm * 0.15;
+
+                    risk[x, z] = Mathf.Clamp01((float)combined);
+                }
+            }
+
+            Smooth2D(risk, profile.HydrologySmoothIterations, profile.HydrologySmoothBlend);
+            return risk;
+        }
+
+        private void ApplyErosionDamping(float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            float hydroWeight = Mathf.Clamp01(profile.HydrologyEdgeStabilityWeight + profile.RiverBankErosionWeight) * 0.35f;
+            float flowWeight = Mathf.Clamp01(profile.RiverBankErosionWeight + profile.LakeRimErosionWeight) * 0.35f;
+            if (hydroWeight <= 0f && flowWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float risk = Mathf.Clamp01(erosionRisk[x, z]);
+                    if (risk <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float interiorHydro = SampleInterior(hydroCopy, x, z);
+                    float interiorFlow = SampleInterior(flowCopy, x, z);
+                    float damp = Mathf.Clamp(1f - risk * hydroWeight, 0.35f, 1f);
+                    float flowDamp = Mathf.Clamp(1f - risk * flowWeight, 0.35f, 1f);
+                    float smoothing = Mathf.Clamp(risk * profile.HydrologyVarianceBlend * 0.5f, 0f, 0.45f);
+
+                    float anchoredHydro = hydroCopy[x, z] * damp + interiorHydro * (1f - damp) * 0.5f;
+                    anchoredHydro = anchoredHydro * (1f - smoothing) + interiorHydro * smoothing;
+                    hydrology[x, z] = Mathf.Clamp01(anchoredHydro);
+
+                    float flowAnchor = flowCopy[x, z] * flowDamp + interiorFlow * (1f - flowDamp) * 0.35f + hydrology[x, z] * 0.15f;
+                    float flowClamp = Mathf.Max(profile.HydrologyFlowDivergenceClamp * 12f, flowCopy[x, z] + 2f);
+                    flow[x, z] = Mathf.Clamp(flowAnchor, 0f, flowClamp);
+
+                    erosionRisk[x, z] = Mathf.Clamp01(
+                        risk * 0.65f +
+                        hydrology[x, z] * 0.2f +
+                        Mathf.Clamp(flow[x, z] / 6f, 0f, 1f) * 0.15f);
+                }
+            }
         }
 
         private void ApplyFlowMemory(int[,] heightMap, float[,] hydrology, float[,] flow)

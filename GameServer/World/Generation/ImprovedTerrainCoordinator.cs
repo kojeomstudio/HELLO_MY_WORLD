@@ -66,6 +66,7 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyPressureBlend,
                 config.Water.HydrologyPressureGradientClamp);
             var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
+            ApplyErosionAwareDamping(hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -749,6 +750,53 @@ namespace GameServerApp.World.Generation
                         flowValue * (1.0 - blend * 0.35) + flowAnchor * blend * 0.35,
                         0.0,
                         Math.Max(0.5, flowClamp));
+                }
+            }
+        }
+
+        private void ApplyErosionAwareDamping(float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            double hydroWeight = Math.Clamp(config.Water.HydrologyEdgeStabilityWeight + config.Water.RiverBankErosionWeight, 0.0, 2.0) * 0.35;
+            double flowWeight = Math.Clamp(config.Water.RiverBankErosionWeight + config.Water.LakeRimErosionWeight, 0.0, 2.0) * 0.35;
+            if (hydroWeight <= 0.0 && flowWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double risk = Math.Clamp(erosionRisk[x, z], 0.0, 1.0);
+                    if (risk <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double interiorHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double interiorFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double damp = Math.Clamp(1.0 - risk * hydroWeight, 0.35, 1.0);
+                    double flowDamp = Math.Clamp(1.0 - risk * flowWeight, 0.35, 1.0);
+                    double smoothing = Math.Clamp(risk * config.Water.HydrologyVarianceBlend * 0.5, 0.0, 0.45);
+
+                    double anchoredHydro = hydroCopy[x, z] * damp + interiorHydro * (1.0 - damp) * 0.5;
+                    anchoredHydro = anchoredHydro * (1.0 - smoothing) + interiorHydro * smoothing;
+                    double varianceClamp = Math.Max(0.0, config.Water.HydrologyVarianceClamp);
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01(Math.Clamp(anchoredHydro, 0.0, 1.0 + varianceClamp * 0.25));
+
+                    double flowAnchor = flowCopy[x, z] * flowDamp + interiorFlow * (1.0 - flowDamp) * 0.35 + hydrology[x, z] * 0.15;
+                    double flowClamp = Math.Max(config.Water.HydrologyFlowDivergenceClamp * 12.0, flowCopy[x, z] + 2.0);
+                    flow[x, z] = (float)Math.Clamp(flowAnchor, 0.0, flowClamp);
+
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01(
+                        risk * 0.65 +
+                        hydrology[x, z] * 0.2 +
+                        Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0) * 0.15);
                 }
             }
         }

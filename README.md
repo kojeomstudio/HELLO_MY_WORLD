@@ -29,11 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- **2026-01-21: Hydrology edge cohesion + proto handler guards**
-  - Improved cave/river/lake masks with riparian-aware edge cohesion and stability clamps (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
-  - Tuned world generation JSON defaults and bumped map-control profile to v3 with pipeline `2026-01-21-hydrology-edge-cohesion+proto` (`config/world.json`, `Assets/StreamingAssets/world-config.json`).
-  - Added protobuf handler/fingerprint validation on both endpoints to catch stale DTO references early (`GameServer/Network/EnhancedProtocolHandler.cs`, `Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs`).
-  - Session artifacts: updated plan `plans/work-plan-2026-01-21.md` and feature categorization `docs/minecraft_feature_categorization_2026-01-21.md`.
+- **2026-01-21: Erosion-aware hydrology + proto guard**
+  - Added erosion-aware damping for hydrology/flow masks before carving rivers, lakes, and caves to reduce steep-seam flooding (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`).
+  - Mirrored erosion risk and damping in Unity map-control previews with pipeline signature `2026-01-21-erosion-damping+proto-guard` (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Protobuf handler registration now enforces Google.Protobuf DTOs for all EnhancedMinecraft bindings and logs protobuf-net fallbacks for optional packets (`SharedProtocol/MinecraftMessageDispatcher.cs`).
+  - Documentation refresh: feature categorization (`docs/2026-01-21-feature-categorization.md`) and worldgen/proto update notes (`docs/2026-01-21-worldgen-proto-update.md`); plan updates under `plans/2026-01-21-comprehensive-implementation-work-plan.md`.
 - **2026-01-20: Hydrology seam guards + map-control parity**
   - Stabilized caves (neighbour pruning), added river bank erosion, and sealed lake rims across server generation and Unity previews (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`).
   - Map-control profile bumped to version 2 with a new pipeline signature for parity between server and client loaders (`GameServer/World/WorldMapController.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`, `config/world.json`, `Assets/StreamingAssets/world-config.json`).

@@ -5,7 +5,6 @@ using UnityEngine;
 using Google.Protobuf;
 using Game.Auth;
 using GameProtocol;
-using EnhancedMinecraftProtocol.Manifest;
 using SharedProtocol.EnhancedMinecraft;
 #if HMW_PROTO
 using Game.Move;
@@ -96,41 +95,9 @@ namespace Networking.Core
         {
             try
             {
-                // Initialize protocol validation system
-                ProtocolValidation.Initialize();
-                
-                // Validate protocol implementation
-                var protocolResult = ProtocolValidation.ValidateProtocolImplementation();
-                if (!protocolResult.IsValid)
-                {
-                    Debug.LogError($"[ProtobufNetworkClient] Protocol implementation validation failed: {protocolResult.ErrorMessage}");
-                }
-                else if (protocolResult.IsWarning)
-                {
-                    Debug.LogWarning($"[ProtobufNetworkClient] Protocol implementation validation warning: {protocolResult.ErrorMessage}");
-                }
-                
-                // Validate protocol bindings
-                var bindingsResult = ProtocolValidation.ValidateBindings();
-                if (!bindingsResult.IsValid)
-                {
-                    Debug.LogError($"[ProtobufNetworkClient] Protocol bindings validation failed: {bindingsResult.ErrorMessage}");
-                }
-                else if (bindingsResult.IsWarning)
-                {
-                    Debug.LogWarning($"[ProtobufNetworkClient] Protocol bindings validation warning: {bindingsResult.ErrorMessage}");
-                }
-                
-                // Validate enhanced contracts
-                var enhancedResult = ProtocolValidation.ValidateEnhancedContracts();
-                if (!enhancedResult.IsValid)
-                {
-                    Debug.LogError($"[ProtobufNetworkClient] Enhanced contracts validation failed: {enhancedResult.ErrorMessage}");
-                }
-                else if (enhancedResult.IsWarning)
-                {
-                    Debug.LogWarning($"[ProtobufNetworkClient] Enhanced contracts validation warning: {enhancedResult.ErrorMessage}");
-                }
+                // Validate enhanced protocol contracts using the existing ProtocolValidator
+                ProtocolValidator.ValidateEnhancedContracts();
+                Debug.Log("[ProtobufNetworkClient] Protocol contracts validated successfully");
             }
             catch (Exception ex)
             {
@@ -588,6 +555,23 @@ namespace Networking.Core
                 if (_transport is IDisposable disposable)
                 {
                     disposable.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chat message types
+    /// </summary>
+    public enum ChatType
+    {
+        Global = 0,
+        Local = 1,
+        Whisper = 2,
+        System = 3
+    }
+}
+
                 }
             }
         }

@@ -48,6 +48,8 @@ namespace GameServerApp.World.Generation
             int maxDepth = Math.Max(minDepth, lakeConfig.MaxDepth);
             int shelfDepth = Math.Max(0, lakeConfig.ShelfDepth);
             double rimErosionWeight = Math.Clamp(waterConfig.LakeRimErosionWeight, 0.0, 1.0);
+            double flowPersistence = Math.Clamp(waterConfig.HydrologyFlowPersistence, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -81,6 +83,8 @@ namespace GameServerApp.World.Generation
                         hydrologyGradient * flowShadowSlopeWeight * 0.5,
                         0.0,
                         0.7);
+                    double flowGradient = Math.Abs(flowMemory - flow);
+                    double divergencePenalty = Math.Min(1.0, flowGradient / divergenceClamp);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.35, 0.0, 0.5);
                     double seamContinuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow + hydrology) * waterConfig.HydrologyEdgeFluxBlend * 0.15, -0.35, 0.35);
                     double shorelineJitter = Math.Abs(SimplexNoise.Generate(
@@ -106,12 +110,13 @@ namespace GameServerApp.World.Generation
                     double seamMemory = (hydrology + seamHydro + flowMemory) * 0.333;
                     double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight + seamMemory) * flowSeepageWeight * 0.15;
                     double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight + seamMemory * 0.35) * flowSeepageWeight;
-                    double flowPersistence = Math.Clamp(waterConfig.HydrologyFlowPersistence, 0.0, 1.0);
                     double memoryCohesion = (seamMemory + flowMemory) * flowPersistence * 0.15;
+                    double momentumAssist = (seamHydro + flowMemory) * flowPersistence * 0.08;
                     weight += hydrologyVariance * varianceWeight * (1.0 - flowShadow * 0.5);
                     weight += seepage * (1.0 - flowShadow * 0.5);
                     weight += riparianCohesion * (1.0 - flowShadow * 0.35);
                     weight += memoryCohesion * (1.0 - flowShadow * 0.5);
+                    weight += momentumAssist * (1.0 - divergencePenalty * 0.35);
                     double varianceAssist = Math.Clamp((hydrologyVariance + flowVariance) * waterConfig.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     weight -= slope * waterConfig.LakeRimErosionWeight * 0.05;
                     weight -= hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.25;
@@ -120,6 +125,7 @@ namespace GameServerApp.World.Generation
                     weight -= erosion * rimErosionWeight * 0.25;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
+                    weight *= 1.0 - divergencePenalty * 0.25;
                     weight *= Math.Max(0.55, waterClamp);
                     weight *= 1.0 - waterSlopePenalty;
                     weight *= 1.0 - depthPenalty * 0.6;
@@ -135,7 +141,9 @@ namespace GameServerApp.World.Generation
                     int downZ = Math.Clamp(z + downhill.Z, 0, chunkSize - 1);
                     double downhillHydro = hydrologyMask[downX, downZ];
                     double downhillFlow = flowAccumulation[downX, downZ] / 6.0;
+                    double downhillBias = Math.Abs(downhill.X) + Math.Abs(downhill.Z);
                     double outflowAnchor = (downhillHydro + downhillFlow) * outflowStabilityWeight * 0.25;
+                    outflowAnchor *= 1.0 + downhillBias * 0.05;
                     weight += outflowAnchor * (1.0 - flowShadow * 0.5);
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);

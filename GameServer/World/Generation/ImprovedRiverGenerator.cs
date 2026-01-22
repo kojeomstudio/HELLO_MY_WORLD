@@ -101,6 +101,9 @@ namespace GameServerApp.World.Generation
                     double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    double flowShear = Math.Abs(flowMemory - flow);
+                    double divergencePenalty = Math.Min(1.0, flowShear / Math.Max(0.0001, config.HydrologyFlowDivergenceClamp));
+                    double braidedAssist = Math.Clamp((hydrologyVariance + flowVariance) * config.HydrologyFlowPersistence * 0.15, 0.0, 0.25);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double flowGradient = Math.Abs(interiorFlow - flow);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
@@ -137,6 +140,8 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - waterSlopePenalty;
                     pressure *= 1.0 + waterMemory;
                     pressure *= 1.0 + depthBias * 0.05;
+                    pressure *= 1.0 - Math.Clamp(divergencePenalty * 0.35, 0.0, 0.35);
+                    pressure = pressure * (1.0 - braidedAssist * 0.25) + braidedAssist * 0.08;
                     pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);

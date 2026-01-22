@@ -29,6 +29,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-22: Session 09 - Hydrology momentum + map-control v5**
+  - Map-control profile bumped to v5 with pipeline signature `2026-01-22-river-lake-cave-coupling`; configs synced (`config/world.json`, `Assets/StreamingAssets/world-config.json`, regenerated `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+  - Added hydrology momentum + riparian cave buffers and divergence-aware river/lake shaping (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `ImprovedRiverGenerator.cs`, `ImprovedLakeGenerator.cs`, `ImprovedCaveGenerator.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Feature catalog refreshed for core/content/util (client + server) with JSON + markdown (`config/minecraft_feature_client_server_core_content_util_2026-01-22-session-09.json`, `docs/minecraft_features_client_server_core_content_util_2026-01-22-session-09.md`).
+  - Generation signature now tracks hydrology flow gain/divergence + river relief; profile defaults raised to version 5 (`GameServer/World/WorldMapControlManager.cs`, `GameServer/World/WorldMapController.cs`, `Assets/Scripts/Minecraft/Core/WorldConfig.cs`).
+  - Build/proto check: `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (warnings only; proto registry still reports optional unmapped descriptors for legacy EnhancedMinecraft messages).
 - **2026-01-22: Session 09 - Comprehensive Implementation & Verification**
   - Created comprehensive implementation plan: `plans/2026-01-22-comprehensive-implementation-plan.md`
   - Created comprehensive feature categorization: `docs/minecraft_feature_categorization_2026-01-22.md`
@@ -569,4 +575,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

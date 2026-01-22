@@ -33,7 +33,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapController : IDisposable
     {
-        private const string PipelineVersion = "2026-01-22-lake-seepage+proto-guard";
+        private const string PipelineVersion = "2026-01-22-river-lake-cave-coupling";
         private readonly ILogger<WorldMapController> logger;
         private readonly WorldSettings worldSettings;
         private WorldGenerationConfig generationConfig;

@@ -67,6 +67,7 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyPressureGradientClamp);
             var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
             ApplyErosionAwareDamping(hydrology, flow, erosionRisk);
+            ApplyHydrologyMomentum(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -79,6 +80,11 @@ namespace GameServerApp.World.Generation
             if (lakeMask != null)
             {
                 ApplyLakeHydrologySeepage(heightMap, hydrology, flow, lakeMask, riverMask);
+            }
+
+            if (riverMask != null || lakeMask != null)
+            {
+                ApplyRiparianCaveBuffer(erosionRisk, riverMask, lakeMask);
             }
 
             bool[,,]? caveMask = config.Caves.EnableCaves
@@ -140,6 +146,89 @@ namespace GameServerApp.World.Generation
 
             TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend, varianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.85, varianceClamp * 1.35);
+        }
+
+        private void ApplyHydrologyMomentum(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            double momentumWeight = Math.Clamp(config.Water.HydrologyFlowGain, 0.0, 1.0);
+            double persistence = Math.Clamp(config.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, config.Water.HydrologyFlowDivergenceClamp);
+            double erosionBrake = Math.Clamp(config.Water.RiverReliefPenaltyWeight, 0.0, 1.0);
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int dx = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int dz = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+
+                    double baseHydro = hydroCopy[x, z];
+                    double baseFlow = flowCopy[x, z];
+                    double downhillHydro = hydroCopy[dx, dz];
+                    double downhillFlow = flowCopy[dx, dz];
+                    double pressure = baseHydro + baseFlow * 0.25;
+                    double downhillPressure = downhillHydro + downhillFlow * 0.25;
+                    double gradient = Math.Abs(downhillPressure - pressure);
+                    double divergence = Math.Min(1.0, gradient / divergenceClamp);
+                    double erosion = erosionRisk[x, z] * erosionBrake;
+                    double momentum = (downhillPressure - pressure) * momentumWeight;
+                    double blendedHydro = baseHydro * (1.0 - momentumWeight) + downhillHydro * momentumWeight + momentum * 0.25;
+                    blendedHydro = blendedHydro * (1.0 - erosion * 0.25) + baseHydro * erosion * 0.25;
+                    double blendedFlow = baseFlow * (1.0 - persistence) + (downhillFlow + momentum) * persistence;
+                    blendedFlow *= 1.0 - divergence * 0.35;
+                    blendedFlow = Math.Clamp(blendedFlow, 0.0, Math.Max(1.35, baseFlow + Math.Abs(momentum) * 0.5));
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(blendedHydro, 0.0, 1.25));
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)blendedFlow);
+                }
+            }
+        }
+
+        private void ApplyRiparianCaveBuffer(float[,] erosionRisk, float[,]? riverMask, float[,]? lakeMask)
+        {
+            if (riverMask == null && lakeMask == null)
+            {
+                return;
+            }
+
+            int sizeX = erosionRisk.GetLength(0);
+            int sizeZ = erosionRisk.GetLength(1);
+            var copy = (float[,])erosionRisk.Clone();
+            double riverSuppression = Math.Clamp(config.Caves.RiverSuppressionWeight, 0.0, 1.0);
+            double rimErosion = Math.Clamp(config.Water.LakeRimErosionWeight, 0.0, 1.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double lake = lakeMask != null ? TerrainMaskUtility.Clamp01(lakeMask[x, z]) : 0.0;
+                    double wetness = Math.Max(river, lake);
+                    if (wetness <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double variance = TerrainMaskUtility.SampleVariance(copy, x, z);
+                    double wetBuffer = wetness * (riverSuppression * 0.65 + rimErosion * 0.25);
+                    double stability = 1.0 + variance * 0.2;
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Min(1.0, copy[x, z] + wetBuffer * stability));
+                }
+            }
+
+            TerrainMaskUtility.Smooth2D(
+                erosionRisk,
+                Math.Max(1, config.Caves.StabilitySmoothIterations),
+                Math.Clamp(config.Caves.StabilitySmoothBlend * 0.35, 0.0, 1.0));
         }
 
         private float[,] BuildHydrologyMask(int[,] heightMap, int size)

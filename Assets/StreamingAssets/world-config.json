@@ -7,7 +7,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 12,
   "MapControlProfilePath": "world-map-control.json",
-  "MapControlProfileVersion": 4,
+  "MapControlProfileVersion": 5,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,
@@ -31,7 +31,7 @@
     "HydrologySmoothBlend": 0.62,
     "HydrologyShorePush": 5.0,
     "HydrologySlopePenalty": 6.0,
-    "HydrologyFlowGain": 0.5,
+    "HydrologyFlowGain": 0.58,
     "HydrologyFlowShadowWeight": 0.48,
     "HydrologyFlowShadowSlopeWeight": 0.38,
     "HydrologyContinuityWeight": 0.35,
@@ -63,7 +63,7 @@
     "HydrologyGradientStabilityBlend": 0.45,
     "HydrologyDirectionalIterations": 1,
     "HydrologyDirectionalBlend": 0.42,
-    "HydrologyFlowDivergenceClamp": 0.55,
+    "HydrologyFlowDivergenceClamp": 0.5,
     "HydrologyCurvatureWeight": 0.32,
     "HydrologySeamRelaxIterations": 3,
     "HydrologySeamRelaxBlend": 0.56,
@@ -71,7 +71,7 @@
     "RiparianSmoothBlend": 0.65,
     "RiparianSaturationBoost": 0.18,
     "RiparianBufferRadius": 1,
-    "RiverReliefPenaltyWeight": 0.27,
+    "RiverReliefPenaltyWeight": 0.3,
     "HydrologyWarpFrequency": 0.0009,
     "HydrologyWarpAmplitude": 9.0,
     "RiverFlowAlignmentWeight": 0.28,
@@ -90,7 +90,7 @@
     "RiverDepth": 7,
     "RiverIntensitySmoothIterations": 3,
     "RiverIntensitySmoothBlend": 0.6,
-    "RiverConfluenceBoost": 0.38,
+    "RiverConfluenceBoost": 0.4,
     "EnableOceans": true,
     "EnableRivers": true,
     "EnableLakes": true,
@@ -202,6 +202,6 @@
     "OutflowCarveDepth": 2,
     "OutflowStabilityWeight": 0.36,
     "WetlandBufferRadius": 3,
-    "FlowSeepageWeight": 0.38
+    "FlowSeepageWeight": 0.42
   }
 }

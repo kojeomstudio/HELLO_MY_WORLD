@@ -78,6 +78,11 @@ namespace GameServerApp.World.Generation
                     double flowGradient = Math.Abs(seamFlow - flow);
                     double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z, 2);
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowMask, x, z, 2);
+                    double varianceBrake = Math.Clamp((hydrologyVariance + flowVariance) * config.RoughnessStabilityWeight * 0.2, 0.0, 0.4);
+                    double saturationBrake = Math.Clamp(
+                        (hydrology + flow + seamHydro + seamFlow) * config.MoistureRetentionWeight * 0.15,
+                        0.0,
+                        0.45);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
                     seamStability *= 1.0 - Math.Clamp(flowGradient * config.EdgeSealStrength * 0.35, 0.0, 0.35);
                     double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
@@ -95,6 +100,7 @@ namespace GameServerApp.World.Generation
                     double stability = ComputeColumnStability(surface, hydrology, riverPressure, flow, edgeFactor) * seamStability;
                     stability *= 1.0 - variancePenalty * 0.3;
                     stability *= 1.0 - Math.Clamp(flowVariance * 0.2, 0.0, 0.2);
+                    stability *= 1.0 - varianceBrake * 0.5;
                     double seamMemory = (seamFlow + flowMemory) * 0.5;
                     double seamContinuity = 1.0 - Math.Clamp(continuityPenalty * config.EdgeSealStrength * 0.35, 0.0, 0.45);
                     double ceilingClamp = Math.Clamp(
@@ -115,6 +121,7 @@ namespace GameServerApp.World.Generation
                     stability *= seamContinuity;
                     stability *= 1.0 - continuityPenalty * 0.15;
                     stability *= 1.0 - Math.Clamp(erosion * config.EdgeSealStrength * 0.3, 0.0, 0.3);
+                    stability *= 1.0 - saturationBrake * 0.35;
                     double riparianCeilingGuard = Math.Clamp(
                         (hydrologyGradient + flowGradient + riverPressure + seamMemory) * config.CeilingStabilityWeight * 0.25,
                         0.0,
@@ -185,6 +192,8 @@ namespace GameServerApp.World.Generation
                         threshold += Math.Clamp(flowGradient * config.EdgeSealStrength * 0.2, 0.0, 0.2);
                         threshold += riparianSuppression * 0.25;
                         threshold += stabilityPenalty * 0.25;
+                        threshold += varianceBrake * 0.35;
+                        threshold += saturationBrake;
                         threshold += ceilingMoisturePenalty * 0.2;
                         threshold += ceilingClamp * 0.1;
                         threshold += riparianCeilingGuard * 0.2;

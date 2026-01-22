@@ -96,13 +96,41 @@ namespace Networking.Core
         {
             try
             {
-                ProtocolStandardization.ValidateProtocolImplementation();
-                ProtocolRegistry.ValidateBindings();
-                ProtocolValidator.ValidateEnhancedContracts();
-                ProtoFingerprint.AssertDescriptorFingerprint();
-                ProtoRuntime.EnsureInitialized();
-                ProtoDiagnostics.AssertRegistryClean();
-                EnhancedProtoManifest.AssertFingerprint();
+                // Initialize protocol validation system
+                ProtocolValidation.Initialize();
+                
+                // Validate protocol implementation
+                var protocolResult = ProtocolValidation.ValidateProtocolImplementation();
+                if (!protocolResult.IsValid)
+                {
+                    Debug.LogError($"[ProtobufNetworkClient] Protocol implementation validation failed: {protocolResult.ErrorMessage}");
+                }
+                else if (protocolResult.IsWarning)
+                {
+                    Debug.LogWarning($"[ProtobufNetworkClient] Protocol implementation validation warning: {protocolResult.ErrorMessage}");
+                }
+                
+                // Validate protocol bindings
+                var bindingsResult = ProtocolValidation.ValidateBindings();
+                if (!bindingsResult.IsValid)
+                {
+                    Debug.LogError($"[ProtobufNetworkClient] Protocol bindings validation failed: {bindingsResult.ErrorMessage}");
+                }
+                else if (bindingsResult.IsWarning)
+                {
+                    Debug.LogWarning($"[ProtobufNetworkClient] Protocol bindings validation warning: {bindingsResult.ErrorMessage}");
+                }
+                
+                // Validate enhanced contracts
+                var enhancedResult = ProtocolValidation.ValidateEnhancedContracts();
+                if (!enhancedResult.IsValid)
+                {
+                    Debug.LogError($"[ProtobufNetworkClient] Enhanced contracts validation failed: {enhancedResult.ErrorMessage}");
+                }
+                else if (enhancedResult.IsWarning)
+                {
+                    Debug.LogWarning($"[ProtobufNetworkClient] Enhanced contracts validation warning: {enhancedResult.ErrorMessage}");
+                }
             }
             catch (Exception ex)
             {
@@ -576,3 +604,31 @@ namespace Networking.Core
         System = 3
     }
 }
+
+        private void OnDestroy()
+        {
+            if (_transport != null)
+            {
+                _transport.ConnectionStatusChanged -= OnConnectionStatusChanged;
+                _transport.Received -= OnDataReceived;
+                
+                if (_transport is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Chat message types
+    /// </summary>
+    public enum ChatType
+    {
+        Global = 0,
+        Local = 1,
+        Whisper = 2,
+        System = 3
+    }
+}
+

@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 3;
+        public int MapControlProfileVersion { get; set; } = 4;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -104,8 +104,8 @@ namespace GameServerApp.World
         public int RiverDepth { get; set; } = 7;
         public int RiverIntensitySmoothIterations { get; set; } = 3;
         public double RiverIntensitySmoothBlend { get; set; } = 0.6;
-        public int HydrologySmoothIterations { get; set; } = 2;
-        public double HydrologySmoothBlend { get; set; } = 0.6;
+        public int HydrologySmoothIterations { get; set; } = 3;
+        public double HydrologySmoothBlend { get; set; } = 0.62;
         public double HydrologyShorePush { get; set; } = 5.0;
         public double HydrologySlopePenalty { get; set; } = 6.0;
         public double HydrologyFlowGain { get; set; } = 0.5;
@@ -117,22 +117,22 @@ namespace GameServerApp.World
         public double HydrologyEdgeFlowBias { get; set; } = 0.35;
         public double HydrologyEdgeTangentWeight { get; set; } = 0.45;
         public double HydrologyEdgeFlowLockWeight { get; set; } = 0.38;
-        public int HydrologyEdgeBlendRadius { get; set; } = 3;
+        public int HydrologyEdgeBlendRadius { get; set; } = 4;
         public int HydrologyWatershedStitchRadius { get; set; } = 2;
         public double HydrologyWatershedStitchWeight { get; set; } = 0.42;
-        public int HydrologyEdgeStabilityIterations { get; set; } = 2;
+        public int HydrologyEdgeStabilityIterations { get; set; } = 3;
         public double HydrologyEdgeStabilityWeight { get; set; } = 0.35;
-        public double HydrologyEdgeVarianceClamp { get; set; } = 0.28;
+        public double HydrologyEdgeVarianceClamp { get; set; } = 0.30;
         public double HydrologyEdgeFluxBlend { get; set; } = 0.6;
         public double HydrologyVarianceBlend { get; set; } = 0.58;
         public double HydrologyVarianceClamp { get; set; } = 0.62;
         public double HydrologyEdgeNormalizationBlend { get; set; } = 0.42;
         public int HydrologyEdgeNormalizationIterations { get; set; } = 2;
-        public double HydrologyFlowMemoryWeight { get; set; } = 0.38;
+        public double HydrologyFlowMemoryWeight { get; set; } = 0.42;
         public double HydrologyWaterTableClampWeight { get; set; } = 0.42;
         public int HydrologyWaterTableClampRange { get; set; } = 20;
         public double HydrologyWaterTableSlopeWeight { get; set; } = 0.55;
-        public double HydrologyFlowPersistence { get; set; } = 0.72;
+        public double HydrologyFlowPersistence { get; set; } = 0.75;
         public double HydrologyGradientWeight { get; set; } = 0.35;
         public double HydrologyGradientSlopeWeight { get; set; } = 0.42;
         public double HydrologyGradientClamp { get; set; } = 1.65;
@@ -161,7 +161,7 @@ namespace GameServerApp.World
         public double LakeInflowBlendWeight { get; set; } = 0.48;
         public double RiverConfluenceBoost { get; set; } = 0.38;
         public double RiverEdgeFeather { get; set; } = 0.5;
-        public int RiverMouthSmoothRadius { get; set; } = 4;
+        public int RiverMouthSmoothRadius { get; set; } = 5;
         public double RiverDeltaWetlandStrength { get; set; } = 0.5;
         public double RiverSeamFillStrength { get; set; } = 0.5;
         public bool EnableRivers { get; set; } = true;
@@ -229,7 +229,7 @@ namespace GameServerApp.World
         public int MinDepth { get; set; } = 3;
         public int MaxDepth { get; set; } = 9;
         public int MaxRadius { get; set; } = 9;
-        public int LakeBasinSmoothIterations { get; set; } = 3;
+        public int LakeBasinSmoothIterations { get; set; } = 4;
         public double SpawnWeightBias { get; set; } = 0.3;
         public double ShorelineBlend { get; set; } = 0.66;
         public double RiverProximitySuppression { get; set; } = 0.35;
@@ -237,7 +237,7 @@ namespace GameServerApp.World
         public int OutflowCarveDepth { get; set; } = 2;
         public int ShelfDepth { get; set; } = 2;
         public int WetlandBufferRadius { get; set; } = 3;
-        public double FlowSeepageWeight { get; set; } = 0.32;
+        public double FlowSeepageWeight { get; set; } = 0.38;
         public double VarianceWeight { get; set; } = 0.3;
         public double OutflowStabilityWeight { get; set; } = 0.36;
     }

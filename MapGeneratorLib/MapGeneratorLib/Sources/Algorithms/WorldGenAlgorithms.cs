@@ -106,38 +106,38 @@ namespace MapGenLib
         private static List<CustomVector3> TreeSpawnCandidates = new List<CustomVector3>();
         public static int GlobalRiverWaterLevel = 62;
         public static int HydrologySmoothIterations = 3;
-        public static float HydrologySmoothBlend = 0.68f;
-        public static int CaveStabilitySmoothIterations = 2;
-        public static float CaveStabilitySmoothBlend = 0.6f;
+        public static float HydrologySmoothBlend = 0.62f;
+        public static int CaveStabilitySmoothIterations = 1;
+        public static float CaveStabilitySmoothBlend = 0.55f;
         public static float HydrologyShorePush = 5f;
         public static float HydrologySlopePenalty = 6f;
         public static float HydrologyFlowGain = 0.5f;
-        public static float HydrologyFlowMemoryWeight = 0.35f;
-        public static float HydrologyFlowShadowWeight = 0.45f;
-        public static float HydrologyFlowShadowSlopeWeight = 0.35f;
+        public static float HydrologyFlowMemoryWeight = 0.42f;
+        public static float HydrologyFlowShadowWeight = 0.48f;
+        public static float HydrologyFlowShadowSlopeWeight = 0.38f;
         public static float HydrologyContinuityWeight = 0.35f;
         public static float HydrologyPressureBlend = 0.35f;
         public static float HydrologyPressureGradientClamp = 0.18f;
         public static float HydrologyEdgeFlowBias = 0.35f;
         public static float HydrologyEdgeTangentWeight = 0.45f;
         public static float HydrologyEdgeFlowLockWeight = 0.38f;
-        public static int HydrologyEdgeBlendRadius = 3;
+        public static int HydrologyEdgeBlendRadius = 4;
         public static int HydrologyWatershedStitchRadius = 2;
         public static float HydrologyWatershedStitchWeight = 0.42f;
-        public static int HydrologyEdgeStabilityIterations = 1;
-        public static float HydrologyEdgeStabilityWeight = 0.32f;
-        public static float HydrologyEdgeVarianceClamp = 0.32f;
-        public static float HydrologyEdgeFluxBlend = 0.55f;
-        public static float HydrologyEdgeNormalizationBlend = 0.38f;
+        public static int HydrologyEdgeStabilityIterations = 3;
+        public static float HydrologyEdgeStabilityWeight = 0.35f;
+        public static float HydrologyEdgeVarianceClamp = 0.30f;
+        public static float HydrologyEdgeFluxBlend = 0.6f;
+        public static float HydrologyEdgeNormalizationBlend = 0.42f;
         public static int HydrologyEdgeNormalizationIterations = 2;
-        public static float HydrologyVarianceBlend = 0.55f;
-        public static float HydrologyVarianceClamp = 0.65f;
+        public static float HydrologyVarianceBlend = 0.58f;
+        public static float HydrologyVarianceClamp = 0.62f;
         public static double RiverCenterThreshold = 0.0125;
         public static double RiverBankThreshold = 0.028;
         public static float HydrologyWaterTableClampWeight = 0.42f;
-        public static int HydrologyWaterTableClampRange = 18;
+        public static int HydrologyWaterTableClampRange = 20;
         public static float HydrologyWaterTableSlopeWeight = 0.55f;
-        public static float HydrologyFlowPersistence = 0.68f;
+        public static float HydrologyFlowPersistence = 0.75f;
         public static float HydrologyGradientWeight = 0.35f;
         public static float HydrologyGradientSlopeWeight = 0.42f;
         public static float HydrologyGradientClamp = 1.65f;
@@ -149,32 +149,32 @@ namespace MapGenLib
         public static float HydrologyCurvatureWeight = 0.32f;
         public static float HydrologyWarpFrequency = 0.0009f;
         public static float HydrologyWarpAmplitude = 9f;
-        public static int HydrologySeamRelaxIterations = 2;
-        public static float HydrologySeamRelaxBlend = 0.5f;
+        public static int HydrologySeamRelaxIterations = 3;
+        public static float HydrologySeamRelaxBlend = 0.56f;
         public static int RiparianSmoothIterations = 2;
-        public static float RiparianSmoothBlend = 0.6f;
+        public static float RiparianSmoothBlend = 0.65f;
         public static float RiparianSaturationBoost = 0.18f;
         public static int RiparianBufferRadius = 1;
         public static float RiverBankErosionWeight = 0.18f;
-        public static float LakeRimErosionWeight = 0.30f;
+        public static float LakeRimErosionWeight = 0.32f;
         public static float LakeSpawnWeightBias = 0.3f;
         public static float LakeShorelineBlend = 0.66f;
-        public static int LakeBasinSmoothIterations = 2;
-        public static int LakeWetlandBufferRadius = 2;
-        public static float LakeFlowSeepageWeight = 0.25f;
+        public static int LakeBasinSmoothIterations = 4;
+        public static int LakeWetlandBufferRadius = 3;
+        public static float LakeFlowSeepageWeight = 0.38f;
         public static float RiverNoiseScale = 0.015f;
-        public static int RiverDepth = 6;
+        public static int RiverDepth = 7;
         public static int RiverIntensitySmoothIterations = 3;
-        public static float RiverIntensitySmoothBlend = 0.58f;
-        public static float RiverConfluenceBoost = 0.35f;
+        public static float RiverIntensitySmoothBlend = 0.6f;
+        public static float RiverConfluenceBoost = 0.38f;
         public static float RiverFlowAlignmentWeight = 0.28f;
         public static float RiverGradientPenalty = 0.42f;
         public static float RiverHeadwaterStabilityWeight = 0.35f;
         public static float RiverAnisotropyWeight = 0.32f;
-        public static float RiverReliefPenaltyWeight = 0.25f;
-        public static float RiverEdgeFeather = 0.45f;
-        public static int RiverMouthSmoothRadius = 3;
-        public static float RiverDeltaWetlandStrength = 0.45f;
+        public static float RiverReliefPenaltyWeight = 0.27f;
+        public static float RiverEdgeFeather = 0.5f;
+        public static int RiverMouthSmoothRadius = 5;
+        public static float RiverDeltaWetlandStrength = 0.5f;
         public static float CaveSupportDensity = 0.6f;
         public static float CaveHydrologyWeight = 0.45f;
         public static float CaveFlowWeight = 0.25f;
@@ -187,7 +187,7 @@ namespace MapGenLib
         public static float CaveMoistureRetentionWeight = 0.35f;
         public static float LakeRiverProximitySuppression = 0.35f;
         public static float LakeInflowBlendWeight = 0.42f;
-        public static float CaveEdgeSealStrength = 0.45f;
+        public static float CaveEdgeSealStrength = 0.5f;
         public static float WetlandSaturationThreshold = 0.55f;
         public static int OutflowCarveDepth = 2;
         public static int LakeShelfDepth = 2;
@@ -7294,6 +7294,15 @@ namespace MapGenLib
                         continue;
                     }
 
+                    float edgeInfluence = CustomMathf.Clamp01(1.65f - CustomMathf.Abs(ellipse));
+                    float inflowBlend = CustomMathf.Clamp01(LakeInflowBlendWeight);
+                    float seepage = CustomMathf.Clamp01(LakeFlowSeepageWeight);
+                    float flowMemory = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
+                    float hydrologyBoost = edgeInfluence * (seepage * 0.7f + inflowBlend * 0.35f);
+                    float hydrologyTarget = CustomMathf.Clamp01(hydrology + hydrologyBoost + flowMemory * CustomMathf.Clamp01(HydrologyFlowMemoryWeight * 0.35f));
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(CustomMathf.Lerp(hydrology, hydrologyTarget, 0.65f));
+                    flowAccumulation[x, z] = CustomMathf.Clamp01(flowAccumulation[x, z] + hydrologyBoost * 0.5f + flowMemory * 0.25f);
+
                     int drop = CustomMathf.Clamp(CustomMathf.RoundToInt(1 + moisture * 3.5f), 1, 4);
                     int target = CustomMathf.Max(surface - drop, CustomMathf.Max(waterSurface - 1, 1));
                     for (int y = surface; y > target; y--)
@@ -7321,6 +7330,9 @@ namespace MapGenLib
                     }
                 }
             }
+
+            SmoothScalarField(hydrologyMask, 1, CustomMathf.Clamp(HydrologySmoothBlend + 0.05f, 0f, 0.9f));
+            SmoothScalarField(flowAccumulation, 1, CustomMathf.Clamp(HydrologySmoothBlend + 0.05f, 0f, 0.9f));
         }
 
         private static void AddCaveAquiferChannels(

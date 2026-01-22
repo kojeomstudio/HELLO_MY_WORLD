@@ -118,6 +118,20 @@ public static class ProtocolValidator
             {
                 Console.WriteLine($"[Proto][WARN] Handler registered for '{messageType}' without a generated EnhancedMinecraft binding. Regenerate protobuf assets or update ProtocolRegistry.");
             }
+
+            if (hasHandler && !ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+            {
+                string message =
+                    $"Handler registered for '{messageType}' but no generated EnhancedMinecraft prototype was resolved. Regenerate protobuf DTOs or update using directives so handlers bind to generated messages.";
+                if (IsOptionalMessage(messageType))
+                {
+                    Console.WriteLine($"[Proto][WARN] {message}");
+                }
+                else
+                {
+                    throw new InvalidOperationException(message);
+                }
+            }
         }
     }
 

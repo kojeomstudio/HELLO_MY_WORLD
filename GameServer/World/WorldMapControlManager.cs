@@ -17,7 +17,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapControlManager
     {
-        private const string PipelineVersion = "2026-01-21-erosion-damping+proto-guard";
+        private const string PipelineVersion = "2026-01-22-lake-seepage+proto-guard";
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;

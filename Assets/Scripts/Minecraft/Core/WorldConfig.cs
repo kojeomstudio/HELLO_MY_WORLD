@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 3;
+        public int MapControlProfileVersion = 4;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();
@@ -147,8 +147,8 @@ namespace Minecraft.Core
         public int GlobalWaterLevel = 62;
         public float RiverCenterThreshold = 0.0125f;
         public float RiverBankThreshold = 0.026f;
-        public int HydrologySmoothIterations = 2;
-        public float HydrologySmoothBlend = 0.6f;
+        public int HydrologySmoothIterations = 3;
+        public float HydrologySmoothBlend = 0.62f;
         public float HydrologyShorePush = 5.0f;
         public float HydrologySlopePenalty = 6.0f;
         public float HydrologyFlowGain = 0.5f;
@@ -158,22 +158,22 @@ namespace Minecraft.Core
         public float HydrologyEdgeFlowBias = 0.35f;
         public float HydrologyEdgeTangentWeight = 0.45f;
         public float HydrologyEdgeFlowLockWeight = 0.38f;
-        public int HydrologyEdgeBlendRadius = 3;
+        public int HydrologyEdgeBlendRadius = 4;
         public int HydrologyWatershedStitchRadius = 2;
         public float HydrologyWatershedStitchWeight = 0.42f;
-        public int HydrologyEdgeStabilityIterations = 2;
+        public int HydrologyEdgeStabilityIterations = 3;
         public float HydrologyEdgeStabilityWeight = 0.35f;
-        public float HydrologyEdgeVarianceClamp = 0.28f;
+        public float HydrologyEdgeVarianceClamp = 0.30f;
         public float HydrologyEdgeFluxBlend = 0.6f;
         public float HydrologyVarianceBlend = 0.58f;
         public float HydrologyVarianceClamp = 0.62f;
         public float HydrologyEdgeNormalizationBlend = 0.42f;
         public int HydrologyEdgeNormalizationIterations = 2;
-        public float HydrologyFlowMemoryWeight = 0.38f;
+        public float HydrologyFlowMemoryWeight = 0.42f;
         public float HydrologyWaterTableClampWeight = 0.42f;
         public int HydrologyWaterTableClampRange = 20;
         public float HydrologyWaterTableSlopeWeight = 0.55f;
-        public float HydrologyFlowPersistence = 0.72f;
+        public float HydrologyFlowPersistence = 0.75f;
         public float HydrologyGradientWeight = 0.35f;
         public float HydrologyGradientSlopeWeight = 0.42f;
         public float HydrologyGradientClamp = 1.65f;
@@ -201,7 +201,7 @@ namespace Minecraft.Core
         public float LakeRimErosionWeight = 0.32f;
         public float LakeInflowBlendWeight = 0.48f;
         public float RiverEdgeFeather = 0.5f;
-        public int RiverMouthSmoothRadius = 4;
+        public int RiverMouthSmoothRadius = 5;
         public float RiverDeltaWetlandStrength = 0.5f;
         public float RiverSeamFillStrength = 0.5f;
         public float RiverNoiseScale = 0.015f;
@@ -301,7 +301,7 @@ namespace Minecraft.Core
         public int MinDepth = 3;
         public int MaxDepth = 9;
         public int MaxRadius = 9;
-        public int LakeBasinSmoothIterations = 3;
+        public int LakeBasinSmoothIterations = 4;
         public int ShelfDepth = 2;
         public float SpawnWeightBias = 0.3f;
         public float ShorelineBlend = 0.66f;
@@ -309,7 +309,7 @@ namespace Minecraft.Core
         public float WetlandSaturationThreshold = 0.55f;
         public int OutflowCarveDepth = 2;
         public int WetlandBufferRadius = 3;
-        public float FlowSeepageWeight = 0.32f;
+        public float FlowSeepageWeight = 0.38f;
         public float VarianceWeight = 0.3f;
         public float OutflowStabilityWeight = 0.36f;
     }

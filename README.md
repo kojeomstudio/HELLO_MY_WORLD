@@ -29,6 +29,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-22: Lake seepage hydrology + proto prototype guard**
+  - Map-control profile bumped to v4 with pipeline signature `2026-01-22-lake-seepage+proto-guard` (`config/world.json`, `Assets/StreamingAssets/world-config.json`, regenerated `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+  - Hydrology/flow masks now apply lake seepage and edge normalization before carving rivers/lakes/caves on server and preview pipelines (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `EnhancedTerrainGenerationPipeline.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - Proto validation now fails fast if a registered handler lacks a generated Google.Protobuf prototype (`SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`), reinforcing generated DTO references.
+  - Feature categorization refreshed under core/content/util for client and server (`docs/minecraft_feature_core_content_util_2026-01-22.md`, `config/minecraft_feature_client_server_core_content_util_2026-01-22.json`).
+  - Docs: `docs/terrain_generation_update_2026-01-22.md` (tests + tuning notes).
 - **2026-01-21: Session 08 - Comprehensive Implementation & Verification**
   - Created comprehensive work plan: `plans/2026-01-21-session-08-comprehensive-implementation-plan.md`
   - Created comprehensive feature categorization: `docs/minecraft_feature_categorization_session_08.md`
@@ -500,4 +506,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on the repository.
-

@@ -17,7 +17,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapControlManager
     {
-        private const string PipelineVersion = "2026-01-22-river-lake-cave-coupling";
+        private const string PipelineVersion = "2026-01-24-water-table-envelope";
         private readonly WorldMapControlSettings settings;
         private EnhancedTerrainGenerationPipeline pipeline;
         private WorldMapControlProfile controlProfile;

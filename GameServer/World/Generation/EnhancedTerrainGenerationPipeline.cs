@@ -91,6 +91,7 @@ namespace GameServerApp.World.Generation
             {
                 BlendHydrologyWithFlow(heightMap, hydrologyMask, flowAccumulation);
                 NormalizeHydrologyFlowEdges(hydrologyMask, flowAccumulation);
+                ApplyWaterTableEnvelope(heightMap, hydrologyMask, flowAccumulation);
                 ApplyHydrologyEdgeEnvelope(hydrologyMask, flowAccumulation);
                 if (improvedMasks == null)
                 {
@@ -450,6 +451,53 @@ namespace GameServerApp.World.Generation
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
             }
+        }
+
+        private void ApplyWaterTableEnvelope(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double clampRange = Math.Max(1.0, config.Water.HydrologyWaterTableClampRange + 6.0);
+            double envelopeWeight = Math.Clamp(config.Water.HydrologyWaterTableClampWeight + 0.08, 0.0, 1.0);
+            double seamBlend = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyEdgeVarianceClamp);
+            double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int surface = heightMap[x, z];
+                    double waterBias = 1.0 - Math.Clamp(Math.Abs(surface - seaLevel) / clampRange, 0.0, 1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double seamWeight = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double blend = envelopeWeight * (0.6 * waterBias + 0.4 * seamWeight);
+                    if (blend <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double neighbourHydro = SampleInterior(hydrology, x, z);
+                    double neighbourFlow = SampleInterior(flow, x, z);
+                    double stability = 1.0 - Math.Clamp(Math.Abs(surface - seaLevel) / (clampRange * 1.25), 0.0, 0.65);
+
+                    double targetHydro = hydro * (1.0 - blend) + (hydro + neighbourHydro * (1.0 + seamWeight * seamBlend)) * 0.5 * blend;
+                    targetHydro *= 1.0 + waterBias * 0.12;
+                    targetHydro *= stability;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(targetHydro, 0.0, varianceClamp + 0.75));
+
+                    double flowValue = flow[x, z];
+                    double targetFlow = flowValue * (1.0 + waterBias * 0.1) + neighbourFlow * (0.15 + seamWeight * seamBlend * 0.25);
+                    double flowBlend = Math.Clamp(blend + seamBlend * 0.15, 0.0, 1.0);
+                    double blendedFlow = flowValue + (targetFlow - flowValue) * flowBlend;
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(blendedFlow, 0.0, flowClamp + 2.0));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, seamBlend * 0.85, varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, seamBlend * 0.65, varianceClamp * 1.25);
         }
 
         private void ApplyLakeHydrologySeepage(int[,] heightMap, float[,] hydrologyMask, float[,] flowMask, float[,] lakeMask, float[,]? riverMask)

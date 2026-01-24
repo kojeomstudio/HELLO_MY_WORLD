@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-24: Session 14 - Hydrology envelope & map-control parity**
+  - Plan: `plans/2026-01-24-session-14-plan.md`; feature catalog: `config/minecraft_feature_client_server_core_content_util_2026-01-24-session-14.json`
+  - Water-table envelope smoothing applied across worldgen (MapGeneratorLib), server pipeline (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `ImprovedTerrainCoordinator.cs`), and Unity preview (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`); pipeline version bumped to `2026-01-24-water-table-envelope`.
+  - Documentation: `docs/2026-01-24-worldgen-water-table-envelope.md`
+  - Build checks: `dotnet build SharedProtocol/SharedProtocol.csproj`, `dotnet build GameServer/GameServer.csproj --no-restore` (warnings only: protobuf-net NU1603).
 - **2026-01-23: Session 12 - Comprehensive Implementation & Verification**
   - Created comprehensive work plan: `plans/2026-01-23-session-12-comprehensive-implementation-plan.md`
   - Created feature categorization: `config/minecraft_feature_client_server_core_content_util_2026-01-23.json`
@@ -529,4 +534,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on repository.
-

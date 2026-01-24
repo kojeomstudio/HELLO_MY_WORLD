@@ -27,7 +27,7 @@ namespace GameWorld
         [SerializeField] private int viewRadiusChunks = 4;
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
 
-        private const string PipelineVersion = "2026-01-22-river-lake-cave-coupling";
+        private const string PipelineVersion = "2026-01-24-water-table-envelope";
         private WorldMapControlProfile profile = null!;
         private EnhancedTerrainGenerator generator = null!;
         private CancellationTokenSource cancellation = null!;
@@ -345,6 +345,7 @@ namespace GameWorld
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            ApplyWaterTableEnvelope(heightMap, hydrology, flow);
             ApplyHydrologyEdgeEnvelope(hydrology, flow);
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
             ApplyHydrologyEdgeCohesion(heightMap, hydrology, flow);
@@ -1386,6 +1387,56 @@ namespace GameWorld
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
             }
+        }
+
+        private void ApplyWaterTableEnvelope(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int waterLevel = Mathf.Clamp(profile.GlobalWaterLevel > 0 ? profile.GlobalWaterLevel : worldConfig.Terrain.SeaLevel, 1, worldHeight - 1);
+            double clampRange = Math.Max(1.0, profile.HydrologyWaterTableClampRange + 6.0);
+            double envelopeWeight = Math.Clamp(profile.HydrologyWaterTableClampWeight + 0.08, 0.0, 1.0);
+            double seamBlend = Math.Clamp(profile.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            double varianceClamp = Math.Max(0.001, profile.HydrologyVarianceClamp);
+            double flowClamp = Math.Max(2.5, profile.HydrologyFlowDivergenceClamp * 12.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int surface = heightMap[x, z];
+                    double waterBias = 1.0 - Math.Clamp(Math.Abs(surface - waterLevel) / clampRange, 0.0, 1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double seamWeight = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double blend = envelopeWeight * (0.6 * waterBias + 0.4 * seamWeight);
+                    if (blend <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double neighbourHydro = SampleInterior(hydrology, x, z);
+                    double neighbourFlow = SampleInterior(flow, x, z);
+                    double stability = 1.0 - Math.Clamp(Math.Abs(surface - waterLevel) / (clampRange * 1.25), 0.0, 0.65);
+
+                    double targetHydro = hydro * (1.0 - blend) + (hydro + neighbourHydro * (1.0 + seamWeight * seamBlend)) * 0.5 * blend;
+                    targetHydro *= 1.0 + waterBias * 0.12;
+                    targetHydro *= stability;
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(targetHydro, 0.0, varianceClamp + 0.75));
+
+                    double flowValue = flow[x, z];
+                    double targetFlow = flowValue * (1.0 + waterBias * 0.1) + neighbourFlow * (0.15 + seamWeight * seamBlend * 0.25);
+                    double flowBlend = Math.Clamp(blend + seamBlend * 0.15, 0.0, 1.0);
+                    double blendedFlow = flowValue + (targetFlow - flowValue) * flowBlend;
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(blendedFlow, 0.0, flowClamp + 2.0));
+                }
+            }
+
+            ClampVariance(hydrology, (float)varianceClamp);
+            ClampVariance(flow, (float)(varianceClamp * 1.25));
+            RelaxEdges(hydrology, Math.Max(1, profile.HydrologySeamRelaxIterations), (float)(seamBlend * 0.65));
+            RelaxEdges(flow, Math.Max(1, profile.HydrologySeamRelaxIterations), (float)(seamBlend * 0.45));
         }
 
         private void ApplyCrossChunkHydrologyStitch(float[,] hydrology, float[,] flow)

@@ -1,7 +1,7 @@
 {
   "comment": "Enhanced terrain generation configuration for caves, rivers, and lakes",
-  "version": "1.1.0",
-  "lastUpdated": "2026-01-18",
+  "version": "1.2.0",
+  "lastUpdated": "2026-01-25",
   "water": {
     "globalWaterLevel": 62,
     "riverCenterThreshold": 0.0125,

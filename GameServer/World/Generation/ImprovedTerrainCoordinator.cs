@@ -69,6 +69,7 @@ namespace GameServerApp.World.Generation
             var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
             ApplyErosionAwareDamping(hydrology, flow, erosionRisk);
             ApplyHydrologyMomentum(heightMap, hydrology, flow, erosionRisk);
+            ApplyRiparianFlowBridge(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -192,6 +193,70 @@ namespace GameServerApp.World.Generation
                     flow[x, z] = TerrainMaskUtility.Clamp01((float)blendedFlow);
                 }
             }
+        }
+
+        private void ApplyRiparianFlowBridge(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            double continuity = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double flowLock = Math.Clamp(config.Water.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+            double flowBias = Math.Clamp(config.Water.HydrologyEdgeFlowBias, 0.0, 1.0);
+            double tangentWeight = Math.Clamp(config.Water.HydrologyEdgeTangentWeight, 0.0, 1.5);
+            double directionalBlend = Math.Clamp(config.Water.HydrologyDirectionalBlend, 0.0, 1.0);
+            double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            double erosionBrake = Math.Clamp(config.Water.RiverReliefPenaltyWeight, 0.0, 1.0);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int downX = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int downZ = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+                    double downhillHydro = hydroCopy[downX, downZ];
+                    double downhillFlow = flowCopy[downX, downZ];
+                    double gradient = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f) * erosionBrake;
+                    double corridorHydro = (hydro + seamHydro + downhillHydro) / 3.0;
+                    double corridorFlow = (flowValue + seamFlow + downhillFlow) / 3.0;
+                    double tangent = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
+                    double tangentAssist = 1.0 + tangent * tangentWeight * 0.1;
+                    double edgeFalloff = 1.0 - Math.Clamp(Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z)) / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double bridge = Math.Clamp(continuity * 0.35 + flowLock * 0.25 + edgeBlend * edgeFalloff * 0.35, 0.08, 0.85);
+                    double erosionDamp = 1.0 - erosion * 0.35;
+                    double gradientBrake = 1.0 - Math.Clamp(gradient * config.Water.HydrologyGradientWeight * 0.05, 0.0, 0.35);
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                        hydro * (1.0 - bridge) + corridorHydro * bridge * tangentAssist * gradientBrake,
+                        0.0,
+                        varianceClamp + 1.0));
+
+                    double directional = 1.0 + tangent * directionalBlend * 0.25;
+                    double edgeBias = 1.0 + edgeFalloff * flowBias * 0.25;
+                    double flowTarget = flowValue * (1.0 - bridge) + corridorFlow * bridge * directional * edgeBias;
+                    flowTarget = flowTarget * erosionDamp + flowValue * (1.0 - erosionDamp);
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                        flowTarget,
+                        0.0,
+                        Math.Max(1.5, flowValue + corridorFlow * 0.5)));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, edgeBlend * 0.75, varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, Math.Max(0.05, edgeBlend * 0.55), varianceClamp * 1.35);
         }
 
         private void ApplyWaterTableEnvelope(int[,] heightMap, float[,] hydrology, float[,] flow)

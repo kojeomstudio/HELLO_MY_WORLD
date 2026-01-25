@@ -29,6 +29,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-25: Riparian flow bridge & map-control sync**
+  - Plan: `plans/2026-01-25-plan.md`; feature catalog: `config/minecraft_feature_client_server_core_content_util_2026-01-25.json`
+  - Pipeline bump to `2026-01-25-riparian-bridge` with riparian flow-bridge pass across server (`ImprovedTerrainCoordinator` + river/lake/cave generators) and Unity previews (`WorldMapController`, `EnhancedTerrainGenerator`); world-map signature now captures `HydrologyEdgeTangentWeight`.
+  - Unity world-map controller now runs `ProtoRuntime.EnsureInitialized()` to validate EnhancedMinecraft protobufs during startup.
+  - Documentation: `docs/2026-01-25-worldgen-riparian-bridge.md`
+  - Build checks: `dotnet build SharedProtocol/SharedProtocol.csproj`, `dotnet build GameServer/GameServer.csproj`
 - **2026-01-24: Session 15 - Comprehensive System Analysis & Validation**
    - Plan: `plans/2026-01-24-comprehensive-implementation-plan.md`
    - Documentation: `docs/2026-01-24-session-15-implementation-report.md`
@@ -561,4 +567,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on repository.
-

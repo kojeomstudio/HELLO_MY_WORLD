@@ -151,6 +151,11 @@ namespace GameServerApp.World.Generation
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     weight *= 1.0 - flowShadow * 0.35;
                     weight *= 1.0 + riparianCohesion * 0.15;
+                    double flowBridge = (hydrology + seamHydro + flowMemory) * waterConfig.HydrologyEdgeFlowBias * 0.1;
+                    double flowLock = Math.Clamp(waterConfig.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+                    double directionalAssist = 1.0 + (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * Math.Clamp(waterConfig.HydrologyDirectionalBlend, 0.0, 1.0) * 0.1;
+                    weight = weight * (1.0 - flowLock * 0.15) + (weight * directionalAssist + seamMemory * flowLock) * 0.15;
+                    weight *= 1.0 + flowBridge;
                     double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0);
                     double edgeRepair = watershedBlend * edgeFalloff;
                     if (edgeRepair > 0.0)

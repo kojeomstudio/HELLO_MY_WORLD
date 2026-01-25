@@ -165,6 +165,12 @@ namespace GameServerApp.World.Generation
                     pressure *= erosionBrake;
                     pressure *= 1.0 - Math.Clamp(erosion * reliefPenalty * 0.25, 0.0, 0.25);
 
+                    double flowBridge = (hydrology + seamHydro + flowMemory) * config.HydrologyEdgeFlowBias * 0.15;
+                    double flowLockWeight = Math.Clamp(config.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+                    double directionalDrift = 1.0 + directionality * config.HydrologyDirectionalBlend * 0.15;
+                    pressure = pressure * (1.0 - flowLockWeight * 0.15) + (pressure * directionalDrift + seamAnchor * flowLockWeight) * 0.15;
+                    pressure *= 1.0 + flowBridge;
+
                     // Headwater stability slightly broadens shallow channels to avoid seams.
                     double headwater = 1.0 - Math.Clamp(flow * config.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;

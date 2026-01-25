@@ -133,6 +133,9 @@ namespace GameServerApp.World.Generation
                         (riverPressure + hydrologyGradient + flowGradient + seamMemory) * config.RiverSuppressionWeight * 0.5,
                         0.0,
                         0.6);
+                    double hydrologyEnvelope = (hydrology + seamHydro + flowMemory) * 0.333;
+                    double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flow) * config.FlowStabilityWeight * 0.5, 0.0, 0.6);
+                    double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * config.RiverSuppressionWeight * 0.35, 0.0, 0.65);
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -197,6 +200,8 @@ namespace GameServerApp.World.Generation
                         threshold += ceilingMoisturePenalty * 0.2;
                         threshold += ceilingClamp * 0.1;
                         threshold += riparianCeilingGuard * 0.2;
+                        threshold += riparianBridge * 0.35;
+                        threshold += flowContinuity * 0.2;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);

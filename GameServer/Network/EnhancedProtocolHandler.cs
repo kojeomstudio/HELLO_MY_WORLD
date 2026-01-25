@@ -28,6 +28,7 @@ namespace GameServerApp.Network
             ProtocolValidator.ValidateEnhancedContracts();
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtoDiagnostics.AssertRegistryClean();
+            ProtoDiagnostics.LogSummary();
             ProtocolStandardization.ValidateProtocolImplementation();
         }
 

@@ -76,6 +76,7 @@ namespace GameServerApp.World.Generation
                     double radiusFalloff = Math.Clamp(edgeDistance / (double)Math.Max(1, lakeConfig.MaxRadius), 0.0, 1.0);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
+                    double curvature = ComputeCurvature(heightMap, x, z);
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     double edgeNormalization = edgeNormalizationStrength * (1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0));
                     double flowShadow = Math.Clamp(
@@ -125,6 +126,10 @@ namespace GameServerApp.World.Generation
                     weight -= erosion * rimErosionWeight * 0.25;
                     weight += seamAnchor * edgeNormalization * 0.25;
                     weight += shorelineJitter * (1.0 - flowShadow * 0.5);
+                    double basinAssist = Math.Clamp(curvature * waterConfig.HydrologyCurvatureWeight * 0.25, -0.45, 0.45);
+                    double ridgePenalty = Math.Max(0.0, -basinAssist);
+                    weight *= 1.0 + Math.Max(0.0, basinAssist) * 0.4;
+                    weight *= 1.0 - Math.Clamp(ridgePenalty * 0.55, 0.0, 0.45);
                     weight *= 1.0 - divergencePenalty * 0.25;
                     weight *= Math.Max(0.55, waterClamp);
                     weight *= 1.0 - waterSlopePenalty;
@@ -200,6 +205,19 @@ namespace GameServerApp.World.Generation
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             return lakes;
+        }
+
+        private static double ComputeCurvature(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int center = heightMap[x, z];
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(sizeX - 1, x + 1), z];
+            int forward = heightMap[x, Math.Min(sizeZ - 1, z + 1)];
+            int back = heightMap[x, Math.Max(0, z - 1)];
+            double laplacian = (left + right + forward + back - 4 * center) / 4.0;
+            return laplacian;
         }
 
         private static void ApplyWetlandBuffer(float[,] field, int radius, double shorelineBlend)

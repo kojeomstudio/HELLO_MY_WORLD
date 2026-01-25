@@ -54,6 +54,7 @@ namespace GameServerApp.World.Generation
             var flow = BuildFlowAccumulation(heightMap, hydrology, size);
             ApplyFlowMemory(heightMap, hydrology, flow);
             BlendHydrologyWithFlow(heightMap, hydrology, flow);
+            ApplyCurvatureHydrologyGuide(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
             ApplyWaterTableEnvelope(heightMap, hydrology, flow);
@@ -653,6 +654,55 @@ namespace GameServerApp.World.Generation
                 config.Water.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, config.Water.HydrologySeamRelaxBlend * 0.4),
                 config.Water.HydrologyEdgeVarianceClamp);
+        }
+
+        private void ApplyCurvatureHydrologyGuide(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            double curvatureWeight = Math.Clamp(config.Water.HydrologyCurvatureWeight, 0.0, 1.5);
+            if (curvatureWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            double flowClamp = Math.Max(1.0, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double curvature = SampleCurvature(heightMap, x, z);
+                    double basinAssist = Math.Clamp(curvature * curvatureWeight * 0.35, -0.65, 0.65);
+                    double ridgePenalty = Math.Max(0.0, -basinAssist);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double slopeBrake = 1.0 - Math.Clamp(slope * slopePenalty * 0.02, 0.0, 0.45);
+                    double gradient = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flowValue) * 0.35;
+                    double stability = 1.0 - Math.Clamp(gradient * gradientWeight * 0.35 + ridgePenalty * 0.35, 0.0, 0.75);
+
+                    double hydroAnchor = hydro * 0.55 + seamHydro * 0.3 + seamFlow * 0.15;
+                    double targetHydro = hydroAnchor + basinAssist * 0.35;
+                    targetHydro *= slopeBrake * stability;
+                    double clampDelta = varianceClamp * 0.35;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(targetHydro, hydro - clampDelta, hydro + clampDelta));
+
+                    double flowAnchor = flowValue * 0.6 + seamFlow * 0.25 + seamHydro * 0.15;
+                    double targetFlow = flowAnchor + Math.Max(0.0, basinAssist) * 0.25;
+                    targetFlow *= slopeBrake;
+                    targetFlow *= 1.0 - Math.Clamp(ridgePenalty * 0.25 + gradient * gradientWeight * 0.25, 0.0, 0.55);
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(targetFlow, 0.0, flowClamp));
+                }
+            }
         }
 
         private void ApplyHydrologyContinuityEnvelope(int[,] heightMap, float[,] hydrology, float[,] flow)

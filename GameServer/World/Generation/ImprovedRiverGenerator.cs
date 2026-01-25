@@ -150,6 +150,11 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
                     pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * config.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.4);
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
+                    double curvature = ComputeCurvature(heightMap, x, z);
+                    double basinAssist = Math.Clamp(curvature * config.HydrologyCurvatureWeight * 0.2, -0.35, 0.35);
+                    double ridgePenalty = Math.Max(0.0, -basinAssist);
+                    pressure *= 1.0 + Math.Max(0.0, basinAssist) * 0.4;
+                    pressure *= 1.0 - Math.Clamp(ridgePenalty * 0.75, 0.0, 0.45);
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
@@ -276,6 +281,19 @@ namespace GameServerApp.World.Generation
             double seamFill = Math.Clamp(config.RiverSeamFillStrength, 0.0, 1.0);
             double hydrologyPull = hydrology * seamFill * blend;
             return pressure * (1.0 - hydrologyPull) + hydrologyPull;
+        }
+
+        private static double ComputeCurvature(int[,] heightMap, int x, int z)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int center = heightMap[x, z];
+            int left = heightMap[Math.Max(0, x - 1), z];
+            int right = heightMap[Math.Min(sizeX - 1, x + 1), z];
+            int forward = heightMap[x, Math.Min(sizeZ - 1, z + 1)];
+            int back = heightMap[x, Math.Max(0, z - 1)];
+            double laplacian = (left + right + forward + back - 4 * center) / 4.0;
+            return laplacian;
         }
 
         private static void FeatherEdges(float[,] mask, double feather, double seamFill)

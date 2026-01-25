@@ -96,7 +96,12 @@ namespace Networking.Core
             try
             {
                 // Validate enhanced protocol contracts using the existing ProtocolValidator
+                ProtoRuntime.EnsureInitialized();
                 ProtocolValidator.ValidateEnhancedContracts();
+                ProtoDiagnostics.AssertRegistryClean();
+#if UNITY_EDITOR
+                ProtoDiagnostics.LogSummary();
+#endif
                 Debug.Log("[ProtobufNetworkClient] Protocol contracts validated successfully");
             }
             catch (Exception ex)
@@ -615,4 +620,3 @@ namespace Networking.Core
         System = 3
     }
 }
-

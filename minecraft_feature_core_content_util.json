@@ -129,6 +129,24 @@
             "Hydrology edge normalization bound to profile hash",
             "Protobuf-backed map-control streaming validation"
           ]
+        },
+        {
+          "id": "core_008",
+          "name": "Curvature-Guided Hydrology Control",
+          "description": "Curvature and slope-aware hydrology blending shared by server and client for caves, rivers, and lakes.",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "improvements_needed": [
+            "Regenerate world_map_control_profile.json after curvature tuning",
+            "Add automated parity assertion between server and client hydrology fields"
+          ]
         }
       ]
     },
@@ -371,12 +389,14 @@
           "components": [
             "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
             "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+            "GameServer/Network/EnhancedProtocolHandler.cs",
             "GameServer/Handlers",
-            "Assets/Scripts/Network/ProtobufNetworkClient.cs"
+            "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
           ],
           "improvements_needed": [
             "Handler registration audit",
-            "Startup fingerprint export",
+            "CI export of ProtoDiagnostics summaries for server and Unity",
             "In-client desync reporting",
             "Automated proto rebuild checks"
           ]
@@ -443,14 +463,14 @@
       "multithreading": "Improve multithreading support",
       "database_optimization": "Optimize database queries and indexing"
     },
-    "security_requirements": {
-      "input_validation": "Comprehensive input validation and sanitization",
-      "anti_cheat": "Advanced anti-cheat measures",
-      "rate_limiting": "Implement rate limiting and DDoS protection",
-      "permissions": "Complete permission system with role-based access",
-      "authentication": "Secure authentication with encryption"
-    }
-  },
-  "last_updated": "2026-01-19T16:30:00Z",
-  "version": "1.0.0"
+  "security_requirements": {
+    "input_validation": "Comprehensive input validation and sanitization",
+    "anti_cheat": "Advanced anti-cheat measures",
+    "rate_limiting": "Implement rate limiting and DDoS protection",
+    "permissions": "Complete permission system with role-based access",
+    "authentication": "Secure authentication with encryption"
+  }
+},
+  "last_updated": "2026-01-26T12:00:00Z",
+  "version": "1.1.0"
 }

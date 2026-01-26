@@ -8,6 +8,7 @@ using GameCommon.World;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
+using CommonVector3Int = MinecraftGame.Common.Vector3Int;
 
 namespace GameServerApp.Testing
 {
@@ -57,20 +58,55 @@ namespace GameServerApp.Testing
         }
 
         /// <summary>
+        /// Builds a framed ChunkLoadRequest packet covering multiple positions for registry validation.
+        /// </summary>
+        public static ProtocolRoundTripResult BuildChunkLoadRequestRoundTrip()
+        {
+            ProtocolRegistry.ValidateBindings();
+            ProtoRuntime.EnsureInitialized();
+            ProtoFingerprint.AssertDescriptorFingerprint();
+
+            var messageType = MinecraftMessageType.ChunkDataRequest;
+            var request = new ChunkLoadRequest
+            {
+                ViewDistance = 6
+            };
+
+            request.ChunkPositions.Add(new CommonVector3Int { X = 0, Y = 0, Z = 0 });
+            request.ChunkPositions.Add(new CommonVector3Int { X = 1, Y = 0, Z = -1 });
+            request.ChunkPositions.Add(new CommonVector3Int { X = -2, Y = 0, Z = 3 });
+
+            ProtocolRegistry.EnsureRegistered(messageType);
+            var payload = request.ToByteArray();
+            var parsed = ChunkLoadRequest.Parser.ParseFrom(payload);
+
+            if (parsed.ViewDistance != request.ViewDistance || parsed.ChunkPositions.Count != request.ChunkPositions.Count)
+            {
+                throw new InvalidOperationException("[DummyProtocolClient] Parsed chunk-load request does not match source message.");
+            }
+
+            return new ProtocolRoundTripResult(
+                messageType,
+                payload.Length,
+                ChunkLoadRequest.Descriptor.FullName,
+                SharedFeatureCatalog.HydrologySignature,
+                BuildFrame(messageType, payload));
+        }
+
+        /// <summary>
         /// Sends a framed payload to a running server. No response parsing is performed.
         /// </summary>
         public static async Task<ProtocolRoundTripResult> SendAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
         {
-            var roundTrip = BuildTimeUpdateRoundTrip();
+            return await SendRoundTripAsync(BuildTimeUpdateRoundTrip, host, port, token);
+        }
 
-            using var client = new TcpClient();
-            await client.ConnectAsync(host, port);
-
-            using var stream = client.GetStream();
-            await stream.WriteAsync(roundTrip.Payload.AsMemory(0, roundTrip.Payload.Length), token);
-            await stream.FlushAsync(token);
-
-            return roundTrip;
+        /// <summary>
+        /// Sends a chunk-load request frame to a running server.
+        /// </summary>
+        public static Task<ProtocolRoundTripResult> SendChunkRequestAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
+        {
+            return SendRoundTripAsync(BuildChunkLoadRequestRoundTrip, host, port, token);
         }
 
         private static byte[] BuildFrame(MinecraftMessageType messageType, byte[] payload)
@@ -83,6 +119,20 @@ namespace GameServerApp.Testing
             header.CopyTo(frame.AsSpan(0, header.Length));
             payload.CopyTo(frame.AsSpan(header.Length));
             return frame;
+        }
+
+        private static async Task<ProtocolRoundTripResult> SendRoundTripAsync(Func<ProtocolRoundTripResult> builder, string host, int port, CancellationToken token)
+        {
+            var roundTrip = builder();
+
+            using var client = new TcpClient();
+            await client.ConnectAsync(host, port);
+
+            using var stream = client.GetStream();
+            await stream.WriteAsync(roundTrip.Payload.AsMemory(0, roundTrip.Payload.Length), token);
+            await stream.FlushAsync(token);
+
+            return roundTrip;
         }
     }
 }

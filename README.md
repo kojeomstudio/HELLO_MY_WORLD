@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-26: Hydrology shield v2 + proto validation (Session 18)**
+  - Feature catalog/docs: `docs/2026-01-26-minecraft-feature-core-content-util-session-18.md`, JSON: `config/minecraft_feature_client_server_core_content_util_2026-01-26-session-18.json`, report: `docs/2026-01-26-session-18-worldgen-proto-report.md`.
+  - Worldgen tuning: river meander clamp + seam shield, lake water-table bias, cave water-table stability (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`); configs synced to `config/world.json` and `Assets/StreamingAssets/world-config.json` (hydrology signature `2026-01-26-hydrology-shield-v2`).
+  - Map-control resiliency: Unity `WorldMapController` rebuilds previews on signature drift; server/client generation signatures now call `ProtocolRegistry.ValidateBindings()`. Map-control JSON mirrored to `Assets/StreamingAssets/world-map-control.json`.
+  - Dummy client: chunk-load round-trip builder/sender (`SendChunkRequestAsync`) added to `GameServer/Testing/DummyProtocolClient.cs`; shared framed send helper reused by `SendAsync`.
 - **2026-01-26: Hydrology shield + shared contracts**
   - Plan: `plans/2026-01-26-session-16-plan.md`; docs: `docs/2026-01-26-worldgen-hydrology-shield.md`; feature catalog: `config/minecraft_feature_client_server_core_content_util_2026-01-26.json`.
   - Pipeline `2026-01-26-hydrology-shield` adds subterranean hydrology shielding + river/lake feedback across server (`ImprovedTerrainCoordinator.cs`), MapGeneratorLib, and Unity preview (`WorldMapController.cs`).

@@ -813,6 +813,9 @@ namespace GameServerApp.World.Generation
                     float hydrologyGradient = hydrologyMask != null ? Math.Abs(neighbourHydro - hydrology) : 0f;
                     float flowGradient = flowMask != null ? Math.Abs(neighbourFlow - flow) : 0f;
                     float hydrologyEnvelope = Math.Min(1f, Math.Max(hydrology, neighbourHydro) + flow * 0.35f + hydrologyGradient * 0.35f);
+                    double seamShield = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * water.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.6);
+                    double waterTableDelta = Math.Abs(heightMap[x, z] - water.GlobalWaterLevel);
+                    double waterTableClamp = 1.0 - Math.Clamp(waterTableDelta / Math.Max(1.0, water.HydrologyWaterTableClampRange), 0.0, 1.0) * water.HydrologyWaterTableClampWeight;
 
                     var warp = SimplexNoise.DomainWarp(
                         worldX,
@@ -832,7 +835,17 @@ namespace GameServerApp.World.Generation
                         0.55,
                         (int)worldSettings.WorldSeed ^ 0x00DD);
 
+                    double meander = SimplexNoise.Generate(
+                        worldX + 211,
+                        worldZ - 73,
+                        Math.Max(0.0001, water.RiverNoiseScale * 0.5),
+                        2,
+                        1.0,
+                        0.6,
+                        (int)worldSettings.WorldSeed ^ 0x8844) * water.RiverMeanderJitter;
+
                     double intensity = Math.Clamp(1.0 - Math.Abs(baseNoise), 0.0, 1.0);
+                    intensity = Math.Clamp(intensity + meander, 0.0, 1.0);
                     double slope = ComputeSlope(heightMap, x, z);
                     double continuity = 1.0 - Math.Min(1.0, slope * water.RiverGradientPenalty * 0.01);
                     double anisotropy = ComputeAnisotropy(heightMap, x, z) * water.RiverAnisotropyWeight;
@@ -842,10 +855,13 @@ namespace GameServerApp.World.Generation
 
                     double seamStability = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * water.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.65);
                     double continuityBoost = (hydrologyEnvelope + neighbourFlow) * water.HydrologyContinuityWeight * 0.15;
-                    intensity = intensity * continuity * headwaterStability + flowAlignment + continuityBoost;
-                    intensity -= (anisotropy + reliefPenalty);
+                    double curvatureDamp = 1.0 - Math.Clamp(anisotropy * 0.5 + reliefPenalty * 0.35, 0.0, 0.65);
+
+                    intensity = (intensity * continuity * headwaterStability + flowAlignment + continuityBoost) * curvatureDamp;
+                    intensity -= reliefPenalty * 0.35;
                     intensity *= 1.0 + hydrologyEnvelope * water.HydrologyContinuityWeight * 0.35;
-                    intensity *= seamStability;
+                    intensity *= seamStability * seamShield;
+                    intensity *= Math.Clamp(waterTableClamp, 0.35, 1.0);
                     if (IsEdge(x, z))
                     {
                         intensity *= Math.Max(0.15, 1.0 - water.RiverEdgeFeather);
@@ -869,6 +885,7 @@ namespace GameServerApp.World.Generation
         {
             var lakes = new float[chunkSize, chunkSize];
             var lakeConfig = config.Lakes;
+            var water = config.Water;
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -883,6 +900,11 @@ namespace GameServerApp.World.Generation
                     float hydrologyEnvelope = Math.Min(1f, hydrology + flow * 0.35f + hydrologyGradient * 0.35f);
                     int worldX = chunkX * chunkSize + x;
                     int worldZ = chunkZ * chunkSize + z;
+                    double seamShield = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * water.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.55);
+                    double waterTableDelta = Math.Abs(heightMap[x, z] - water.GlobalWaterLevel);
+                    double waterTableBias = Math.Max(0.0, 1.0 - waterTableDelta / Math.Max(1.0, water.HydrologyWaterTableClampRange));
+                    double waterTableWeight = waterTableBias * water.HydrologyWaterTableClampWeight;
+                    double waterTablePenalty = Math.Max(0.0, (waterTableDelta - water.HydrologyWaterTableClampRange) * 0.01 * water.HydrologyWaterTableSlopeWeight);
 
                     double noise = SimplexNoise.Generate(
                         worldX,
@@ -903,15 +925,16 @@ namespace GameServerApp.World.Generation
                         (int)worldSettings.WorldSeed ^ 0x99);
 
                     double weight = (noise * 0.6) + (basin * 0.4) + lakeConfig.SpawnWeightBias;
-                    double inflow = riverMask != null ? riverMask[x, z] * config.Water.LakeInflowBlendWeight : 0.0;
+                    double inflow = riverMask != null ? riverMask[x, z] * water.LakeInflowBlendWeight : 0.0;
                     double riverSuppression = riverMask != null ? riverMask[x, z] * lakeConfig.RiverProximitySuppression : 0.0;
                     double altitudePenalty = Math.Max(0, seaLevel - heightMap[x, z]) * 0.0025;
-                    double slopePenalty = ComputeSlope(heightMap, x, z) * config.Water.LakeRimErosionWeight * 0.05;
-                    double stabilityPenalty = (hydrologyGradient + flowGradient) * config.Water.HydrologyEdgeStabilityWeight * 0.1;
-                    weight += inflow + hydrologyEnvelope * lakeConfig.FlowSeepageWeight + flow * config.Water.LakeInflowBlendWeight * 0.25;
-                    weight -= riverSuppression + altitudePenalty + slopePenalty + stabilityPenalty;
+                    double slopePenalty = ComputeSlope(heightMap, x, z) * water.LakeRimErosionWeight * 0.05;
+                    double stabilityPenalty = (hydrologyGradient + flowGradient) * water.HydrologyEdgeStabilityWeight * 0.1;
+                    weight += inflow + hydrologyEnvelope * lakeConfig.FlowSeepageWeight + flow * water.LakeInflowBlendWeight * 0.25 + waterTableWeight;
+                    weight -= riverSuppression + altitudePenalty + slopePenalty + stabilityPenalty + waterTablePenalty;
 
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - inflow * 0.1;
+                    weight *= Math.Max(0.25, seamShield);
                     if (weight > wetlandThreshold && heightMap[x, z] > bedrockLevel + lakeConfig.MinDepth)
                     {
                         lakes[x, z] = (float)Math.Clamp(weight, 0.0, 1.0);
@@ -941,6 +964,8 @@ namespace GameServerApp.World.Generation
                     double stabilityPenalty = hydrology * caves.HydrologyStabilityWeight + flow * caves.FlowStabilityWeight + hydrologyGradient * caves.RoughnessStabilityWeight + hydrologyEnvelope * caves.RiverSuppressionWeight * 0.35;
                     double seamPenalty = (hydrologyGradient + hydrologyEnvelope * 0.5f) * config.Water.HydrologyEdgeStabilityWeight * caves.RiverSuppressionWeight * 0.5;
                     double ventilationBias = 1.0 - Math.Clamp(hydrologyEnvelope * config.Water.HydrologyEdgeFlowLockWeight, 0.0, 0.65);
+                    double waterTableDelta = Math.Abs(heightMap[x, z] - config.Water.GlobalWaterLevel);
+                    double waterTableClamp = 1.0 - Math.Clamp(waterTableDelta / Math.Max(1.0, config.Water.HydrologyWaterTableClampRange), 0.0, 1.0);
 
                     for (int y = bedrockLevel + 1; y < Math.Min(worldHeight - 4, heightMap[x, z]); y++)
                     {
@@ -952,7 +977,8 @@ namespace GameServerApp.World.Generation
                         double depthRatio = (double)(y - bedrockLevel) / Math.Max(1.0, seaLevel - bedrockLevel);
                         double ceilingPenalty = Math.Clamp(depthRatio * caves.CeilingStabilityWeight, 0.0, caves.CeilingStabilityWeight);
                         double moisturePenalty = Math.Clamp(hydrologyEnvelope * caves.MoistureRetentionWeight + flow * caves.FlowStabilityWeight * 0.5f, 0.0, 0.95);
-                        double stability = stabilityPenalty + ceilingPenalty + moisturePenalty + seamPenalty;
+                        double waterTableStability = Math.Clamp(waterTableClamp * config.Water.HydrologyWaterTableSlopeWeight * 0.15, 0.0, 0.4);
+                        double stability = stabilityPenalty + ceilingPenalty + moisturePenalty + seamPenalty + waterTableStability;
 
                         if ((stability > 0.9 && random.NextDouble() < stability * 0.5) || (ventilationBias < 0.35 && random.NextDouble() < 0.35))
                         {
@@ -970,7 +996,7 @@ namespace GameServerApp.World.Generation
                             continue;
                         }
 
-                        if (hydrologyGradient > 0.45f && IsEdge(x, z))
+                        if ((hydrologyGradient > 0.4f || seamPenalty > 0.35) && IsEdge(x, z))
                         {
                             continue;
                         }
@@ -983,7 +1009,7 @@ namespace GameServerApp.World.Generation
                         }
 
                         bool flooded = y < seaLevel - 6 &&
-                            (random.NextDouble() < caves.WaterThreshold * (1.0 + hydrologyEnvelope * 0.35) || hydrologyEnvelope > 0.6f || flow > 0.8f);
+                            (random.NextDouble() < caves.WaterThreshold * (1.0 + hydrologyEnvelope * 0.35) || hydrologyEnvelope > 0.6f || flow > 0.8f || (waterTableClamp > 0.65 && hydrologyEnvelope > 0.55f));
                         chunk.SetBlock(x, y, z, flooded ? BlockType.Water : BlockType.Air);
                     }
                 }

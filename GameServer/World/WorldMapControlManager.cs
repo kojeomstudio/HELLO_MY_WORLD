@@ -344,6 +344,7 @@ namespace GameServerApp.World
         private string ComputeGenerationSignature()
         {
             ProtoFingerprint.AssertDescriptorFingerprint();
+            ProtocolRegistry.ValidateBindings();
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
             double gradientStabilityBlend = generationConfig.Water.HydrologyGradientStabilityBlend;
             int gradientStabilityIterations = generationConfig.Water.HydrologyGradientStabilityIterations;

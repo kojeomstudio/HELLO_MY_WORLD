@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GameCommon.World;
 
 namespace GameServerApp.World
 {
@@ -17,6 +18,7 @@ namespace GameServerApp.World
         public string ProfileHash { get; set; } = string.Empty;
         public string SourceConfig { get; set; } = string.Empty;
         public DateTime GeneratedAtUtc { get; set; }
+        public string HydrologySignature { get; set; } = SharedFeatureCatalog.HydrologySignature;
 
         public int ChunkSize { get; set; }
         public int RenderDistance { get; set; }
@@ -140,6 +142,7 @@ namespace GameServerApp.World
                 ChunkSize = chunkSize,
                 RenderDistance = renderDistance,
                 SimulationDistance = simulationDistance,
+                HydrologySignature = SharedFeatureCatalog.HydrologySignature,
                 GlobalWaterLevel = Math.Max(0, config.Water.GlobalWaterLevel),
                 HydrologyGradientStabilityIterations = Math.Max(0, config.Water.HydrologyGradientStabilityIterations),
                 HydrologyGradientStabilityBlend = config.Water.HydrologyGradientStabilityBlend,
@@ -256,6 +259,7 @@ namespace GameServerApp.World
                 .Append(profile.ChunkSize).Append('|')
                 .Append(profile.RenderDistance).Append('|')
                 .Append(profile.SimulationDistance).Append('|')
+                .Append(string.IsNullOrWhiteSpace(profile.HydrologySignature) ? "default" : profile.HydrologySignature).Append('|')
                 .Append(profile.GlobalWaterLevel).Append('|')
                 .Append(profile.HydrologyGradientStabilityIterations).Append('|')
                 .Append(profile.HydrologyGradientStabilityBlend).Append('|')
@@ -404,9 +408,17 @@ namespace GameServerApp.World
 
                 var json = File.ReadAllText(path);
                 var profile = JsonSerializer.Deserialize<WorldMapControlProfile>(json, options);
-                if (profile != null && string.IsNullOrWhiteSpace(profile.ProfileHash))
+                if (profile != null)
                 {
-                    profile.ProfileHash = ComputeHash(profile);
+                    if (string.IsNullOrWhiteSpace(profile.HydrologySignature))
+                    {
+                        profile.HydrologySignature = SharedFeatureCatalog.HydrologySignature;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(profile.ProfileHash))
+                    {
+                        profile.ProfileHash = ComputeHash(profile);
+                    }
                 }
 
                 return profile;

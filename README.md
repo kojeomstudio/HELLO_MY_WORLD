@@ -29,10 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
-- **2026-01-26: Curvature-guided hydrology & proto health**
-  - Plan: `plans/2026-01-26-plan.md`; docs: `docs/2026-01-26-worldgen-curvature-sync.md`; feature catalog: `minecraft_feature_core_content_util.json` (v1.1.0).
-  - Pipeline `2026-01-26-curvature-sync` adds curvature/slope-guided hydrology for rivers/lakes/caves across server + Unity previews; signature now tracks curvature/slope weights.
-  - Proto guard tightened: server handler logs ProtoDiagnostics summary after fingerprint checks; Unity client bootstrap runs ProtoRuntime + registry clean validation.
+- **2026-01-26: Hydrology shield + shared contracts**
+  - Plan: `plans/2026-01-26-session-16-plan.md`; docs: `docs/2026-01-26-worldgen-hydrology-shield.md`; feature catalog: `config/minecraft_feature_client_server_core_content_util_2026-01-26.json`.
+  - Pipeline `2026-01-26-hydrology-shield` adds subterranean hydrology shielding + river/lake feedback across server (`ImprovedTerrainCoordinator.cs`), MapGeneratorLib, and Unity preview (`WorldMapController.cs`).
+  - World map control profiles now carry a hydrology signature (`SharedFeatureCatalog.HydrologySignature`); JSONs (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`) were refreshed to force regeneration when signatures drift.
+  - Shared GameCommon.dll published to `Assets/Plugins` exposing `SharedFeatureCatalog`; dummy protocol client added at `GameServer/Testing/DummyProtocolClient.cs` for EnhancedMinecraft packet roundtrips.
   - Data remains JSON-driven (`config/world.json`, `Assets/StreamingAssets/world-config.json`, map-control JSONs); regenerate map-control profiles after hydrology tuning.
 - **2026-01-25: Session 15 - Comprehensive Implementation & Protocol Fixes**
    - Plan: `plans/2026-01-25-session-15-comprehensive-implementation-plan.md`; feature catalog: `config/minecraft_feature_client_server_core_content_util_2026-01-25-session-15.json`

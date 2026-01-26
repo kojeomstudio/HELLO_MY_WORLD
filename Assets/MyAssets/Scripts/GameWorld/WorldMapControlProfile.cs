@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using GameCommon.World;
 using UnityEngine;
 
 [Serializable]
@@ -11,6 +12,7 @@ public class WorldMapControlProfileData
     public string profileHash;
     public string sourceConfig;
     public string generatedAtUtc;
+    public string hydrologySignature;
 
     public int chunkSize;
     public int renderDistance;
@@ -122,6 +124,7 @@ public sealed class WorldMapControlProfile
     public string ProfileHash { get; private set; } = string.Empty;
     public string SourceConfig { get; private set; } = string.Empty;
     public string GeneratedAtUtc { get; private set; } = string.Empty;
+    public string HydrologySignature { get; private set; } = string.Empty;
 
     public int ChunkSize { get; private set; }
     public int RenderDistance { get; private set; }
@@ -272,6 +275,7 @@ public sealed class WorldMapControlProfile
                 version = config.MapControlProfileVersion > 0 ? config.MapControlProfileVersion : 1,
                 sourceConfig = string.IsNullOrEmpty(config.MapControlProfilePath) ? "WorldConfigData.json" : config.MapControlProfilePath,
                 generatedAtUtc = DateTime.UtcNow.ToString("o"),
+                hydrologySignature = SharedFeatureCatalog.HydrologySignature,
                 chunkSize = Mathf.Max(1, config.ChunkSize),
                 renderDistance = Mathf.Max(1, config.RenderDistance),
                 simulationDistance = Mathf.Max(1, config.SimulationDistance),
@@ -389,6 +393,7 @@ public sealed class WorldMapControlProfile
             ProfileHash = computedHash,
             SourceConfig = string.IsNullOrEmpty(data.sourceConfig) ? "unknown" : data.sourceConfig,
             GeneratedAtUtc = string.IsNullOrEmpty(data.generatedAtUtc) ? DateTime.UtcNow.ToString("o") : data.generatedAtUtc,
+            HydrologySignature = string.IsNullOrEmpty(data.hydrologySignature) ? SharedFeatureCatalog.HydrologySignature : data.hydrologySignature,
             ChunkSize = data.chunkSize,
             RenderDistance = data.renderDistance,
             SimulationDistance = data.simulationDistance,
@@ -502,6 +507,7 @@ public sealed class WorldMapControlProfile
             .Append(data.chunkSize).Append('|')
             .Append(data.renderDistance).Append('|')
             .Append(data.simulationDistance).Append('|')
+            .Append(string.IsNullOrEmpty(data.hydrologySignature) ? SharedFeatureCatalog.HydrologySignature : data.hydrologySignature).Append('|')
             .Append(data.globalWaterLevel).Append('|')
             .Append(data.hydrologyGradientStabilityIterations).Append('|')
             .Append(data.hydrologyGradientStabilityBlend).Append('|')

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GameCommon.World;
 using UnityEngine;
 using Minecraft.Core;
 using EnhancedMinecraftProtocol;
@@ -450,6 +451,11 @@ namespace Minecraft.World
             if (profile == null)
             {
                 return;
+            }
+
+            if (!string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.LogWarning($"[WorldMap] Hydrology signature drift detected (server={profile.HydrologySignature}, client={SharedFeatureCatalog.HydrologySignature}). Applying server profile anyway.");
             }
 
             if (!string.IsNullOrWhiteSpace(serverHash) &&

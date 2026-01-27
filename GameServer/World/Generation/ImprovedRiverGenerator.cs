@@ -108,6 +108,7 @@ namespace GameServerApp.World.Generation
                     double braidedAssist = Math.Clamp((hydrologyVariance + flowVariance) * config.HydrologyFlowPersistence * 0.15, 0.0, 0.25);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double flowGradient = Math.Abs(interiorFlow - flow);
+                    double pressureGradient = Math.Abs(hydrologyGradient - flowGradient);
                     double directionality = (Math.Abs(downhill.X) + Math.Abs(downhill.Z)) * 0.5;
                     double flowAlignment = 1.0 + Math.Clamp(flow * config.RiverFlowAlignmentWeight * 0.35, 0.0, 0.45);
                     double seamStitch = 1.0 + Math.Clamp((TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrologyMask[x, z]) * config.HydrologyEdgeFluxBlend, -0.35, 0.35);
@@ -117,6 +118,7 @@ namespace GameServerApp.World.Generation
                         seamStitch * flowShadowWeight * 0.25,
                         0.0,
                         0.75);
+                    double hydrologyShadow = Math.Clamp(flowShadow + hydrology * flowShadowWeight * 0.25, 0.0, 0.85);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * config.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
                     double continuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow) * config.HydrologyEdgeFluxBlend * 0.2, -0.2, 0.35);
                     continuityBias *= 1.0 - Math.Clamp(hydrologyVariance * 0.15 + flowVariance * 0.1, 0.0, 0.25);
@@ -147,10 +149,15 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + depthBias * 0.05;
                     pressure *= 1.0 - Math.Clamp(divergencePenalty * 0.35, 0.0, 0.35);
                     pressure = pressure * (1.0 - braidedAssist * 0.25) + braidedAssist * 0.08;
-                    pressure = pressure * (1.0 - flowShadow * 0.25) + hydrology * flowShadow * 0.15;
+                    pressure = pressure * (1.0 - hydrologyShadow * 0.25) + (hydrology + seamHydro) * hydrologyShadow * 0.15;
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     pressure *= seamGuard;
+                    double pressureStabilizer = 1.0 - Math.Clamp(
+                        (pressureGradient / Math.Max(0.0001, config.HydrologyPressureGradientClamp)) * Math.Clamp(config.HydrologyPressureBlend, 0.0, 1.0),
+                        0.0,
+                        0.45);
+                    pressure *= Math.Max(0.55, pressureStabilizer);
                     pressure *= 1.0 + flowMemoryContinuity * 0.25;
                     pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
                     pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * config.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.4);

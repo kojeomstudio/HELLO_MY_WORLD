@@ -396,7 +396,19 @@ namespace GameServerApp.World
                 generationConfig.Water.RiverReliefPenaltyWeight,
                 generationConfig.Water.RiverAnisotropyDamping,
                 generationConfig.Water.RiverBankStabilityClamp,
-                generationConfig.Lakes.RiverProximitySuppression);
+                generationConfig.Lakes.RiverProximitySuppression,
+                generationConfig.Water.HydrologyFlowShadowWeight,
+                generationConfig.Water.HydrologyFlowShadowSlopeWeight,
+                generationConfig.Water.HydrologyPressureBlend,
+                generationConfig.Water.HydrologyPressureGradientClamp,
+                generationConfig.Water.HydrologyEdgeFlowBias,
+                generationConfig.Water.HydrologyEdgeFlowLockWeight,
+                generationConfig.Water.RiverFlowAlignmentWeight,
+                generationConfig.Water.RiverConfluenceBoost,
+                generationConfig.Water.LakeRimErosionWeight,
+                generationConfig.Lakes.VarianceWeight,
+                generationConfig.Caves.EdgeSealStrength,
+                generationConfig.Caves.RiverSuppressionWeight);
 
             return WorldMapSignature.Compute(context);
         }

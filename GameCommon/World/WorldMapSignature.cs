@@ -66,7 +66,19 @@ namespace GameCommon.World
                 .Append(context.RiverReliefPenaltyWeight).Append('|')
                 .Append(context.RiverAnisotropyDamping).Append('|')
                 .Append(context.RiverBankStabilityClamp).Append('|')
-                .Append(context.LakeRiverProximitySuppression);
+                .Append(context.LakeRiverProximitySuppression).Append('|')
+                .Append(context.HydrologyFlowShadowWeight).Append('|')
+                .Append(context.HydrologyFlowShadowSlopeWeight).Append('|')
+                .Append(context.HydrologyPressureBlend).Append('|')
+                .Append(context.HydrologyPressureGradientClamp).Append('|')
+                .Append(context.HydrologyEdgeFlowBias).Append('|')
+                .Append(context.HydrologyEdgeFlowLockWeight).Append('|')
+                .Append(context.RiverFlowAlignmentWeight).Append('|')
+                .Append(context.RiverConfluenceBoost).Append('|')
+                .Append(context.LakeRimErosionWeight).Append('|')
+                .Append(context.LakeVarianceWeight).Append('|')
+                .Append(context.CaveEdgeSealStrength).Append('|')
+                .Append(context.CaveRiverSuppressionWeight);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

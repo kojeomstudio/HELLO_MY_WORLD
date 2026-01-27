@@ -82,6 +82,14 @@ namespace GameServerApp.World.Generation
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowMask, x, z, 2);
                     double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
                     double slopeStability = 1.0 - Math.Clamp(slope * config.CeilingStabilityWeight * 0.02, 0.0, 0.35);
+                    double hydrologyShadow = Math.Clamp(
+                        hydrology * config.HydrologyStabilityWeight +
+                        seamHydro * config.HydrologyStabilityWeight * 0.25 +
+                        flowMemoryClamped * config.FlowStabilityWeight * 0.35,
+                        0.0,
+                        1.0);
+                    double moistureContinuity = Math.Clamp((hydrologyGradient + flowGradient) * config.MoistureRetentionWeight * 0.25, 0.0, 0.55);
+                    double flowShadowDrift = Math.Clamp(Math.Abs(flowMemory - flow) * config.MoistureRetentionWeight * 0.5, 0.0, moistureFlowClamp);
                     double slopeThresholdPenalty = Math.Clamp(slope * config.CeilingStabilityWeight * 0.015, 0.0, 0.25);
                     double varianceBrake = Math.Clamp((hydrologyVariance + flowVariance) * config.RoughnessStabilityWeight * 0.2, 0.0, 0.4);
                     double saturationBrake = Math.Clamp(
@@ -135,6 +143,8 @@ namespace GameServerApp.World.Generation
                     stability *= 1.0 - riparianCeilingGuard * 0.35;
                     double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemoryClamped * config.MoistureRetentionWeight * 0.35;
                     wetnessRetention += erosion * config.MoistureRetentionWeight * 0.2;
+                    stability *= 1.0 - moistureContinuity * 0.35;
+                    stability *= 1.0 - hydrologyShadow * 0.1;
                     double riparianSuppression = Math.Clamp(
                         (riverPressure + hydrologyGradient + flowGradient + seamMemory) * config.RiverSuppressionWeight * 0.5,
                         0.0,
@@ -209,6 +219,9 @@ namespace GameServerApp.World.Generation
                         threshold += riparianCeilingGuard * 0.2;
                         threshold += riparianBridge * 0.35;
                         threshold += flowContinuity * 0.2;
+                        threshold += hydrologyShadow * 0.2;
+                        threshold += moistureContinuity * 0.25;
+                        threshold += flowShadowDrift * 0.1;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);

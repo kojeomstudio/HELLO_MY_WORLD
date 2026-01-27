@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Net.Sockets;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EnhancedMinecraftProtocol;
@@ -29,11 +30,7 @@ namespace GameServerApp.Testing
         /// </summary>
         public static ProtocolRoundTripResult BuildTimeUpdateRoundTrip()
         {
-            ProtocolRegistry.ValidateBindings();
-            ProtocolValidator.ValidateEnhancedContracts();
-            ProtoRuntime.EnsureInitialized();
-            ProtoFingerprint.AssertDescriptorFingerprint();
-            ProtoDiagnostics.AssertRegistryClean();
+            AuditProtocolRegistry();
 
             var messageType = MinecraftMessageType.TimeUpdate;
             var message = new TimeUpdateBroadcast
@@ -64,11 +61,7 @@ namespace GameServerApp.Testing
         /// </summary>
         public static ProtocolRoundTripResult BuildChunkLoadRequestRoundTrip()
         {
-            ProtocolRegistry.ValidateBindings();
-            ProtocolValidator.ValidateEnhancedContracts();
-            ProtoRuntime.EnsureInitialized();
-            ProtoFingerprint.AssertDescriptorFingerprint();
-            ProtoDiagnostics.AssertRegistryClean();
+            AuditProtocolRegistry();
 
             var messageType = MinecraftMessageType.ChunkDataRequest;
             var request = new ChunkLoadRequest { ViewDistance = 6 };
@@ -89,6 +82,53 @@ namespace GameServerApp.Testing
                 messageType,
                 payload.Length,
                 ChunkLoadRequest.Descriptor.FullName,
+                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
+                BuildFrame(messageType, payload));
+        }
+
+        /// <summary>
+        /// Builds a framed BlockChangeNotification packet to validate item/block contracts.
+        /// </summary>
+        public static ProtocolRoundTripResult BuildBlockChangeRoundTrip()
+        {
+            AuditProtocolRegistry();
+
+            var messageType = MinecraftMessageType.BlockChangeNotification;
+            var broadcast = new BlockChangeBroadcast
+            {
+                Position = new CommonVector3Int { X = 4, Y = 64, Z = 4 },
+                OldBlockId = 1,
+                NewBlockId = 2,
+                Metadata = 0,
+                PlayerId = "dummy-tester",
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Reason = ChangeReason.PlayerBreak
+            };
+
+            broadcast.Drops.Add(new ItemStack
+            {
+                ItemId = 2,
+                ItemName = "stone",
+                Count = 1,
+                Durability = 0,
+                MaxDurability = 0
+            });
+
+            ProtocolRegistry.EnsureRegistered(messageType);
+            var payload = broadcast.ToByteArray();
+            var parsed = BlockChangeBroadcast.Parser.ParseFrom(payload);
+
+            if (parsed.NewBlockId != broadcast.NewBlockId ||
+                parsed.Position == null ||
+                parsed.Position.X != broadcast.Position.X)
+            {
+                throw new InvalidOperationException("[DummyProtocolClient] Parsed block-change payload does not match source message.");
+            }
+
+            return new ProtocolRoundTripResult(
+                messageType,
+                payload.Length,
+                BlockChangeBroadcast.Descriptor.FullName,
                 $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
                 BuildFrame(messageType, payload));
         }
@@ -140,6 +180,22 @@ namespace GameServerApp.Testing
 
             return roundTrip;
         }
+
+        private static void AuditProtocolRegistry()
+        {
+            ProtocolRegistry.ValidateBindings();
+            ProtocolValidator.ValidateEnhancedContracts();
+            ProtoRuntime.EnsureInitialized();
+            ProtoFingerprint.AssertDescriptorFingerprint();
+            ProtoDiagnostics.AssertRegistryClean();
+            ProtocolRegistry.EnsureRequiredBindings();
+
+            var optionalMissing = ProtocolRegistry.GetUnregisteredOptionalTypes().ToArray();
+            if (optionalMissing.Length > 0)
+            {
+                Console.WriteLine($"[DummyProtocolClient] Optional proto bindings missing: {string.Join(", ", optionalMissing)}");
+            }
+        }
     }
 
     /// <summary>
@@ -166,6 +222,9 @@ namespace GameServerApp.Testing
             }
 
             Console.WriteLine($"[DummyClient] Sending proto frames to {host}:{port}");
+            var blockChange = DummyProtocolClient.BuildBlockChangeRoundTrip();
+            Console.WriteLine($"[DummyClient] Built {blockChange.MessageType} ({blockChange.PayloadSize} bytes) sig={blockChange.Signature}");
+
             var timeResult = await DummyProtocolClient.SendAsync(host, port);
             Console.WriteLine($"[DummyClient] Sent {timeResult.MessageType} ({timeResult.PayloadSize} bytes) sig={timeResult.Signature}");
 

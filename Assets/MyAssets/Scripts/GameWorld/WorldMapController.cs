@@ -454,7 +454,19 @@ namespace GameWorld
                 config.Water.RiverReliefPenaltyWeight,
                 config.Water.RiverAnisotropyDamping,
                 config.Water.RiverBankStabilityClamp,
-                config.Lakes.RiverProximitySuppression);
+                config.Lakes.RiverProximitySuppression,
+                config.Water.HydrologyFlowShadowWeight,
+                config.Water.HydrologyFlowShadowSlopeWeight,
+                config.Water.HydrologyPressureBlend,
+                config.Water.HydrologyPressureGradientClamp,
+                config.Water.HydrologyEdgeFlowBias,
+                config.Water.HydrologyEdgeFlowLockWeight,
+                config.Water.RiverFlowAlignmentWeight,
+                config.Water.RiverConfluenceBoost,
+                config.Water.LakeRimErosionWeight,
+                config.Lakes.VarianceWeight,
+                config.Caves.EdgeSealStrength,
+                config.Caves.RiverSuppressionWeight);
             return WorldMapSignature.Compute(context);
         }
 
@@ -515,6 +527,14 @@ namespace GameWorld
                     double erosionPenalty = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double slope = ComputeSlope(heightMap, x, z);
                     double slopeStability = 1.0 - Math.Clamp(slope * worldConfig.Caves.CeilingStabilityWeight * 0.02, 0.0, 0.35);
+                    double hydrologyShadow = Math.Clamp(
+                        hydrologySample * worldConfig.Caves.HydrologyStabilityWeight +
+                        seamHydro * worldConfig.Caves.HydrologyStabilityWeight * 0.25 +
+                        flowMemory * worldConfig.Caves.FlowStabilityWeight * 0.35,
+                        0.0,
+                        1.0);
+                    double moistureContinuity = Math.Clamp((hydrologyGradient + flowGradient) * worldConfig.Caves.MoistureRetentionWeight * 0.25, 0.0, 0.55);
+                    double flowShadowDrift = Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.MoistureRetentionWeight * 0.5, 0.0, moistureFlowClamp);
                     double slopeThresholdPenalty = Math.Clamp(slope * worldConfig.Caves.CeilingStabilityWeight * 0.015, 0.0, 0.25);
                     double varianceBrake = Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.RoughnessStabilityWeight * 0.25, 0.0, 0.35);
                     double saturationBrake = Math.Clamp(
@@ -539,6 +559,8 @@ namespace GameWorld
                     stability *= 1.0 - saturationBrake * 0.3;
                     stability *= 1.0 - ceilingClamp * 0.15;
                     stability *= slopeStability;
+                    stability *= 1.0 - moistureContinuity * 0.35;
+                    stability *= 1.0 - hydrologyShadow * 0.1;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -562,6 +584,9 @@ namespace GameWorld
                         threshold += ceilingClamp * 0.1;
                         threshold += riparianBridge * 0.35;
                         threshold += flowContinuity * 0.2;
+                        threshold += hydrologyShadow * 0.2;
+                        threshold += moistureContinuity * 0.25;
+                        threshold += flowShadowDrift * 0.1;
                         threshold += slopeThresholdPenalty * 0.5;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
@@ -613,10 +638,18 @@ namespace GameWorld
                     double seamStitch = 1.0 + Math.Clamp((seamHydro - hydrologySample) * profile.HydrologyEdgeFluxBlend, -0.35, 0.35);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
                     double flowDrift = Math.Abs(flowMemory - flowSample);
+                    double flowShadow = Math.Clamp(
+                        flowSample * profile.HydrologyFlowShadowWeight +
+                        hydrologyGradient * profile.HydrologyFlowShadowSlopeWeight * 0.5,
+                        0.0,
+                        0.75);
+                    double hydrologyShadow = Math.Clamp(flowShadow + hydrologySample * profile.HydrologyFlowShadowWeight * 0.25, 0.0, 0.85);
                     double divergencePenalty = Math.Min(1.0, flowDrift / Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp));
+                    double pressureGradient = Math.Abs(hydrologyGradient - flowDrift);
                     double braidedAssist = Math.Clamp((hydrologyGradient + Math.Abs(flowSample - seamHydro)) * profile.HydrologyFlowPersistence * 0.15, 0.0, 0.25);
                     double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double erosionMemory = Math.Clamp(SampleInterior(erosionRisk, x, z), 0.0f, 1.0f);
+                    double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * profile.HydrologyEdgeStabilityWeight * 0.25, 0.0, 0.35);
 
                     double riverMask = profile.RiverBankThreshold - baseNoise - erosion * profile.RiverBankErosionWeight * 0.08;
                     double pressure = Math.Max(0.0, riverMask);
@@ -643,6 +676,13 @@ namespace GameWorld
                     pressure *= 1.0 + depthBias * 0.05;
                     pressure *= 1.0 - Math.Clamp(divergencePenalty * 0.35, 0.0, 0.35);
                     pressure = pressure * (1.0 - braidedAssist * 0.25) + braidedAssist * 0.08;
+                    double pressureStabilizer = 1.0 - Math.Clamp(
+                        (pressureGradient / Math.Max(0.0001, profile.HydrologyPressureGradientClamp)) * Math.Clamp(profile.HydrologyPressureBlend, 0.0, 1.0),
+                        0.0,
+                        0.45);
+                    pressure *= Math.Max(0.55, pressureStabilizer);
+                    pressure = pressure * (1.0 - hydrologyShadow * 0.25) + (hydrologySample + seamHydro) * hydrologyShadow * 0.15;
+                    pressure *= seamGuard;
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = SampleInterior(flow, x, z) / 6.0;
@@ -734,6 +774,7 @@ namespace GameWorld
                     double inflowBlend = riverPressure * profile.LakeInflowBlendWeight;
                     double hydrologyGradient = Math.Abs(seamHydro - hydrologySample);
                     double flowGradient = Math.Abs(SampleInterior(flow, x, z) - flowSample);
+                    double pressureGradient = Math.Abs(hydrologyGradient - flowGradient);
                     double divergencePenalty = Math.Min(1.0, flowGradient / divergenceClamp);
                     double flowShadow = Math.Clamp(
                         flowSample * worldConfig.Water.HydrologyFlowShadowWeight +
@@ -769,6 +810,11 @@ namespace GameWorld
                     weight -= riverPressure * 0.5;
                     weight -= reliefPenalty * profile.RiverReliefPenaltyWeight;
                     weight *= 1.0 - divergencePenalty * 0.25;
+                    double pressureStabilizer = 1.0 - Math.Clamp(
+                        (pressureGradient / Math.Max(0.0001, profile.HydrologyPressureGradientClamp)) * Math.Clamp(profile.HydrologyPressureBlend, 0.0, 1.0),
+                        0.0,
+                        0.45);
+                    weight *= Math.Max(0.55, pressureStabilizer);
                     weight *= Math.Max(0.55, waterClamp);
                     weight *= 1.0 - waterSlopePenalty;
                     weight *= 1.0 - depthPenalty * 0.6;

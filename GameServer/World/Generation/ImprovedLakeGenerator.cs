@@ -87,6 +87,7 @@ namespace GameServerApp.World.Generation
                         0.7);
                     double flowGradient = Math.Abs(flowMemory - flow);
                     double divergencePenalty = Math.Min(1.0, flowGradient / divergenceClamp);
+                    double pressureGradient = Math.Abs(hydrologyGradient - flowGradient);
                     double seamGuard = 1.0 - Math.Clamp(hydrologyGradient * waterConfig.HydrologyEdgeStabilityWeight * 0.35, 0.0, 0.5);
                     double seamContinuityBias = 1.0 + Math.Clamp((seamHydro + interiorFlow + hydrology) * waterConfig.HydrologyEdgeFluxBlend * 0.15, -0.35, 0.35);
                     double shorelineJitter = Math.Abs(SimplexNoise.Generate(
@@ -132,6 +133,11 @@ namespace GameServerApp.World.Generation
                     weight *= 1.0 + Math.Max(0.0, basinAssist) * 0.4;
                     weight *= 1.0 - Math.Clamp(ridgePenalty * 0.55, 0.0, 0.45);
                     weight *= 1.0 - divergencePenalty * 0.25;
+                    double pressureStabilizer = 1.0 - Math.Clamp(
+                        (pressureGradient / Math.Max(0.0001, waterConfig.HydrologyPressureGradientClamp)) * Math.Clamp(waterConfig.HydrologyPressureBlend, 0.0, 1.0),
+                        0.0,
+                        0.45);
+                    weight *= Math.Max(0.55, pressureStabilizer);
                     weight *= Math.Max(0.55, waterClamp);
                     weight *= 1.0 - waterSlopePenalty;
                     weight *= 1.0 - depthPenalty * 0.6;

@@ -36,6 +36,20 @@ public static class ProtocolRegistry
     private static readonly IReadOnlyDictionary<MinecraftMessageType, ProtocolBinding> BindingsByType =
         Bindings.ToDictionary(binding => binding.MessageType);
 
+    private static readonly HashSet<MinecraftMessageType> OptionalMessageTypes = new()
+    {
+        MinecraftMessageType.MultiBlockChange,
+        MinecraftMessageType.InventoryUpdate,
+        MinecraftMessageType.ItemUse,
+        MinecraftMessageType.ItemDrop,
+        MinecraftMessageType.ItemPickup,
+        MinecraftMessageType.EntityUpdate,
+        MinecraftMessageType.EntityInteract,
+        MinecraftMessageType.ContainerOpen,
+        MinecraftMessageType.ContainerClose,
+        MinecraftMessageType.ContainerUpdate
+    };
+
     /// <summary>
     /// Returns <c>true</c> if the message type is backed by a generated protobuf contract.
     /// </summary>
@@ -154,6 +168,8 @@ public static class ProtocolRegistry
                     $"EnhancedMinecraft contract '{binding.MessageType}' is sourced from package '{actualPackage}', expected '{expectedPackage}'. Regenerate protobuf DTOs or fix using directives so registry bindings point at the current protoc output.");
             }
         }
+
+        EnsureRequiredBindings();
     }
 
     public static bool TryResolveContractType(MinecraftMessageType messageType, out Type? contractType)
@@ -167,5 +183,40 @@ public static class ProtocolRegistry
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns unregistered message types (required + optional) to help audits.
+    /// </summary>
+    public static IEnumerable<MinecraftMessageType> GetUnregisteredMessageTypes()
+    {
+        return Enum.GetValues<MinecraftMessageType>()
+            .Where(messageType => !IsRegistered(messageType));
+    }
+
+    /// <summary>
+    /// Returns only the optional message types that are not bound to generated DTOs.
+    /// </summary>
+    public static IEnumerable<MinecraftMessageType> GetUnregisteredOptionalTypes()
+    {
+        return OptionalMessageTypes.Where(messageType => !IsRegistered(messageType));
+    }
+
+    /// <summary>
+    /// Throws if any required (non-optional) message type is missing from the registry.
+    /// </summary>
+    public static void EnsureRequiredBindings()
+    {
+        var missing = Enum.GetValues<MinecraftMessageType>()
+            .Where(messageType => !OptionalMessageTypes.Contains(messageType) && !IsRegistered(messageType))
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft protocol registry is missing required bindings: " +
+                string.Join(", ", missing) +
+                ". Regenerate protoc DTOs or update ProtocolRegistry.");
+        }
     }
 }

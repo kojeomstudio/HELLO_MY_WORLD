@@ -77,7 +77,19 @@ namespace GameCommon.World
             double riverReliefPenaltyWeight,
             double riverAnisotropyDamping,
             double riverBankStabilityClamp,
-            double lakeRiverProximitySuppression)
+            double lakeRiverProximitySuppression,
+            double hydrologyFlowShadowWeight,
+            double hydrologyFlowShadowSlopeWeight,
+            double hydrologyPressureBlend,
+            double hydrologyPressureGradientClamp,
+            double hydrologyEdgeFlowBias,
+            double hydrologyEdgeFlowLockWeight,
+            double riverFlowAlignmentWeight,
+            double riverConfluenceBoost,
+            double lakeRimErosionWeight,
+            double lakeVarianceWeight,
+            double caveEdgeSealStrength,
+            double caveRiverSuppressionWeight)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -129,6 +141,18 @@ namespace GameCommon.World
             RiverAnisotropyDamping = riverAnisotropyDamping;
             RiverBankStabilityClamp = riverBankStabilityClamp;
             LakeRiverProximitySuppression = lakeRiverProximitySuppression;
+            HydrologyFlowShadowWeight = hydrologyFlowShadowWeight;
+            HydrologyFlowShadowSlopeWeight = hydrologyFlowShadowSlopeWeight;
+            HydrologyPressureBlend = hydrologyPressureBlend;
+            HydrologyPressureGradientClamp = hydrologyPressureGradientClamp;
+            HydrologyEdgeFlowBias = hydrologyEdgeFlowBias;
+            HydrologyEdgeFlowLockWeight = hydrologyEdgeFlowLockWeight;
+            RiverFlowAlignmentWeight = riverFlowAlignmentWeight;
+            RiverConfluenceBoost = riverConfluenceBoost;
+            LakeRimErosionWeight = lakeRimErosionWeight;
+            LakeVarianceWeight = lakeVarianceWeight;
+            CaveEdgeSealStrength = caveEdgeSealStrength;
+            CaveRiverSuppressionWeight = caveRiverSuppressionWeight;
         }
 
         public string PipelineVersion { get; }
@@ -181,5 +205,17 @@ namespace GameCommon.World
         public double RiverAnisotropyDamping { get; }
         public double RiverBankStabilityClamp { get; }
         public double LakeRiverProximitySuppression { get; }
+        public double HydrologyFlowShadowWeight { get; }
+        public double HydrologyFlowShadowSlopeWeight { get; }
+        public double HydrologyPressureBlend { get; }
+        public double HydrologyPressureGradientClamp { get; }
+        public double HydrologyEdgeFlowBias { get; }
+        public double HydrologyEdgeFlowLockWeight { get; }
+        public double RiverFlowAlignmentWeight { get; }
+        public double RiverConfluenceBoost { get; }
+        public double LakeRimErosionWeight { get; }
+        public double LakeVarianceWeight { get; }
+        public double CaveEdgeSealStrength { get; }
+        public double CaveRiverSuppressionWeight { get; }
     }
 }

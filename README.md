@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-27: Hydrology shield v4 flow-lock + proto audit (Session 22)**
+  - Hydrology signature bumped to `2026-01-27-hydrology-shield-v4-flow-lock`; map-control profile version raised to 7 (configs: `config/world.json`, `Assets/StreamingAssets/world-config.json`, profile regen to `config/world_map_control_profile.json` + `Assets/StreamingAssets/world-map-control.json`).
+  - Worldgen tuning: cave moisture continuity clamp and hydrology shadow, river pressure stabiliser (pressure blend/gradient clamp), lake pressure blend + rim/variance tweaks mirrored in Unity preview (`GameServer/World/Generation/*`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+  - World map signature context extended with flow-shadow/pressure/edge flow-lock fields (shared via `GameCommon.dll`); update/copy DLL to `Assets/Plugins/GameCommon.dll` after build.
+  - Protocol registry now enforces required bindings and reports optional gaps; dummy client builds time/chunk/block-change frames for local packet validation (`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`, `GameServer/Testing/DummyProtocolClient.cs`).
 - **2026-01-27: Hydrology shield v3 + shared map signatures (Session 20)**
   - Hydrology signature bumped to `2026-01-27-hydrology-shield-v3`; map-control profile version raised to 6 with regenerated JSONs (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
   - Worldgen tuning: river anisotropy damping/bank stability, lake outflow sealing, cave moisture flow clamp; configs synced (`config/world.json`, `Assets/StreamingAssets/world-config.json`).

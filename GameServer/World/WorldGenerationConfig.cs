@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 5;
+        public int MapControlProfileVersion { get; set; } = 6;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -157,7 +157,9 @@ namespace GameServerApp.World
         public double RiverGradientPenalty { get; set; } = 0.42;
         public double RiverHeadwaterStabilityWeight { get; set; } = 0.35;
         public double RiverAnisotropyWeight { get; set; } = 0.32;
+        public double RiverAnisotropyDamping { get; set; } = 0.35;
         public double RiverMeanderJitter { get; set; } = 0.18;
+        public double RiverBankStabilityClamp { get; set; } = 0.35;
         public double LakeInflowBlendWeight { get; set; } = 0.48;
         public double RiverConfluenceBoost { get; set; } = 0.38;
         public double RiverEdgeFeather { get; set; } = 0.5;
@@ -216,6 +218,7 @@ namespace GameServerApp.World
         public double SupportHydrationBias { get; set; } = 0.42;
         public double SupportFlowBias { get; set; } = 0.20;
         public double MoistureRetentionWeight { get; set; } = 0.35;
+        public double MoistureFlowClamp { get; set; } = 0.65;
         public double EdgeSealStrength { get; set; } = 0.5;
         public double SupportPillarChance { get; set; } = 0.28;
         public int RiparianPlugDepth { get; set; } = 2;
@@ -235,6 +238,7 @@ namespace GameServerApp.World
         public double RiverProximitySuppression { get; set; } = 0.35;
         public double WetlandSaturationThreshold { get; set; } = 0.55;
         public int OutflowCarveDepth { get; set; } = 2;
+        public double OutflowSealWeight { get; set; } = 0.35;
         public int ShelfDepth { get; set; } = 2;
         public int WetlandBufferRadius { get; set; } = 3;
         public double FlowSeepageWeight { get; set; } = 0.38;

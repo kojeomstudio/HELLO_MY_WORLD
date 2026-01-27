@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 5;
+        public int MapControlProfileVersion = 6;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();
@@ -196,8 +196,10 @@ namespace Minecraft.Core
         public float RiverGradientPenalty = 0.42f;
         public float RiverHeadwaterStabilityWeight = 0.35f;
         public float RiverAnisotropyWeight = 0.32f;
+        public float RiverAnisotropyDamping = 0.35f;
         public float RiverMeanderJitter = 0.18f;
         public float RiverBankErosionWeight = 0.18f;
+        public float RiverBankStabilityClamp = 0.35f;
         public float LakeRimErosionWeight = 0.32f;
         public float LakeInflowBlendWeight = 0.48f;
         public float RiverEdgeFeather = 0.5f;
@@ -255,6 +257,7 @@ namespace Minecraft.Core
         public float RoughnessStabilityWeight = 0.1f;
         public float RiverSuppressionWeight = 0.35f;
         public float MoistureRetentionWeight = 0.35f;
+        public float MoistureFlowClamp = 0.65f;
         public float EdgeSealStrength = 0.5f;
         public float SupportPillarChance = 0.28f;
         public int RiparianPlugDepth = 2;
@@ -308,6 +311,7 @@ namespace Minecraft.Core
         public float RiverProximitySuppression = 0.35f;
         public float WetlandSaturationThreshold = 0.55f;
         public int OutflowCarveDepth = 2;
+        public float OutflowSealWeight = 0.35f;
         public int WetlandBufferRadius = 3;
         public float FlowSeepageWeight = 0.38f;
         public float VarianceWeight = 0.3f;
@@ -403,8 +407,10 @@ namespace Minecraft.Core
         public float RiverGradientPenalty { get; }
         public float RiverHeadwaterStabilityWeight { get; }
         public float RiverAnisotropyWeight { get; }
+        public float RiverAnisotropyDamping { get; }
         public float RiverMeanderJitter { get; }
         public float RiverBankErosionWeight { get; }
+        public float RiverBankStabilityClamp { get; }
         public float LakeRimErosionWeight { get; }
         public float LakeInflowBlendWeight { get; }
         public float RiverEdgeFeather { get; }
@@ -476,8 +482,10 @@ namespace Minecraft.Core
             RiverGradientPenalty = data.RiverGradientPenalty;
             RiverHeadwaterStabilityWeight = data.RiverHeadwaterStabilityWeight;
             RiverAnisotropyWeight = data.RiverAnisotropyWeight;
+            RiverAnisotropyDamping = data.RiverAnisotropyDamping;
             RiverMeanderJitter = data.RiverMeanderJitter;
             RiverBankErosionWeight = data.RiverBankErosionWeight;
+            RiverBankStabilityClamp = data.RiverBankStabilityClamp;
             LakeRimErosionWeight = data.LakeRimErosionWeight;
             LakeInflowBlendWeight = data.LakeInflowBlendWeight;
             RiverEdgeFeather = data.RiverEdgeFeather;
@@ -535,6 +543,7 @@ namespace Minecraft.Core
         public float RoughnessStabilityWeight { get; }
         public float RiverSuppressionWeight { get; }
         public float MoistureRetentionWeight { get; }
+        public float MoistureFlowClamp { get; }
         public float EdgeSealStrength { get; }
         public float SupportPillarChance { get; }
         public int RiparianPlugDepth { get; }
@@ -580,6 +589,7 @@ namespace Minecraft.Core
             RoughnessStabilityWeight = data.RoughnessStabilityWeight;
             RiverSuppressionWeight = data.RiverSuppressionWeight;
             MoistureRetentionWeight = data.MoistureRetentionWeight;
+            MoistureFlowClamp = data.MoistureFlowClamp;
             EdgeSealStrength = data.EdgeSealStrength;
             SupportPillarChance = data.SupportPillarChance;
             RiparianPlugDepth = data.RiparianPlugDepth;
@@ -641,6 +651,7 @@ namespace Minecraft.Core
         public float RiverProximitySuppression { get; }
         public float WetlandSaturationThreshold { get; }
         public int OutflowCarveDepth { get; }
+        public float OutflowSealWeight { get; }
         public int WetlandBufferRadius { get; }
         public float FlowSeepageWeight { get; }
         public float VarianceWeight { get; }
@@ -658,6 +669,7 @@ namespace Minecraft.Core
             RiverProximitySuppression = data.RiverProximitySuppression;
             WetlandSaturationThreshold = data.WetlandSaturationThreshold;
             OutflowCarveDepth = data.OutflowCarveDepth;
+            OutflowSealWeight = data.OutflowSealWeight;
             WetlandBufferRadius = data.WetlandBufferRadius;
             FlowSeepageWeight = data.FlowSeepageWeight;
             VarianceWeight = data.VarianceWeight;

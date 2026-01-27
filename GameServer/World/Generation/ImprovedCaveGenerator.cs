@@ -46,6 +46,7 @@ namespace GameServerApp.World.Generation
             double floodedProximityWeight = Math.Clamp(config.FloodedCaveProximityToWaterTableWeight, 0.0, 1.0);
             double lavaThreshold = Math.Clamp(config.LavaThreshold, 0.0, 1.0);
             double waterThreshold = Math.Clamp(config.WaterThreshold, 0.0, 1.0);
+            double moistureFlowClamp = Math.Max(0.0, config.MoistureFlowClamp);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -69,6 +70,7 @@ namespace GameServerApp.World.Generation
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
                     float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
                     float flowMemory = TerrainMaskUtility.Clamp01((flow + TerrainMaskUtility.SampleInterior(flowMask, x, z)) * 0.5f);
+                    double flowMemoryClamped = Math.Min(flowMemory, moistureFlowClamp);
                     float seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     float seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
@@ -88,7 +90,7 @@ namespace GameServerApp.World.Generation
                         0.45);
                     double seamStability = 1.0 - Math.Clamp(hydrologyGradient * config.EdgeSealStrength, 0.0, 0.45);
                     seamStability *= 1.0 - Math.Clamp(flowGradient * config.EdgeSealStrength * 0.35, 0.0, 0.35);
-                    double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, 1.5);
+                    double flowShadow = Math.Clamp(flow * config.FlowStabilityWeight + hydrology * config.HydrologyStabilityWeight, 0.0, moistureFlowClamp);
                     double variancePenalty = Math.Clamp(hydrologyVariance * 0.25 + flowVariance * 0.18, 0.0, 0.35);
                     double stabilityPenalty = Math.Clamp(
                         flowShadow * 0.35 +
@@ -131,7 +133,7 @@ namespace GameServerApp.World.Generation
                         0.0,
                         0.5);
                     stability *= 1.0 - riparianCeilingGuard * 0.35;
-                    double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemory * config.MoistureRetentionWeight * 0.35;
+                    double wetnessRetention = hydrology * config.MoistureRetentionWeight + flowMemoryClamped * config.MoistureRetentionWeight * 0.35;
                     wetnessRetention += erosion * config.MoistureRetentionWeight * 0.2;
                     double riparianSuppression = Math.Clamp(
                         (riverPressure + hydrologyGradient + flowGradient + seamMemory) * config.RiverSuppressionWeight * 0.5,

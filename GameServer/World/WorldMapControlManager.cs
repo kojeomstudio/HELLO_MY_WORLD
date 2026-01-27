@@ -346,30 +346,60 @@ namespace GameServerApp.World
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtocolRegistry.ValidateBindings();
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
-            double gradientStabilityBlend = generationConfig.Water.HydrologyGradientStabilityBlend;
-            int gradientStabilityIterations = generationConfig.Water.HydrologyGradientStabilityIterations;
-            double gradientClamp = generationConfig.Water.HydrologyGradientClamp;
-            string protoBaseline = ProtoFingerprint.DescriptorFingerprint;
-            string protoComputed = ProtoFingerprint.ComputeFingerprint();
+            var context = new WorldMapSignatureContext(
+                PipelineVersion,
+                generationConfig.WorldName,
+                seed,
+                ProtoFingerprint.DescriptorFingerprint,
+                ProtoFingerprint.ComputeFingerprint(),
+                controlProfile?.Version ?? generationConfig.MapControlProfileVersion,
+                controlProfile?.ProfileHash ?? "no-profile",
+                controlProfile?.HydrologySignature ?? SharedFeatureCatalog.HydrologySignature,
+                generationConfig.ChunkSize,
+                generationConfig.WorldHeight,
+                generationConfig.RenderDistance,
+                generationConfig.SimulationDistance,
+                generationConfig.Water.GlobalWaterLevel,
+                generationConfig.TerrainGeneration.SeaLevel,
+                generationConfig.Water.HydrologyFlowPersistence,
+                generationConfig.Water.HydrologyFlowGain,
+                generationConfig.Water.HydrologyWatershedStitchWeight,
+                generationConfig.Water.HydrologyWatershedStitchRadius,
+                generationConfig.Water.HydrologyGradientStabilityIterations,
+                generationConfig.Water.HydrologyGradientStabilityBlend,
+                generationConfig.Water.HydrologyGradientClamp,
+                generationConfig.Water.HydrologyCurvatureWeight,
+                generationConfig.Water.HydrologySlopePenalty,
+                generationConfig.Water.HydrologyWaterTableClampWeight,
+                generationConfig.Water.HydrologyWaterTableClampRange,
+                generationConfig.Water.HydrologyWaterTableSlopeWeight,
+                generationConfig.Lakes.MinDepth,
+                generationConfig.Lakes.MaxDepth,
+                generationConfig.Lakes.ShelfDepth,
+                generationConfig.Lakes.FlowSeepageWeight,
+                generationConfig.Lakes.OutflowSealWeight,
+                generationConfig.Caves.CeilingMoistureWeight,
+                generationConfig.Caves.CeilingMoistureClamp,
+                generationConfig.Caves.MoistureFlowClamp,
+                generationConfig.Caves.FloodedCaveNoiseFrequency,
+                generationConfig.Caves.FloodedCaveThreshold,
+                generationConfig.Caves.FloodedCaveProximityToWaterTableWeight,
+                generationConfig.Caves.WaterThreshold,
+                generationConfig.Caves.LavaThreshold,
+                generationConfig.Water.HydrologyEdgeBlendRadius,
+                generationConfig.Water.HydrologyEdgeVarianceClamp,
+                generationConfig.Water.HydrologyEdgeNormalizationBlend,
+                generationConfig.Water.HydrologyEdgeNormalizationIterations,
+                generationConfig.Water.HydrologyFlowMemoryWeight,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.RiverMeanderJitter,
+                generationConfig.Water.RiverReliefPenaltyWeight,
+                generationConfig.Water.RiverAnisotropyDamping,
+                generationConfig.Water.RiverBankStabilityClamp,
+                generationConfig.Lakes.RiverProximitySuppression);
 
-            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{protoBaseline}:{protoComputed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{controlProfile?.HydrologySignature ?? SharedFeatureCatalog.HydrologySignature}:{controlProfile?.Version ?? 0}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyFlowGain}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{gradientStabilityIterations}:{gradientStabilityBlend}:{gradientClamp}:{generationConfig.Water.HydrologyWaterTableClampWeight}:{generationConfig.Water.HydrologyWaterTableClampRange}:{generationConfig.Water.HydrologyWaterTableSlopeWeight}:{generationConfig.Lakes.MinDepth}:{generationConfig.Lakes.MaxDepth}:{generationConfig.Lakes.ShelfDepth}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}:{generationConfig.Caves.FloodedCaveNoiseFrequency}:{generationConfig.Caves.FloodedCaveThreshold}:{generationConfig.Caves.FloodedCaveProximityToWaterTableWeight}:{generationConfig.Caves.WaterThreshold}:{generationConfig.Caves.LavaThreshold}:{generationConfig.Water.HydrologyEdgeBlendRadius}:{generationConfig.Water.HydrologyEdgeVarianceClamp}:{generationConfig.Water.HydrologyEdgeNormalizationBlend}:{generationConfig.Water.HydrologyEdgeNormalizationIterations}:{generationConfig.Water.HydrologyFlowMemoryWeight}:{generationConfig.Water.HydrologyContinuityWeight}:{generationConfig.Water.RiverMeanderJitter}:{generationConfig.Water.RiverReliefPenaltyWeight}:{generationConfig.Lakes.VarianceWeight}:{generationConfig.Lakes.OutflowStabilityWeight}:{generationConfig.Water.HydrologyFlowShadowWeight}:{generationConfig.Water.HydrologyFlowShadowSlopeWeight}:{generationConfig.Lakes.WetlandBufferRadius}:{generationConfig.Water.LakeInflowBlendWeight}:{generationConfig.Water.HydrologyVarianceBlend}:{generationConfig.Water.HydrologyVarianceClamp}:{generationConfig.Water.HydrologyEdgeStabilityIterations}:{generationConfig.Water.HydrologyEdgeStabilityWeight}:{generationConfig.Water.HydrologyEdgeFlowLockWeight}:{generationConfig.Water.HydrologyEdgeFlowBias}:{generationConfig.Water.HydrologyEdgeTangentWeight}:{generationConfig.Water.HydrologyEdgeFluxBlend}:{generationConfig.Water.HydrologyDirectionalBlend}:{generationConfig.Water.HydrologyDirectionalIterations}:{generationConfig.Water.HydrologyFlowDivergenceClamp}:{generationConfig.Water.HydrologySeamRelaxBlend}:{generationConfig.Water.HydrologySeamRelaxIterations}:{generationConfig.Caves.EdgeSealStrength}:{generationConfig.Caves.SupportDensity}:{generationConfig.Caves.SupportPillarChance}:{generationConfig.Lakes.RiverProximitySuppression}:{worldConfigHash}:{profileContentHash}";
+            return WorldMapSignature.Compute(context);
         }
-    }
-
-    public enum WorldMapRequestType
-    {
-        GetInitialMap,
-        UpdateChunk,
-        GetPlayerProfile,
-        UpdatePlayerProfile
-    }
-
-    public enum ProfileUpdateType
-    {
-        RenderDistance,
-        MapScale,
-        ShowCoordinates,
-        ShowBiomeInfo
     }
 
     public sealed class WorldMapRequest

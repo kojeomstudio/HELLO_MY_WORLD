@@ -40,6 +40,7 @@ namespace GameServerApp.World.Generation
             double flowMemoryWeight = Math.Clamp(waterConfig.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double varianceWeight = Math.Clamp(lakeConfig.VarianceWeight, 0.0, 1.0);
             double outflowStabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            double outflowSealWeight = Math.Clamp(lakeConfig.OutflowSealWeight, 0.0, 1.0);
             double edgeNormalizationStrength = Math.Clamp(waterConfig.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
             double waterTableClampWeight = Math.Clamp(waterConfig.HydrologyWaterTableClampWeight, 0.0, 1.0);
             double waterTableClampRange = Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange);
@@ -148,13 +149,14 @@ namespace GameServerApp.World.Generation
                     double downhillFlow = flowAccumulation[downX, downZ] / 6.0;
                     double downhillBias = Math.Abs(downhill.X) + Math.Abs(downhill.Z);
                     double outflowAnchor = (downhillHydro + downhillFlow) * outflowStabilityWeight * 0.25;
-                    outflowAnchor *= 1.0 + downhillBias * 0.05;
+                    double stabilitySeal = 1.0 + outflowSealWeight * (1.0 - divergencePenalty) * 0.35;
+                    outflowAnchor *= (1.0 + downhillBias * 0.05) * stabilitySeal;
                     weight += outflowAnchor * (1.0 - flowShadow * 0.5);
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
-                    weight *= 1.0 - flowShadow * 0.35;
+                    weight *= 1.0 - flowShadow * Math.Clamp(0.35 - outflowSealWeight * 0.1, 0.05, 0.35);
                     weight *= 1.0 + riparianCohesion * 0.15;
                     double flowBridge = (hydrology + seamHydro + flowMemory) * waterConfig.HydrologyEdgeFlowBias * 0.1;
                     double flowLock = Math.Clamp(waterConfig.HydrologyEdgeFlowLockWeight, 0.0, 1.0);

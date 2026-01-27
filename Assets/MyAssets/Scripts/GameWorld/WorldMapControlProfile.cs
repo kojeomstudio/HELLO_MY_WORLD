@@ -73,8 +73,10 @@ public class WorldMapControlProfileData
     public float riverGradientPenalty;
     public float riverHeadwaterStabilityWeight;
     public float riverAnisotropyWeight;
+    public float riverAnisotropyDamping;
     public float riverMeanderJitter;
     public float riverReliefPenaltyWeight;
+    public float riverBankStabilityClamp;
     public float riverEdgeFeather;
     public int riverMouthSmoothRadius;
     public float riverDeltaWetlandStrength;
@@ -91,6 +93,7 @@ public class WorldMapControlProfileData
     public float lakeRiverProximitySuppression;
     public float lakeInflowBlendWeight;
     public float lakeRimErosionWeight;
+    public float lakeOutflowSealWeight;
     public float lakeFlowSeepageWeight;
     public float lakeVarianceWeight;
     public float lakeOutflowStabilityWeight;
@@ -102,6 +105,7 @@ public class WorldMapControlProfileData
     public float caveSupportHydrationBias;
     public float caveSupportFlowBias;
     public float caveMoistureRetentionWeight;
+    public float caveMoistureFlowClamp;
     public int caveRiparianPlugDepth;
     public float caveCeilingStabilityWeight;
     public float caveCeilingMoistureClamp;
@@ -185,8 +189,10 @@ public sealed class WorldMapControlProfile
     public float RiverGradientPenalty { get; private set; }
     public float RiverHeadwaterStabilityWeight { get; private set; }
     public float RiverAnisotropyWeight { get; private set; }
+    public float RiverAnisotropyDamping { get; private set; }
     public float RiverMeanderJitter { get; private set; }
     public float RiverReliefPenaltyWeight { get; private set; }
+    public float RiverBankStabilityClamp { get; private set; }
     public float RiverEdgeFeather { get; private set; }
     public int RiverMouthSmoothRadius { get; private set; }
     public float RiverDeltaWetlandStrength { get; private set; }
@@ -203,6 +209,7 @@ public sealed class WorldMapControlProfile
     public float LakeRiverProximitySuppression { get; private set; }
     public float LakeInflowBlendWeight { get; private set; }
     public float LakeRimErosionWeight { get; private set; }
+    public float LakeOutflowSealWeight { get; private set; }
     public float LakeFlowSeepageWeight { get; private set; }
     public float LakeVarianceWeight { get; private set; }
     public float LakeOutflowStabilityWeight { get; private set; }
@@ -214,6 +221,7 @@ public sealed class WorldMapControlProfile
     public float CaveSupportHydrationBias { get; private set; }
     public float CaveSupportFlowBias { get; private set; }
     public float CaveMoistureRetentionWeight { get; private set; }
+    public float CaveMoistureFlowClamp { get; private set; }
     public int CaveRiparianPlugDepth { get; private set; }
     public float CaveCeilingStabilityWeight { get; private set; }
     public float CaveCeilingMoistureClamp { get; private set; }
@@ -335,8 +343,10 @@ public sealed class WorldMapControlProfile
                 riverGradientPenalty = Mathf.Clamp01(water.RiverGradientPenalty),
                 riverHeadwaterStabilityWeight = Mathf.Clamp01(water.RiverHeadwaterStabilityWeight),
                 riverAnisotropyWeight = Mathf.Clamp(water.RiverAnisotropyWeight, 0f, 2f),
+                riverAnisotropyDamping = Mathf.Clamp01(water.RiverAnisotropyDamping),
                 riverMeanderJitter = Mathf.Clamp01(water.RiverMeanderJitter),
                 riverReliefPenaltyWeight = Mathf.Clamp01(water.RiverReliefPenaltyWeight),
+                riverBankStabilityClamp = Mathf.Clamp01(water.RiverBankStabilityClamp),
                 riverEdgeFeather = Mathf.Clamp01(water.RiverEdgeFeather),
                 riverMouthSmoothRadius = Mathf.Max(1, water.RiverMouthSmoothRadius),
                 riverDeltaWetlandStrength = Mathf.Clamp01(water.RiverDeltaWetlandStrength),
@@ -353,6 +363,7 @@ public sealed class WorldMapControlProfile
                 lakeRiverProximitySuppression = Mathf.Clamp01(lakes.RiverProximitySuppression),
                 lakeInflowBlendWeight = Mathf.Clamp01(water.LakeInflowBlendWeight),
                 lakeRimErosionWeight = Mathf.Clamp01(water.LakeRimErosionWeight),
+                lakeOutflowSealWeight = Mathf.Clamp01(lakes.OutflowSealWeight),
                 lakeFlowSeepageWeight = Mathf.Clamp01(lakes.FlowSeepageWeight),
                 lakeVarianceWeight = Mathf.Clamp01(lakes.VarianceWeight),
                 lakeOutflowStabilityWeight = Mathf.Clamp01(lakes.OutflowStabilityWeight),
@@ -367,6 +378,7 @@ public sealed class WorldMapControlProfile
                 caveCeilingStabilityWeight = Mathf.Clamp01(caves.CaveCeilingStabilityWeight),
                 caveCeilingMoistureClamp = Mathf.Clamp01(caves.CeilingMoistureClamp),
                 caveMoistureRetentionWeight = Mathf.Clamp01(caves.MoistureRetentionWeight),
+                caveMoistureFlowClamp = Mathf.Clamp01(caves.MoistureFlowClamp),
                 caveHydrologyWeight = Mathf.Clamp01(caves.HydrologyStabilityWeight),
                 caveFlowWeight = Mathf.Clamp01(caves.FlowStabilityWeight),
                 caveRoughnessWeight = Mathf.Clamp01(caves.RoughnessStabilityWeight),
@@ -453,8 +465,10 @@ public sealed class WorldMapControlProfile
             RiverGradientPenalty = data.riverGradientPenalty,
             RiverHeadwaterStabilityWeight = data.riverHeadwaterStabilityWeight,
             RiverAnisotropyWeight = data.riverAnisotropyWeight,
+            RiverAnisotropyDamping = data.riverAnisotropyDamping,
             RiverMeanderJitter = data.riverMeanderJitter,
             RiverReliefPenaltyWeight = data.riverReliefPenaltyWeight,
+            RiverBankStabilityClamp = data.riverBankStabilityClamp,
             RiverEdgeFeather = data.riverEdgeFeather,
             RiverMouthSmoothRadius = data.riverMouthSmoothRadius,
             RiverDeltaWetlandStrength = data.riverDeltaWetlandStrength,
@@ -471,6 +485,7 @@ public sealed class WorldMapControlProfile
             LakeRiverProximitySuppression = data.lakeRiverProximitySuppression,
             LakeInflowBlendWeight = data.lakeInflowBlendWeight,
             LakeRimErosionWeight = data.lakeRimErosionWeight,
+            LakeOutflowSealWeight = data.lakeOutflowSealWeight,
             LakeFlowSeepageWeight = data.lakeFlowSeepageWeight,
             LakeVarianceWeight = data.lakeVarianceWeight,
             LakeOutflowStabilityWeight = data.lakeOutflowStabilityWeight,
@@ -481,6 +496,7 @@ public sealed class WorldMapControlProfile
             CaveSupportDensity = data.caveSupportDensity,
             CaveSupportHydrationBias = data.caveSupportHydrationBias,
             CaveSupportFlowBias = data.caveSupportFlowBias,
+            CaveMoistureFlowClamp = data.caveMoistureFlowClamp,
             CaveRiparianPlugDepth = data.caveRiparianPlugDepth,
             CaveCeilingStabilityWeight = data.caveCeilingStabilityWeight,
             CaveCeilingMoistureClamp = data.caveCeilingMoistureClamp,
@@ -564,8 +580,10 @@ public sealed class WorldMapControlProfile
             .Append(data.riverGradientPenalty).Append('|')
             .Append(data.riverHeadwaterStabilityWeight).Append('|')
             .Append(data.riverAnisotropyWeight).Append('|')
+            .Append(data.riverAnisotropyDamping).Append('|')
             .Append(data.riverMeanderJitter).Append('|')
             .Append(data.riverReliefPenaltyWeight).Append('|')
+            .Append(data.riverBankStabilityClamp).Append('|')
             .Append(data.riverEdgeFeather).Append('|')
             .Append(data.riverMouthSmoothRadius).Append('|')
             .Append(data.riverDeltaWetlandStrength).Append('|')
@@ -582,6 +600,7 @@ public sealed class WorldMapControlProfile
             .Append(data.lakeRiverProximitySuppression).Append('|')
             .Append(data.lakeInflowBlendWeight).Append('|')
             .Append(data.lakeRimErosionWeight).Append('|')
+            .Append(data.lakeOutflowSealWeight).Append('|')
             .Append(data.lakeFlowSeepageWeight).Append('|')
             .Append(data.lakeVarianceWeight).Append('|')
             .Append(data.lakeOutflowStabilityWeight).Append('|')
@@ -592,6 +611,7 @@ public sealed class WorldMapControlProfile
             .Append(data.caveSupportDensity).Append('|')
             .Append(data.caveSupportHydrationBias).Append('|')
             .Append(data.caveSupportFlowBias).Append('|')
+            .Append(data.caveMoistureFlowClamp).Append('|')
             .Append(data.caveRiparianPlugDepth).Append('|')
             .Append(data.caveCeilingStabilityWeight).Append('|')
             .Append(data.caveCeilingMoistureClamp).Append('|')

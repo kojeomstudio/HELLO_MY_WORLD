@@ -43,6 +43,8 @@ namespace GameServerApp.World.Generation
             double waterTableSlopeWeight = Math.Clamp(config.HydrologyWaterTableSlopeWeight, 0.0, 1.0);
             double depthBias = Math.Clamp(config.RiverDepth / 12.0, 0.0, 1.0);
             double riverBankErosionWeight = Math.Clamp(config.RiverBankErosionWeight, 0.0, 1.0);
+            double anisotropyDamping = Math.Clamp(config.RiverAnisotropyDamping, 0.0, 1.0);
+            double bankStabilityClamp = Math.Clamp(config.RiverBankStabilityClamp, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -125,9 +127,12 @@ namespace GameServerApp.World.Generation
                     double erosionBrake = 1.0 - Math.Clamp(erosion * riverBankErosionWeight * 0.45, 0.0, 0.45);
                     pressure *= 1.0 + hydrology * config.HydrologyContinuityWeight;
                     pressure *= 1.0 + flow * config.RiverFlowAlignmentWeight;
-                    pressure *= 1.0 + directionality * config.RiverAnisotropyWeight * 0.2;
+                    double anisotropyPenalty = 1.0 - Math.Clamp(gradient * anisotropyDamping * 0.05 + relief * anisotropyDamping * 0.1, 0.0, 0.45);
+                    pressure *= (1.0 + directionality * config.RiverAnisotropyWeight * 0.2) * anisotropyPenalty;
                     pressure *= 1.0 - Math.Clamp(gradient * config.RiverGradientPenalty * 0.08, 0.0, 0.45);
                     pressure *= 1.0 - Math.Clamp(relief * reliefPenalty, 0.0, 0.35);
+                    double bankClamp = 1.0 - Math.Clamp((gradient + relief) * bankStabilityClamp * 0.08, 0.0, 0.55);
+                    pressure *= bankClamp;
                     pressure *= flowAlignment * seamStitch * meanderFactor;
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure *= 1.0 + seamAnchor * edgeNormalization * 0.15;

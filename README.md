@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-27: Hydrology shield v3 + shared map signatures (Session 20)**
+  - Hydrology signature bumped to `2026-01-27-hydrology-shield-v3`; map-control profile version raised to 6 with regenerated JSONs (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+  - Worldgen tuning: river anisotropy damping/bank stability, lake outflow sealing, cave moisture flow clamp; configs synced (`config/world.json`, `Assets/StreamingAssets/world-config.json`).
+  - Shared GameCommon world map signature/context exported via `GameCommon.dll` (copied to `Assets/Plugins/GameCommon.dll`) for server/Unity parity.
+  - Dummy protocol client now validates EnhancedMinecraft fingerprints/registry and can emit framed time/chunk requests for packet tests (`GameServer/Testing/DummyProtocolClient.cs`).
 - **2026-01-26: Hydrology shield v2 + proto validation (Session 18)**
   - Feature catalog/docs: `docs/2026-01-26-minecraft-feature-core-content-util-session-18.md`, JSON: `config/minecraft_feature_client_server_core_content_util_2026-01-26-session-18.json`, report: `docs/2026-01-26-session-18-worldgen-proto-report.md`.
   - Worldgen tuning: river meander clamp + seam shield, lake water-table bias, cave water-table stability (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`); configs synced to `config/world.json` and `Assets/StreamingAssets/world-config.json` (hydrology signature `2026-01-26-hydrology-shield-v2`).

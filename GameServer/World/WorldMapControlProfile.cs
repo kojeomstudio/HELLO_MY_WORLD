@@ -79,8 +79,10 @@ namespace GameServerApp.World
         public double RiverGradientPenalty { get; set; }
         public double RiverHeadwaterStabilityWeight { get; set; }
         public double RiverAnisotropyWeight { get; set; }
+        public double RiverAnisotropyDamping { get; set; }
         public double RiverMeanderJitter { get; set; }
         public double RiverReliefPenaltyWeight { get; set; }
+        public double RiverBankStabilityClamp { get; set; }
         public double RiverEdgeFeather { get; set; }
         public int RiverMouthSmoothRadius { get; set; }
         public double RiverDeltaWetlandStrength { get; set; }
@@ -97,6 +99,7 @@ namespace GameServerApp.World
         public double LakeRiverProximitySuppression { get; set; }
         public double LakeInflowBlendWeight { get; set; }
         public double LakeRimErosionWeight { get; set; }
+        public double LakeOutflowSealWeight { get; set; }
         public double LakeFlowSeepageWeight { get; set; }
         public double LakeVarianceWeight { get; set; }
         public double LakeOutflowStabilityWeight { get; set; }
@@ -108,6 +111,7 @@ namespace GameServerApp.World
         public double CaveSupportHydrationBias { get; set; }
         public double CaveSupportFlowBias { get; set; }
         public double CaveMoistureRetentionWeight { get; set; }
+        public double CaveMoistureFlowClamp { get; set; }
         public int CaveRiparianPlugDepth { get; set; }
         public double CaveCeilingStabilityWeight { get; set; }
         public double CaveHydrologyWeight { get; set; }
@@ -199,8 +203,10 @@ namespace GameServerApp.World
                 RiverGradientPenalty = config.Water.RiverGradientPenalty,
                 RiverHeadwaterStabilityWeight = config.Water.RiverHeadwaterStabilityWeight,
                 RiverAnisotropyWeight = config.Water.RiverAnisotropyWeight,
+                RiverAnisotropyDamping = config.Water.RiverAnisotropyDamping,
                 RiverMeanderJitter = config.Water.RiverMeanderJitter,
                 RiverReliefPenaltyWeight = config.Water.RiverReliefPenaltyWeight,
+                RiverBankStabilityClamp = config.Water.RiverBankStabilityClamp,
                 RiverEdgeFeather = config.Water.RiverEdgeFeather,
                 RiverMouthSmoothRadius = Math.Max(1, config.Water.RiverMouthSmoothRadius),
                 RiverDeltaWetlandStrength = config.Water.RiverDeltaWetlandStrength,
@@ -217,6 +223,7 @@ namespace GameServerApp.World
                 LakeRiverProximitySuppression = config.Lakes.RiverProximitySuppression,
                 LakeInflowBlendWeight = config.Water.LakeInflowBlendWeight,
                 LakeRimErosionWeight = config.Water.LakeRimErosionWeight,
+                LakeOutflowSealWeight = config.Lakes.OutflowSealWeight,
                 LakeFlowSeepageWeight = config.Lakes.FlowSeepageWeight,
                 LakeVarianceWeight = config.Lakes.VarianceWeight,
                 LakeOutflowStabilityWeight = config.Lakes.OutflowStabilityWeight,
@@ -228,6 +235,7 @@ namespace GameServerApp.World
                 CaveSupportHydrationBias = config.Caves.SupportHydrationBias,
                 CaveSupportFlowBias = config.Caves.SupportFlowBias,
                 CaveMoistureRetentionWeight = config.Caves.MoistureRetentionWeight,
+                CaveMoistureFlowClamp = config.Caves.MoistureFlowClamp,
                 CaveRiparianPlugDepth = Math.Max(0, config.Caves.RiparianPlugDepth),
                 CaveCeilingStabilityWeight = config.Caves.CeilingStabilityWeight,
                 CaveHydrologyWeight = config.Caves.HydrologyStabilityWeight,
@@ -316,8 +324,10 @@ namespace GameServerApp.World
                 .Append(profile.RiverGradientPenalty).Append('|')
                 .Append(profile.RiverHeadwaterStabilityWeight).Append('|')
                 .Append(profile.RiverAnisotropyWeight).Append('|')
+                .Append(profile.RiverAnisotropyDamping).Append('|')
                 .Append(profile.RiverMeanderJitter).Append('|')
                 .Append(profile.RiverReliefPenaltyWeight).Append('|')
+                .Append(profile.RiverBankStabilityClamp).Append('|')
                 .Append(profile.RiverEdgeFeather).Append('|')
                 .Append(profile.RiverMouthSmoothRadius).Append('|')
                 .Append(profile.RiverDeltaWetlandStrength).Append('|')
@@ -334,6 +344,7 @@ namespace GameServerApp.World
                 .Append(profile.LakeRiverProximitySuppression).Append('|')
                 .Append(profile.LakeInflowBlendWeight).Append('|')
                 .Append(profile.LakeRimErosionWeight).Append('|')
+                .Append(profile.LakeOutflowSealWeight).Append('|')
                 .Append(profile.LakeFlowSeepageWeight).Append('|')
                 .Append(profile.LakeVarianceWeight).Append('|')
                 .Append(profile.LakeOutflowStabilityWeight).Append('|')
@@ -347,6 +358,7 @@ namespace GameServerApp.World
                 .Append(profile.CaveRiparianPlugDepth).Append('|')
                 .Append(profile.CaveCeilingStabilityWeight).Append('|')
                 .Append(profile.CaveMoistureRetentionWeight).Append('|')
+                .Append(profile.CaveMoistureFlowClamp).Append('|')
                 .Append(profile.CaveHydrologyWeight).Append('|')
                 .Append(profile.CaveFlowWeight).Append('|')
                 .Append(profile.CaveRoughnessWeight).Append('|')

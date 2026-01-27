@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-01-26 (session 18).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-01-27 (session 20).
         /// </summary>
-        public const string HydrologySignature = "2026-01-26-hydrology-shield-v2";
+        public const string HydrologySignature = "2026-01-27-hydrology-shield-v3";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,7 +82,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S18-CORE-01",
-                "Hydrology Shielded WorldGen v2",
+                "Hydrology Shielded WorldGen v3",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -106,7 +106,7 @@ namespace GameCommon.World
                     "Assets/Plugins/GameCommon.dll"
                 },
                 new[] { "SharedProtocol", "GameCommon" },
-                "planned",
+                "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
                 "S18-CONTENT-01",

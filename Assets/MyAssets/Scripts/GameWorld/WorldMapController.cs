@@ -385,7 +385,9 @@ namespace GameWorld
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
+            ApplyLakeHydrologySeepage(heightMap, hydrology, flow, lakeMask, riverMask);
             ApplyRiverLakeHydrologyFeedback(heightMap, hydrology, flow, riverMask, lakeMask, erosionRisk);
+            ApplyAquiferSuppression(hydrology, flow, riverMask, lakeMask);
             ApplyRiparianCaveBuffer(erosionRisk, riverMask, lakeMask);
             var caveMask = profile.EnableCaves ? BuildCaveMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new bool[chunkSize, worldHeight, chunkSize];
 
@@ -541,6 +543,10 @@ namespace GameWorld
                         (hydrologySample + flowSample + seamHydro + seamFlow) * worldConfig.Caves.MoistureRetentionWeight * 0.15,
                         0.0,
                         0.45);
+                    double aquiferPenalty = Math.Clamp(
+                        wetnessRetention + riverPressure * worldConfig.Caves.RiverSuppressionWeight * 0.25,
+                        0.0,
+                        1.0);
                     double ceilingClamp = Math.Clamp(
                         hydrologySample * worldConfig.Caves.CeilingMoistureWeight +
                         flowMemory * worldConfig.Caves.CeilingMoistureWeight * 0.5 +
@@ -561,6 +567,7 @@ namespace GameWorld
                     stability *= slopeStability;
                     stability *= 1.0 - moistureContinuity * 0.35;
                     stability *= 1.0 - hydrologyShadow * 0.1;
+                    stability *= 1.0 - aquiferPenalty * 0.3;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -587,6 +594,7 @@ namespace GameWorld
                         threshold += hydrologyShadow * 0.2;
                         threshold += moistureContinuity * 0.25;
                         threshold += flowShadowDrift * 0.1;
+                        threshold += aquiferPenalty * 0.2;
                         threshold += slopeThresholdPenalty * 0.5;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
@@ -1144,6 +1152,109 @@ namespace GameWorld
                         Mathf.Clamp(flow[x, z] / 6f, 0f, 1f) * 0.15f);
                 }
             }
+        }
+
+        private void ApplyLakeHydrologySeepage(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] lakeMask, float[,] riverMask)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double seepageWeight = Math.Clamp(worldConfig.Lakes.FlowSeepageWeight, 0.0, 1.0);
+            double inflowBlend = Math.Clamp(worldConfig.Water.LakeInflowBlendWeight, 0.0, 1.0);
+            double varianceClamp = Math.Clamp(profile.HydrologyEdgeVarianceClamp, 0.0, 1.0);
+            double slopePenalty = Math.Max(0.0, profile.HydrologySlopePenalty);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            double continuity = Math.Clamp(profile.HydrologyContinuityWeight, 0.0, 1.0);
+            double edgeSeal = Math.Clamp(profile.HydrologyEdgeStabilityWeight, 0.0, 1.0);
+            double outflowStability = Math.Clamp(profile.LakeOutflowStabilityWeight, 0.0, 1.0);
+            double edgeLock = Math.Clamp(profile.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float lake = lakeMask[x, z];
+                    if (lake <= 0.01f)
+                    {
+                        continue;
+                    }
+
+                    float river = riverMask != null ? Mathf.Clamp01(riverMask[x, z]) : 0f;
+                    double flowMemory = SampleInterior(flowCopy, x, z) * (0.5 + inflowBlend * 0.35);
+                    double hydroBase = hydroCopy[x, z];
+                    double hydrologyGradient = Math.Abs(SampleInterior(hydroCopy, x, z) - hydroBase);
+                    double flowGradient = Math.Abs(SampleInterior(flowCopy, x, z) - flowCopy[x, z]);
+                    double infiltration = lake * (seepageWeight * 0.65 + inflowBlend * 0.35);
+                    double slopeGuard = 1.0 - Math.Clamp(ComputeSlope(heightMap, x, z) * slopePenalty / 18.0, 0.0, 0.6);
+                    double riverGuard = 1.0 - river * 0.35;
+                    double continuityBrake = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * continuity * 0.35, 0.0, 0.35);
+                    double edgeSealBlend = 1.0 - Math.Clamp(lake * edgeSeal * 0.25, 0.0, 0.25);
+                    double shorelineGuard = 1.0 - Math.Clamp(outflowStability * lake * 0.5, 0.0, 0.4);
+                    double hydroTarget = hydroBase + infiltration * slopeGuard * riverGuard;
+                    hydroTarget = hydroTarget * continuityBrake * edgeSealBlend * shorelineGuard + flowMemory * inflowBlend * 0.25;
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.25));
+
+                    double flowTarget = flowCopy[x, z] * (1.0 - lake * 0.25);
+                    flowTarget += hydrology[x, z] * (seepageWeight * 0.35 + inflowBlend * 0.2);
+                    flowTarget += flowMemory * edgeLock * 0.15;
+                    flowTarget *= continuityBrake * shorelineGuard;
+                    flow[x, z] = Mathf.Clamp((float)Math.Clamp(flowTarget + lake * 0.05, 0.0, 1.2));
+                }
+            }
+
+            StabilizeEdges(hydrology, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend), profile.HydrologyEdgeFluxBlend);
+            StabilizeEdges(flow, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.85f), profile.HydrologyEdgeFluxBlend);
+        }
+
+        private void ApplyAquiferSuppression(float[,] hydrology, float[,] flow, float[,] riverMask, float[,] lakeMask)
+        {
+            if (riverMask == null && lakeMask == null)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double riverSuppression = Math.Clamp(worldConfig.Caves.RiverSuppressionWeight, 0.0, 1.0);
+            double moistureRetention = Math.Clamp(worldConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
+            double flowMemoryWeight = Math.Clamp(worldConfig.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double edgeLock = Math.Clamp(worldConfig.Water.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+            double seepageWeight = Math.Clamp(worldConfig.Lakes.FlowSeepageWeight, 0.0, 1.0);
+            double outflowStability = Math.Clamp(worldConfig.Lakes.OutflowStabilityWeight, 0.0, 1.0);
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            double varianceClamp = Math.Max(0.001, profile.HydrologyVarianceClamp);
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = riverMask != null ? Mathf.Clamp01(riverMask[x, z]) : 0.0;
+                    double lake = lakeMask != null ? Mathf.Clamp01(lakeMask[x, z]) : 0.0;
+                    double wetness = river * riverSuppression + lake * (seepageWeight * 0.5 + outflowStability * 0.35);
+                    if (wetness <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double flowMemory = SampleInterior(flowCopy, x, z) * flowMemoryWeight;
+                    double damp = 1.0 - Math.Clamp(wetness * (moistureRetention * 0.5 + edgeLock * 0.35), 0.0, 0.85);
+                    double sealedHydro = hydro * damp + wetness * moistureRetention * 0.25;
+                    double sealedFlow = flowValue * (1.0 - wetness * 0.45) + flowMemory * (wetness * 0.35);
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(sealedHydro, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = Mathf.Clamp((float)Math.Clamp(sealedFlow, 0.0, 1.25));
+                }
+            }
+
+            StabilizeEdges(hydrology, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.85f), profile.HydrologyEdgeFluxBlend);
+            StabilizeEdges(flow, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.65f), profile.HydrologyEdgeFluxBlend);
         }
 
         private void ApplyHydrologyMomentum(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)

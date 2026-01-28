@@ -29,6 +29,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-28: Hydrology v5 aquifer shielding & proto validation**
+   - Hydrology signature bumped to `2026-01-28-hydrology-shield-v5-aquifer`; map control profile v8 regenerated (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+   - Tuned hydrology/cave/lake config (stronger flow-lock, edge variance clamp, aquifer moisture suppression) and refreshed streaming `world-config.json`.
+   - Added aquifer suppression + lake seepage smoothing to server/client map previews; MapGeneratorLib retargeted to netstandard2.1 with missing enum helpers restored (plugins rebuilt).
+   - Dummy protocol client now exercises `PlayerInfo` round-trip alongside chunk/time/block frames to validate registry/fingerprint wiring.
+   - Docs: `docs/2026-01-28-worldgen-proto-update.md`; feature split: `config/minecraft_feature_client_server_core_content_util_2026-01-28.json`.
+   - Builds/tests: `dotnet build` (SharedProtocol, GameCommon, MapGeneratorLib, GameServer) and `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (proto optional binding warnings only).
 - **2026-01-27: Session 23 - Comprehensive Implementation & Validation**
    - Created comprehensive work plan: `plans/2026-01-27-session-23-comprehensive-implementation-plan.md`
    - Created comprehensive feature categorization: `config/minecraft_feature_client_server_core_content_util_2026-01-27-session-23.json`
@@ -660,4 +667,3 @@ Contributions are welcome! Please follow these guidelines:
 
 ## Contact
 For questions or issues, please open an issue on repository.
-

@@ -10,6 +10,10 @@ using CommonVector3Int = MinecraftGame.Common.Vector3Int;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
+using ProtoPlayerInfo = EnhancedMinecraftProtocol.PlayerInfo;
+using ProtoPlayerStats = EnhancedMinecraftProtocol.PlayerStats;
+using ProtoInventorySlot = EnhancedMinecraftProtocol.InventorySlot;
+using ProtoItemStack = EnhancedMinecraftProtocol.ItemStack;
 
 namespace GameServerApp.Testing
 {
@@ -134,6 +138,72 @@ namespace GameServerApp.Testing
         }
 
         /// <summary>
+        /// Builds a framed PlayerInfo packet to validate nested inventory/effect contracts.
+        /// </summary>
+        public static ProtocolRoundTripResult BuildPlayerInfoRoundTrip()
+        {
+            AuditProtocolRegistry();
+
+            var messageType = MinecraftMessageType.PlayerStateUpdate;
+            var info = new ProtoPlayerInfo
+            {
+                PlayerId = "dummy-tester",
+                Username = "dummy",
+                Level = 5,
+                Experience = 120,
+                ExperienceProgress = 0.4f,
+                Health = 18,
+                MaxHealth = 20,
+                Hunger = 16,
+                MaxHunger = 20,
+                Saturation = 6f,
+                GameMode = MinecraftGame.Common.GameMode.Survival,
+                Position = new MinecraftGame.Common.Vector3 { X = 1.5f, Y = 64f, Z = 2.5f },
+                Rotation = new MinecraftGame.Common.Vector3 { X = 0f, Y = 90f, Z = 0f },
+                SelectedSlot = 1
+            };
+
+            info.Inventory.Hotbar.Add(new ProtoInventorySlot
+            {
+                SlotId = 0,
+                ItemStack = new ProtoItemStack
+                {
+                    ItemId = 1,
+                    ItemName = "stone",
+                    Count = 32,
+                    Durability = 0,
+                    MaxDurability = 0
+                }
+            });
+
+            info.Stats = new ProtoPlayerStats
+            {
+                BlocksMined = 10,
+                BlocksPlaced = 4,
+                DistanceWalked = 32,
+                MonstersKilled = 2,
+                Deaths = 0,
+                PlayTimeTicks = 1200
+            };
+
+            ProtocolRegistry.EnsureRegistered(messageType);
+            var payload = info.ToByteArray();
+            var parsed = ProtoPlayerInfo.Parser.ParseFrom(payload);
+
+            if (parsed.Inventory?.Hotbar.Count == 0 || parsed.Username != info.Username || parsed.Stats == null)
+            {
+                throw new InvalidOperationException("[DummyProtocolClient] Parsed player-info payload does not match source message.");
+            }
+
+            return new ProtocolRoundTripResult(
+                messageType,
+                payload.Length,
+                ProtoPlayerInfo.Descriptor.FullName,
+                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
+                BuildFrame(messageType, payload));
+        }
+
+        /// <summary>
         /// Sends a framed payload to a running server. No response parsing is performed.
         /// </summary>
         public static Task<ProtocolRoundTripResult> SendAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
@@ -147,6 +217,14 @@ namespace GameServerApp.Testing
         public static Task<ProtocolRoundTripResult> SendChunkRequestAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
         {
             return SendRoundTripAsync(BuildChunkLoadRequestRoundTrip, host, port, token);
+        }
+
+        /// <summary>
+        /// Sends a player-state frame to validate nested proto contracts.
+        /// </summary>
+        public static Task<ProtocolRoundTripResult> SendPlayerInfoAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
+        {
+            return SendRoundTripAsync(BuildPlayerInfoRoundTrip, host, port, token);
         }
 
         /// <summary>

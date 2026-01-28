@@ -24,7 +24,9 @@ namespace MapGenLib
         STONE_SILVER = 10,
         NORMAL_TREE_LEAF = 11,
         SQAURE_TREE_LEAF = 12,
-        WATER = 13
+        WATER = 13,
+        DIRT = 14,
+        CLAY = 15
     }
     [Serializable]
     public enum ChunkType
@@ -107,37 +109,37 @@ namespace MapGenLib
         public static int GlobalRiverWaterLevel = 62;
         public static int HydrologySmoothIterations = 3;
         public static float HydrologySmoothBlend = 0.62f;
-        public static int CaveStabilitySmoothIterations = 1;
+        public static int CaveStabilitySmoothIterations = 3;
         public static float CaveStabilitySmoothBlend = 0.55f;
         public static float HydrologyShorePush = 5f;
         public static float HydrologySlopePenalty = 6f;
-        public static float HydrologyFlowGain = 0.5f;
-        public static float HydrologyFlowMemoryWeight = 0.42f;
-        public static float HydrologyFlowShadowWeight = 0.48f;
-        public static float HydrologyFlowShadowSlopeWeight = 0.38f;
+        public static float HydrologyFlowGain = 0.6f;
+        public static float HydrologyFlowMemoryWeight = 0.48f;
+        public static float HydrologyFlowShadowWeight = 0.56f;
+        public static float HydrologyFlowShadowSlopeWeight = 0.46f;
         public static float HydrologyContinuityWeight = 0.35f;
-        public static float HydrologyPressureBlend = 0.35f;
-        public static float HydrologyPressureGradientClamp = 0.18f;
-        public static float HydrologyEdgeFlowBias = 0.35f;
+        public static float HydrologyPressureBlend = 0.42f;
+        public static float HydrologyPressureGradientClamp = 0.22f;
+        public static float HydrologyEdgeFlowBias = 0.44f;
         public static float HydrologyEdgeTangentWeight = 0.45f;
-        public static float HydrologyEdgeFlowLockWeight = 0.38f;
-        public static int HydrologyEdgeBlendRadius = 4;
+        public static float HydrologyEdgeFlowLockWeight = 0.48f;
+        public static int HydrologyEdgeBlendRadius = 6;
         public static int HydrologyWatershedStitchRadius = 2;
         public static float HydrologyWatershedStitchWeight = 0.42f;
-        public static int HydrologyEdgeStabilityIterations = 3;
-        public static float HydrologyEdgeStabilityWeight = 0.35f;
-        public static float HydrologyEdgeVarianceClamp = 0.30f;
-        public static float HydrologyEdgeFluxBlend = 0.6f;
+        public static int HydrologyEdgeStabilityIterations = 4;
+        public static float HydrologyEdgeStabilityWeight = 0.4f;
+        public static float HydrologyEdgeVarianceClamp = 0.28f;
+        public static float HydrologyEdgeFluxBlend = 0.58f;
         public static float HydrologyEdgeNormalizationBlend = 0.42f;
         public static int HydrologyEdgeNormalizationIterations = 2;
-        public static float HydrologyVarianceBlend = 0.58f;
-        public static float HydrologyVarianceClamp = 0.62f;
+        public static float HydrologyVarianceBlend = 0.6f;
+        public static float HydrologyVarianceClamp = 0.6f;
         public static double RiverCenterThreshold = 0.0125;
-        public static double RiverBankThreshold = 0.028;
-        public static float HydrologyWaterTableClampWeight = 0.42f;
-        public static int HydrologyWaterTableClampRange = 20;
-        public static float HydrologyWaterTableSlopeWeight = 0.55f;
-        public static float HydrologyWaterTableEnvelopeWeight = 0.38f;
+        public static double RiverBankThreshold = 0.026;
+        public static float HydrologyWaterTableClampWeight = 0.58f;
+        public static int HydrologyWaterTableClampRange = 22;
+        public static float HydrologyWaterTableSlopeWeight = 0.64f;
+        public static float HydrologyWaterTableEnvelopeWeight = 0.42f;
         public static int HydrologyWaterTableEnvelopeRadius = 3;
         public static float HydrologySeamWaterTableBlend = 0.35f;
         public static float HydrologyFlowPersistence = 0.75f;
@@ -159,22 +161,22 @@ namespace MapGenLib
         public static float RiparianSaturationBoost = 0.18f;
         public static int RiparianBufferRadius = 1;
         public static float RiverBankErosionWeight = 0.18f;
-        public static float LakeRimErosionWeight = 0.32f;
+        public static float LakeRimErosionWeight = 0.4f;
         public static float LakeSpawnWeightBias = 0.3f;
         public static float LakeShorelineBlend = 0.66f;
         public static int LakeBasinSmoothIterations = 4;
         public static int LakeWetlandBufferRadius = 3;
-        public static float LakeFlowSeepageWeight = 0.38f;
+        public static float LakeFlowSeepageWeight = 0.5f;
         public static float RiverNoiseScale = 0.015f;
         public static int RiverDepth = 7;
         public static int RiverIntensitySmoothIterations = 3;
         public static float RiverIntensitySmoothBlend = 0.6f;
-        public static float RiverConfluenceBoost = 0.38f;
-        public static float RiverFlowAlignmentWeight = 0.28f;
+        public static float RiverConfluenceBoost = 0.5f;
+        public static float RiverFlowAlignmentWeight = 0.32f;
         public static float RiverGradientPenalty = 0.42f;
         public static float RiverHeadwaterStabilityWeight = 0.35f;
         public static float RiverAnisotropyWeight = 0.32f;
-        public static float RiverReliefPenaltyWeight = 0.27f;
+        public static float RiverReliefPenaltyWeight = 0.34f;
         public static float RiverEdgeFeather = 0.5f;
         public static int RiverMouthSmoothRadius = 5;
         public static float RiverDeltaWetlandStrength = 0.5f;
@@ -183,20 +185,20 @@ namespace MapGenLib
         public static float CaveFlowWeight = 0.25f;
         public static float CaveRoughnessWeight = 0.1f;
         public static float CaveDepthWeight = 0.2f;
-        public static float CaveRiverSuppressionWeight = 0.35f;
+        public static float CaveRiverSuppressionWeight = 0.42f;
         public static float CaveSupportHydrationBias = 0.42f;
         public static float CaveSupportFlowBias = 0.20f;
         public static float SupportPillarChance = 0.28f;
-        public static float CaveMoistureRetentionWeight = 0.35f;
+        public static float CaveMoistureRetentionWeight = 0.42f;
         public static float LakeRiverProximitySuppression = 0.35f;
-        public static float LakeInflowBlendWeight = 0.42f;
-        public static float CaveEdgeSealStrength = 0.5f;
+        public static float LakeInflowBlendWeight = 0.52f;
+        public static float CaveEdgeSealStrength = 0.56f;
         public static float WetlandSaturationThreshold = 0.55f;
         public static int OutflowCarveDepth = 2;
         public static int LakeShelfDepth = 2;
         public static int CaveRiparianPlugDepth = 2;
-        public static float CaveCeilingMoistureWeight = 0.28f;
-        public static float CaveCeilingStabilityWeight = 0.35f;
+        public static float CaveCeilingMoistureWeight = 0.34f;
+        public static float CaveCeilingStabilityWeight = 0.38f;
         public static float CaveCeilingMoistureClamp = 0.35f;
 
         public struct TerrainValue
@@ -3240,19 +3242,6 @@ namespace MapGenLib
             return CustomMathf.Sqrt(dx * dx + dz * dz);
         }
 
-        private static float SampleSurfaceCurvature(int[,] surfaceCache, int x, int z)
-        {
-            int width = surfaceCache.GetLength(0);
-            int depth = surfaceCache.GetLength(1);
-            int left = CustomMathf.Max(0, x - 1);
-            int right = CustomMathf.Min(width - 1, x + 1);
-            int back = CustomMathf.Max(0, z - 1);
-            int forward = CustomMathf.Min(depth - 1, z + 1);
-            float center = surfaceCache[x, z];
-            float neighbours = surfaceCache[left, z] + surfaceCache[right, z] + surfaceCache[x, back] + surfaceCache[x, forward];
-            return CustomMathf.Abs(neighbours * 0.25f - center);
-        }
-
         private static void ApplySubterraneanHydrologyShield(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation, float[,] erosionRiskField)
         {
             int width = subWorldSize.SizeX;
@@ -3542,7 +3531,7 @@ namespace MapGenLib
 
                         float average = weightTotal > 0f ? weightedSum / weightTotal : riverIntensity[x, z];
                         float seamHydro = SampleHydrologyAverage(hydrologyMask, x, z);
-                        float hydrologyDelta = CustomMathf.Abs(hydrology - seamHydro);
+                        float seamHydrologyDelta = CustomMathf.Abs(hydrology - seamHydro);
                         int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, z), CustomMathf.Min(width - 1 - x, depth - 1 - z));
                         float edgeRamp = edgeRadius > 0 ? CustomMathf.Clamp01((edgeRadius - CustomMathf.Min(edgeDistance, edgeRadius)) / (float)edgeRadius) : 0f;
                         float blend = CustomMathf.Clamp(
@@ -3551,7 +3540,7 @@ namespace MapGenLib
                             + flow * 0.12f
                             + maxAlignment * 0.2f
                             + headwater * RiverHeadwaterStabilityWeight * 0.35f
-                            + hydrologyDelta * HydrologyEdgeStabilityWeight * 0.08f
+                            + seamHydrologyDelta * HydrologyEdgeStabilityWeight * 0.08f
                             + edgeRamp * edgeStabilityWeight * 0.12f,
                             0f,
                             0.95f);
@@ -5848,32 +5837,34 @@ namespace MapGenLib
                 {
                     // 작은 원형 물웅덩이 생성
                     int pondRadius = Utilitys.RandomInteger(2, 4);
-                      for (int x = -pondRadius; x <= pondRadius; x++)
-                      {
-                          for (int z = -pondRadius; z <= pondRadius; z++)
-                          {
-                              int worldX = pondX + x;
+                    for (int x = -pondRadius; x <= pondRadius; x++)
+                    {
+                        for (int z = -pondRadius; z <= pondRadius; z++)
+                        {
+                            int worldX = pondX + x;
                             int worldZ = pondZ + z;
-                            
-                            if (worldX >= 0 && worldX < subWorldSize.SizeX &&
-                                worldZ >= 0 && worldZ < subWorldSize.SizeZ)
-                            {
-                                float distance = CustomMathf.Sqrt(x * x + z * z);
-                                if (distance <= pondRadius)
-                                {
-                                    // 물 바닥 비우고 물 채우기
-                                    if (surfaceY >= 0 && surfaceY < subWorldSize.SizeY)
-                                    {
-                                        subWorldBlockData[worldX, surfaceY, worldZ].CurrentType = (byte)BlockTileType.WATER;
-                                  }
-                              }
-                          }
-                      }
 
-                      SmoothPondBanks(subWorldBlockData, subWorldSize, pondX, pondZ, pondRadius, surfaceY);
-                  }
-              }
-        }
+                            if (worldX < 0 || worldX >= subWorldSize.SizeX || worldZ < 0 || worldZ >= subWorldSize.SizeZ)
+                            {
+                                continue;
+                            }
+
+                            float distance = CustomMathf.Sqrt(x * x + z * z);
+                            if (distance > pondRadius)
+                            {
+                                continue;
+                            }
+
+                            if (surfaceY >= 0 && surfaceY < subWorldSize.SizeY)
+                            {
+                                subWorldBlockData[worldX, surfaceY, worldZ].CurrentType = (byte)BlockTileType.WATER;
+                            }
+                        }
+                    }
+
+                    SmoothPondBanks(subWorldBlockData, subWorldSize, pondX, pondZ, pondRadius, surfaceY);
+                }
+            }
         }
         
         /// <summary>
@@ -6104,7 +6095,7 @@ namespace MapGenLib
                         continue;
                     }
 
-                    if (TryFindCaveSpan(subWorldBlockData, subWorldSize, surface, x, z, out int top, out int bottom) == false)
+                    if (TryFindCaveSpan(subWorldBlockData, subWorldSize, surfaceCache, x, z, out int top, out int bottom) == false)
                     {
                         continue;
                     }
@@ -6154,7 +6145,7 @@ namespace MapGenLib
                         continue;
                     }
 
-                    if (!TryFindCaveSpan(subWorldBlockData, subWorldSize, surfaceCache[x, z], x, z, out int top, out int bottom))
+                    if (!TryFindCaveSpan(subWorldBlockData, subWorldSize, surfaceCache, x, z, out int top, out int bottom))
                     {
                         continue;
                     }
@@ -6937,9 +6928,31 @@ namespace MapGenLib
                     else if (ellipse <= 1.35f)
                     {
                         double rimStrength = Math.Clamp(1.35 - ellipse, 0.0, 0.6);
-                        SculptLakeBank(subWorldBlockData, subWorldSize, x, z, targetSurface, rimStrength + 0.2f);
+                        SculptLakeBank(subWorldBlockData, subWorldSize, x, z, targetSurface, (float)(rimStrength + 0.2f));
                     }
                 }
+            }
+        }
+
+        private static void SculptLakeBank(
+            Block[,,] subWorldBlockData,
+            SubWorldSize subWorldSize,
+            int x,
+            int z,
+            int targetSurface,
+            float rimStrength)
+        {
+            int bankTop = CustomMathf.Clamp(targetSurface + 1, 1, subWorldSize.SizeY - 1);
+            int bankHeight = CustomMathf.Clamp(CustomMathf.RoundToInt(1 + rimStrength * 2f), 1, 3);
+            for (int y = bankTop; y < bankTop + bankHeight && y < subWorldSize.SizeY; y++)
+            {
+                subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.SAND;
+            }
+
+            int clearTop = CustomMathf.Min(subWorldSize.SizeY - 1, bankTop + bankHeight + 1);
+            for (int y = bankTop + bankHeight; y <= clearTop; y++)
+            {
+                subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.EMPTY;
             }
         }
 
@@ -7327,7 +7340,8 @@ namespace MapGenLib
 
                     if (subWorldBlockData[rimX, rimSurface, rimZ].CurrentType == (byte)BlockTileType.EMPTY)
                     {
-                    subWorldBlockData[rimX, rimSurface, rimZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                        subWorldBlockData[rimX, rimSurface, rimZ].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                    }
                 }
             }
         }
@@ -8382,7 +8396,6 @@ namespace MapGenLib
                 }
             }
         }
-        }
 
         private static bool TryFindCaveSpan(
             Block[,,] subWorldBlockData,
@@ -9062,7 +9075,7 @@ namespace MapGenLib
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
             HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             RelaxHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
-            var rand = new Random((subWorldSize.SizeX * 73856093) ^ (subWorldSize.SizeZ * 19349663) ^ 0xCAV3);
+            var rand = new Random((subWorldSize.SizeX * 73856093) ^ (subWorldSize.SizeZ * 19349663) ^ 0xC0A3);
 
             for (int x = 0; x < subWorldSize.SizeX; x++)
             {

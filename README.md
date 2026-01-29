@@ -29,6 +29,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 - `Recordings/` – gameplay capture sessions.
 
 ## Recent Updates
+- **2026-01-29: Hydrology v6 riparian stabilization + proto audit**
+   - Hydrology signature bumped to `2026-01-29-hydrology-shield-v6-riparian`; riparian stabilization pass added to cave generation with lake surface clamping (`MapGeneratorLib/.../WorldGenAlgorithms.cs`).
+   - Shared feature manifest loader added to GameCommon (`GameCommon/DataDriven/FeatureManifest.cs`) with updated plan `config/minecraft_feature_core_content_util_2026-01-29.json` (`docs/minecraft_feature_core_content_util_2026-01-29.md`).
+   - Proto diagnostics now emit JSON report `config/proto_reference_report.json`; dummy protocol client configurable via `config/protocol_dummy_client.json` and invocable with `--proto-probe`.
+   - Docs: `docs/2026-01-29-worldgen-proto-improvements.md`.
 - **2026-01-28: Hydrology v5 aquifer shielding & proto validation**
    - Hydrology signature bumped to `2026-01-28-hydrology-shield-v5-aquifer`; map control profile v8 regenerated (`config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
    - Tuned hydrology/cave/lake config (stronger flow-lock, edge variance clamp, aquifer moisture suppression) and refreshed streaming `world-config.json`.

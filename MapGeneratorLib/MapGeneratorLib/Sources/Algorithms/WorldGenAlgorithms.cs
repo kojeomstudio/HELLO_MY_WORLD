@@ -5944,6 +5944,7 @@ namespace MapGenLib
             SealRiparianCaves(subWorldBlockData, subWorldSize, caveSurfaceCache, riparianSaturation);
             HarmonizeUndergroundLakesWithHydrology(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             SealHydrologyCaveIntersections(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation, riparianSaturation);
+            StabilizeRiparianTerrain(subWorldBlockData, subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             IntegrateKarstSinkholes(subWorldBlockData, subWorldSize);
         }
 
@@ -8710,6 +8711,8 @@ namespace MapGenLib
 
                 int waterSurface = CustomMathf.Clamp(centerY + Utilitys.RandomInteger(-1, 2), 3, subWorldSize.SizeY - 4);
                 int waterFloor = CustomMathf.Max(1, waterSurface - Utilitys.RandomInteger(verticalRadius + 2, verticalRadius + 5));
+                waterSurface = CustomMathf.Min(waterSurface, CustomMathf.Max(3, GlobalRiverWaterLevel - 2));
+                waterFloor = CustomMathf.Max(1, CustomMathf.Min(waterFloor, waterSurface - 1));
 
                 for (int offsetX = -radiusX - 3; offsetX <= radiusX + 3; offsetX++)
                 {
@@ -8875,6 +8878,65 @@ namespace MapGenLib
                         if (subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY)
                         {
                             subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void StabilizeRiparianTerrain(Block[,,] subWorldBlockData, SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int clampTop = CustomMathf.Min(GlobalRiverWaterLevel + 2, subWorldSize.SizeY - 2);
+            float erosionWeight = CustomMathf.Clamp01(RiverBankErosionWeight + HydrologyEdgeStabilityWeight * 0.25f);
+            float rimWeight = CustomMathf.Clamp01(LakeRimErosionWeight + LakeShorelineBlend * 0.2f);
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    float hydrology = CustomMathf.Clamp01(hydrologyMask[x, z]);
+                    float flow = CustomMathf.Clamp01(flowAccumulation[x, z] / 6f);
+                    float wetness = CustomMathf.Max(hydrology, flow);
+                    float river = EvaluateRiverIntensity(x, z, out _);
+                    float riparianBias = CustomMathf.Clamp01(river * 0.65f + wetness * 0.35f);
+                    int surface = CustomMathf.Min(surfaceCache[x, z], clampTop);
+
+                    if (surface <= 2)
+                    {
+                        continue;
+                    }
+
+                    float erosion = riparianBias * erosionWeight;
+                    if (erosion > 0.35f)
+                    {
+                        int softenDepth = CustomMathf.Clamp(CustomMathf.RoundToInt(2 + erosion * 4f), 2, 6);
+                        for (int y = surface; y >= surface - softenDepth && y > 1; y--)
+                        {
+                            if (subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY)
+                            {
+                                subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                            }
+                        }
+
+                        int capY = CustomMathf.Min(surface + 1, clampTop);
+                        if (subWorldBlockData[x, capY, z].CurrentType == (byte)BlockTileType.EMPTY)
+                        {
+                            subWorldBlockData[x, capY, z].CurrentType = (byte)BlockTileType.SAND;
+                        }
+                    }
+
+                    float lakeSeal = CustomMathf.Clamp01(wetness * LakeRiverProximitySuppression * rimWeight);
+                    if (lakeSeal > 0.4f)
+                    {
+                        int sealDepth = CustomMathf.Clamp(CustomMathf.RoundToInt(2 + lakeSeal * 3f), 2, 5);
+                        for (int y = CustomMathf.Max(1, surface - sealDepth); y <= surface && y < clampTop; y++)
+                        {
+                            if (subWorldBlockData[x, y, z].CurrentType == (byte)BlockTileType.EMPTY)
+                            {
+                                subWorldBlockData[x, y, z].CurrentType = (byte)BlockTileType.STONE_SMALL;
+                            }
                         }
                     }
                 }

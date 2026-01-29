@@ -1,9 +1,9 @@
 {
   "version": 8,
-  "profileHash": "27f8e1525ceac31200d51827a028c60d61f32381f76038fb304302778e66ab3f",
+  "profileHash": "c1623fe391703576beab940aee75154cf79b419084b0a454d36da9e14eac1369",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-01-28T06:33:08.8887269Z",
-  "hydrologySignature": "2026-01-28-hydrology-shield-v5-aquifer",
+  "generatedAtUtc": "2026-01-29T06:16:24.7789921Z",
+  "hydrologySignature": "2026-01-29-hydrology-shield-v6-riparian",
   "chunkSize": 16,
   "renderDistance": 12,
   "simulationDistance": 12,

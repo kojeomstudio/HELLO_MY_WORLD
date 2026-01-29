@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-01-28 (aquifer shield v5).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-01-29 (riparian stabilization v6).
         /// </summary>
-        public const string HydrologySignature = "2026-01-28-hydrology-shield-v5-aquifer";
+        public const string HydrologySignature = "2026-01-29-hydrology-shield-v6-riparian";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,7 +82,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S18-CORE-01",
-                "Hydrology Shielded WorldGen v5",
+                "Hydrology Shielded WorldGen v6",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -91,7 +91,13 @@ namespace GameCommon.World
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json"
                 },
-                new[] { HydrologySignature, "config/world.json", "Assets/StreamingAssets/world-config.json" },
+                new[]
+                {
+                    HydrologySignature,
+                    "config/world.json",
+                    "Assets/StreamingAssets/world-config.json",
+                    "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+                },
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
@@ -118,8 +124,8 @@ namespace GameCommon.World
                     "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
-                new[] { HydrologySignature, "config/world.json" },
-                "planned",
+                new[] { HydrologySignature, "config/world.json", "config/enhanced_terrain_generation.json" },
+                "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
                 "S18-CONTENT-02",
@@ -132,7 +138,7 @@ namespace GameCommon.World
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },
                 new[] { HydrologySignature, "config/world.json" },
-                "planned",
+                "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
                 "S18-CONTENT-03",
@@ -145,43 +151,49 @@ namespace GameCommon.World
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },
                 new[] { HydrologySignature, "config/world.json" },
-                "planned",
+                "in-progress",
                 "medium"),
             new SharedFeatureDescriptor(
                 "S18-UTIL-01",
-                "Dummy Protocol Client Round-Trip",
-                FeatureCategory.Utility,
-                FeatureLayer.Server,
-                new[] { "GameServer/Testing/DummyProtocolClient.cs" },
-                new[] { "SharedProtocol", "EnhancedMinecraftProtocol" },
-                "planned",
-                "medium"),
-            new SharedFeatureDescriptor(
-                "S18-UTIL-02",
                 "Proto Registry + Fingerprint Validation",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
                 {
                     "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+                    "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
                     "GameServer/World/WorldMapControlManager.cs"
                 },
                 new[] { HydrologySignature },
                 "planned",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-UTIL-03",
+                "S18-UTIL-02",
                 "Data-Driven Config Parity",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
                 {
                     "config/world.json",
-                    "config/world_map_control_profile.json"
+                    "config/world_map_control_profile.json",
+                    "config/minecraft_feature_core_content_util_2026-01-29.json"
                 },
                 new[] { HydrologySignature },
                 "in-progress",
-                "high")
+                "high"),
+            new SharedFeatureDescriptor(
+                "S18-UTIL-03",
+                "Dummy Protocol Client Round-Trip",
+                FeatureCategory.Utility,
+                FeatureLayer.Server,
+                new[]
+                {
+                    "GameServer/Testing/DummyProtocolClient.cs",
+                    "config/protocol_dummy_client.json"
+                },
+                new[] { "SharedProtocol", "EnhancedMinecraftProtocol" },
+                "planned",
+                "medium")
         };
     }
 }

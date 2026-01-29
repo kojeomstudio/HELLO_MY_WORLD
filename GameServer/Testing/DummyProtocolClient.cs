@@ -1,313 +1,121 @@
 using System;
-using System.Buffers.Binary;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
-using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EnhancedMinecraftProtocol;
-using GameCommon.World;
-using CommonVector3Int = MinecraftGame.Common.Vector3Int;
 using Google.Protobuf;
-using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
-using ProtoPlayerInfo = EnhancedMinecraftProtocol.PlayerInfo;
-using ProtoPlayerStats = EnhancedMinecraftProtocol.PlayerStats;
-using ProtoInventorySlot = EnhancedMinecraftProtocol.InventorySlot;
-using ProtoItemStack = EnhancedMinecraftProtocol.ItemStack;
 
 namespace GameServerApp.Testing
 {
-    /// <summary>
-    /// Minimal EnhancedMinecraftProtocol round-trip client for packet generation/validation tests.
-    /// </summary>
-    public sealed record ProtocolRoundTripResult(
-        MinecraftMessageType MessageType,
-        int PayloadSize,
-        string Descriptor,
-        string Signature,
-        byte[] Payload);
+    public sealed record ProtoProbeResult(
+        bool RoundTripOk,
+        string DescriptorName,
+        bool NetworkProbeAttempted,
+        bool NetworkProbeOk,
+        string NetworkError);
 
-    public static class DummyProtocolClient
+    public sealed class DummyProtocolClientSettings
     {
-        /// <summary>
-        /// Builds a framed TimeUpdate packet and verifies deserialize/serialize paths locally.
-        /// </summary>
-        public static ProtocolRoundTripResult BuildTimeUpdateRoundTrip()
+        public string Host { get; set; } = "127.0.0.1";
+        public int Port { get; set; } = 9000;
+        public int ConnectTimeoutMs { get; set; } = 750;
+        public int ReceiveTimeoutMs { get; set; } = 750;
+        public int RoundTripCount { get; set; } = 1;
+
+        public static DummyProtocolClientSettings Load(string path)
         {
-            AuditProtocolRegistry();
-
-            var messageType = MinecraftMessageType.TimeUpdate;
-            var message = new TimeUpdateBroadcast
+            if (!File.Exists(path))
             {
-                WorldTime = 12000,
-                DayTime = 6000
-            };
-
-            ProtocolRegistry.EnsureRegistered(messageType);
-            var payload = message.ToByteArray();
-            var parsed = TimeUpdateBroadcast.Parser.ParseFrom(payload);
-
-            if (parsed.WorldTime != message.WorldTime || parsed.DayTime != message.DayTime)
-            {
-                throw new InvalidOperationException("[DummyProtocolClient] Parsed payload does not match source message.");
+                return new DummyProtocolClientSettings();
             }
 
-            return new ProtocolRoundTripResult(
-                messageType,
-                payload.Length,
-                TimeUpdateBroadcast.Descriptor.FullName,
-                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
-                BuildFrame(messageType, payload));
-        }
-
-        /// <summary>
-        /// Builds a framed ChunkLoadRequest packet covering multiple positions for registry validation.
-        /// </summary>
-        public static ProtocolRoundTripResult BuildChunkLoadRequestRoundTrip()
-        {
-            AuditProtocolRegistry();
-
-            var messageType = MinecraftMessageType.ChunkDataRequest;
-            var request = new ChunkLoadRequest { ViewDistance = 6 };
-            request.ChunkPositions.Add(new CommonVector3Int { X = 0, Y = 0, Z = 0 });
-            request.ChunkPositions.Add(new CommonVector3Int { X = 1, Y = 0, Z = 0 });
-            request.ChunkPositions.Add(new CommonVector3Int { X = -2, Y = 0, Z = 3 });
-
-            ProtocolRegistry.EnsureRegistered(messageType);
-            var payload = request.ToByteArray();
-            var parsed = ChunkLoadRequest.Parser.ParseFrom(payload);
-
-            if (parsed.ViewDistance != request.ViewDistance || parsed.ChunkPositions.Count != request.ChunkPositions.Count)
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<DummyProtocolClientSettings>(json, new JsonSerializerOptions
             {
-                throw new InvalidOperationException("[DummyProtocolClient] Parsed chunk-load request does not match source message.");
-            }
-
-            return new ProtocolRoundTripResult(
-                messageType,
-                payload.Length,
-                ChunkLoadRequest.Descriptor.FullName,
-                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
-                BuildFrame(messageType, payload));
-        }
-
-        /// <summary>
-        /// Builds a framed BlockChangeNotification packet to validate item/block contracts.
-        /// </summary>
-        public static ProtocolRoundTripResult BuildBlockChangeRoundTrip()
-        {
-            AuditProtocolRegistry();
-
-            var messageType = MinecraftMessageType.BlockChangeNotification;
-            var broadcast = new BlockChangeBroadcast
-            {
-                Position = new CommonVector3Int { X = 4, Y = 64, Z = 4 },
-                OldBlockId = 1,
-                NewBlockId = 2,
-                Metadata = 0,
-                PlayerId = "dummy-tester",
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Reason = ChangeReason.PlayerBreak
-            };
-
-            broadcast.Drops.Add(new ItemStack
-            {
-                ItemId = 2,
-                ItemName = "stone",
-                Count = 1,
-                Durability = 0,
-                MaxDurability = 0
-            });
-
-            ProtocolRegistry.EnsureRegistered(messageType);
-            var payload = broadcast.ToByteArray();
-            var parsed = BlockChangeBroadcast.Parser.ParseFrom(payload);
-
-            if (parsed.NewBlockId != broadcast.NewBlockId ||
-                parsed.Position == null ||
-                parsed.Position.X != broadcast.Position.X)
-            {
-                throw new InvalidOperationException("[DummyProtocolClient] Parsed block-change payload does not match source message.");
-            }
-
-            return new ProtocolRoundTripResult(
-                messageType,
-                payload.Length,
-                BlockChangeBroadcast.Descriptor.FullName,
-                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
-                BuildFrame(messageType, payload));
-        }
-
-        /// <summary>
-        /// Builds a framed PlayerInfo packet to validate nested inventory/effect contracts.
-        /// </summary>
-        public static ProtocolRoundTripResult BuildPlayerInfoRoundTrip()
-        {
-            AuditProtocolRegistry();
-
-            var messageType = MinecraftMessageType.PlayerStateUpdate;
-            var info = new ProtoPlayerInfo
-            {
-                PlayerId = "dummy-tester",
-                Username = "dummy",
-                Level = 5,
-                Experience = 120,
-                ExperienceProgress = 0.4f,
-                Health = 18,
-                MaxHealth = 20,
-                Hunger = 16,
-                MaxHunger = 20,
-                Saturation = 6f,
-                GameMode = MinecraftGame.Common.GameMode.Survival,
-                Position = new MinecraftGame.Common.Vector3 { X = 1.5f, Y = 64f, Z = 2.5f },
-                Rotation = new MinecraftGame.Common.Vector3 { X = 0f, Y = 90f, Z = 0f },
-                SelectedSlot = 1
-            };
-
-            info.Inventory.Hotbar.Add(new ProtoInventorySlot
-            {
-                SlotId = 0,
-                ItemStack = new ProtoItemStack
-                {
-                    ItemId = 1,
-                    ItemName = "stone",
-                    Count = 32,
-                    Durability = 0,
-                    MaxDurability = 0
-                }
-            });
-
-            info.Stats = new ProtoPlayerStats
-            {
-                BlocksMined = 10,
-                BlocksPlaced = 4,
-                DistanceWalked = 32,
-                MonstersKilled = 2,
-                Deaths = 0,
-                PlayTimeTicks = 1200
-            };
-
-            ProtocolRegistry.EnsureRegistered(messageType);
-            var payload = info.ToByteArray();
-            var parsed = ProtoPlayerInfo.Parser.ParseFrom(payload);
-
-            if (parsed.Inventory?.Hotbar.Count == 0 || parsed.Username != info.Username || parsed.Stats == null)
-            {
-                throw new InvalidOperationException("[DummyProtocolClient] Parsed player-info payload does not match source message.");
-            }
-
-            return new ProtocolRoundTripResult(
-                messageType,
-                payload.Length,
-                ProtoPlayerInfo.Descriptor.FullName,
-                $"{SharedFeatureCatalog.HydrologySignature}:{ProtoFingerprint.ComputeFingerprint()}",
-                BuildFrame(messageType, payload));
-        }
-
-        /// <summary>
-        /// Sends a framed payload to a running server. No response parsing is performed.
-        /// </summary>
-        public static Task<ProtocolRoundTripResult> SendAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
-        {
-            return SendRoundTripAsync(BuildTimeUpdateRoundTrip, host, port, token);
-        }
-
-        /// <summary>
-        /// Sends a chunk-load request frame to a running server.
-        /// </summary>
-        public static Task<ProtocolRoundTripResult> SendChunkRequestAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
-        {
-            return SendRoundTripAsync(BuildChunkLoadRequestRoundTrip, host, port, token);
-        }
-
-        /// <summary>
-        /// Sends a player-state frame to validate nested proto contracts.
-        /// </summary>
-        public static Task<ProtocolRoundTripResult> SendPlayerInfoAsync(string host = "127.0.0.1", int port = 9000, CancellationToken token = default)
-        {
-            return SendRoundTripAsync(BuildPlayerInfoRoundTrip, host, port, token);
-        }
-
-        /// <summary>
-        /// Builds a 6-byte frame header: 4-byte big-endian length + 2-byte big-endian message type.
-        /// </summary>
-        private static byte[] BuildFrame(MinecraftMessageType messageType, byte[] payload)
-        {
-            Span<byte> header = stackalloc byte[6];
-            BinaryPrimitives.WriteInt32BigEndian(header.Slice(0, 4), payload.Length);
-            BinaryPrimitives.WriteInt16BigEndian(header.Slice(4, 2), (short)messageType);
-
-            var frame = new byte[header.Length + payload.Length];
-            header.CopyTo(frame.AsSpan(0, header.Length));
-            payload.CopyTo(frame.AsSpan(header.Length));
-            return frame;
-        }
-
-        /// <summary>
-        /// Sends a round-trip frame to a running server and returns the result.
-        /// </summary>
-        private static async Task<ProtocolRoundTripResult> SendRoundTripAsync(Func<ProtocolRoundTripResult> builder, string host, int port, CancellationToken token)
-        {
-            var roundTrip = builder();
-
-            using var client = new TcpClient();
-            await client.ConnectAsync(host, port);
-
-            using var stream = client.GetStream();
-            await stream.WriteAsync(roundTrip.Payload.AsMemory(0, roundTrip.Payload.Length), token);
-            await stream.FlushAsync(token);
-
-            return roundTrip;
-        }
-
-        private static void AuditProtocolRegistry()
-        {
-            ProtocolRegistry.ValidateBindings();
-            ProtocolValidator.ValidateEnhancedContracts();
-            ProtoRuntime.EnsureInitialized();
-            ProtoFingerprint.AssertDescriptorFingerprint();
-            ProtoDiagnostics.AssertRegistryClean();
-            ProtocolRegistry.EnsureRequiredBindings();
-
-            var optionalMissing = ProtocolRegistry.GetUnregisteredOptionalTypes().ToArray();
-            if (optionalMissing.Length > 0)
-            {
-                Console.WriteLine($"[DummyProtocolClient] Optional proto bindings missing: {string.Join(", ", optionalMissing)}");
-            }
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip
+            }) ?? new DummyProtocolClientSettings();
         }
     }
 
     /// <summary>
-    /// Entry point for the dummy protocol client. Sends a time update and chunk-load request.
+    /// Lightweight dummy client for exercising protobuf packet encode/decode and optional TCP probes.
+    /// Does not assume a full login pipeline; it only verifies registry wiring and basic round-trip.
     /// </summary>
-    public static class DummyProtocolClientMain
+    public sealed class DummyProtocolClient
     {
-        public static async Task RunAsync(string[] args)
-        {
-            string host = "127.0.0.1";
-            int port = 9000;
+        private readonly DummyProtocolClientSettings settings;
 
-            for (int i = 0; i < args.Length; i++)
+        public DummyProtocolClient(DummyProtocolClientSettings settings)
+        {
+            this.settings = settings;
+        }
+
+        public static DummyProtocolClient CreateFromConfig(string path) =>
+            new DummyProtocolClient(DummyProtocolClientSettings.Load(path));
+
+        public async Task<ProtoProbeResult> RunAsync(bool probeNetwork, CancellationToken cancellationToken)
+        {
+            ProtocolRegistry.ValidateBindings();
+            ProtoDiagnostics.AssertFingerprint();
+
+            var sampleRequest = new ChunkLoadRequest
             {
-                switch (args[i])
+                ViewDistance = Math.Max(1, settings.RoundTripCount)
+            };
+            sampleRequest.ChunkPositions.Add(new global::MinecraftGame.Common.Vector3Int
+            {
+                X = 0,
+                Y = 0,
+                Z = 0
+            });
+
+            byte[] payload = sampleRequest.ToByteArray();
+            bool roundTripOk = ChunkLoadRequest.Parser.ParseFrom(payload) != null;
+
+            bool networkAttempted = false;
+            bool networkOk = false;
+            string networkError = string.Empty;
+
+            if (probeNetwork)
+            {
+                networkAttempted = true;
+                try
                 {
-                    case "--host" when i + 1 < args.Length:
-                        host = args[i + 1];
-                        break;
-                    case "--port" when i + 1 < args.Length:
-                        int.TryParse(args[i + 1], out port);
-                        break;
+                    using var client = new TcpClient();
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    cts.CancelAfter(settings.ConnectTimeoutMs);
+
+                    await client.ConnectAsync(settings.Host, settings.Port, cts.Token);
+                    client.ReceiveTimeout = settings.ReceiveTimeoutMs;
+                    client.SendTimeout = settings.ConnectTimeoutMs;
+
+                    await using NetworkStream stream = client.GetStream();
+                    for (int i = 0; i < Math.Max(1, settings.RoundTripCount); i++)
+                    {
+                        byte[] lengthPrefix = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(payload.Length));
+                        await stream.WriteAsync(lengthPrefix, cancellationToken);
+                        await stream.WriteAsync(payload, cancellationToken);
+                    }
+
+                    networkOk = true;
+                }
+                catch (Exception ex)
+                {
+                    networkError = ex.Message;
                 }
             }
 
-            Console.WriteLine($"[DummyClient] Sending proto frames to {host}:{port}");
-            var blockChange = DummyProtocolClient.BuildBlockChangeRoundTrip();
-            Console.WriteLine($"[DummyClient] Built {blockChange.MessageType} ({blockChange.PayloadSize} bytes) sig={blockChange.Signature}");
-
-            var timeResult = await DummyProtocolClient.SendAsync(host, port);
-            Console.WriteLine($"[DummyClient] Sent {timeResult.MessageType} ({timeResult.PayloadSize} bytes) sig={timeResult.Signature}");
-
-            var chunkResult = await DummyProtocolClient.SendChunkRequestAsync(host, port);
-            Console.WriteLine($"[DummyClient] Sent {chunkResult.MessageType} ({chunkResult.PayloadSize} bytes) sig={chunkResult.Signature}");
+            return new ProtoProbeResult(
+                roundTripOk,
+                ChunkLoadRequest.Descriptor.FullName,
+                networkAttempted,
+                networkOk,
+                networkError);
         }
     }
 }

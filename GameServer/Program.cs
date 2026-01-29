@@ -1,7 +1,10 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GameCommon.DataDriven;
 using GameServerApp.Configuration;
+using GameServerApp.Testing;
 using GameServerApp.World;
 using SharedProtocol.EnhancedMinecraft;
 
@@ -22,6 +25,8 @@ namespace GameServerApp
             ProtocolStandardization.ValidateProtocolImplementation();
             ProtoDiagnostics.LogSummary();
             ProtoDiagnostics.AssertRegistryClean();
+            EmitProtoReport();
+            LoadFeatureManifest();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -45,6 +50,7 @@ namespace GameServerApp
                     await Task.Delay(300);
 
                     await TestClient.RunTestSuiteAsync();
+                    await RunDummyProtocolProbeAsync(args.Contains("--proto-probe"), CancellationToken.None);
 
                     server.Stop();
                     await Task.Delay(200);
@@ -112,7 +118,84 @@ namespace GameServerApp
                 Console.WriteLine("4. Exit");
             }
         }
-        
+
+        private static void EmitProtoReport()
+        {
+            try
+            {
+                string reportPath = ResolveRepoPath(Path.Combine("config", "proto_reference_report.json"));
+                ProtoDiagnostics.WriteReportToFile(reportPath);
+                Console.WriteLine($"[Proto] Reference report written to {reportPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Proto][WARN] Unable to write proto reference report: {ex.Message}");
+            }
+        }
+
+        private static void LoadFeatureManifest()
+        {
+            try
+            {
+                string manifestPath = ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-01-29.json"));
+                var manifest = FeatureManifest.TryLoad(manifestPath);
+                if (manifest == null)
+                {
+                    Console.WriteLine("[FeatureManifest][WARN] Manifest not found; skipping shared feature load.");
+                    return;
+                }
+
+                var issues = manifest.Validate();
+                Console.WriteLine($"[FeatureManifest] Loaded {manifest.Features.Count} entries (v{manifest.Version}).");
+                if (issues.Count > 0)
+                {
+                    Console.WriteLine("[FeatureManifest][WARN] " + string.Join("; ", issues));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FeatureManifest][WARN] Failed to load feature manifest: {ex.Message}");
+            }
+        }
+
+        private static async Task RunDummyProtocolProbeAsync(bool probeNetwork, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string settingsPath = ResolveRepoPath(Path.Combine("config", "protocol_dummy_client.json"));
+                var client = DummyProtocolClient.CreateFromConfig(settingsPath);
+                var result = await client.RunAsync(probeNetwork, cancellationToken);
+                Console.WriteLine($"[ProtoProbe] RoundTrip={result.RoundTripOk} Descriptor={result.DescriptorName}");
+                if (result.NetworkProbeAttempted)
+                {
+                    if (result.NetworkProbeOk)
+                    {
+                        Console.WriteLine("[ProtoProbe] Network probe succeeded.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ProtoProbe][WARN] Network probe failed: {result.NetworkError}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProtoProbe][WARN] Dummy client failed: {ex.Message}");
+            }
+        }
+
+        private static string ResolveRepoPath(string relativePath)
+        {
+            string rootCandidate = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+            string combined = Path.Combine(rootCandidate, relativePath);
+            if (File.Exists(combined) || Directory.Exists(combined))
+            {
+                return combined;
+            }
+
+            return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), relativePath));
+        }
+
         private static void DisplayServerInfo()
         {
             Console.WriteLine("===== Minecraft-Like Game Server Architecture =====");

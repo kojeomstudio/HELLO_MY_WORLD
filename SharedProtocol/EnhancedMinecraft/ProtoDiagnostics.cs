@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using SharedProtocol;
@@ -140,6 +142,36 @@ public static class ProtoDiagnostics
                 "[Proto] Generated EnhancedMinecraft messages are not registered: " +
                 string.Join(", ", report.OrphanedDescriptors));
         }
+    }
+
+    /// <summary>
+    /// Writes the current registry/fingerprint snapshot to disk so CI and manual audits can diff protobuf usage.
+    /// </summary>
+    public static void WriteReportToFile(string path)
+    {
+        var report = BuildReferenceReport();
+        var payload = new
+        {
+            report.FileName,
+            report.Package,
+            report.DescriptorFingerprint,
+            report.ComputedFingerprint,
+            DeclaredMessages = report.DeclaredMessages,
+            Registered = report.RegisteredMessages
+                .Select(entry => new { MessageType = entry.MessageType.ToString(), entry.PrototypeName })
+                .ToArray(),
+            MissingRegistrations = report.MissingRegistrations.Select(m => m.ToString()).ToArray(),
+            UnregisteredMessageTypes = report.UnregisteredMessageTypes.Select(m => m.ToString()).ToArray(),
+            OptionalUnregistered = report.OptionalUnregistered.Select(m => m.ToString()).ToArray(),
+            UnboundDescriptors = report.UnboundDescriptors,
+            OrphanedDescriptors = report.OrphanedDescriptors
+        };
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
+        File.WriteAllText(path, JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        }));
     }
 
     public static void LogSummary()

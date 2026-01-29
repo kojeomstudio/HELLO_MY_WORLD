@@ -2,7 +2,7 @@
   "version": 8,
   "profileHash": "c1623fe391703576beab940aee75154cf79b419084b0a454d36da9e14eac1369",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-01-29T06:16:24.7789921Z",
+  "generatedAtUtc": "2026-01-29T06:43:50.0560213Z",
   "hydrologySignature": "2026-01-29-hydrology-shield-v6-riparian",
   "chunkSize": 16,
   "renderDistance": 12,

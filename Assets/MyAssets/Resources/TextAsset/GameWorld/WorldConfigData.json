@@ -10,7 +10,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 8,
   "MapControlProfilePath": "world-map-control.json",
-  "MapControlProfileVersion": 2,
+  "MapControlProfileVersion": 9,
   "OneTileUnit": 0.0625,
   "GlobalWaterLevel": 62,
   "RiverCenterThreshold": 0.0125,
@@ -40,6 +40,8 @@
   "LakeShorelineBlend": 0.66,
   "HydrologySmoothIterations": 2,
   "HydrologySmoothBlend": 0.6,
+  "HydrologyReservoirIterations": 2,
+  "HydrologyReservoirBlend": 0.38,
   "HydrologyShorePush": 5.0,
   "HydrologySlopePenalty": 6.0,
   "HydrologyFlowGain": 0.5,
@@ -121,6 +123,7 @@
   "RiverSuppressionWeight": 0.35,
   "MoistureRetentionWeight": 0.35,
   "EdgeSealStrength": 0.45,
+  "RiparianCaveGuardWeight": 0.42,
   "CaveCeilingStabilityWeight": 0.35,
   "CaveCeilingMoistureClamp": 0.35
 }

@@ -89,7 +89,10 @@ namespace GameCommon.World
             double lakeRimErosionWeight,
             double lakeVarianceWeight,
             double caveEdgeSealStrength,
-            double caveRiverSuppressionWeight)
+            double caveRiverSuppressionWeight,
+            double riparianCaveGuardWeight,
+            int hydrologyReservoirIterations,
+            double hydrologyReservoirBlend)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -153,6 +156,9 @@ namespace GameCommon.World
             LakeVarianceWeight = lakeVarianceWeight;
             CaveEdgeSealStrength = caveEdgeSealStrength;
             CaveRiverSuppressionWeight = caveRiverSuppressionWeight;
+            RiparianCaveGuardWeight = riparianCaveGuardWeight;
+            HydrologyReservoirIterations = hydrologyReservoirIterations;
+            HydrologyReservoirBlend = hydrologyReservoirBlend;
         }
 
         public string PipelineVersion { get; }
@@ -200,6 +206,8 @@ namespace GameCommon.World
         public int HydrologyEdgeNormalizationIterations { get; }
         public double HydrologyFlowMemoryWeight { get; }
         public double HydrologyContinuityWeight { get; }
+        public int HydrologyReservoirIterations { get; }
+        public double HydrologyReservoirBlend { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }
@@ -217,5 +225,6 @@ namespace GameCommon.World
         public double LakeVarianceWeight { get; }
         public double CaveEdgeSealStrength { get; }
         public double CaveRiverSuppressionWeight { get; }
+        public double RiparianCaveGuardWeight { get; }
     }
 }

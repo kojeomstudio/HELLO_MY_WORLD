@@ -36,6 +36,8 @@ public struct WorldConfig
     public float HydrologyShorePush;
     public float HydrologySlopePenalty;
     public float HydrologyFlowGain;
+    public int HydrologyReservoirIterations;
+    public float HydrologyReservoirBlend;
     public float HydrologyFlowMemoryWeight;
     public float HydrologyFlowShadowWeight;
     public float HydrologyFlowShadowSlopeWeight;
@@ -114,6 +116,7 @@ public struct WorldConfig
     public float RiverSuppressionWeight;
     public float MoistureRetentionWeight;
     public float EdgeSealStrength;
+    public float RiparianCaveGuardWeight;
     public float CaveCeilingStabilityWeight;
     public float CaveCeilingMoistureClamp;
 }
@@ -163,7 +166,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RenderDistance = ParseInt(data, "RenderDistance", 10);
                 Config.SimulationDistance = ParseInt(data, "SimulationDistance", 8);
                 Config.MapControlProfilePath = data.ContainsKey("MapControlProfilePath") ? data["MapControlProfilePath"] : "world-map-control.json";
-                Config.MapControlProfileVersion = ParseInt(data, "MapControlProfileVersion", 7);
+                Config.MapControlProfileVersion = ParseInt(data, "MapControlProfileVersion", 9);
                 Config.SubWorld_Count_X_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_X_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Y_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Y_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Z_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Z_Axis_Per_WorldArea", 32);
@@ -183,6 +186,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.LakeShelfDepth = ParseInt(data, "LakeShelfDepth", 2);
                 Config.HydrologySmoothIterations = ParseInt(data, "HydrologySmoothIterations", 2);
                 Config.HydrologySmoothBlend = ParseFloat(data, "HydrologySmoothBlend", 0.6f);
+                Config.HydrologyReservoirIterations = ParseInt(data, "HydrologyReservoirIterations", 2);
+                Config.HydrologyReservoirBlend = ParseFloat(data, "HydrologyReservoirBlend", 0.38f);
                 Config.HydrologyShorePush = ParseFloat(data, "HydrologyShorePush", 5.0f);
                 Config.HydrologySlopePenalty = ParseFloat(data, "HydrologySlopePenalty", 6.0f);
                 Config.HydrologyFlowGain = ParseFloat(data, "HydrologyFlowGain", 0.6f);
@@ -262,6 +267,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RoughnessStabilityWeight = ParseFloat(data, "RoughnessStabilityWeight", 0.1f);
                 Config.RiverSuppressionWeight = ParseFloat(data, "RiverSuppressionWeight", 0.38f);
                 Config.MoistureRetentionWeight = ParseFloat(data, "MoistureRetentionWeight", 0.4f);
+                Config.RiparianCaveGuardWeight = ParseFloat(data, "RiparianCaveGuardWeight", 0.42f);
                 Config.EdgeSealStrength = ParseFloat(data, "EdgeSealStrength", 0.52f);
                 Config.CaveCeilingStabilityWeight = ParseFloat(data, "CaveCeilingStabilityWeight", 0.35f);
                 Config.CaveCeilingMoistureClamp = ParseFloat(data, "CaveCeilingMoistureClamp", 0.38f);
@@ -287,6 +293,8 @@ public class WorldConfigFile : BaseDataFile
         Config.RiverBankThreshold = profile.RiverBankThreshold;
         Config.HydrologySmoothIterations = profile.HydrologySmoothIterations;
         Config.HydrologySmoothBlend = profile.HydrologySmoothBlend;
+        Config.HydrologyReservoirIterations = profile.HydrologyReservoirIterations;
+        Config.HydrologyReservoirBlend = profile.HydrologyReservoirBlend;
         Config.HydrologyShorePush = profile.HydrologyShorePush;
         Config.HydrologySlopePenalty = profile.HydrologySlopePenalty;
         Config.HydrologyFlowGain = profile.HydrologyFlowGain;
@@ -368,6 +376,7 @@ public class WorldConfigFile : BaseDataFile
         Config.RoughnessStabilityWeight = profile.CaveRoughnessWeight;
         Config.RiverSuppressionWeight = profile.CaveRiverSuppressionWeight;
         Config.MoistureRetentionWeight = profile.CaveMoistureRetentionWeight;
+        Config.RiparianCaveGuardWeight = profile.RiparianCaveGuardWeight;
         Config.EdgeSealStrength = profile.CaveEdgeSealStrength;
         Config.CaveCeilingStabilityWeight = (float)profile.CaveCeilingStabilityWeight;
         Config.CaveCeilingMoistureClamp = (float)profile.CaveCeilingMoistureClamp;

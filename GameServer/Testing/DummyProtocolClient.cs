@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -7,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
+using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp.Testing
@@ -16,7 +18,8 @@ namespace GameServerApp.Testing
         string DescriptorName,
         bool NetworkProbeAttempted,
         bool NetworkProbeOk,
-        string NetworkError);
+        string NetworkError,
+        IReadOnlyCollection<string> ValidatedPackets);
 
     public sealed class DummyProtocolClientSettings
     {
@@ -25,6 +28,7 @@ namespace GameServerApp.Testing
         public int ConnectTimeoutMs { get; set; } = 750;
         public int ReceiveTimeoutMs { get; set; } = 750;
         public int RoundTripCount { get; set; } = 1;
+        public string[] Packets { get; set; } = new[] { "ChunkDataRequest", "ChunkUnloadNotification", "TimeUpdate" };
 
         public static DummyProtocolClientSettings Load(string path)
         {
@@ -62,6 +66,43 @@ namespace GameServerApp.Testing
         {
             ProtocolRegistry.ValidateBindings();
             ProtoDiagnostics.AssertFingerprint();
+            var validatedPackets = new List<string>();
+
+            foreach (var packetName in settings.Packets ?? Array.Empty<string>())
+            {
+                if (!Enum.TryParse(packetName, ignoreCase: true, out MinecraftMessageType messageType))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Unknown packet '{packetName}' in config. Skipping.");
+                    continue;
+                }
+
+                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Missing prototype for '{messageType}'. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
+                    continue;
+                }
+
+                var descriptorParser = prototype.Descriptor?.Parser;
+                if (descriptorParser == null)
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
+                    continue;
+                }
+
+                try
+                {
+                    var bytes = prototype.ToByteArray();
+                    var parsed = descriptorParser.ParseFrom(bytes);
+                    if (parsed != null)
+                    {
+                        validatedPackets.Add(messageType.ToString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Round-trip failed for '{messageType}': {ex.Message}");
+                }
+            }
 
             var sampleRequest = new ChunkLoadRequest
             {
@@ -76,6 +117,10 @@ namespace GameServerApp.Testing
 
             byte[] payload = sampleRequest.ToByteArray();
             bool roundTripOk = ChunkLoadRequest.Parser.ParseFrom(payload) != null;
+            if (roundTripOk)
+            {
+                validatedPackets.Add(nameof(ChunkLoadRequest));
+            }
 
             bool networkAttempted = false;
             bool networkOk = false;
@@ -115,7 +160,8 @@ namespace GameServerApp.Testing
                 ChunkLoadRequest.Descriptor.FullName,
                 networkAttempted,
                 networkOk,
-                networkError);
+                networkError,
+                validatedPackets);
         }
     }
 }

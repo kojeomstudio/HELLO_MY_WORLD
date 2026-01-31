@@ -30,6 +30,8 @@ public class WorldMapControlProfileData
     public float hydrologyEdgeVarianceClamp;
     public float hydrologySmoothBlend;
     public int hydrologySmoothIterations;
+    public int hydrologyReservoirIterations;
+    public float hydrologyReservoirBlend;
     public float hydrologyShorePush;
     public float hydrologySlopePenalty;
     public float hydrologyFlowGain;
@@ -114,6 +116,7 @@ public class WorldMapControlProfileData
     public float caveRoughnessWeight;
     public float caveDepthWeight;
     public float caveRiverSuppressionWeight;
+    public float riparianCaveGuardWeight;
     public bool enableRivers;
     public bool enableLakes;
     public bool enableCaves;
@@ -146,6 +149,8 @@ public sealed class WorldMapControlProfile
     public float HydrologyEdgeVarianceClamp { get; private set; }
     public float HydrologySmoothBlend { get; private set; }
     public int HydrologySmoothIterations { get; private set; }
+    public int HydrologyReservoirIterations { get; private set; }
+    public float HydrologyReservoirBlend { get; private set; }
     public float HydrologyShorePush { get; private set; }
     public float HydrologySlopePenalty { get; private set; }
     public float HydrologyFlowGain { get; private set; }
@@ -230,6 +235,7 @@ public sealed class WorldMapControlProfile
     public float CaveRoughnessWeight { get; private set; }
     public float CaveDepthWeight { get; private set; }
     public float CaveRiverSuppressionWeight { get; private set; }
+    public float RiparianCaveGuardWeight { get; private set; }
     public bool EnableRivers { get; private set; }
     public bool EnableLakes { get; private set; }
     public bool EnableCaves { get; private set; }
@@ -300,6 +306,8 @@ public sealed class WorldMapControlProfile
                 hydrologyEdgeVarianceClamp = Mathf.Clamp(water.HydrologyEdgeVarianceClamp, 0f, 1.25f),
                 hydrologySmoothBlend = Mathf.Clamp01(water.HydrologySmoothBlend),
                 hydrologySmoothIterations = Mathf.Max(0, water.HydrologySmoothIterations),
+                hydrologyReservoirIterations = Mathf.Max(0, water.HydrologyReservoirIterations),
+                hydrologyReservoirBlend = Mathf.Clamp01(water.HydrologyReservoirBlend),
                 hydrologyShorePush = Mathf.Clamp(water.HydrologyShorePush, 0.1f, 64f),
                 hydrologySlopePenalty = Mathf.Clamp(water.HydrologySlopePenalty, 0.1f, 64f),
                 hydrologyFlowGain = Mathf.Clamp(water.HydrologyFlowGain, 0f, 2f),
@@ -384,6 +392,7 @@ public sealed class WorldMapControlProfile
                 caveRoughnessWeight = Mathf.Clamp01(caves.RoughnessStabilityWeight),
                 caveDepthWeight = caveDepthWeight,
                 caveRiverSuppressionWeight = Mathf.Clamp01(caves.RiverSuppressionWeight),
+                riparianCaveGuardWeight = Mathf.Clamp01(caves.RiparianCaveGuardWeight),
                 enableRivers = water.EnableRivers,
                 enableLakes = water.EnableLakes,
                 enableCaves = caves.EnableCaves,
@@ -422,6 +431,8 @@ public sealed class WorldMapControlProfile
             HydrologyEdgeVarianceClamp = data.hydrologyEdgeVarianceClamp,
             HydrologySmoothBlend = data.hydrologySmoothBlend,
             HydrologySmoothIterations = data.hydrologySmoothIterations,
+            HydrologyReservoirIterations = data.hydrologyReservoirIterations,
+            HydrologyReservoirBlend = data.hydrologyReservoirBlend,
             HydrologyShorePush = data.hydrologyShorePush,
             HydrologySlopePenalty = data.hydrologySlopePenalty,
             HydrologyFlowGain = data.hydrologyFlowGain,
@@ -506,6 +517,7 @@ public sealed class WorldMapControlProfile
             CaveRoughnessWeight = data.caveRoughnessWeight,
             CaveDepthWeight = data.caveDepthWeight,
             CaveRiverSuppressionWeight = data.caveRiverSuppressionWeight,
+            RiparianCaveGuardWeight = data.riparianCaveGuardWeight,
             EnableRivers = data.enableRivers,
             EnableLakes = data.enableLakes,
             EnableCaves = data.enableCaves,
@@ -537,6 +549,8 @@ public sealed class WorldMapControlProfile
             .Append(data.hydrologyEdgeVarianceClamp).Append('|')
             .Append(data.hydrologySmoothBlend).Append('|')
             .Append(data.hydrologySmoothIterations).Append('|')
+            .Append(data.hydrologyReservoirIterations).Append('|')
+            .Append(data.hydrologyReservoirBlend).Append('|')
             .Append(data.hydrologyShorePush).Append('|')
             .Append(data.hydrologySlopePenalty).Append('|')
             .Append(data.hydrologyFlowGain).Append('|')
@@ -621,6 +635,7 @@ public sealed class WorldMapControlProfile
             .Append(data.caveRoughnessWeight).Append('|')
             .Append(data.caveDepthWeight).Append('|')
             .Append(data.caveRiverSuppressionWeight).Append('|')
+            .Append(data.riparianCaveGuardWeight).Append('|')
             .Append(data.enableRivers).Append('|')
             .Append(data.enableLakes).Append('|')
             .Append(data.enableCaves).Append('|')

@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 8;
+        public int MapControlProfileVersion = 9;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();
@@ -149,6 +149,8 @@ namespace Minecraft.Core
         public float RiverBankThreshold = 0.026f;
         public int HydrologySmoothIterations = 3;
         public float HydrologySmoothBlend = 0.62f;
+        public int HydrologyReservoirIterations = 2;
+        public float HydrologyReservoirBlend = 0.38f;
         public float HydrologyShorePush = 5.0f;
         public float HydrologySlopePenalty = 6.0f;
         public float HydrologyFlowGain = 0.5f;
@@ -259,6 +261,7 @@ namespace Minecraft.Core
         public float MoistureRetentionWeight = 0.35f;
         public float MoistureFlowClamp = 0.65f;
         public float EdgeSealStrength = 0.5f;
+        public float RiparianCaveGuardWeight = 0.42f;
         public float SupportPillarChance = 0.28f;
         public int RiparianPlugDepth = 2;
         public float CaveCeilingStabilityWeight = 0.35f;
@@ -360,6 +363,8 @@ namespace Minecraft.Core
         public float RiverBankThreshold { get; }
         public int HydrologySmoothIterations { get; }
         public float HydrologySmoothBlend { get; }
+        public int HydrologyReservoirIterations { get; }
+        public float HydrologyReservoirBlend { get; }
         public float HydrologyShorePush { get; }
         public float HydrologySlopePenalty { get; }
         public float HydrologyFlowGain { get; }
@@ -435,6 +440,8 @@ namespace Minecraft.Core
             RiverBankThreshold = data.RiverBankThreshold;
             HydrologySmoothIterations = data.HydrologySmoothIterations;
             HydrologySmoothBlend = data.HydrologySmoothBlend;
+            HydrologyReservoirIterations = data.HydrologyReservoirIterations;
+            HydrologyReservoirBlend = data.HydrologyReservoirBlend;
             HydrologyShorePush = data.HydrologyShorePush;
             HydrologySlopePenalty = data.HydrologySlopePenalty;
             HydrologyFlowGain = data.HydrologyFlowGain;
@@ -544,6 +551,7 @@ namespace Minecraft.Core
         public float RiverSuppressionWeight { get; }
         public float MoistureRetentionWeight { get; }
         public float MoistureFlowClamp { get; }
+        public float RiparianCaveGuardWeight { get; }
         public float EdgeSealStrength { get; }
         public float SupportPillarChance { get; }
         public int RiparianPlugDepth { get; }
@@ -590,6 +598,7 @@ namespace Minecraft.Core
             RiverSuppressionWeight = data.RiverSuppressionWeight;
             MoistureRetentionWeight = data.MoistureRetentionWeight;
             MoistureFlowClamp = data.MoistureFlowClamp;
+            RiparianCaveGuardWeight = data.RiparianCaveGuardWeight;
             EdgeSealStrength = data.EdgeSealStrength;
             SupportPillarChance = data.SupportPillarChance;
             RiparianPlugDepth = data.RiparianPlugDepth;

@@ -33,6 +33,16 @@ public static class ProtocolValidator
         MinecraftMessageType.ParticleEffect
     };
 
+    private static readonly MinecraftMessageType[] StreamingMessages =
+    {
+        MinecraftMessageType.ChunkDataRequest,
+        MinecraftMessageType.ChunkDataResponse,
+        MinecraftMessageType.ChunkUnloadNotification,
+        MinecraftMessageType.ChunkUnloadAcknowledge,
+        MinecraftMessageType.TimeUpdate,
+        MinecraftMessageType.WeatherChange
+    };
+
     private static readonly HashSet<MinecraftMessageType> OptionalMessages = new()
     {
         MinecraftMessageType.MultiBlockChange,
@@ -87,6 +97,7 @@ public static class ProtocolValidator
         ValidateEnumBindings();
         ValidateGeneratedDescriptorCoverage();
         ValidateOptionalDescriptorVisibility();
+        ValidateStreamingContracts();
         ValidateOptionalPrototypes();
         LogOptionalBindingCoverage();
         ProtoDiagnostics.LogSummary();
@@ -564,6 +575,24 @@ public static class ProtocolValidator
             {
                 throw new InvalidOperationException(
                     $"EnhancedMinecraft contract '{binding.MessageType}' resolved from assembly '{actualAssembly.GetName().Name}', expected '{expectedAssembly.GetName().Name}'. Regenerate protobuf assets so using directives bind to the generated DTOs from the current build.");
+            }
+        }
+    }
+
+    private static void ValidateStreamingContracts()
+    {
+        foreach (var messageType in StreamingMessages)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft streaming packet '{messageType}' is missing a generated prototype. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
+            }
+
+            if (prototype.Descriptor?.Parser == null)
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft streaming packet '{messageType}' does not expose a descriptor parser. Ensure generated DTOs are referenced by server and client builds.");
             }
         }
     }

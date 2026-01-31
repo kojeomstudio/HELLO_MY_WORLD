@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 8;
+        public int MapControlProfileVersion { get; set; } = 9;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -104,6 +104,8 @@ namespace GameServerApp.World
         public int RiverDepth { get; set; } = 7;
         public int RiverIntensitySmoothIterations { get; set; } = 3;
         public double RiverIntensitySmoothBlend { get; set; } = 0.6;
+        public int HydrologyReservoirIterations { get; set; } = 2;
+        public double HydrologyReservoirBlend { get; set; } = 0.38;
         public int HydrologySmoothIterations { get; set; } = 3;
         public double HydrologySmoothBlend { get; set; } = 0.62;
         public double HydrologyShorePush { get; set; } = 5.0;
@@ -219,6 +221,7 @@ namespace GameServerApp.World
         public double SupportFlowBias { get; set; } = 0.20;
         public double MoistureRetentionWeight { get; set; } = 0.4;
         public double MoistureFlowClamp { get; set; } = 0.62;
+        public double RiparianCaveGuardWeight { get; set; } = 0.42;
         public double EdgeSealStrength { get; set; } = 0.52;
         public double SupportPillarChance { get; set; } = 0.28;
         public int RiparianPlugDepth { get; set; } = 2;

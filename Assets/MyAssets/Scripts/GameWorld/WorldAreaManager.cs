@@ -53,6 +53,8 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.GlobalRiverWaterLevel = Mathf.Max(0, MapControlProfile.GlobalWaterLevel);
         WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, MapControlProfile.HydrologySmoothIterations);
         WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(MapControlProfile.HydrologySmoothBlend);
+        WorldGenAlgorithms.HydrologyReservoirIterations = Mathf.Max(0, MapControlProfile.HydrologyReservoirIterations);
+        WorldGenAlgorithms.HydrologyReservoirBlend = Mathf.Clamp01(MapControlProfile.HydrologyReservoirBlend);
         WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(MapControlProfile.HydrologyShorePush, 0.1f, 64f);
         WorldGenAlgorithms.HydrologySlopePenalty = Mathf.Clamp(MapControlProfile.HydrologySlopePenalty, 0.1f, 64f);
         WorldGenAlgorithms.HydrologyFlowGain = Mathf.Clamp(MapControlProfile.HydrologyFlowGain, 0f, 2f);
@@ -132,6 +134,7 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.CaveRoughnessWeight = Mathf.Clamp01(MapControlProfile.CaveRoughnessWeight);
         WorldGenAlgorithms.CaveDepthWeight = Mathf.Clamp(1f - caveWeightTotal, 0.05f, 0.45f);
         WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(MapControlProfile.CaveRiverSuppressionWeight);
+        WorldGenAlgorithms.RiparianCaveGuardWeight = Mathf.Clamp01(MapControlProfile.RiparianCaveGuardWeight);
         WorldGenAlgorithms.CaveMoistureRetentionWeight = Mathf.Clamp01(MapControlProfile.CaveMoistureRetentionWeight);
         WorldGenAlgorithms.CaveEdgeSealStrength = Mathf.Clamp01(MapControlProfile.CaveEdgeSealStrength);
         WorldGenAlgorithms.CaveCeilingStabilityWeight = Mathf.Clamp01(MapControlProfile.CaveCeilingStabilityWeight);

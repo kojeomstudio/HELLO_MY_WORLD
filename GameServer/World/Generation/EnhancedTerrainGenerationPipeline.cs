@@ -93,6 +93,7 @@ namespace GameServerApp.World.Generation
                 NormalizeHydrologyFlowEdges(hydrologyMask, flowAccumulation);
                 ApplyWaterTableEnvelope(heightMap, hydrologyMask, flowAccumulation);
                 ApplyHydrologyEdgeEnvelope(hydrologyMask, flowAccumulation);
+                ApplyHydrologyReservoirSmoothing(heightMap, hydrologyMask, flowAccumulation);
                 if (improvedMasks == null)
                 {
                     TerrainMaskUtility.BalanceHydrologyPressure(
@@ -388,6 +389,51 @@ namespace GameServerApp.World.Generation
                     targetFlow = targetFlow * (1.0 - normalization * 0.25) + (seamMemory + interiorFlow) * normalization * 0.25;
                     flow[x, z] = (float)Math.Clamp(targetFlow * stability * stabilityBoost, 0.0, flowClamp + 2.0);
                 }
+            }
+        }
+
+        private void ApplyHydrologyReservoirSmoothing(int[,] heightMap, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int iterations = Math.Max(0, config.Water.HydrologyReservoirIterations);
+            double blend = Math.Clamp(config.Water.HydrologyReservoirBlend, 0.0, 1.0);
+            if (iterations <= 0 || blend <= 0.0 || flow == null)
+            {
+                return;
+            }
+
+            var hydroBuffer = new float[sizeX, sizeZ];
+            var flowBuffer = new float[sizeX, sizeZ];
+            double clampRange = Math.Max(1.0, config.Water.HydrologyWaterTableClampRange);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+
+            for (int iteration = 0; iteration < iterations; iteration++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int surface = heightMap[x, z];
+                        float hydro = hydrology[x, z];
+                        float flowValue = flow[x, z];
+                        double neighbourHydro = SampleInterior(hydrology, x, z);
+                        double neighbourFlow = SampleInterior(flow, x, z);
+                        double edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        double edgeAttenuation = 1.0 - Math.Clamp(edgeDistance / (edgeRadius * 1.5), 0.0, 1.0);
+                        double waterDepth = Math.Max(0, config.Water.GlobalWaterLevel - surface);
+                        double waterClamp = Math.Clamp(waterDepth / clampRange, 0.0, 1.0);
+                        double reservoirBlend = blend * (0.65 + edgeAttenuation * 0.35) * (0.65 + waterClamp * 0.35);
+                        double hydroTarget = hydro * (1.0 - reservoirBlend) + neighbourHydro * reservoirBlend;
+                        double flowTarget = flowValue * (1.0 - reservoirBlend * 0.65) + neighbourFlow * reservoirBlend * 0.65;
+                        hydroBuffer[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.35));
+                        flowBuffer[x, z] = TerrainMaskUtility.Clamp01(
+                            (float)Math.Clamp(flowTarget, 0.0, Math.Max(flowValue + 1.0, config.Water.HydrologyFlowDivergenceClamp * 12.0)));
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrology, hydrology.Length);
+                Array.Copy(flowBuffer, flow, flow.Length);
             }
         }
 

@@ -408,7 +408,10 @@ namespace GameServerApp.World
                 generationConfig.Water.LakeRimErosionWeight,
                 generationConfig.Lakes.VarianceWeight,
                 generationConfig.Caves.EdgeSealStrength,
-                generationConfig.Caves.RiverSuppressionWeight);
+                generationConfig.Caves.RiverSuppressionWeight,
+                generationConfig.Caves.RiparianCaveGuardWeight,
+                generationConfig.Water.HydrologyReservoirIterations,
+                generationConfig.Water.HydrologyReservoirBlend);
 
             return WorldMapSignature.Compute(context);
         }

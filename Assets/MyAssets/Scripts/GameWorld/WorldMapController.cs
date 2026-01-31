@@ -468,7 +468,10 @@ namespace GameWorld
                 config.Water.LakeRimErosionWeight,
                 config.Lakes.VarianceWeight,
                 config.Caves.EdgeSealStrength,
-                config.Caves.RiverSuppressionWeight);
+                config.Caves.RiverSuppressionWeight,
+                config.Caves.RiparianCaveGuardWeight,
+                config.Water.HydrologyReservoirIterations,
+                config.Water.HydrologyReservoirBlend);
             return WorldMapSignature.Compute(context);
         }
 

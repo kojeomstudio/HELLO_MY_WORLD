@@ -36,6 +36,8 @@ namespace GameServerApp.World
         public double HydrologyEdgeVarianceClamp { get; set; }
         public double HydrologySmoothBlend { get; set; }
         public int HydrologySmoothIterations { get; set; }
+        public int HydrologyReservoirIterations { get; set; }
+        public double HydrologyReservoirBlend { get; set; }
         public double HydrologyShorePush { get; set; }
         public double HydrologySlopePenalty { get; set; }
         public double HydrologyFlowGain { get; set; }
@@ -119,6 +121,7 @@ namespace GameServerApp.World
         public double CaveRoughnessWeight { get; set; }
         public double CaveDepthWeight { get; set; }
         public double CaveRiverSuppressionWeight { get; set; }
+        public double RiparianCaveGuardWeight { get; set; }
         public double CaveCeilingMoistureClamp { get; set; }
         public bool EnableRivers { get; set; }
         public bool EnableLakes { get; set; }
@@ -160,6 +163,8 @@ namespace GameServerApp.World
                 HydrologyEdgeVarianceClamp = config.Water.HydrologyEdgeVarianceClamp,
                 HydrologySmoothBlend = config.Water.HydrologySmoothBlend,
                 HydrologySmoothIterations = Math.Max(0, config.Water.HydrologySmoothIterations),
+                HydrologyReservoirIterations = Math.Max(0, config.Water.HydrologyReservoirIterations),
+                HydrologyReservoirBlend = config.Water.HydrologyReservoirBlend,
                 HydrologyShorePush = config.Water.HydrologyShorePush,
                 HydrologySlopePenalty = config.Water.HydrologySlopePenalty,
                 HydrologyFlowGain = config.Water.HydrologyFlowGain,
@@ -243,6 +248,7 @@ namespace GameServerApp.World
                 CaveRoughnessWeight = config.Caves.RoughnessStabilityWeight,
                 CaveDepthWeight = caveDepthWeight,
                 CaveRiverSuppressionWeight = config.Caves.RiverSuppressionWeight,
+                RiparianCaveGuardWeight = config.Caves.RiparianCaveGuardWeight,
                 CaveCeilingMoistureClamp = config.Caves.CeilingMoistureClamp,
                 EnableRivers = config.Water.EnableRivers,
                 EnableLakes = config.Water.EnableLakes,
@@ -281,6 +287,8 @@ namespace GameServerApp.World
                 .Append(profile.HydrologyEdgeVarianceClamp).Append('|')
                 .Append(profile.HydrologySmoothBlend).Append('|')
                 .Append(profile.HydrologySmoothIterations).Append('|')
+                .Append(profile.HydrologyReservoirIterations).Append('|')
+                .Append(profile.HydrologyReservoirBlend).Append('|')
                 .Append(profile.HydrologyShorePush).Append('|')
                 .Append(profile.HydrologySlopePenalty).Append('|')
                 .Append(profile.HydrologyFlowGain).Append('|')
@@ -364,6 +372,7 @@ namespace GameServerApp.World
                 .Append(profile.CaveRoughnessWeight).Append('|')
                 .Append(profile.CaveDepthWeight).Append('|')
                 .Append(profile.CaveRiverSuppressionWeight).Append('|')
+                .Append(profile.RiparianCaveGuardWeight).Append('|')
                 .Append(profile.CaveCeilingMoistureClamp).Append('|')
                 .Append(profile.EnableRivers).Append('|')
                 .Append(profile.EnableLakes).Append('|')

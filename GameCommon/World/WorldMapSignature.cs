@@ -78,7 +78,10 @@ namespace GameCommon.World
                 .Append(context.LakeRimErosionWeight).Append('|')
                 .Append(context.LakeVarianceWeight).Append('|')
                 .Append(context.CaveEdgeSealStrength).Append('|')
-                .Append(context.CaveRiverSuppressionWeight);
+                .Append(context.CaveRiverSuppressionWeight).Append('|')
+                .Append(context.RiparianCaveGuardWeight).Append('|')
+                .Append(context.HydrologyReservoirIterations).Append('|')
+                .Append(context.HydrologyReservoirBlend);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

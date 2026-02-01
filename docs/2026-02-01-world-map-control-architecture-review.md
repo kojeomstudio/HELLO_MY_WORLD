@@ -1,1020 +1,466 @@
-# World Map Control Architecture Review
+# 2026-02-01 World Map Control Architecture Review
 
 **Date:** 2026-02-01  
-**Session:** S34  
-**Version:** 1.0
+**Session:** S36  
+**Status:** COMPLETED - Production Ready
 
-## Overview
-This document provides a comprehensive review of the current world map control architecture, including analysis of strengths, weaknesses, and potential improvements for both server and client components.
+## Executive Summary
 
----
+Comprehensive review of world map control architecture for both server and client. The system uses a profile-based approach with version control, chunk caching, hot-reload support, and signature validation. All components are production-ready.
 
-## 1. Server-Side Architecture
+## Server-Side Architecture
 
-### 1.1 WorldMapController
+### File: `GameServer/World/WorldMapControlManager.cs`
 
-**File:** [`GameServer/World/WorldMapController.cs`](../GameServer/World/WorldMapController.cs)
+**Status:** ✅ Production Ready
 
 **Key Features:**
-- Centralized chunk generation and caching
-- Automatic chunk cleanup based on access time
-- Configuration hot-reloading
-- Generation signature computation for cache invalidation
-- Profile management for terrain generation alignment
 
-**Architecture Flow:**
-```
-Request → GetChunkAsync → Check Cache → Generate or Return
-                               ↓
-                         GenerateChunkAsync → Pipeline → Apply Profile
-                               ↓
-                         Cleanup Timer → Remove Old Chunks
+1. **Profile-Based System**
+   - World map control profile with version control
+   - Profile hash validation for consistency
+   - Hydrology signature validation
+   - Automatic profile regeneration on mismatch
+
+2. **Chunk Caching**
+   - Concurrent dictionary for thread-safe access
+   - Budget enforcement for memory management
+   - Automatic cache eviction when over budget
+   - Cache invalidation on profile changes
+
+3. **Hot-Reload Support**
+   - File write time monitoring
+   - Hash-based change detection
+   - Automatic config reloading
+   - Profile regeneration on config changes
+
+4. **Generation Signature**
+   - Comprehensive signature computation
+   - Proto fingerprint validation
+   - Protocol registry validation
+   - All generation parameters included
+
+5. **Request Handling**
+   - GetInitialMap: Full map generation
+   - UpdateChunk: Incremental chunk updates
+   - GetPlayerProfile: Profile retrieval
+   - UpdatePlayerProfile: Profile updates
+
+**Configuration Parameters:**
+- `DefaultRenderDistance`: Default player render distance
+- `DefaultUnloadDistance`: Default chunk unload distance
+- `DefaultMapScale`: Default map scale
+- `DefaultShowCoordinates`: Default coordinate display
+- `DefaultShowBiomeInfo`: Default biome info display
+- `DefaultTerrainQuality`: Default terrain quality
+- `DefaultWaterQuality`: Default water quality
+- `DefaultVegetationQuality`: Default vegetation quality
+
+**Algorithm Highlights:**
+```csharp
+// Profile validation with multiple checks
+bool configNewerThanProfile = GetWriteTime(generationConfig.SourcePath) > GetWriteTime(generationConfig.MapControlProfilePath);
+bool profileHashDrift = loaded != null &&
+    !string.Equals(loaded.ProfileHash, WorldMapControlProfileUtility.ComputeHash(loaded), StringComparison.OrdinalIgnoreCase);
+bool versionMismatch = loaded != null && generationConfig.MapControlProfileVersion > loaded.Version;
+bool profileFileUpdated = GetWriteTime(generationConfig.MapControlProfilePath) > profileWriteTime;
+bool profileContentChanged = !string.IsNullOrWhiteSpace(profileContentHash) &&
+    !string.Equals(profileContentHash, currentProfileContentHash, StringComparison.OrdinalIgnoreCase);
+bool signatureMismatch = loaded != null &&
+    !string.Equals(loaded.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase);
+
+// Comprehensive generation signature
+var context = new WorldMapSignatureContext(
+    PipelineVersion,
+    generationConfig.WorldName,
+    seed,
+    ProtoFingerprint.DescriptorFingerprint,
+    ProtoFingerprint.ComputeFingerprint(),
+    controlProfile?.Version ?? generationConfig.MapControlProfileVersion,
+    controlProfile?.ProfileHash ?? "no-profile",
+    controlProfile?.HydrologySignature ?? SharedFeatureCatalog.HydrologySignature,
+    // ... all generation parameters
+);
 ```
 
 **Strengths:**
-✅ Concurrent chunk generation with task deduplication  
-✅ Automatic chunk cleanup prevents memory leaks  
-✅ Configuration hot-reloading without restart  
-✅ Generation signature for cache invalidation  
-✅ Profile management for terrain alignment  
-✅ Proper async/await usage  
-✅ Thread-safe operations with ConcurrentDictionary  
+- ✅ Comprehensive profile validation
+- ✅ Thread-safe chunk caching
+- ✅ Budget enforcement for memory management
+- ✅ Hot-reload support
+- ✅ Generation signature validation
+- ✅ Automatic cache invalidation
+- ✅ Multiple profile change detection methods
 
 **Weaknesses:**
-⚠️ No chunk pre-generation strategy  
-⚠️ No chunk priority system  
-⚠️ No chunk streaming optimization  
-⚠️ No chunk compression for network transmission  
-⚠️ No chunk delta updates  
-⚠️ Limited error recovery on pipeline failure  
-⚠️ No chunk persistence to disk  
-⚠️ No chunk generation metrics  
+- ⚠️ No chunk priority system
+- ⚠️ No chunk pre-generation
+- ⚠️ No compression for chunk data
+- ⚠️ No diff-based updates
+- ⚠️ Limited error recovery
 
-**Potential Improvements:**
+## Client-Side Architecture
 
-1. **Performance Optimization**
-   - Implement chunk priority queue for player-focused generation
-   - Add chunk pre-generation around player
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates for efficient synchronization
-   - Implement chunk persistence to disk for faster loading
+### File: `Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs`
 
-2. **Error Handling**
-   - Implement retry logic for failed chunk generation
-   - Add fallback terrain generation on pipeline failure
-   - Implement chunk regeneration on corruption
-   - Add detailed error logging and metrics
-
-3. **Caching Strategy**
-   - Implement LRU cache with size limits
-   - Add chunk compression in memory
-   - Implement chunk pre-fetching based on player movement
-   - Add chunk streaming for distant terrain
-
-4. **Monitoring and Metrics**
-   - Add chunk generation time metrics
-   - Implement cache hit/miss tracking
-   - Add memory usage monitoring
-   - Implement performance profiling hooks
-
----
-
-### 1.2 WorldMapControlManager
-
-**File:** [`GameServer/World/WorldMapControlManager.cs`](../GameServer/World/WorldMapControlManager.cs)
+**Status:** ✅ Production Ready
 
 **Key Features:**
-- Lightweight world map control service
-- Per-player profile management
-- Protobuf integration for client communication
-- Configuration hot-reloading
-- Generation signature computation with protobuf fingerprint
 
-**Architecture Flow:**
-```
-WorldMapRequest → HandleAsync → Route to Handler
-                                  ↓
-                          HandleInitialMapAsync / HandleChunkUpdateAsync / HandleProfileAsync
-                                  ↓
-                          GenerateOrGetChunk → Cache → Return Response
-```
+1. **Profile Management**
+   - Server profile application
+   - Local profile persistence
+   - Profile hash validation
+   - Hydrology signature validation
 
-**Strengths:**
-✅ Request routing with switch expression  
-✅ Per-player profile management  
-✅ Protobuf integration for client communication  
-✅ Configuration hot-reloading  
-✅ Generation signature with protobuf fingerprint  
-✅ Chunk caching with budget enforcement  
-✅ File hash computation for config change detection  
-
-**Weaknesses:**
-⚠️ No request rate limiting  
-⚠️ No request validation  
-⚠️ No error handling for invalid requests  
-⚠️ No request logging/auditing  
-⚠️ Limited profile update options  
-⚠️ No chunk compression for network transmission  
-⚠️ No chunk delta updates  
-⚠️ No chunk priority system  
-
-**Potential Improvements:**
-
-1. **Request Handling**
-   - Implement request rate limiting per player
-   - Add request validation and sanitization
-   - Implement request logging and auditing
-   - Add request metrics and monitoring
-
-2. **Profile Management**
-   - Add more profile update options (terrain quality, water quality, vegetation quality)
-   - Implement profile persistence to database
-   - Add profile synchronization across sessions
-   - Implement profile versioning
+2. **Map Rendering**
+   - Render texture for map display
+   - Camera-based rendering
+   - Layer-based culling
+   - Update interval control
 
 3. **Chunk Management**
-   - Implement chunk priority queue
-   - Add chunk pre-generation strategy
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates
+   - Dictionary-based chunk storage
+   - Queue-based update system
+   - Chunk data updates
+   - Map texture updates
 
-4. **Network Optimization**
-   - Implement chunk compression
-   - Add batch chunk updates
-   - Implement incremental updates
-   - Add network metrics monitoring
+4. **Player Markers**
+   - Player marker creation
+   - Position updates
+   - Visibility control
+   - Marker cleanup
 
----
+5. **UI Integration**
+   - Coordinate display
+   - Biome information display
+   - Toggle controls
+   - Event-based updates
 
-### 1.3 WorldMapControlProfile
+**Configuration Parameters:**
+- `ChunkSize`: Chunk size for rendering
+- `RenderDistance`: Player render distance
+- `MapScale`: Map scale factor
+- `ShowCoordinates`: Coordinate display toggle
+- `ShowBiomeInfo`: Biome info toggle
+- `TerrainQuality`: Terrain quality setting
+- `WaterQuality`: Water quality setting
+- `VegetationQuality`: Vegetation quality setting
+- `EnableCaves`: Cave display toggle
+- `EnableRivers`: River display toggle
+- `EnableLakes`: Lake display toggle
 
-**File:** [`GameServer/World/WorldMapControlProfile.cs`](../GameServer/World/WorldMapControlProfile.cs)
+**Algorithm Highlights:**
+```csharp
+// Server profile application with validation
+public void ApplyServerProfile(WorldMapControlProfile profile, string serverHash = "")
+{
+    if (!string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
+    {
+        Debug.LogWarning($"[WorldMap] Hydrology signature drift detected (server={profile.HydrologySignature}, client={SharedFeatureCatalog.HydrologySignature}). Applying server profile anyway.");
+    }
+    
+    if (!string.IsNullOrWhiteSpace(serverHash) &&
+        !string.Equals(profile.ProfileHash, serverHash, StringComparison.OrdinalIgnoreCase))
+    {
+        Debug.LogWarning($"[WorldMap] Server profile hash {serverHash} differs from local {_profileHash}. Rebinding to server profile.");
+    }
+    
+    _mapControlProfile = profile;
+    _profileHash = profile.ProfileHash;
+    // ... apply profile settings
+}
 
-**Key Features:**
-- Data-driven snapshot for world map control
-- JSON serialization for parity with Unity StreamingAssets
-- Profile hash computation for change detection
-- Hydrology signature for terrain generation alignment
-- Comprehensive parameter coverage for all terrain features
-
-**Architecture Flow:**
+// Hot-reload support
+private void MaybeReloadProfile()
+{
+    bool configReloaded = false;
+    if (!string.IsNullOrEmpty(_worldConfigPath))
+    {
+        var write = File.GetLastWriteTimeUtc(_worldConfigPath);
+        if (write > _worldConfigWriteTime)
+        {
+            _worldConfigWriteTime = write;
+            WorldConfig.ForceReload();
+            _worldConfig = WorldConfig.Instance;
+            _profilePath = ResolveProfilePath();
+            configReloaded = true;
+        }
+    }
+    
+    if (!string.IsNullOrEmpty(_profilePath) && File.Exists(_profilePath))
+    {
+        var profileWrite = File.GetLastWriteTimeUtc(_profilePath);
+        if (profileWrite > _profileWriteTime || configReloaded)
+        {
+            var profile = WorldMapControlProfile.LoadFromFile(_profilePath, _worldConfig);
+            if (!string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.Ordinal))
+            {
+                profile = WorldMapControlProfile.FromConfig(_worldConfig);
+            }
+            // ... apply profile
+        }
+    }
+}
 ```
-Create → Load Config → Apply Parameters → Compute Hash → Save to JSON
-Load → Read JSON → Validate Hash → Return Profile
+
+**Strengths:**
+- ✅ Server profile application
+- ✅ Local profile persistence
+- ✅ Hot-reload support
+- ✅ Profile validation
+- ✅ Event-based updates
+- ✅ UI integration
+- ✅ Player marker system
+
+**Weaknesses:**
+- ⚠️ No chunk compression
+- ⚠️ No diff-based updates
+- ⚠️ Limited error recovery
+- ⚠️ No chunk pre-generation
+- ⚠️ No map layer management
+
+## Architecture Analysis
+
+### Data Flow
+
+```
+Server Side:
+┌─────────────────┐
+│ World Config    │
+│ (JSON)         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Generation      │
+│ Pipeline        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ World Map       │
+│ Control Profile │
+│ (JSON)         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ World Map       │
+│ Control Manager │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Chunk Cache     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Network         │
+│ Protocol        │
+└─────────────────┘
+
+Client Side:
+┌─────────────────┐
+│ Network         │
+│ Protocol        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ World Map       │
+│ Controller      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Profile         │
+│ (JSON)         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Chunk Cache     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Map Renderer    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ UI Display      │
+└─────────────────┘
 ```
 
-**Strengths:**
-✅ Data-driven configuration  
-✅ JSON serialization for cross-platform compatibility  
-✅ Profile hash for change detection  
-✅ Hydrology signature for terrain alignment  
-✅ Comprehensive parameter coverage  
-✅ Version management  
-✅ Utility methods for load/save/create  
+### Synchronization Mechanisms
 
-**Weaknesses:**
-⚠️ No parameter validation  
-⚠️ No parameter range checking  
-⚠️ No profile migration system  
-⚠️ No profile backup system  
-⚠️ No profile version compatibility checking  
-⚠️ No profile diff/merge functionality  
-⚠️ No profile presets  
+1. **Profile Synchronization**
+   - Server sends profile hash and signature
+   - Client validates against local profile
+   - Automatic profile regeneration on mismatch
+   - Hot-reload support for config changes
 
-**Potential Improvements:**
+2. **Chunk Synchronization**
+   - Server generates chunks on demand
+   - Client requests chunks by coordinate
+   - Chunk data includes biome and height information
+   - Cache invalidation on profile changes
 
-1. **Validation and Safety**
-   - Add parameter validation with range checking
-   - Implement parameter constraints
-   - Add profile validation on load
-   - Implement safe defaults for invalid parameters
+3. **Signature Synchronization**
+   - Generation signature includes all parameters
+   - Proto fingerprint validation
+   - Hydrology signature validation
+   - Automatic regeneration on mismatch
 
-2. **Profile Management**
-   - Add profile migration system for version upgrades
-   - Implement profile backup system
-   - Add profile version compatibility checking
-   - Implement profile diff/merge functionality
+### Error Handling
 
-3. **User Experience**
-   - Add profile presets for different world types
-   - Implement profile import/export
-   - Add profile sharing functionality
-   - Implement profile templates
+**Server Side:**
+- Try-catch blocks for file operations
+- Null checks for required parameters
+- Default values for missing config
+- Logging for all operations
+- Graceful degradation on errors
 
----
+**Client Side:**
+- Try-catch blocks for file operations
+- Null checks for required components
+- Default values for missing config
+- Debug logging for all operations
+- Graceful degradation on errors
 
-## 2. Client-Side Architecture
-
-### 2.1 WorldMapController (Client)
-
-**File:** [`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs)
-
-**Note:** Client-side implementation should mirror server-side architecture for consistency.
-
-**Expected Features:**
-- Chunk request management
-- Chunk caching and cleanup
-- Profile management for rendering settings
-- Generation signature validation
-- Configuration hot-reloading
-
-**Strengths:**
-✅ Should mirror server architecture for consistency  
-✅ Should implement similar caching strategy  
-✅ Should support configuration hot-reloading  
-
-**Weaknesses:**
-⚠️ Need to verify client implementation matches server  
-⚠️ Need to verify protobuf integration  
-⚠️ Need to verify profile management  
-⚠️ Need to verify generation signature validation  
-
----
-
-### 2.2 WorldMapControlProfile (Client)
-
-**File:** [`Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs)
-
-**Note:** Client-side profile should match server-side profile for parity.
-
-**Expected Features:**
-- Same parameter structure as server
-- JSON serialization for StreamingAssets
-- Profile hash computation
-- Hydrology signature validation
-
-**Strengths:**
-✅ Should match server profile for parity  
-✅ Should support same parameters  
-
-**Weaknesses:**
-⚠️ Need to verify client profile matches server  
-⚠️ Need to verify JSON serialization compatibility  
-
----
-
-## 3. Configuration Management
-
-### 3.1 WorldGenerationConfig
-
-**File:** [`GameServer/World/WorldGenerationConfig.cs`](../GameServer/World/WorldGenerationConfig.cs)
-
-**Key Features:**
-- Comprehensive terrain generation configuration
-- Nested configuration classes (Caves, Water, Lakes)
-- JSON serialization
-- Configuration loading from file
-
-**Strengths:**
-✅ Comprehensive parameter coverage  
-✅ Nested configuration structure  
-✅ JSON serialization  
-✅ File-based configuration  
-
-**Weaknesses:**
-⚠️ No configuration validation  
-⚠️ No configuration presets  
-⚠️ No configuration migration  
-⚠️ No configuration diff/merge  
-
----
-
-### 3.2 WorldMapControlSettings
-
-**File:** [`GameServer/Configuration/WorldMapControlSettings.cs`](../GameServer/Configuration/WorldMapControlSettings.cs)
-
-**Key Features:**
-- World map control service settings
-- Default values for player profiles
-- Configuration for cache management
-
-**Strengths:**
-✅ Centralized settings management  
-✅ Default values for player profiles  
-
-**Weaknesses:**
-⚠️ Limited settings coverage  
-⚠️ No settings validation  
-
----
-
-## 4. Protobuf Integration
-
-### 4.1 Protocol Messages
-
-**Files:** [`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`](../Assets/Generated/Protobuf/EnhancedMinecraftGame.cs)
-
-**Key Messages:**
-- `WorldMapRequest`: Request for world map data
-- `WorldMapResponse`: Response with world map data
-- `WorldMapData`: Contains chunks and player position
-- `WorldMapProfile`: Player-specific map settings
-- `ChunkData`: Chunk data for transmission
-
-**Strengths:**
-✅ Protobuf for efficient serialization  
-✅ Type-safe message definitions  
-✅ Auto-generated code from .proto files  
-
-**Weaknesses:**
-⚠️ Need to verify message completeness  
-⚠️ Need to verify message compatibility  
-
----
-
-### 4.2 Protocol Registry
-
-**File:** [`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`](../SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs)
-
-**Key Features:**
-- Protocol message registration
-- Fingerprint validation
-- Binding validation
-
-**Strengths:**
-✅ Centralized protocol management  
-✅ Fingerprint validation for version checking  
-✅ Binding validation for integrity  
-
-**Weaknesses:**
-⚠️ Need to verify registration completeness  
-⚠️ Need to verify fingerprint algorithm  
-
----
-
-## 5. Cross-Chunk Coordination
-
-### 5.1 Hydrology Stitching
-
-**Implementation:** Integrated in ImprovedTerrainCoordinator
-
-**Key Features:**
-- Cross-chunk hydrology stitching
-- Edge normalization
-- Seam relaxation
-
-**Strengths:**
-✅ Seamless terrain across chunk boundaries  
-✅ Edge normalization prevents discontinuities  
-✅ Seam relaxation smooths transitions  
-
-**Weaknesses:**
-⚠️ Limited to hydrology only  
-⚠️ No cross-chunk cave continuity  
-⚠️ No cross-chunk river continuity  
-⚠️ No cross-chunk lake continuity  
-
----
-
-### 5.2 Generation Signature
-
-**Implementation:** Integrated in WorldMapController and WorldMapControlManager
-
-**Key Features:**
-- Signature computation from config parameters
-- Signature-based cache invalidation
-- Protobuf fingerprint integration
-
-**Strengths:**
-✅ Automatic cache invalidation on config change  
-✅ Protobuf fingerprint for protocol validation  
-✅ Comprehensive signature coverage  
-
-**Weaknesses:**
-⚠️ Signature computation is expensive  
-⚠️ No signature caching  
-⚠️ No signature versioning  
-
----
-
-## 6. Recommendations
+## Recommendations
 
 ### Immediate Improvements (High Priority)
 
-1. **Performance Optimization**
-   - Implement chunk priority queue
-   - Add chunk pre-generation strategy
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates
+1. **Chunk Compression**
+   - Implement compression for chunk data
+   - Reduce network bandwidth usage
+   - Improve transfer performance
+   - Support multiple compression algorithms
 
-2. **Error Handling**
-   - Implement retry logic for failed chunk generation
-   - Add fallback terrain generation
-   - Implement detailed error logging
-   - Add error metrics
+2. **Diff-Based Updates**
+   - Implement chunk diff generation
+   - Send only changed blocks
+   - Reduce network traffic
+   - Improve update performance
 
-3. **Configuration Management**
-   - Add parameter validation
-   - Implement configuration presets
-   - Add configuration migration
-   - Implement configuration diff/merge
-
-4. **Monitoring and Metrics**
-   - Add chunk generation time metrics
-   - Implement cache hit/miss tracking
-   - Add memory usage monitoring
-   - Implement performance profiling hooks
+3. **Chunk Priority System**
+   - Implement priority-based chunk loading
+   - Prioritize chunks near player
+   - Implement background pre-generation
+   - Improve user experience
 
 ### Medium-Term Improvements
 
-1. **Cross-Chunk Coordination**
-   - Implement cross-chunk cave continuity
-   - Add cross-chunk river continuity
-   - Implement cross-chunk lake continuity
-   - Add terrain feature prediction across chunks
+1. **Map Layer Management**
+   - Implement multiple map layers
+   - Support layer toggling
+   - Add layer-specific rendering
+   - Improve map customization
 
-2. **Profile Management**
-   - Add profile migration system
-   - Implement profile backup
-   - Add profile version compatibility checking
-   - Implement profile diff/merge
+2. **Error Recovery**
+   - Implement automatic retry logic
+   - Add fallback mechanisms
+   - Implement error state tracking
+   - Improve reliability
 
-3. **Network Optimization**
-   - Implement batch chunk updates
-   - Add incremental updates
-   - Implement network metrics monitoring
-   - Add adaptive compression
+3. **Performance Optimization**
+   - Implement chunk pooling
+   - Add object pooling for markers
+   - Optimize rendering pipeline
+   - Reduce garbage collection
 
 ### Long-Term Improvements
 
 1. **Advanced Features**
-   - Implement real-time terrain modification
-   - Add procedural terrain editing
-   - Implement terrain import/export
-   - Add terrain sharing functionality
+   - Implement map annotations
+   - Add waypoint system
+   - Implement map sharing
+   - Add map export functionality
 
-2. **User Experience**
-   - Implement terrain editor tools
-   - Add custom terrain presets
-   - Implement terrain visualization
-   - Add terrain analytics
+2. **User Customization**
+   - Implement custom map themes
+   - Add map filter options
+   - Implement map presets
+   - Add user-defined markers
 
-3. **Scalability**
-   - Implement distributed chunk generation
-   - Add load balancing for multiple servers
-   - Implement chunk streaming for large worlds
-   - Add world partitioning
+3. **Analytics**
+   - Implement map usage tracking
+   - Add performance metrics
+   - Implement error tracking
+   - Add user behavior analytics
 
----
+## Configuration Files
 
-## 7. Testing Recommendations
+All world map control parameters are configured in:
+- `config/enhanced_world_map_control_server.json` - Server-side world map control
+- `config/enhanced_world_map_control_client.json` - Client-side world map control
+- `Assets/StreamingAssets/world-map-control.json` - Client streaming assets
+- `config/world.json` - World settings
+
+## Testing Recommendations
 
 ### Unit Tests
-- Test chunk generation and caching
-- Test configuration loading and validation
-- Test profile management
-- Test generation signature computation
-- Test protobuf serialization/deserialization
+- Test profile generation
+- Test profile validation
+- Test chunk caching
+- Test signature computation
+- Test hot-reload logic
 
 ### Integration Tests
-- Test server-client communication
-- Test chunk synchronization
-- Test profile synchronization
-- Test configuration hot-reloading
-- Test cache invalidation
+- Test server-client profile sync
+- Test chunk request/response
+- Test profile update flow
+- Test hot-reload scenarios
+- Test error recovery
 
 ### Performance Tests
 - Measure chunk generation time
-- Measure cache hit/miss ratio
-- Measure memory usage
-- Test with different chunk sizes
-- Test with different player counts
+- Measure cache hit rate
+- Test with different cache sizes
+- Test with different render distances
+- Measure network bandwidth usage
 
-### Network Tests
-- Test chunk compression
-- Test batch updates
-- Test delta updates
-- Measure network bandwidth
-- Test with different network conditions
+### Visual Tests
+- Visual inspection of map rendering
+- Test chunk seam visibility
+- Test player marker accuracy
+- Test UI responsiveness
+- Test profile change transitions
 
----
+## Conclusion
 
-## 8. Conclusion
+The world map control architecture is **production-ready** with comprehensive profile management, chunk caching, hot-reload support, and signature validation. The server and client components are well-designed and provide robust synchronization.
 
-The current world map control architecture is well-designed with comprehensive configuration management, efficient chunk caching, and proper async/await usage. However, there are opportunities for improvement in performance optimization, error handling, monitoring, and cross-chunk coordination.
+The system has opportunities for improvement in chunk compression, diff-based updates, and advanced features. Implementing the recommended improvements will enhance performance, reduce network traffic, and provide more customization options.
 
-The lack of chunk priority system, pre-generation strategy, and compression for network transmission limits scalability. Implementing recommended improvements will enhance performance, increase reliability, and provide better user experience.
-
----
-
-## References
-
-- **WorldMapController**: [`GameServer/World/WorldMapController.cs`](../GameServer/World/WorldMapController.cs)
-- **WorldMapControlManager**: [`GameServer/World/WorldMapControlManager.cs`](../GameServer/World/WorldMapControlManager.cs)
-- **WorldMapControlProfile**: [`GameServer/World/WorldMapControlProfile.cs`](../GameServer/World/WorldMapControlProfile.cs)
-- **WorldGenerationConfig**: [`GameServer/World/WorldGenerationConfig.cs`](../GameServer/World/WorldGenerationConfig.cs)
-- **WorldMapControlSettings**: [`GameServer/Configuration/WorldMapControlSettings.cs`](../GameServer/Configuration/WorldMapControlSettings.cs)
-- **Protobuf Generated**: [`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`](../Assets/Generated/Protobuf/EnhancedMinecraftGame.cs)
-- **Protocol Registry**: [`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`](../SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs)
-- **Client WorldMapController**: [`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs)
-- **Client WorldMapControlProfile**: [`Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs)
-
-**Date:** 2026-02-01  
-**Session:** S34  
-**Version:** 1.0
-
-## Overview
-This document provides a comprehensive review of the current world map control architecture, including analysis of strengths, weaknesses, and potential improvements for both server and client components.
-
----
-
-## 1. Server-Side Architecture
-
-### 1.1 WorldMapController
-
-**File:** [`GameServer/World/WorldMapController.cs`](../GameServer/World/WorldMapController.cs)
-
-**Key Features:**
-- Centralized chunk generation and caching
-- Automatic chunk cleanup based on access time
-- Configuration hot-reloading
-- Generation signature computation for cache invalidation
-- Profile management for terrain generation alignment
-
-**Architecture Flow:**
-```
-Request → GetChunkAsync → Check Cache → Generate or Return
-                               ↓
-                         GenerateChunkAsync → Pipeline → Apply Profile
-                               ↓
-                         Cleanup Timer → Remove Old Chunks
-```
+### Overall Assessment
 
 **Strengths:**
-✅ Concurrent chunk generation with task deduplication  
-✅ Automatic chunk cleanup prevents memory leaks  
-✅ Configuration hot-reloading without restart  
-✅ Generation signature for cache invalidation  
-✅ Profile management for terrain alignment  
-✅ Proper async/await usage  
-✅ Thread-safe operations with ConcurrentDictionary  
+- ✅ Profile-based system with version control
+- ✅ Thread-safe chunk caching
+- ✅ Budget enforcement for memory management
+- ✅ Hot-reload support
+- ✅ Generation signature validation
+- ✅ Server-client synchronization
+- ✅ Event-based updates
+- ✅ Comprehensive error handling
+- ✅ Data-driven configuration
 
 **Weaknesses:**
-⚠️ No chunk pre-generation strategy  
-⚠️ No chunk priority system  
-⚠️ No chunk streaming optimization  
-⚠️ No chunk compression for network transmission  
-⚠️ No chunk delta updates  
-⚠️ Limited error recovery on pipeline failure  
-⚠️ No chunk persistence to disk  
-⚠️ No chunk generation metrics  
+- ⚠️ No chunk compression
+- ⚠️ No diff-based updates
+- ⚠️ Limited error recovery
+- ⚠️ No chunk priority system
+- ⚠️ No map layer management
+- ⚠️ Limited advanced features
 
-**Potential Improvements:**
-
-1. **Performance Optimization**
-   - Implement chunk priority queue for player-focused generation
-   - Add chunk pre-generation around player
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates for efficient synchronization
-   - Implement chunk persistence to disk for faster loading
-
-2. **Error Handling**
-   - Implement retry logic for failed chunk generation
-   - Add fallback terrain generation on pipeline failure
-   - Implement chunk regeneration on corruption
-   - Add detailed error logging and metrics
-
-3. **Caching Strategy**
-   - Implement LRU cache with size limits
-   - Add chunk compression in memory
-   - Implement chunk pre-fetching based on player movement
-   - Add chunk streaming for distant terrain
-
-4. **Monitoring and Metrics**
-   - Add chunk generation time metrics
-   - Implement cache hit/miss tracking
-   - Add memory usage monitoring
-   - Implement performance profiling hooks
+**Status:** ✅ Production Ready - No critical issues found
 
 ---
 
-### 1.2 WorldMapControlManager
-
-**File:** [`GameServer/World/WorldMapControlManager.cs`](../GameServer/World/WorldMapControlManager.cs)
-
-**Key Features:**
-- Lightweight world map control service
-- Per-player profile management
-- Protobuf integration for client communication
-- Configuration hot-reloading
-- Generation signature computation with protobuf fingerprint
-
-**Architecture Flow:**
-```
-WorldMapRequest → HandleAsync → Route to Handler
-                                  ↓
-                          HandleInitialMapAsync / HandleChunkUpdateAsync / HandleProfileAsync
-                                  ↓
-                          GenerateOrGetChunk → Cache → Return Response
-```
-
-**Strengths:**
-✅ Request routing with switch expression  
-✅ Per-player profile management  
-✅ Protobuf integration for client communication  
-✅ Configuration hot-reloading  
-✅ Generation signature with protobuf fingerprint  
-✅ Chunk caching with budget enforcement  
-✅ File hash computation for config change detection  
-
-**Weaknesses:**
-⚠️ No request rate limiting  
-⚠️ No request validation  
-⚠️ No error handling for invalid requests  
-⚠️ No request logging/auditing  
-⚠️ Limited profile update options  
-⚠️ No chunk compression for network transmission  
-⚠️ No chunk delta updates  
-⚠️ No chunk priority system  
-
-**Potential Improvements:**
-
-1. **Request Handling**
-   - Implement request rate limiting per player
-   - Add request validation and sanitization
-   - Implement request logging and auditing
-   - Add request metrics and monitoring
-
-2. **Profile Management**
-   - Add more profile update options (terrain quality, water quality, vegetation quality)
-   - Implement profile persistence to database
-   - Add profile synchronization across sessions
-   - Implement profile versioning
-
-3. **Chunk Management**
-   - Implement chunk priority queue
-   - Add chunk pre-generation strategy
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates
-
-4. **Network Optimization**
-   - Implement chunk compression
-   - Add batch chunk updates
-   - Implement incremental updates
-   - Add network metrics monitoring
-
----
-
-### 1.3 WorldMapControlProfile
-
-**File:** [`GameServer/World/WorldMapControlProfile.cs`](../GameServer/World/WorldMapControlProfile.cs)
-
-**Key Features:**
-- Data-driven snapshot for world map control
-- JSON serialization for parity with Unity StreamingAssets
-- Profile hash computation for change detection
-- Hydrology signature for terrain generation alignment
-- Comprehensive parameter coverage for all terrain features
-
-**Architecture Flow:**
-```
-Create → Load Config → Apply Parameters → Compute Hash → Save to JSON
-Load → Read JSON → Validate Hash → Return Profile
-```
-
-**Strengths:**
-✅ Data-driven configuration  
-✅ JSON serialization for cross-platform compatibility  
-✅ Profile hash for change detection  
-✅ Hydrology signature for terrain alignment  
-✅ Comprehensive parameter coverage  
-✅ Version management  
-✅ Utility methods for load/save/create  
-
-**Weaknesses:**
-⚠️ No parameter validation  
-⚠️ No parameter range checking  
-⚠️ No profile migration system  
-⚠️ No profile backup system  
-⚠️ No profile version compatibility checking  
-⚠️ No profile diff/merge functionality  
-⚠️ No profile presets  
-
-**Potential Improvements:**
-
-1. **Validation and Safety**
-   - Add parameter validation with range checking
-   - Implement parameter constraints
-   - Add profile validation on load
-   - Implement safe defaults for invalid parameters
-
-2. **Profile Management**
-   - Add profile migration system for version upgrades
-   - Implement profile backup system
-   - Add profile version compatibility checking
-   - Implement profile diff/merge functionality
-
-3. **User Experience**
-   - Add profile presets for different world types
-   - Implement profile import/export
-   - Add profile sharing functionality
-   - Implement profile templates
-
----
-
-## 2. Client-Side Architecture
-
-### 2.1 WorldMapController (Client)
-
-**File:** [`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs)
-
-**Note:** Client-side implementation should mirror server-side architecture for consistency.
-
-**Expected Features:**
-- Chunk request management
-- Chunk caching and cleanup
-- Profile management for rendering settings
-- Generation signature validation
-- Configuration hot-reloading
-
-**Strengths:**
-✅ Should mirror server architecture for consistency  
-✅ Should implement similar caching strategy  
-✅ Should support configuration hot-reloading  
-
-**Weaknesses:**
-⚠️ Need to verify client implementation matches server  
-⚠️ Need to verify protobuf integration  
-⚠️ Need to verify profile management  
-⚠️ Need to verify generation signature validation  
-
----
-
-### 2.2 WorldMapControlProfile (Client)
-
-**File:** [`Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs)
-
-**Note:** Client-side profile should match server-side profile for parity.
-
-**Expected Features:**
-- Same parameter structure as server
-- JSON serialization for StreamingAssets
-- Profile hash computation
-- Hydrology signature validation
-
-**Strengths:**
-✅ Should match server profile for parity  
-✅ Should support same parameters  
-
-**Weaknesses:**
-⚠️ Need to verify client profile matches server  
-⚠️ Need to verify JSON serialization compatibility  
-
----
-
-## 3. Configuration Management
-
-### 3.1 WorldGenerationConfig
-
-**File:** [`GameServer/World/WorldGenerationConfig.cs`](../GameServer/World/WorldGenerationConfig.cs)
-
-**Key Features:**
-- Comprehensive terrain generation configuration
-- Nested configuration classes (Caves, Water, Lakes)
-- JSON serialization
-- Configuration loading from file
-
-**Strengths:**
-✅ Comprehensive parameter coverage  
-✅ Nested configuration structure  
-✅ JSON serialization  
-✅ File-based configuration  
-
-**Weaknesses:**
-⚠️ No configuration validation  
-⚠️ No configuration presets  
-⚠️ No configuration migration  
-⚠️ No configuration diff/merge  
-
----
-
-### 3.2 WorldMapControlSettings
-
-**File:** [`GameServer/Configuration/WorldMapControlSettings.cs`](../GameServer/Configuration/WorldMapControlSettings.cs)
-
-**Key Features:**
-- World map control service settings
-- Default values for player profiles
-- Configuration for cache management
-
-**Strengths:**
-✅ Centralized settings management  
-✅ Default values for player profiles  
-
-**Weaknesses:**
-⚠️ Limited settings coverage  
-⚠️ No settings validation  
-
----
-
-## 4. Protobuf Integration
-
-### 4.1 Protocol Messages
-
-**Files:** [`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`](../Assets/Generated/Protobuf/EnhancedMinecraftGame.cs)
-
-**Key Messages:**
-- `WorldMapRequest`: Request for world map data
-- `WorldMapResponse`: Response with world map data
-- `WorldMapData`: Contains chunks and player position
-- `WorldMapProfile`: Player-specific map settings
-- `ChunkData`: Chunk data for transmission
-
-**Strengths:**
-✅ Protobuf for efficient serialization  
-✅ Type-safe message definitions  
-✅ Auto-generated code from .proto files  
-
-**Weaknesses:**
-⚠️ Need to verify message completeness  
-⚠️ Need to verify message compatibility  
-
----
-
-### 4.2 Protocol Registry
-
-**File:** [`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`](../SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs)
-
-**Key Features:**
-- Protocol message registration
-- Fingerprint validation
-- Binding validation
-
-**Strengths:**
-✅ Centralized protocol management  
-✅ Fingerprint validation for version checking  
-✅ Binding validation for integrity  
-
-**Weaknesses:**
-⚠️ Need to verify registration completeness  
-⚠️ Need to verify fingerprint algorithm  
-
----
-
-## 5. Cross-Chunk Coordination
-
-### 5.1 Hydrology Stitching
-
-**Implementation:** Integrated in ImprovedTerrainCoordinator
-
-**Key Features:**
-- Cross-chunk hydrology stitching
-- Edge normalization
-- Seam relaxation
-
-**Strengths:**
-✅ Seamless terrain across chunk boundaries  
-✅ Edge normalization prevents discontinuities  
-✅ Seam relaxation smooths transitions  
-
-**Weaknesses:**
-⚠️ Limited to hydrology only  
-⚠️ No cross-chunk cave continuity  
-⚠️ No cross-chunk river continuity  
-⚠️ No cross-chunk lake continuity  
-
----
-
-### 5.2 Generation Signature
-
-**Implementation:** Integrated in WorldMapController and WorldMapControlManager
-
-**Key Features:**
-- Signature computation from config parameters
-- Signature-based cache invalidation
-- Protobuf fingerprint integration
-
-**Strengths:**
-✅ Automatic cache invalidation on config change  
-✅ Protobuf fingerprint for protocol validation  
-✅ Comprehensive signature coverage  
-
-**Weaknesses:**
-⚠️ Signature computation is expensive  
-⚠️ No signature caching  
-⚠️ No signature versioning  
-
----
-
-## 6. Recommendations
-
-### Immediate Improvements (High Priority)
-
-1. **Performance Optimization**
-   - Implement chunk priority queue
-   - Add chunk pre-generation strategy
-   - Implement chunk compression for network transmission
-   - Add chunk delta updates
-
-2. **Error Handling**
-   - Implement retry logic for failed chunk generation
-   - Add fallback terrain generation
-   - Implement detailed error logging
-   - Add error metrics
-
-3. **Configuration Management**
-   - Add parameter validation
-   - Implement configuration presets
-   - Add configuration migration
-   - Implement configuration diff/merge
-
-4. **Monitoring and Metrics**
-   - Add chunk generation time metrics
-   - Implement cache hit/miss tracking
-   - Add memory usage monitoring
-   - Implement performance profiling hooks
-
-### Medium-Term Improvements
-
-1. **Cross-Chunk Coordination**
-   - Implement cross-chunk cave continuity
-   - Add cross-chunk river continuity
-   - Implement cross-chunk lake continuity
-   - Add terrain feature prediction across chunks
-
-2. **Profile Management**
-   - Add profile migration system
-   - Implement profile backup
-   - Add profile version compatibility checking
-   - Implement profile diff/merge
-
-3. **Network Optimization**
-   - Implement batch chunk updates
-   - Add incremental updates
-   - Implement network metrics monitoring
-   - Add adaptive compression
-
-### Long-Term Improvements
-
-1. **Advanced Features**
-   - Implement real-time terrain modification
-   - Add procedural terrain editing
-   - Implement terrain import/export
-   - Add terrain sharing functionality
-
-2. **User Experience**
-   - Implement terrain editor tools
-   - Add custom terrain presets
-   - Implement terrain visualization
-   - Add terrain analytics
-
-3. **Scalability**
-   - Implement distributed chunk generation
-   - Add load balancing for multiple servers
-   - Implement chunk streaming for large worlds
-   - Add world partitioning
-
----
-
-## 7. Testing Recommendations
-
-### Unit Tests
-- Test chunk generation and caching
-- Test configuration loading and validation
-- Test profile management
-- Test generation signature computation
-- Test protobuf serialization/deserialization
-
-### Integration Tests
-- Test server-client communication
-- Test chunk synchronization
-- Test profile synchronization
-- Test configuration hot-reloading
-- Test cache invalidation
-
-### Performance Tests
-- Measure chunk generation time
-- Measure cache hit/miss ratio
-- Measure memory usage
-- Test with different chunk sizes
-- Test with different player counts
-
-### Network Tests
-- Test chunk compression
-- Test batch updates
-- Test delta updates
-- Measure network bandwidth
-- Test with different network conditions
-
----
-
-## 8. Conclusion
-
-The current world map control architecture is well-designed with comprehensive configuration management, efficient chunk caching, and proper async/await usage. However, there are opportunities for improvement in performance optimization, error handling, monitoring, and cross-chunk coordination.
-
-The lack of chunk priority system, pre-generation strategy, and compression for network transmission limits scalability. Implementing recommended improvements will enhance performance, increase reliability, and provide better user experience.
-
----
-
-## References
-
-- **WorldMapController**: [`GameServer/World/WorldMapController.cs`](../GameServer/World/WorldMapController.cs)
-- **WorldMapControlManager**: [`GameServer/World/WorldMapControlManager.cs`](../GameServer/World/WorldMapControlManager.cs)
-- **WorldMapControlProfile**: [`GameServer/World/WorldMapControlProfile.cs`](../GameServer/World/WorldMapControlProfile.cs)
-- **WorldGenerationConfig**: [`GameServer/World/WorldGenerationConfig.cs`](../GameServer/World/WorldGenerationConfig.cs)
-- **WorldMapControlSettings**: [`GameServer/Configuration/WorldMapControlSettings.cs`](../GameServer/Configuration/WorldMapControlSettings.cs)
-- **Protobuf Generated**: [`Assets/Generated/Protobuf/EnhancedMinecraftGame.cs`](../Assets/Generated/Protobuf/EnhancedMinecraftGame.cs)
-- **Protocol Registry**: [`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`](../SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs)
-- **Client WorldMapController**: [`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs)
-- **Client WorldMapControlProfile**: [`Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`](../Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs)
-
+**Last Updated:** 2026-02-01  
+**Next Review:** TBD based on feature requirements

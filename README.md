@@ -32,6 +32,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-02: Session S35 - Hydrology-Aware Terrain & Map Profile Sync
+
+- Unity `TerrainGenerator` now consumes JSON-tuned cave/river/lake parameters (cave smoothing, hydrology warp, lake river-suppression) to mirror server hydrology without hardcoded thresholds.
+- World map control profiles are persisted to StreamingAssets on client apply and reloaded on config/hash/signature drift; feature manifest refreshed (`config/minecraft_feature_core_content_util_2026-02-02.json`).
+- Dummy protocol client coverage expanded (optional packets enabled) via `config/protocol_dummy_client.json`; use `--proto-probe` to emit `reports/proto_probe_report.json`.
+- New docs: `docs/2026-02-02-minecraft-feature-core-content-util.md` (Core/Content/Util list) and session plan (`plans/2026-02-01-session-35-implementation-plan.md`).
+
 ### 2026-02-01: Session S33 - Hydrology v8 + Proto Audit
 
 - Hydrology signature bumped to `2026-02-01-hydrology-riverlake-v8` with world-map control profile v10; river/lake seam smoothing and riparian cave guards tightened (config/world.json + MapGeneratorLib defaults refreshed).
@@ -253,6 +260,7 @@ Comprehensive documentation is maintained in `docs/`:
 
 - **Implementation Plans:** `plans/2026-01-31-comprehensive-implementation-work-plan.md`
 - **Feature Categorization:** `config/minecraft_feature_comprehensive_categorization_2026-01-31.json`
+- **Core/Content/Util (S35):** `docs/2026-02-02-minecraft-feature-core-content-util.md`, `config/minecraft_feature_core_content_util_2026-02-02.json`
 - **Terrain Generation:** `docs/2026-01-31-terrain-generation-algorithms-review.md`
 - **World Map Control:** `docs/2026-01-31-world-map-control-architecture-review.md`
 - **Protobuf Protocol:** `docs/2026-01-31-protobuf-protocol-validation-report.md`
@@ -281,7 +289,10 @@ The [`TestClient.cs`](GameServer/TestClient.cs) file provides comprehensive prot
 
 ### Dummy Client
 
-The [`DummyClient.cs`](GameServer/DummyClient.cs) file was removed due to compilation issues. Use [`TestClient.cs`](GameServer/TestClient.cs) for protocol testing instead.
+Use [`GameServer/Testing/DummyProtocolClient.cs`](GameServer/Testing/DummyProtocolClient.cs) for lightweight protobuf encode/decode and optional TCP probes.
+- Configure via `config/protocol_dummy_client.json` (`includeOptionalMessages: true` to audit unbound packets).
+- Run from the server project: `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`.
+- Reports are written to `reports/proto_probe_report.json` with validated/missing packet lists.
 
 ---
 
@@ -355,5 +366,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 
 ---
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-02
 

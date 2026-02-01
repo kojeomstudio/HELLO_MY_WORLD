@@ -472,6 +472,14 @@ namespace Minecraft.World
             ApplyToggleDefaults();
             ResetMapCache();
             InitializeMapRendering();
+            if (!string.IsNullOrWhiteSpace(_profilePath))
+            {
+                WorldMapControlProfile.SaveToFile(profile, _profilePath);
+                if (File.Exists(_profilePath))
+                {
+                    _profileWriteTime = File.GetLastWriteTimeUtc(_profilePath);
+                }
+            }
             UpdateMap();
         }
 
@@ -505,6 +513,7 @@ namespace Minecraft.World
                         _worldConfigWriteTime = write;
                         WorldConfig.ForceReload();
                         _worldConfig = WorldConfig.Instance;
+                        _profilePath = ResolveProfilePath();
                         configReloaded = true;
                     }
                 }
@@ -515,6 +524,10 @@ namespace Minecraft.World
                     if (profileWrite > _profileWriteTime || configReloaded)
                     {
                         var profile = WorldMapControlProfile.LoadFromFile(_profilePath, _worldConfig);
+                        if (!string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.Ordinal))
+                        {
+                            profile = WorldMapControlProfile.FromConfig(_worldConfig);
+                        }
                         if (profile.Version < _worldConfig.MapControlProfileVersion)
                         {
                             profile = WorldMapControlProfile.FromConfig(_worldConfig);
@@ -526,6 +539,14 @@ namespace Minecraft.World
                         }
 
                         _profileWriteTime = profileWrite;
+                        if (!string.IsNullOrWhiteSpace(_profilePath))
+                        {
+                            WorldMapControlProfile.SaveToFile(profile, _profilePath);
+                            if (File.Exists(_profilePath))
+                            {
+                                _profileWriteTime = File.GetLastWriteTimeUtc(_profilePath);
+                            }
+                        }
                     }
                 }
             }

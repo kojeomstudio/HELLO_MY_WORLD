@@ -1,0 +1,119 @@
+{
+  "version": "2026-02-02",
+  "generated_at_utc": "2026-02-02T00:00:00Z",
+  "features": [
+    {
+      "id": "CORE-012",
+      "name": "World map control profile sync + hydrology signature persistence",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Persist server-authored world map control profiles to StreamingAssets and enforce hydrology signature/version alignment between server and Unity.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "SharedProtocol",
+        "GameCommon"
+      ]
+    },
+    {
+      "id": "CORE-013",
+      "name": "Shared DLL and protocol contract alignment",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Keep GameCommon.dll and SharedProtocol.dll authoritative for enums/DTOs consumed by both client and server builds.",
+      "order": 2,
+      "status": "planned",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "CORE-012"
+      ]
+    },
+    {
+      "id": "CONTENT-012",
+      "name": "Client terrain hydrology-aware caves/rivers/lakes",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Improve Unity terrain generator to respect data-driven cave thresholds, river warp/smoothing, lake suppression near rivers, and use JSON-tuned sealing.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/TerrainGenerator.cs",
+        "Assets/StreamingAssets/world-config.json",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "CORE-013"
+      ]
+    },
+    {
+      "id": "CONTENT-013",
+      "name": "Server/client world map control stability",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Ensure world map control cache reloads on config/profile hash drift and reuse hydrology signatures for chunk overlays.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": [
+        "CORE-012"
+      ]
+    },
+    {
+      "id": "UTIL-012",
+      "name": "Dummy protocol client coverage expansion",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Expand dummy protocol client packet set and reports to validate enhanced protobuf bindings and detect missing message registrations.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": [
+        "SharedProtocol"
+      ]
+    },
+    {
+      "id": "UTIL-013",
+      "name": "Documentation and plan refresh",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Update docs/README with feature categorization, worldgen/proto validation notes, and link to the refreshed plan for Session S35.",
+      "order": 2,
+      "status": "planned",
+      "artifacts": [
+        "docs/2026-02-02-minecraft-feature-core-content-util.md",
+        "docs/2026-02-02-session-35-implementation-report.md",
+        "README.md",
+        "plans/2026-02-01-session-35-implementation-plan.md"
+      ],
+      "dependencies": [
+        "CONTENT-012",
+        "UTIL-012"
+      ]
+    }
+  ]
+}

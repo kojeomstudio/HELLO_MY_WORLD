@@ -6,12 +6,18 @@
   "roundTripCount": 2,
   "probeNetwork": false,
   "validateAllKnownPackets": true,
-  "includeOptionalMessages": false,
+  "includeOptionalMessages": true,
   "outputReportPath": "reports/proto_probe_report.json",
   "packets": [
+    "PlayerStateUpdate",
+    "PlayerActionRequest",
     "ChunkDataRequest",
+    "ChunkDataResponse",
+    "BlockChangeNotification",
     "ChunkUnloadNotification",
-    "TimeUpdate"
+    "TimeUpdate",
+    "WeatherChange",
+    "SoundEffect"
   ],
   "comment": "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }

@@ -287,6 +287,153 @@ public sealed class WorldMapControlProfile
         return FromConfig(fallback);
     }
 
+    public static void SaveToFile(WorldMapControlProfile profile, string path)
+    {
+        if (profile == null || string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var data = ToData(profile);
+            data.profileHash = ComputeHash(data);
+            File.WriteAllText(path, JsonUtility.ToJson(data, true));
+            Debug.Log($"[WorldMapControlProfile] Saved profile to '{path}' (v{data.version}, hash={data.profileHash})");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[WorldMapControlProfile] Failed to write '{path}': {ex.Message}");
+        }
+    }
+
+    private static WorldMapControlProfileData ToData(WorldMapControlProfile profile)
+    {
+        return new WorldMapControlProfileData
+        {
+            version = profile.Version,
+            profileHash = string.IsNullOrWhiteSpace(profile.ProfileHash) ? "(computed)" : profile.ProfileHash,
+            sourceConfig = profile.SourceConfig,
+            generatedAtUtc = string.IsNullOrWhiteSpace(profile.GeneratedAtUtc) ? DateTime.UtcNow.ToString("o") : profile.GeneratedAtUtc,
+            hydrologySignature = string.IsNullOrWhiteSpace(profile.HydrologySignature) ? SharedFeatureCatalog.HydrologySignature : profile.HydrologySignature,
+            chunkSize = profile.ChunkSize,
+            renderDistance = profile.RenderDistance,
+            simulationDistance = profile.SimulationDistance,
+            globalWaterLevel = profile.GlobalWaterLevel,
+            hydrologyGradientStabilityIterations = profile.HydrologyGradientStabilityIterations,
+            hydrologyGradientStabilityBlend = profile.HydrologyGradientStabilityBlend,
+            hydrologyCurvatureWeight = profile.HydrologyCurvatureWeight,
+            hydrologyEdgeBlendRadius = profile.HydrologyEdgeBlendRadius,
+            hydrologyVarianceBlend = profile.HydrologyVarianceBlend,
+            hydrologyVarianceClamp = profile.HydrologyVarianceClamp,
+            hydrologySeamRelaxIterations = profile.HydrologySeamRelaxIterations,
+            hydrologySeamRelaxBlend = profile.HydrologySeamRelaxBlend,
+            hydrologyEdgeFluxBlend = profile.HydrologyEdgeFluxBlend,
+            hydrologyEdgeVarianceClamp = profile.HydrologyEdgeVarianceClamp,
+            hydrologySmoothBlend = profile.HydrologySmoothBlend,
+            hydrologySmoothIterations = profile.HydrologySmoothIterations,
+            hydrologyReservoirIterations = profile.HydrologyReservoirIterations,
+            hydrologyReservoirBlend = profile.HydrologyReservoirBlend,
+            hydrologyShorePush = profile.HydrologyShorePush,
+            hydrologySlopePenalty = profile.HydrologySlopePenalty,
+            hydrologyFlowGain = profile.HydrologyFlowGain,
+            hydrologyFlowShadowWeight = profile.HydrologyFlowShadowWeight,
+            hydrologyFlowShadowSlopeWeight = profile.HydrologyFlowShadowSlopeWeight,
+            hydrologyEdgeNormalizationBlend = profile.HydrologyEdgeNormalizationBlend,
+            hydrologyEdgeNormalizationIterations = profile.HydrologyEdgeNormalizationIterations,
+            hydrologyFlowMemoryWeight = profile.HydrologyFlowMemoryWeight,
+            hydrologyContinuityWeight = profile.HydrologyContinuityWeight,
+            hydrologyPressureBlend = profile.HydrologyPressureBlend,
+            hydrologyPressureGradientClamp = profile.HydrologyPressureGradientClamp,
+            hydrologyEdgeFlowBias = profile.HydrologyEdgeFlowBias,
+            hydrologyEdgeTangentWeight = profile.HydrologyEdgeTangentWeight,
+            hydrologyEdgeFlowLockWeight = profile.HydrologyEdgeFlowLockWeight,
+            hydrologyEdgeStabilityIterations = profile.HydrologyEdgeStabilityIterations,
+            hydrologyEdgeStabilityWeight = profile.HydrologyEdgeStabilityWeight,
+            hydrologyWaterTableClampWeight = profile.HydrologyWaterTableClampWeight,
+            hydrologyWaterTableClampRange = profile.HydrologyWaterTableClampRange,
+            hydrologyWaterTableSlopeWeight = profile.HydrologyWaterTableSlopeWeight,
+            hydrologyFlowPersistence = profile.HydrologyFlowPersistence,
+            hydrologyGradientWeight = profile.HydrologyGradientWeight,
+            hydrologyGradientSlopeWeight = profile.HydrologyGradientSlopeWeight,
+            hydrologyGradientClamp = profile.HydrologyGradientClamp,
+            hydrologyDirectionalIterations = profile.HydrologyDirectionalIterations,
+            hydrologyDirectionalBlend = profile.HydrologyDirectionalBlend,
+            hydrologyFlowDivergenceClamp = profile.HydrologyFlowDivergenceClamp,
+            hydrologyWarpFrequency = profile.HydrologyWarpFrequency,
+            hydrologyWarpAmplitude = profile.HydrologyWarpAmplitude,
+            riparianSmoothIterations = profile.RiparianSmoothIterations,
+            riparianSmoothBlend = profile.RiparianSmoothBlend,
+            riparianSaturationBoost = profile.RiparianSaturationBoost,
+            riparianBufferRadius = profile.RiparianBufferRadius,
+            riverCenterThreshold = profile.RiverCenterThreshold,
+            riverBankThreshold = profile.RiverBankThreshold,
+            riverDepth = profile.RiverDepth,
+            riverNoiseScale = profile.RiverNoiseScale,
+            riverIntensitySmoothIterations = profile.RiverIntensitySmoothIterations,
+            riverIntensitySmoothBlend = profile.RiverIntensitySmoothBlend,
+            riverConfluenceBoost = profile.RiverConfluenceBoost,
+            riverFlowAlignmentWeight = profile.RiverFlowAlignmentWeight,
+            riverGradientPenalty = profile.RiverGradientPenalty,
+            riverHeadwaterStabilityWeight = profile.RiverHeadwaterStabilityWeight,
+            riverAnisotropyWeight = profile.RiverAnisotropyWeight,
+            riverAnisotropyDamping = profile.RiverAnisotropyDamping,
+            riverMeanderJitter = profile.RiverMeanderJitter,
+            riverReliefPenaltyWeight = profile.RiverReliefPenaltyWeight,
+            riverBankStabilityClamp = profile.RiverBankStabilityClamp,
+            riverEdgeFeather = profile.RiverEdgeFeather,
+            riverMouthSmoothRadius = profile.RiverMouthSmoothRadius,
+            riverDeltaWetlandStrength = profile.RiverDeltaWetlandStrength,
+            riverSeamFillStrength = profile.RiverSeamFillStrength,
+            riverBankErosionWeight = profile.RiverBankErosionWeight,
+            lakeSpawnWeightBias = profile.LakeSpawnWeightBias,
+            lakeShorelineBlend = profile.LakeShorelineBlend,
+            lakeWetlandSaturationThreshold = profile.LakeWetlandSaturationThreshold,
+            lakeOutflowCarveDepth = profile.LakeOutflowCarveDepth,
+            lakeBasinSmoothIterations = profile.LakeBasinSmoothIterations,
+            lakeShelfDepth = profile.LakeShelfDepth,
+            lakeMaxRadius = profile.LakeMaxRadius,
+            lakeWetlandBufferRadius = profile.LakeWetlandBufferRadius,
+            lakeRiverProximitySuppression = profile.LakeRiverProximitySuppression,
+            lakeInflowBlendWeight = profile.LakeInflowBlendWeight,
+            lakeRimErosionWeight = profile.LakeRimErosionWeight,
+            lakeOutflowSealWeight = profile.LakeOutflowSealWeight,
+            lakeFlowSeepageWeight = profile.LakeFlowSeepageWeight,
+            lakeVarianceWeight = profile.LakeVarianceWeight,
+            lakeOutflowStabilityWeight = profile.LakeOutflowStabilityWeight,
+            caveEdgeSealStrength = profile.CaveEdgeSealStrength,
+            supportPillarChance = profile.SupportPillarChance,
+            caveStabilitySmoothIterations = profile.CaveStabilitySmoothIterations,
+            caveStabilitySmoothBlend = profile.CaveStabilitySmoothBlend,
+            caveSupportDensity = profile.CaveSupportDensity,
+            caveSupportHydrationBias = profile.CaveSupportHydrationBias,
+            caveSupportFlowBias = profile.CaveSupportFlowBias,
+            caveMoistureRetentionWeight = profile.CaveMoistureRetentionWeight,
+            caveMoistureFlowClamp = profile.CaveMoistureFlowClamp,
+            caveRiparianPlugDepth = profile.CaveRiparianPlugDepth,
+            caveCeilingStabilityWeight = profile.CaveCeilingStabilityWeight,
+            caveCeilingMoistureClamp = profile.CaveCeilingMoistureClamp,
+            caveHydrologyWeight = profile.CaveHydrologyWeight,
+            caveFlowWeight = profile.CaveFlowWeight,
+            caveRoughnessWeight = profile.CaveRoughnessWeight,
+            caveDepthWeight = profile.CaveDepthWeight,
+            caveRiverSuppressionWeight = profile.CaveRiverSuppressionWeight,
+            riparianCaveGuardWeight = profile.RiparianCaveGuardWeight,
+            enableRivers = profile.EnableRivers,
+            enableLakes = profile.EnableLakes,
+            enableCaves = profile.EnableCaves,
+            useImprovedRivers = profile.UseImprovedRivers,
+            useImprovedLakes = profile.UseImprovedLakes,
+            useImprovedCaves = profile.UseImprovedCaves
+        };
+    }
+
         public static WorldMapControlProfile FromConfig(WorldConfig config)
         {
             var water = config.Water;

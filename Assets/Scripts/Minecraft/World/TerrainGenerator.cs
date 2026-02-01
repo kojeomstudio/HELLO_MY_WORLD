@@ -49,15 +49,15 @@ namespace Minecraft.World
                 return new TerrainTuning
                 {
                     RiverDepth = Mathf.Max(2, config.Terrain.SeaLevel > 0 ? config.Terrain.SeaLevel / 10 : 6),
-                    RiverEdgeFeather = 0.35f,
-                    RiverMouthSmoothRadius = 3,
-                    RiverDeltaWetlandStrength = 0.35f,
-                    RiverIntensitySmoothIterations = 2,
-                    RiverIntensitySmoothBlend = 0.5f,
-                    LakeOutflowCarveDepth = 2,
-                    LakeWetlandSaturationThreshold = 0.55f,
-                    LakeShorelineBlend = 0.66f,
-                    CaveEdgeSealStrength = 0.35f
+                    RiverEdgeFeather = Mathf.Clamp01(config.Water.RiverEdgeFeather),
+                    RiverMouthSmoothRadius = Math.Max(1, config.Water.RiverMouthSmoothRadius),
+                    RiverDeltaWetlandStrength = Mathf.Clamp01(config.Water.RiverDeltaWetlandStrength),
+                    RiverIntensitySmoothIterations = Math.Max(1, config.Water.RiverIntensitySmoothIterations),
+                    RiverIntensitySmoothBlend = Mathf.Clamp01(config.Water.RiverIntensitySmoothBlend),
+                    LakeOutflowCarveDepth = Math.Max(1, config.Lakes.OutflowCarveDepth),
+                    LakeWetlandSaturationThreshold = Mathf.Clamp01(config.Lakes.WetlandSaturationThreshold),
+                    LakeShorelineBlend = Mathf.Clamp01(config.Lakes.ShorelineBlend),
+                    CaveEdgeSealStrength = Mathf.Clamp01(config.Caves.EdgeSealStrength)
                 };
             }
         }
@@ -124,12 +124,16 @@ namespace Minecraft.World
             // River noise
             _riverNoise = new FastNoise(seed + 2);
             _riverNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
-            _riverNoise.SetFrequency(0.003f);
+            float riverNoiseScale = _worldConfig.Water.RiverNoiseScale <= 0f
+                ? 0.003f
+                : _worldConfig.Water.RiverNoiseScale;
+            _riverNoise.SetFrequency(riverNoiseScale);
             
             // Lake noise
             _lakeNoise = new FastNoise(seed + 3);
             _lakeNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
-            _lakeNoise.SetFrequency(0.002f);
+            float lakeNoiseScale = 0.002f + Mathf.Clamp01(_worldConfig.Lakes.VarianceWeight) * 0.0005f;
+            _lakeNoise.SetFrequency(lakeNoiseScale);
             
             // Biome noise
             _biomeNoise = new FastNoise(seed + 4);
@@ -235,8 +239,6 @@ namespace Minecraft.World
                     _heightMapCache[x, z] = height;
                 }
             }
-
-            SealEdgeCaves(blocks, chunkX, chunkZ);
         }
         
         private void GenerateBiomeMap(int chunkX, int chunkZ)
@@ -376,6 +378,8 @@ namespace Minecraft.World
                     _caveMapCache[x, y] = caveValue;
                 }
             }
+
+            SmoothCaveField(_worldConfig.Caves.StabilitySmoothIterations, _worldConfig.Caves.StabilitySmoothBlend);
             
             // Apply cave generation
             for (int x = 0; x < chunkSize; x++)
@@ -385,22 +389,84 @@ namespace Minecraft.World
                     for (int y = _worldConfig.Caves.MinCaveHeight; y < _worldConfig.Caves.MaxCaveHeight; y++)
                     {
                         float caveValue = _caveMapCache[x, y];
-                        
-                        if (caveValue > _worldConfig.Caves.Threshold)
+                        float normalized = Mathf.Clamp01((caveValue + 1f) * 0.5f);
+                        float threshold = _worldConfig.Caves.CaveThreshold > 0f
+                            ? _worldConfig.Caves.CaveThreshold
+                            : _worldConfig.Caves.Threshold;
+
+                        if (normalized > threshold)
                         {
-                            blocks[x, y, z] = 0; // Air
-                            
-                            // Add lava at low levels
-                            if (y < 10 && UnityEngine.Random.value < 0.1f)
+                            float liquidityNoise = Mathf.PerlinNoise((chunkX * chunkSize + x) * 0.037f, (chunkZ * chunkSize + z + y) * 0.041f);
+                            bool shouldFlood = normalized > _worldConfig.Caves.WaterThreshold &&
+                                               y < _worldConfig.Water.GlobalWaterLevel - 4 &&
+                                               liquidityNoise > 0.55f;
+                            bool shouldLava = normalized > _worldConfig.Caves.LavaThreshold &&
+                                              y < Mathf.Max(8, _worldConfig.Terrain.BedrockLevel + 4) &&
+                                              liquidityNoise < 0.35f;
+
+                            if (shouldLava)
                             {
                                 blocks[x, y, z] = GetBlockId("lava");
                             }
-                            // Add water at cave entrances
-                            else if (y < _worldConfig.Terrain.SeaLevel && UnityEngine.Random.value < 0.05f)
+                            else if (shouldFlood)
                             {
                                 blocks[x, y, z] = GetBlockId("water");
                             }
+                            else
+                            {
+                                blocks[x, y, z] = 0; // Air pocket
+                            }
                         }
+                    }
+                }
+            }
+
+            SealEdgeCaves(blocks, chunkX, chunkZ);
+        }
+
+        private void SmoothCaveField(int iterations, float blend)
+        {
+            int chunkSize = _worldConfig.ChunkSize;
+            int worldHeight = _worldConfig.WorldHeight;
+            int steps = Math.Max(0, iterations);
+            float lerp = Mathf.Clamp01(blend);
+
+            if (steps == 0 || lerp <= 0f)
+            {
+                return;
+            }
+
+            for (int iteration = 0; iteration < steps; iteration++)
+            {
+                var temp = new float[chunkSize, worldHeight];
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int y = 0; y < worldHeight; y++)
+                    {
+                        float sum = 0f;
+                        int count = 0;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dy = -1; dy <= 1; dy++)
+                            {
+                                int nx = Mathf.Clamp(x + dx, 0, chunkSize - 1);
+                                int ny = Mathf.Clamp(y + dy, 0, worldHeight - 1);
+                                sum += _caveMapCache[nx, ny];
+                                count++;
+                            }
+                        }
+
+                        float average = count > 0 ? sum / count : _caveMapCache[x, y];
+                        temp[x, y] = Mathf.Lerp(_caveMapCache[x, y], average, lerp);
+                    }
+                }
+
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int y = 0; y < worldHeight; y++)
+                    {
+                        _caveMapCache[x, y] = temp[x, y];
                     }
                 }
             }
@@ -421,13 +487,18 @@ namespace Minecraft.World
                 {
                     float worldX = chunkX * chunkSize + x;
                     float worldZ = chunkZ * chunkSize + z;
+                    float warpFreq = Mathf.Max(0.00001f, _worldConfig.Water.HydrologyWarpFrequency);
+                    float warpAmp = _worldConfig.Water.HydrologyWarpAmplitude;
+                    float warpedX = worldX + Mathf.Sin(worldZ * warpFreq) * warpAmp;
+                    float warpedZ = worldZ + Mathf.Cos(worldX * warpFreq) * warpAmp;
                     
-                    float riverValue = _riverNoise.GetNoise(worldX, worldZ);
+                    float riverValue = _riverNoise.GetNoise(warpedX, warpedZ);
                     riverValue = Mathf.Abs(riverValue); // Make symmetrical
                     _riverMapCache[x, z] = riverValue;
                 }
             }
 
+            ApplyHydrologySmoothing(_worldConfig.Water.HydrologySmoothIterations, _worldConfig.Water.HydrologySmoothBlend);
             SmoothRiverMapEdges();
             
             // Apply river generation
@@ -499,6 +570,8 @@ namespace Minecraft.World
                     _lakeMapCache[x, z] = lakeValue;
                 }
             }
+
+            SmoothLakeMap(_worldConfig.Lakes.LakeBasinSmoothIterations, _worldConfig.Lakes.VarianceWeight);
             
             // Apply lake generation
             for (int x = 0; x < chunkSize; x++)
@@ -506,8 +579,13 @@ namespace Minecraft.World
                 for (int z = 0; z < chunkSize; z++)
                 {
                     float lakeValue = _lakeMapCache[x, z];
-                    
-                    if (lakeValue > 0.7f) // Lake threshold
+                    float spawnThreshold = Mathf.Clamp01(0.7f + _worldConfig.Lakes.SpawnWeightBias * 0.2f);
+                    float riverInfluence = _riverMapCache[x, z];
+                    bool suppressedByRiver = _worldConfig.Water.EnableRivers &&
+                                             _worldConfig.Lakes.RiverProximitySuppression > 0f &&
+                                             riverInfluence > _worldConfig.Water.RiverBankThreshold * _worldConfig.Lakes.RiverProximitySuppression;
+
+                    if (lakeValue > spawnThreshold && !suppressedByRiver)
                     {
                         // Find terrain height
                         int terrainHeight = 0;
@@ -521,7 +599,8 @@ namespace Minecraft.World
                         }
                         
                         // Create lake basin
-                        int lakeDepth = Mathf.RoundToInt(UnityEngine.Random.Range(_worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth));
+                        int lakeDepth = Mathf.RoundToInt(Mathf.Lerp(_worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth, lakeValue));
+                        lakeDepth = Mathf.Clamp(lakeDepth, _worldConfig.Lakes.MinDepth, _worldConfig.Lakes.MaxDepth);
                         int lakeBottom = Mathf.Max(terrainHeight - lakeDepth, 1);
                         
                         for (int y = lakeBottom; y <= terrainHeight; y++)
@@ -560,6 +639,62 @@ namespace Minecraft.World
             }
 
             BlendLakeWetlands(blocks, seaLevel);
+        }
+
+        private void SmoothLakeMap(int iterations, float blend)
+        {
+            int steps = Math.Max(0, iterations);
+            float lerp = Mathf.Clamp01(blend);
+            int chunkSize = _worldConfig.ChunkSize;
+
+            if (steps == 0 || lerp <= 0f)
+            {
+                return;
+            }
+
+            for (int i = 0; i < steps; i++)
+            {
+                var temp = new float[chunkSize, chunkSize];
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int z = 0; z < chunkSize; z++)
+                    {
+                        float sum = 0f;
+                        int count = 0;
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                int nx = Mathf.Clamp(x + dx, 0, chunkSize - 1);
+                                int nz = Mathf.Clamp(z + dz, 0, chunkSize - 1);
+                                sum += _lakeMapCache[nx, nz];
+                                count++;
+                            }
+                        }
+
+                        float average = count > 0 ? sum / count : _lakeMapCache[x, z];
+                        temp[x, z] = Mathf.Lerp(_lakeMapCache[x, z], average, lerp);
+                    }
+                }
+
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int z = 0; z < chunkSize; z++)
+                    {
+                        _lakeMapCache[x, z] = temp[x, z];
+                    }
+                }
+            }
+        }
+
+        private void ApplyHydrologySmoothing(int iterations, float blend)
+        {
+            int steps = Math.Max(0, iterations);
+            float lerp = Mathf.Clamp01(blend);
+            for (int i = 0; i < steps; i++)
+            {
+                BlurRiverIntensity(lerp);
+            }
         }
 
         private void SmoothRiverMapEdges()

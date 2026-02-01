@@ -261,6 +261,18 @@ public sealed class WorldMapControlProfile
                     return FromConfig(fallback);
                 }
 
+                if (!string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.Ordinal))
+                {
+                    Debug.LogWarning($"[WorldMapControlProfile] Hydrology signature mismatch for '{path}' (profile={profile.HydrologySignature}, shared={SharedFeatureCatalog.HydrologySignature}). Falling back to world config.");
+                    return FromConfig(fallback);
+                }
+
+                if (profile.Version < fallback.MapControlProfileVersion)
+                {
+                    Debug.LogWarning($"[WorldMapControlProfile] Profile version {profile.Version} older than config requirement {fallback.MapControlProfileVersion}. Falling back to world config.");
+                    return FromConfig(fallback);
+                }
+
                 Debug.Log($"[WorldMapControlProfile] Loaded '{path}' v{profile.Version} chunk={profile.ChunkSize}, render={profile.RenderDistance}, sim={profile.SimulationDistance}, water={profile.GlobalWaterLevel}, hash={profile.ProfileHash}");
                 return profile;
             }

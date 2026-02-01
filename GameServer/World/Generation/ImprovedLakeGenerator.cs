@@ -209,10 +209,45 @@ namespace GameServerApp.World.Generation
                 waterConfig.HydrologyEdgeBlendRadius,
                 waterConfig.HydrologyEdgeNormalizationIterations,
                 waterConfig.HydrologyEdgeNormalizationBlend);
+            ApplyRiparianEdgeFeather(lakes, hydrologyMask, flowAccumulation);
             ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             return lakes;
+        }
+
+        private void ApplyRiparianEdgeFeather(float[,] mask, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(1, waterConfig.HydrologyEdgeBlendRadius + lakeConfig.WetlandBufferRadius);
+            double feather = Math.Clamp(waterConfig.HydrologySeamRelaxBlend * 0.4 + lakeConfig.ShorelineBlend * 0.35, 0.0, 1.0);
+            double clampRange = Math.Max(0.001, waterConfig.HydrologyEdgeVarianceClamp);
+            double guard = Math.Clamp(waterConfig.HydrologyEdgeStabilityWeight + waterConfig.LakeRimErosionWeight * 0.5, 0.0, 1.5);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(edgeRadius + 1);
+                    double interior = TerrainMaskUtility.SampleInterior(copy, x, z);
+                    double hydroGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrology, x, z) - hydrology[x, z]);
+                    double flowGradient = Math.Abs(TerrainMaskUtility.SampleInterior(flow, x, z) - flow[x, z]);
+                    double blend = feather * falloff;
+                    double guardBlend = Math.Clamp((hydroGradient + flowGradient) * guard * 0.25, 0.0, 0.55);
+
+                    double target = copy[x, z] * (1.0 - blend) + interior * blend;
+                    target = Math.Clamp(target * (1.0 - guardBlend), copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
         }
 
         private static double ComputeCurvature(int[,] heightMap, int x, int z)

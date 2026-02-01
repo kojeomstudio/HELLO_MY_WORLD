@@ -32,6 +32,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-01: Session S33 - Hydrology v8 + Proto Audit
+
+- Hydrology signature bumped to `2026-02-01-hydrology-riverlake-v8` with world-map control profile v10; river/lake seam smoothing and riparian cave guards tightened (config/world.json + MapGeneratorLib defaults refreshed).
+- Added `--generate-map-profile` CLI flow to regenerate the profile and mirror it to `Assets/StreamingAssets/world-map-control.json`, with Unity loader now validating hydrology signature/version.
+- Proto registry exposes missing bindings; dummy protocol client writes JSON probe reports (`config/protocol_dummy_client.json` controls packet set/network probe/output path).
+- Updated feature manifest (`config/minecraft_feature_core_content_util_2026-02-01.json`) and docs (`docs/2026-02-01-worldgen-proto-update.md`).
+
 ### 2026-01-31: Session S32 - Hydrology Reservoir & Protocol Validation
 
 - Hydrology reservoir smoothing and riparian cave guard rolled out across server pipelines, MapGeneratorLib, and Unity previews; MapControlProfileVersion set to 9 with signature `2026-01-31-hydrology-reservoir-v7` (profile hash `ac0134fd0561f1114412d8c9fef606e13366da925bceb850a1174dde2bd575e6`).

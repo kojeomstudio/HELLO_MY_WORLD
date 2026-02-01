@@ -56,6 +56,21 @@ public static class ProtocolRegistry
     public static bool IsRegistered(MinecraftMessageType messageType) =>
         BindingsByType.ContainsKey(messageType);
 
+    public static IReadOnlyCollection<MinecraftMessageType> GetUnregisteredRequiredMessages()
+    {
+        var all = Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>();
+        return all
+            .Where(type => !IsRegistered(type) && !ProtocolValidator.IsOptionalMessage(type))
+            .ToArray();
+    }
+
+    public static IReadOnlyCollection<MinecraftMessageType> GetOptionalMessagesWithoutBindings()
+    {
+        return ProtocolValidator.GetOptionalMessages()
+            .Where(type => !IsRegistered(type))
+            .ToArray();
+    }
+
     /// <summary>
     /// Throws if the provided message type is not registered. This is useful for early validation
     /// during handler registration, ensuring stale IDL changes are caught in development.

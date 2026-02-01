@@ -1,0 +1,118 @@
+{
+  "version": "2026-02-01",
+  "generated_at_utc": "2026-02-01T00:00:00Z",
+  "features": [
+    {
+      "id": "CORE-010",
+      "name": "World map control v10 + hydrology signature v8",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Regenerate world map control profile with hydrology signature 2026-02-01-hydrology-riverlake-v8 and keep Unity StreamingAssets in sync.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": [
+        "SharedProtocol",
+        "GameCommon"
+      ]
+    },
+    {
+      "id": "CORE-011",
+      "name": "Shared DLL + feature manifest parity",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Keep shared enums/contracts in GameCommon.dll and SharedProtocol.dll aligned with feature manifest for client/server builds.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "config/minecraft_feature_core_content_util_2026-02-01.json"
+      ],
+      "dependencies": [
+        "CORE-010"
+      ]
+    },
+    {
+      "id": "CONTENT-010",
+      "name": "River/lake seam smoothing and hydrology feather",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improve river and lake masks with edge feathering against hydrology/flow for chunk seam stability.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "dependencies": [
+        "CORE-010"
+      ]
+    },
+    {
+      "id": "CONTENT-011",
+      "name": "Cave riparian guard and erosion damping",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Apply riparian buffers and hydrology-aware erosion damping to cave masks for safer river/lake adjacency.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "dependencies": [
+        "CONTENT-010"
+      ]
+    },
+    {
+      "id": "UTIL-010",
+      "name": "Proto registry audit + dummy client report",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Audit protobuf bindings and emit JSON reports from the dummy protocol client for packet encode/decode coverage.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "SharedProtocol"
+      ]
+    },
+    {
+      "id": "UTIL-011",
+      "name": "Data-driven configs and documentation refresh",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Keep JSON configs, feature manifest, and session docs aligned for client/server worldgen and packet pipelines.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "docs/2026-02-01-worldgen-proto-update.md",
+        "plans/2026-02-01-session-33-plan.md",
+        "README.md"
+      ],
+      "dependencies": [
+        "CORE-011",
+        "UTIL-010"
+      ]
+    }
+  ]
+}

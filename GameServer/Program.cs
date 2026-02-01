@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GameCommon.DataDriven;
+using GameCommon.World;
 using GameServerApp.Configuration;
 using GameServerApp.Testing;
 using GameServerApp.World;
@@ -69,7 +70,15 @@ namespace GameServerApp
                 EnsureWorldMapProfile(config);
                 var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
                 var profile = WorldMapControlProfileUtility.Load(worldGenConfig.MapControlProfilePath);
-                Console.WriteLine($"Generated world map control profile at '{worldGenConfig.MapControlProfilePath}' (hash: {profile?.ProfileHash ?? "unknown"}).");
+                Console.WriteLine(
+                    $"Generated world map control profile at '{worldGenConfig.MapControlProfilePath}' " +
+                    $"(hash: {profile?.ProfileHash ?? "unknown"}, version: {profile?.Version}, signature: {profile?.HydrologySignature}).");
+                return 0;
+            }
+
+            if (args.Contains("--proto-probe"))
+            {
+                await RunDummyProtocolProbeAsync(probeNetwork: true, CancellationToken.None);
                 return 0;
             }
             
@@ -137,7 +146,7 @@ namespace GameServerApp
         {
             try
             {
-                string manifestPath = ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-01-29.json"));
+                string manifestPath = ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json"));
                 var manifest = FeatureManifest.TryLoad(manifestPath);
                 if (manifest == null)
                 {
@@ -164,8 +173,21 @@ namespace GameServerApp
             {
                 string settingsPath = ResolveRepoPath(Path.Combine("config", "protocol_dummy_client.json"));
                 var client = DummyProtocolClient.CreateFromConfig(settingsPath);
-                var result = await client.RunAsync(probeNetwork, cancellationToken);
-                Console.WriteLine($"[ProtoProbe] RoundTrip={result.RoundTripOk} Descriptor={result.DescriptorName}");
+                bool useNetwork = probeNetwork || client.Settings.ProbeNetwork;
+                var result = await client.RunAsync(useNetwork, cancellationToken);
+                Console.WriteLine($"[ProtoProbe] RoundTrip={result.RoundTripOk} Descriptor={result.DescriptorName} Validated={string.Join(",", result.ValidatedPackets)}");
+                if (result.MissingRequiredPackets.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe][WARN] Missing required bindings: " + string.Join(", ", result.MissingRequiredPackets));
+                }
+                if (result.OptionalUnregistered.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe] Optional packets without bindings: " + string.Join(", ", result.OptionalUnregistered));
+                }
+                if (!string.IsNullOrWhiteSpace(result.ReportPath))
+                {
+                    Console.WriteLine($"[ProtoProbe] Report written to {result.ReportPath}");
+                }
                 if (result.NetworkProbeAttempted)
                 {
                     if (result.NetworkProbeOk)
@@ -320,11 +342,35 @@ namespace GameServerApp
 
             var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
             var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
+            var profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
 
             var profile = WorldMapControlProfile.Create(worldGenConfig, config.World);
+            profile.HydrologySignature = SharedFeatureCatalog.HydrologySignature;
+            profile.Version = Math.Max(worldGenConfig.MapControlProfileVersion, profile.Version);
             profile.RenderDistance = Math.Max(profile.RenderDistance, mapSettings.DefaultRenderDistance);
             profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
-            WorldMapControlProfileUtility.Save(profile, worldGenConfig.MapControlProfilePath);
+            WorldMapControlProfileUtility.Save(profile, profilePath);
+            TryMirrorProfileToStreamingAssets(profilePath);
+        }
+
+        private static void TryMirrorProfileToStreamingAssets(string profilePath)
+        {
+            try
+            {
+                string targetPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+                var directory = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.Copy(profilePath, targetPath, overwrite: true);
+                Console.WriteLine($"[WorldMapControlProfile] Mirrored profile to {targetPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to StreamingAssets: {ex.Message}");
+            }
         }
 
         private static void DisplayConfigurationMenu()

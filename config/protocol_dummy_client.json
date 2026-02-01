@@ -4,6 +4,10 @@
   "connectTimeoutMs": 750,
   "receiveTimeoutMs": 750,
   "roundTripCount": 2,
+  "probeNetwork": false,
+  "validateAllKnownPackets": true,
+  "includeOptionalMessages": false,
+  "outputReportPath": "reports/proto_probe_report.json",
   "packets": [
     "ChunkDataRequest",
     "ChunkUnloadNotification",

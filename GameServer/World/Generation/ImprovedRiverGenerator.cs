@@ -231,8 +231,43 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeBlendRadius,
                 config.HydrologyEdgeNormalizationIterations,
                 config.HydrologyEdgeNormalizationBlend);
+            ApplyRiparianEdgeFeather(mask, hydrologyMask, flowAccumulation);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyRiparianEdgeFeather(float[,] mask, float[,] hydrology, float[,] flow)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(1, config.HydrologyEdgeBlendRadius);
+            double feather = Math.Clamp(config.HydrologySeamRelaxBlend * 0.35 + config.RiverEdgeFeather * 0.5, 0.0, 1.0);
+            double clampRange = Math.Max(0.001, config.HydrologyEdgeVarianceClamp);
+            double guardWeight = Math.Clamp(config.HydrologyEdgeStabilityWeight, 0.0, 1.0);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(edgeRadius + 1);
+                    double interior = SampleInterior(copy, x, z);
+                    double hydroGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrology, x, z) - hydrology[x, z]);
+                    double flowGradient = Math.Abs(TerrainMaskUtility.SampleInterior(flow, x, z) - flow[x, z]);
+                    double blend = feather * falloff;
+                    double guard = Math.Clamp((hydroGradient + flowGradient) * guardWeight * 0.35, 0.0, 0.6);
+
+                    double target = copy[x, z] * (1.0 - blend) + interior * blend;
+                    target = Math.Clamp(target * (1.0 - guard), copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
         }
 
         private void ApplyHydrologyStability(

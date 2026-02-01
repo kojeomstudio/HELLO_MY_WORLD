@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-01-31 (reservoir smoothing v7).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-01 (river/lake seam smoothing v8).
         /// </summary>
-        public const string HydrologySignature = "2026-01-31-hydrology-reservoir-v7";
+        public const string HydrologySignature = "2026-02-01-hydrology-riverlake-v8";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,14 +82,15 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S18-CORE-01",
-                "Hydrology Reservoir WorldGen v7",
+                "Hydrology Reservoir WorldGen v8",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
                 {
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
-                    "config/world_map_control_profile.json"
+                    "config/world_map_control_profile.json",
+                    "config/minecraft_feature_core_content_util_2026-02-01.json"
                 },
                 new[]
                 {
@@ -165,7 +166,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlManager.cs"
                 },
                 new[] { HydrologySignature },
-                "planned",
+                "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
                 "S18-UTIL-02",
@@ -176,7 +177,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_core_content_util_2026-01-29.json"
+                    "config/minecraft_feature_core_content_util_2026-02-01.json"
                 },
                 new[] { HydrologySignature },
                 "in-progress",
@@ -192,7 +193,7 @@ namespace GameCommon.World
                     "config/protocol_dummy_client.json"
                 },
                 new[] { "SharedProtocol", "EnhancedMinecraftProtocol" },
-                "planned",
+                "in-progress",
                 "medium")
         };
     }

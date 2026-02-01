@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -19,7 +20,10 @@ namespace GameServerApp.Testing
         bool NetworkProbeAttempted,
         bool NetworkProbeOk,
         string NetworkError,
-        IReadOnlyCollection<string> ValidatedPackets);
+        IReadOnlyCollection<string> ValidatedPackets,
+        IReadOnlyCollection<string> MissingRequiredPackets,
+        IReadOnlyCollection<string> OptionalUnregistered,
+        string ReportPath);
 
     public sealed class DummyProtocolClientSettings
     {
@@ -28,6 +32,10 @@ namespace GameServerApp.Testing
         public int ConnectTimeoutMs { get; set; } = 750;
         public int ReceiveTimeoutMs { get; set; } = 750;
         public int RoundTripCount { get; set; } = 1;
+        public bool ProbeNetwork { get; set; } = false;
+        public bool ValidateAllKnownPackets { get; set; } = true;
+        public bool IncludeOptionalMessages { get; set; } = false;
+        public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
         public string[] Packets { get; set; } = new[] { "ChunkDataRequest", "ChunkUnloadNotification", "TimeUpdate" };
 
         public static DummyProtocolClientSettings Load(string path)
@@ -59,6 +67,8 @@ namespace GameServerApp.Testing
             this.settings = settings;
         }
 
+        public DummyProtocolClientSettings Settings => settings;
+
         public static DummyProtocolClient CreateFromConfig(string path) =>
             new DummyProtocolClient(DummyProtocolClientSettings.Load(path));
 
@@ -66,7 +76,19 @@ namespace GameServerApp.Testing
         {
             ProtocolRegistry.ValidateBindings();
             ProtoDiagnostics.AssertFingerprint();
+            probeNetwork |= settings.ProbeNetwork;
             var validatedPackets = new List<string>();
+            var missingBindings = new List<string>();
+            var packetsToProbe = new HashSet<MinecraftMessageType>();
+
+            if (settings.ValidateAllKnownPackets)
+            {
+                packetsToProbe.UnionWith(ProtocolRegistry.RegisteredMessageTypes);
+                if (settings.IncludeOptionalMessages)
+                {
+                    packetsToProbe.UnionWith(ProtocolRegistry.GetOptionalMessagesWithoutBindings());
+                }
+            }
 
             foreach (var packetName in settings.Packets ?? Array.Empty<string>())
             {
@@ -76,9 +98,15 @@ namespace GameServerApp.Testing
                     continue;
                 }
 
+                packetsToProbe.Add(messageType);
+            }
+
+            foreach (var messageType in packetsToProbe)
+            {
                 if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Missing prototype for '{messageType}'. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
+                    missingBindings.Add(messageType.ToString());
                     continue;
                 }
 
@@ -86,6 +114,7 @@ namespace GameServerApp.Testing
                 if (descriptorParser == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
+                    missingBindings.Add(messageType.ToString());
                     continue;
                 }
 
@@ -97,10 +126,15 @@ namespace GameServerApp.Testing
                     {
                         validatedPackets.Add(messageType.ToString());
                     }
+                    else
+                    {
+                        missingBindings.Add(messageType.ToString());
+                    }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Round-trip failed for '{messageType}': {ex.Message}");
+                    missingBindings.Add(messageType.ToString());
                 }
             }
 
@@ -155,13 +189,50 @@ namespace GameServerApp.Testing
                 }
             }
 
-            return new ProtoProbeResult(
+            var requiredMissing = ProtocolRegistry.GetUnregisteredRequiredMessages()
+                .Select(type => type.ToString())
+                .ToList();
+            var optionalMissing = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
+                .Select(type => type.ToString())
+                .ToList();
+
+            var missing = new HashSet<string>(requiredMissing, StringComparer.OrdinalIgnoreCase);
+            missing.UnionWith(missingBindings);
+            var reportPath = string.IsNullOrWhiteSpace(settings.OutputReportPath)
+                ? string.Empty
+                : Path.GetFullPath(settings.OutputReportPath);
+
+            var result = new ProtoProbeResult(
                 roundTripOk,
                 ChunkLoadRequest.Descriptor.FullName,
                 networkAttempted,
                 networkOk,
                 networkError,
-                validatedPackets);
+                validatedPackets.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                missing.ToArray(),
+                optionalMissing,
+                reportPath);
+
+            if (!string.IsNullOrWhiteSpace(reportPath))
+            {
+                try
+                {
+                    var directory = Path.GetDirectoryName(reportPath);
+                    if (!string.IsNullOrWhiteSpace(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    File.WriteAllText(reportPath, JsonSerializer.Serialize(result, options));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Failed to write probe report to '{reportPath}': {ex.Message}");
+                }
+            }
+
+            return result;
         }
     }
 }

@@ -146,8 +146,26 @@ namespace GameServerApp
         {
             try
             {
-                string manifestPath = ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json"));
-                var manifest = FeatureManifest.TryLoad(manifestPath);
+                string[] manifestCandidates =
+                {
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-02-session-38.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json")
+                };
+
+                FeatureManifest? manifest = null;
+                string manifestPath = string.Empty;
+
+                foreach (var candidate in manifestCandidates)
+                {
+                    var resolved = ResolveRepoPath(candidate);
+                    manifest = FeatureManifest.TryLoad(resolved);
+                    if (manifest != null)
+                    {
+                        manifestPath = resolved;
+                        break;
+                    }
+                }
+
                 if (manifest == null)
                 {
                     Console.WriteLine("[FeatureManifest][WARN] Manifest not found; skipping shared feature load.");
@@ -155,7 +173,7 @@ namespace GameServerApp
                 }
 
                 var issues = manifest.Validate();
-                Console.WriteLine($"[FeatureManifest] Loaded {manifest.Features.Count} entries (v{manifest.Version}).");
+                Console.WriteLine($"[FeatureManifest] Loaded {manifest.Features.Count} entries (v{manifest.Version}) from {manifestPath}.");
                 if (issues.Count > 0)
                 {
                     Console.WriteLine("[FeatureManifest][WARN] " + string.Join("; ", issues));
@@ -187,6 +205,10 @@ namespace GameServerApp
                 if (!string.IsNullOrWhiteSpace(result.ReportPath))
                 {
                     Console.WriteLine($"[ProtoProbe] Report written to {result.ReportPath}");
+                }
+                if (!string.IsNullOrWhiteSpace(result.ReferenceReportPath))
+                {
+                    Console.WriteLine($"[ProtoProbe] Reference report written to {result.ReferenceReportPath}");
                 }
                 if (result.NetworkProbeAttempted)
                 {

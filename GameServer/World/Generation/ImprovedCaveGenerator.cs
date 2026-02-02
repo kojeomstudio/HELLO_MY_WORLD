@@ -212,6 +212,10 @@ namespace GameServerApp.World.Generation
                         double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
                         double flowPenalty = flow * config.FlowStabilityWeight;
                         double flowMemoryClamp = Math.Clamp(flowMemory * config.MoistureRetentionWeight, 0.0, 1.0);
+                        double roofThickness = surface - y;
+                        double roofGuard = Math.Clamp(1.0 / Math.Max(1.0, roofThickness), 0.0, 1.0);
+                        double ceilingHydration = Math.Clamp(hydrologyEnvelope * config.CeilingMoistureWeight * 0.35, 0.0, 0.35);
+                        double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / Math.Max(0.0001, moistureFlowClamp));
                         double threshold = config.Threshold + moisturePenalty * 0.35 + flowPenalty * 0.35 + roughnessBias * 0.25;
                         threshold -= depthFactor * depthWeight * 0.6;
                         threshold -= Math.Clamp(detail * depthFactor * 0.2, 0.0, 0.2);
@@ -240,6 +244,10 @@ namespace GameServerApp.World.Generation
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);
                         threshold += flowMemoryClamp * 0.15;
                         threshold += erosion * config.RiverSuppressionWeight * 0.2;
+                        threshold += Math.Clamp(slope * config.CeilingStabilityWeight * 0.02, 0.0, 0.2);
+                        threshold += roofGuard * config.EdgeSealStrength * 0.2;
+                        threshold += ceilingHydration;
+                        threshold += divergenceBrake * config.FlowStabilityWeight * 0.2;
                         if (y >= surface - Math.Max(2, config.RiparianPlugDepth) && riparianSuppression > 0.2)
                         {
                             continue;

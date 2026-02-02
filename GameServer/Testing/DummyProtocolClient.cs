@@ -25,7 +25,8 @@ namespace GameServerApp.Testing
         IReadOnlyCollection<string> OptionalUnregistered,
         IReadOnlyCollection<string> RegisteredPackets,
         string DescriptorFingerprint,
-        string ReportPath);
+        string ReportPath,
+        string ReferenceReportPath);
 
     public sealed class DummyProtocolClientSettings
     {
@@ -38,6 +39,7 @@ namespace GameServerApp.Testing
         public bool ValidateAllKnownPackets { get; set; } = true;
         public bool IncludeOptionalMessages { get; set; } = false;
         public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
+        public string? ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
         public string[] Packets { get; set; } = new[] { "ChunkDataRequest", "ChunkUnloadNotification", "TimeUpdate" };
 
         public static DummyProtocolClientSettings Load(string path)
@@ -78,6 +80,7 @@ namespace GameServerApp.Testing
         {
             ProtocolRegistry.ValidateBindings();
             ProtoDiagnostics.AssertFingerprint();
+            ProtoDiagnostics.AssertRegistryClean();
             var registeredPackets = ProtocolRegistry.RegisteredMessageTypes
                 .Select(type => type.ToString())
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
@@ -208,6 +211,9 @@ namespace GameServerApp.Testing
             var reportPath = string.IsNullOrWhiteSpace(settings.OutputReportPath)
                 ? string.Empty
                 : Path.GetFullPath(settings.OutputReportPath);
+            var referenceReportPath = string.IsNullOrWhiteSpace(settings.ReferenceReportPath)
+                ? string.Empty
+                : Path.GetFullPath(settings.ReferenceReportPath);
 
             var result = new ProtoProbeResult(
                 roundTripOk,
@@ -220,7 +226,8 @@ namespace GameServerApp.Testing
                 optionalMissing,
                 registeredPackets,
                 descriptorFingerprint,
-                reportPath);
+                reportPath,
+                referenceReportPath);
 
             if (!string.IsNullOrWhiteSpace(reportPath))
             {
@@ -238,6 +245,24 @@ namespace GameServerApp.Testing
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Failed to write probe report to '{reportPath}': {ex.Message}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(referenceReportPath))
+            {
+                try
+                {
+                    var directory = Path.GetDirectoryName(referenceReportPath);
+                    if (!string.IsNullOrWhiteSpace(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    ProtoDiagnostics.WriteReportToFile(referenceReportPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Failed to write proto reference report to '{referenceReportPath}': {ex.Message}");
                 }
             }
 

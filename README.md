@@ -32,6 +32,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-02: Session S38 - Hydrology v10 + world map control parity
+
+- Hydrology signature bumped to `2026-02-02-hydrology-riverlake-v10`; map-control profile version raised to 12 with refreshed configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
+- Rivers/lakes/caves: added flow divergence brakes, reservoir/edge tangent blending, and roof-hydration guards for chunk-safe carving (`GameServer/World/Generation/Improved*Generator.cs`).
+- Dummy protocol client writes probe + reference reports and enforces registry cleanliness (`GameServer/Testing/DummyProtocolClient.cs`, `config/protocol_dummy_client.json`, `config/proto_reference_report.json`).
+- Feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-02-session-38.json`); GameCommon.dll/MapGeneratorLib.dll rebuilt and copied to `Assets/Plugins/`.
+
 ### 2026-02-02: Session S35 - Hydrology v9 + Protocol/DLL hardening
 
 - Hydrology signature bumped to `2026-02-02-hydrology-riverlake-v9` with map-control profile v11 (seam-filled river intensity, meander jitter, lake variance/outflow stability, cave edge sealing). JSON configs updated (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).

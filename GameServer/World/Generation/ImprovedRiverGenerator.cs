@@ -45,6 +45,13 @@ namespace GameServerApp.World.Generation
             double riverBankErosionWeight = Math.Clamp(config.RiverBankErosionWeight, 0.0, 1.0);
             double anisotropyDamping = Math.Clamp(config.RiverAnisotropyDamping, 0.0, 1.0);
             double bankStabilityClamp = Math.Clamp(config.RiverBankStabilityClamp, 0.0, 1.0);
+            double warpFrequency = Math.Max(0.0001, config.HydrologyWarpFrequency);
+            double warpAmplitude = Math.Max(0.0, config.HydrologyWarpAmplitude);
+            double tangentWeight = Math.Clamp(config.HydrologyEdgeTangentWeight, 0.0, 1.0);
+            double reservoirBlend = Math.Clamp(config.HydrologyReservoirBlend, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            double continuityMemory = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double edgeGuardWeight = Math.Clamp(config.HydrologyEdgeStabilityWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -89,7 +96,16 @@ namespace GameServerApp.World.Generation
                         1.0,
                         0.55,
                         random.Next()));
-                    double meanderFactor = 1.0 + meanderNoise * (Math.Clamp(config.HydrologyWarpAmplitude * 0.02, 0.05, 0.2) + Math.Max(0.0, config.RiverMeanderJitter));
+                    double warpNoise = Math.Abs(SimplexNoise.Generate(
+                        worldX * warpFrequency + 11.0,
+                        worldZ * warpFrequency - 7.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        random.Next()));
+                    double meanderFactor = 1.0 + meanderNoise * (Math.Clamp(warpAmplitude * 0.02, 0.05, 0.22) + Math.Max(0.0, config.RiverMeanderJitter));
+                    meanderFactor *= 1.0 + warpNoise * Math.Clamp(warpAmplitude * 0.01, 0.0, 0.15);
                     double layeredNoise = (baseNoise * 0.55) + (macroNoise * 0.25) + (detailNoise * 0.2);
 
                     double hydrology = hydrologyMask[x, z];
@@ -138,6 +154,7 @@ namespace GameServerApp.World.Generation
                     pressure *= flowAlignment * seamStitch * meanderFactor;
                     pressure *= 1.0 + (flowMemory + seamHydro) * flowMemoryWeight * 0.2;
                     pressure *= 1.0 + seamAnchor * edgeNormalization * 0.15;
+                    pressure *= 1.0 - Math.Clamp(directionality * tangentWeight * 0.08, 0.0, 0.2);
                     double waterTableDistance = seaLevel - height;
                     double waterBias = 1.0 - Math.Clamp(Math.Abs(waterTableDistance) / waterTableClampRange, 0.0, 1.0);
                     double waterClamp = 1.0 + waterBias * waterTableClampWeight * (waterTableDistance >= 0 ? 0.45 : -0.25);
@@ -153,6 +170,7 @@ namespace GameServerApp.World.Generation
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     pressure *= seamGuard;
+                    double reservoir = Math.Clamp((flowMemory + seamHydro + hydrology) * reservoirBlend * 0.5, 0.0, 0.45);
                     double pressureStabilizer = 1.0 - Math.Clamp(
                         (pressureGradient / Math.Max(0.0001, config.HydrologyPressureGradientClamp)) * Math.Clamp(config.HydrologyPressureBlend, 0.0, 1.0),
                         0.0,
@@ -160,7 +178,7 @@ namespace GameServerApp.World.Generation
                     pressure *= Math.Max(0.55, pressureStabilizer);
                     pressure *= 1.0 + flowMemoryContinuity * 0.25;
                     pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
-                    pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * config.HydrologyEdgeStabilityWeight * 0.2, 0.0, 0.4);
+                    pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * edgeGuardWeight * 0.2, 0.0, 0.4);
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);
                     double curvature = ComputeCurvature(heightMap, x, z);
                     double basinAssist = Math.Clamp(curvature * config.HydrologyCurvatureWeight * 0.2, -0.35, 0.35);
@@ -186,6 +204,9 @@ namespace GameServerApp.World.Generation
                     double flowLockWeight = Math.Clamp(config.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
                     double directionalDrift = 1.0 + directionality * config.HydrologyDirectionalBlend * 0.15;
                     pressure = pressure * (1.0 - flowLockWeight * 0.15) + (pressure * directionalDrift + seamAnchor * flowLockWeight) * 0.15;
+                    double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / divergenceClamp);
+                    pressure *= 1.0 - Math.Clamp(divergenceBrake * continuityMemory, 0.0, 0.22);
+                    pressure = pressure * (1.0 - reservoirBlend * 0.2) + (pressure + reservoir) * reservoirBlend * 0.2;
                     pressure *= 1.0 + flowBridge;
 
                     // Headwater stability slightly broadens shallow channels to avoid seams.
@@ -204,6 +225,7 @@ namespace GameServerApp.World.Generation
                         pressure = Math.Max(pressure, seam * edgeRepair * 0.25);
                     }
                     pressure = pressure * (1.0 - edgeNormalization * 0.25) + seamAnchor * edgeNormalization * 0.35;
+                    pressure *= 1.0 - Math.Clamp(edgeNormalization * tangentWeight * 0.25, 0.0, 0.25);
                     pressure = ApplyEdgeBlend(pressure, hydrologyMask[x, z], x, z, chunkSize);
 
                     mask[x, z] = (float)Math.Clamp(pressure, 0.0, 1.35);

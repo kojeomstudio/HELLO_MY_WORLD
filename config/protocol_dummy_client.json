@@ -8,6 +8,7 @@
   "validateAllKnownPackets": true,
   "includeOptionalMessages": true,
   "outputReportPath": "reports/proto_probe_report.json",
+  "referenceReportPath": "config/proto_reference_report.json",
   "packets": [
     "PlayerStateUpdate",
     "PlayerActionRequest",

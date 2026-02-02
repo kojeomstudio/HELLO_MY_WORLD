@@ -51,6 +51,8 @@ namespace GameServerApp.World.Generation
             double rimErosionWeight = Math.Clamp(waterConfig.LakeRimErosionWeight, 0.0, 1.0);
             double flowPersistence = Math.Clamp(waterConfig.HydrologyFlowPersistence, 0.0, 1.0);
             double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            double edgeTangentWeight = Math.Clamp(waterConfig.HydrologyEdgeTangentWeight, 0.0, 1.0);
+            double reservoirBlend = Math.Clamp(waterConfig.HydrologyReservoirBlend, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -111,6 +113,7 @@ namespace GameServerApp.World.Generation
                     double riparianCohesion = Math.Clamp((hydrology + seamHydro) * waterConfig.RiparianSaturationBoost * 0.5, 0.0, 0.65);
                     double seamAnchor = (hydrology + seamHydro + flow + flowMemory) * 0.25;
                     double seamMemory = (hydrology + seamHydro + flowMemory) * 0.333;
+                    double catchmentMemory = Math.Clamp((flow + flowMemory + seamHydro) * waterConfig.HydrologyFlowMemoryWeight * 0.1, 0.0, 0.25);
                     double flowSeepageContinuity = 1.0 + (seamHydro + flowMemory * flowMemoryWeight + seamMemory) * flowSeepageWeight * 0.15;
                     double seepage = (flow + hydrologyGradient + flowMemory * 0.5 * flowMemoryWeight + seamMemory * 0.35) * flowSeepageWeight;
                     double memoryCohesion = (seamMemory + flowMemory) * flowPersistence * 0.15;
@@ -162,6 +165,9 @@ namespace GameServerApp.World.Generation
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
+                    double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / divergenceClamp);
+                    weight *= 1.0 - Math.Clamp(divergenceBrake * reservoirBlend, 0.0, 0.25);
+                    weight = weight * (1.0 - reservoirBlend * 0.2) + (weight + catchmentMemory) * reservoirBlend * 0.2;
                     weight *= 1.0 - flowShadow * Math.Clamp(0.35 - outflowSealWeight * 0.1, 0.05, 0.35);
                     weight *= 1.0 + riparianCohesion * 0.15;
                     double flowBridge = (hydrology + seamHydro + flowMemory) * waterConfig.HydrologyEdgeFlowBias * 0.1;
@@ -178,7 +184,9 @@ namespace GameServerApp.World.Generation
                     }
 
                     double seamRelax = Math.Clamp(waterConfig.HydrologySeamRelaxBlend, 0.0, 1.0);
+                    double edgeTangentGuard = Math.Clamp(edgeNormalization * edgeTangentWeight * 0.25, 0.0, 0.25);
                     weight = weight * (1.0 - edgeNormalization * 0.2) + (seamAnchor + seamMemory * 0.35) * edgeNormalization * 0.25;
+                    weight *= 1.0 - edgeTangentGuard;
                     weight = weight * (1.0 - seamRelax * 0.1) + seamAnchor * seamRelax * 0.05;
                     double wetlandThreshold = lakeConfig.WetlandSaturationThreshold - wetness * 0.1 - edgeNormalization * 0.05 - seamRelax * 0.05 - riparianCohesion * 0.08;
                     if (weight > wetlandThreshold && depthBelowSea <= maxDepth && depthBelowSea >= -shelfDepth)

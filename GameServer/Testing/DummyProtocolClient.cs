@@ -23,6 +23,8 @@ namespace GameServerApp.Testing
         IReadOnlyCollection<string> ValidatedPackets,
         IReadOnlyCollection<string> MissingRequiredPackets,
         IReadOnlyCollection<string> OptionalUnregistered,
+        IReadOnlyCollection<string> RegisteredPackets,
+        string DescriptorFingerprint,
         string ReportPath);
 
     public sealed class DummyProtocolClientSettings
@@ -76,6 +78,11 @@ namespace GameServerApp.Testing
         {
             ProtocolRegistry.ValidateBindings();
             ProtoDiagnostics.AssertFingerprint();
+            var registeredPackets = ProtocolRegistry.RegisteredMessageTypes
+                .Select(type => type.ToString())
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            string descriptorFingerprint = ProtoFingerprint.ComputeFingerprint();
             probeNetwork |= settings.ProbeNetwork;
             var validatedPackets = new List<string>();
             var missingBindings = new List<string>();
@@ -211,6 +218,8 @@ namespace GameServerApp.Testing
                 validatedPackets.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                 missing.ToArray(),
                 optionalMissing,
+                registeredPackets,
+                descriptorFingerprint,
                 reportPath);
 
             if (!string.IsNullOrWhiteSpace(reportPath))

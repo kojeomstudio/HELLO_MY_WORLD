@@ -1,6 +1,6 @@
 {
   "version": "2026-02-02",
-  "generated_at_utc": "2026-02-02T00:00:00Z",
+  "generated_at_utc": "2026-02-02T09:00:00Z",
   "features": [
     {
       "id": "CORE-012",
@@ -31,11 +31,30 @@
       "side": "shared",
       "description": "Keep GameCommon.dll and SharedProtocol.dll authoritative for enums/DTOs consumed by both client and server builds.",
       "order": 2,
-      "status": "planned",
+      "status": "in-progress",
       "artifacts": [
         "GameCommon/GameCommon.csproj",
         "SharedProtocol/SharedProtocol.csproj",
         "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "CORE-012"
+      ]
+    },
+    {
+      "id": "CORE-014",
+      "name": "Hydrology v9 seam-locked rivers/lakes/caves",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Refresh hydrology signature with seam filling, meander jitter controls, and lake variance/outflow stability tuned for server-map-control + Unity previews.",
+      "order": 3,
+      "status": "planned",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world_map_control_profile.json",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "GameServer/World/WorldMapControlManager.cs"
       ],
       "dependencies": [
         "CORE-012"
@@ -78,6 +97,24 @@
       ]
     },
     {
+      "id": "CONTENT-014",
+      "name": "Unity preview parity for hydrology v9",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Apply seam-filled river masks, lake variance/outflow stability tuning, and cave sealing tweaks to Unity map previews driven by JSON profiles.",
+      "order": 3,
+      "status": "planned",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": [
+        "CORE-014"
+      ]
+    },
+    {
       "id": "UTIL-012",
       "name": "Dummy protocol client coverage expansion",
       "category": "Utility",
@@ -93,6 +130,26 @@
       ],
       "dependencies": [
         "SharedProtocol"
+      ]
+    },
+    {
+      "id": "UTIL-014",
+      "name": "Protocol registry + dummy probe hardening",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Harden proto registry validation, expand dummy client packet matrix, and emit refreshed proto probe reports.",
+      "order": 2,
+      "status": "planned",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "CORE-013",
+        "UTIL-012"
       ]
     },
     {

@@ -11,13 +11,22 @@
   "packets": [
     "PlayerStateUpdate",
     "PlayerActionRequest",
+    "PlayerActionResponse",
     "ChunkDataRequest",
     "ChunkDataResponse",
     "BlockChangeNotification",
     "ChunkUnloadNotification",
+    "ChunkUnloadAcknowledge",
     "TimeUpdate",
     "WeatherChange",
-    "SoundEffect"
+    "SoundEffect",
+    "ParticleEffect",
+    "EntitySpawn",
+    "EntityDespawn",
+    "EntityUpdate",
+    "InventoryUpdate",
+    "ContainerOpen",
+    "ContainerUpdate"
   ],
   "comment": "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }

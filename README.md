@@ -32,12 +32,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
-### 2026-02-02: Session S35 - Hydrology-Aware Terrain & Map Profile Sync
+### 2026-02-02: Session S35 - Hydrology v9 + Protocol/DLL hardening
 
-- Unity `TerrainGenerator` now consumes JSON-tuned cave/river/lake parameters (cave smoothing, hydrology warp, lake river-suppression) to mirror server hydrology without hardcoded thresholds.
-- World map control profiles are persisted to StreamingAssets on client apply and reloaded on config/hash/signature drift; feature manifest refreshed (`config/minecraft_feature_core_content_util_2026-02-02.json`).
-- Dummy protocol client coverage expanded (optional packets enabled) via `config/protocol_dummy_client.json`; use `--proto-probe` to emit `reports/proto_probe_report.json`.
-- New docs: `docs/2026-02-02-minecraft-feature-core-content-util.md` (Core/Content/Util list) and session plan (`plans/2026-02-01-session-35-implementation-plan.md`).
+- Hydrology signature bumped to `2026-02-02-hydrology-riverlake-v9` with map-control profile v11 (seam-filled river intensity, meander jitter, lake variance/outflow stability, cave edge sealing). JSON configs updated (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
+- MapGeneratorLib river width modulation now uses meander jitter + bank stability clamps; lake carving honors `LakeMaxRadius`, variance weight, and outflow seal/stability knobs.
+- World map signature context tracks new lake/river seam parameters; GameCommon.dll rebuilt and copied to `Assets/Plugins/` to keep Unity aligned.
+- Dummy protocol client now reports registered packets + descriptor fingerprints; packet list expanded in `config/protocol_dummy_client.json`.
+- Docs refreshed: `docs/2026-02-02-minecraft-feature-core-content-util.md` and `docs/2026-02-02-worldgen-proto-update.md`.
 
 ### 2026-02-01: Session S33 - Hydrology v8 + Proto Audit
 

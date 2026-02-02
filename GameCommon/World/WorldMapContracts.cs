@@ -56,9 +56,11 @@ namespace GameCommon.World
             double hydrologyWaterTableSlopeWeight,
             int lakesMinDepth,
             int lakesMaxDepth,
+            int lakesMaxRadius,
             int lakesShelfDepth,
             double lakesFlowSeepageWeight,
             double lakeOutflowSealWeight,
+            double lakeOutflowStabilityWeight,
             double caveCeilingMoistureWeight,
             double caveCeilingMoistureClamp,
             double caveMoistureFlowClamp,
@@ -77,6 +79,7 @@ namespace GameCommon.World
             double riverReliefPenaltyWeight,
             double riverAnisotropyDamping,
             double riverBankStabilityClamp,
+            double riverSeamFillStrength,
             double lakeRiverProximitySuppression,
             double hydrologyFlowShadowWeight,
             double hydrologyFlowShadowSlopeWeight,
@@ -122,9 +125,11 @@ namespace GameCommon.World
             HydrologyWaterTableSlopeWeight = hydrologyWaterTableSlopeWeight;
             LakesMinDepth = lakesMinDepth;
             LakesMaxDepth = lakesMaxDepth;
+            LakesMaxRadius = lakesMaxRadius;
             LakesShelfDepth = lakesShelfDepth;
             LakesFlowSeepageWeight = lakesFlowSeepageWeight;
             LakeOutflowSealWeight = lakeOutflowSealWeight;
+            LakeOutflowStabilityWeight = lakeOutflowStabilityWeight;
             CaveCeilingMoistureWeight = caveCeilingMoistureWeight;
             CaveCeilingMoistureClamp = caveCeilingMoistureClamp;
             CaveMoistureFlowClamp = caveMoistureFlowClamp;
@@ -143,6 +148,7 @@ namespace GameCommon.World
             RiverReliefPenaltyWeight = riverReliefPenaltyWeight;
             RiverAnisotropyDamping = riverAnisotropyDamping;
             RiverBankStabilityClamp = riverBankStabilityClamp;
+            RiverSeamFillStrength = riverSeamFillStrength;
             LakeRiverProximitySuppression = lakeRiverProximitySuppression;
             HydrologyFlowShadowWeight = hydrologyFlowShadowWeight;
             HydrologyFlowShadowSlopeWeight = hydrologyFlowShadowSlopeWeight;
@@ -189,9 +195,11 @@ namespace GameCommon.World
         public double HydrologyWaterTableSlopeWeight { get; }
         public int LakesMinDepth { get; }
         public int LakesMaxDepth { get; }
+        public int LakesMaxRadius { get; }
         public int LakesShelfDepth { get; }
         public double LakesFlowSeepageWeight { get; }
         public double LakeOutflowSealWeight { get; }
+        public double LakeOutflowStabilityWeight { get; }
         public double CaveCeilingMoistureWeight { get; }
         public double CaveCeilingMoistureClamp { get; }
         public double CaveMoistureFlowClamp { get; }
@@ -212,6 +220,7 @@ namespace GameCommon.World
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }
         public double RiverBankStabilityClamp { get; }
+        public double RiverSeamFillStrength { get; }
         public double LakeRiverProximitySuppression { get; }
         public double HydrologyFlowShadowWeight { get; }
         public double HydrologyFlowShadowSlopeWeight { get; }

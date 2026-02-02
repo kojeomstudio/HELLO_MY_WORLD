@@ -1,9 +1,9 @@
 {
-  "version": 10,
-  "profileHash": "7ce2ca809c4376ba13871eac6ddfca22f9dba8293b2c76feb65e19fed931aa0b",
+  "version": 11,
+  "profileHash": "",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-02-01T06:37:47.529508Z",
-  "hydrologySignature": "2026-02-01-hydrology-riverlake-v8",
+  "generatedAtUtc": "2026-02-02T09:10:00.000000Z",
+  "hydrologySignature": "2026-02-02-hydrology-riverlake-v9",
   "chunkSize": 16,
   "renderDistance": 12,
   "simulationDistance": 12,

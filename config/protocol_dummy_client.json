@@ -3,7 +3,7 @@
   "port": 9000,
   "connectTimeoutMs": 750,
   "receiveTimeoutMs": 750,
-  "roundTripCount": 2,
+  "roundTripCount": 3,
   "probeNetwork": false,
   "validateAllKnownPackets": true,
   "includeOptionalMessages": true,
@@ -26,8 +26,14 @@
     "EntityDespawn",
     "EntityUpdate",
     "InventoryUpdate",
+    "MultiBlockChange",
+    "ItemUse",
+    "ItemDrop",
+    "ItemPickup",
+    "EntityInteract",
     "ContainerOpen",
-    "ContainerUpdate"
+    "ContainerUpdate",
+    "ContainerClose"
   ],
   "comment": "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }

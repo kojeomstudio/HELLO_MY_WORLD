@@ -32,6 +32,14 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-03: Hydrology v11 + map-control profile v13
+
+- Hydrology signature bumped to `2026-02-03-hydrology-riverlake-v11`; map-control profile version 13 with refreshed JSON configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`).
+- Worldgen improvements: hydrology variance stabilization, directional river damping, lake reservoir/variance weighting, and cave moisture/support/riparian guards (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
+- Shared feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-03.json`) plus docs (`docs/2026-02-03-feature-core-content-util.md`, `docs/2026-02-03-worldgen-proto-update.md`).
+- Dummy protocol client packet matrix expanded (MultiBlockChange, item use/drop/pickup, entity interact, container close) with higher round-trip count (`config/protocol_dummy_client.json`).
+- Rebuild/copy `GameCommon.dll` and `MapGeneratorLib.dll` to `Assets/Plugins/` to keep Unity aligned with the new hydrology signature.
+
 ### 2026-02-02: Session S38 - Hydrology v10 + world map control parity
 
 - Hydrology signature bumped to `2026-02-02-hydrology-riverlake-v10`; map-control profile version raised to 12 with refreshed configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
@@ -121,6 +129,7 @@ See documentation in `docs/` for detailed session histories and implementation s
 # Build shared libraries
 dotnet build SharedProtocol/SharedProtocol.csproj
 dotnet build GameCommon/GameCommon.csproj
+dotnet build MapGeneratorLib/MapGeneratorLib/MapGeneratorLib.csproj
 
 # Build server
 dotnet build GameServer/GameServer.csproj
@@ -133,6 +142,11 @@ dotnet test GameServer/GameServer.csproj
 
 Regenerate the world map control profile after world config changes with:
 `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+
+Run the dummy protocol client (registry + fingerprint validation, optional network probe) with:
+`dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+
+After building GameCommon/MapGeneratorLib, copy the updated DLLs to `Assets/Plugins/` to keep Unity aligned with shared enums/contracts.
 
 ### Build Results
 

@@ -32,12 +32,12 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
-### 2026-02-03: Hydrology v11 + map-control profile v13
+### 2026-02-03: Hydrology v12 + map-control profile v14
 
-- Hydrology signature bumped to `2026-02-03-hydrology-riverlake-v11`; map-control profile version 13 with refreshed JSON configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`).
-- Worldgen improvements: hydrology variance stabilization, directional river damping, lake reservoir/variance weighting, and cave moisture/support/riparian guards (`GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
-- Shared feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-03.json`) plus docs (`docs/2026-02-03-feature-core-content-util.md`, `docs/2026-02-03-worldgen-proto-update.md`).
-- Dummy protocol client packet matrix expanded (MultiBlockChange, item use/drop/pickup, entity interact, container close) with higher round-trip count (`config/protocol_dummy_client.json`).
+- Hydrology signature bumped to `2026-02-03-hydrology-riverlake-v12`; map-control profile version 14 with refreshed JSON configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
+- Worldgen improvements: hydrology/flow gradient coupling, seam-aware continuity smoothing for rivers/lakes, erosion-gradient aware cave stability, and client MapGeneratorLib continuity guard (`GameServer/World/Generation/Improved*Generator.cs`, `MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`).
+- Shared feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-03-session-40.json`) plus docs (`docs/2026-02-03-feature-core-content-util.md`, `docs/2026-02-03-worldgen-proto-update.md`, `docs/2026-02-03-minecraft-core-content-util-session-40.md`).
+- Dummy protocol client now logs hydrology signature and registered packet count in probe reports, alongside expanded packet matrix (`config/protocol_dummy_client.json`).
 - Rebuild/copy `GameCommon.dll` and `MapGeneratorLib.dll` to `Assets/Plugins/` to keep Unity aligned with the new hydrology signature.
 
 ### 2026-02-02: Session S38 - Hydrology v10 + world map control parity

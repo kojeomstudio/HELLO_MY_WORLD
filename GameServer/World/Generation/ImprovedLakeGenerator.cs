@@ -196,6 +196,12 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            TerrainMaskUtility.ApplyHydrologyContinuity(
+                lakes,
+                hydrologyMask,
+                flowAccumulation,
+                waterConfig.HydrologyEdgeBlendRadius,
+                waterConfig.HydrologyContinuityWeight);
             TerrainMaskUtility.ClampVariance(lakes, waterConfig.HydrologyVarianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(
                 lakes,

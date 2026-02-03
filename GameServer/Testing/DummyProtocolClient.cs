@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GameCommon.World;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using SharedProtocol;
@@ -25,6 +26,8 @@ namespace GameServerApp.Testing
         IReadOnlyCollection<string> OptionalUnregistered,
         IReadOnlyCollection<string> RegisteredPackets,
         string DescriptorFingerprint,
+        string HydrologySignature,
+        int RegisteredCount,
         string ReportPath,
         string ReferenceReportPath);
 
@@ -214,6 +217,8 @@ namespace GameServerApp.Testing
             var referenceReportPath = string.IsNullOrWhiteSpace(settings.ReferenceReportPath)
                 ? string.Empty
                 : Path.GetFullPath(settings.ReferenceReportPath);
+            int registeredCount = registeredPackets.Length;
+            string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
 
             var result = new ProtoProbeResult(
                 roundTripOk,
@@ -226,6 +231,8 @@ namespace GameServerApp.Testing
                 optionalMissing,
                 registeredPackets,
                 descriptorFingerprint,
+                hydrologySignature,
+                registeredCount,
                 reportPath,
                 referenceReportPath);
 

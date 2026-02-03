@@ -232,6 +232,12 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            TerrainMaskUtility.ApplyHydrologyContinuity(
+                mask,
+                hydrologyMask,
+                flowAccumulation,
+                config.HydrologyEdgeBlendRadius,
+                config.HydrologyContinuityWeight);
             TerrainMaskUtility.NormalizeEdgeBands(
                 mask,
                 config.HydrologyEdgeBlendRadius,

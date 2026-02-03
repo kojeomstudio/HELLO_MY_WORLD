@@ -68,6 +68,7 @@ namespace GameServerApp.World.Generation
                 flow,
                 config.Water.HydrologyPressureBlend,
                 config.Water.HydrologyPressureGradientClamp);
+            ApplyHydrologyGradientCoupling(hydrology, flow);
             var erosionRisk = BuildErosionRiskField(heightMap, hydrology, flow, size);
             ApplyRiparianEdgeFeather(hydrology, flow, erosionRisk);
             ApplyErosionAwareDamping(hydrology, flow, erosionRisk);
@@ -1325,6 +1326,17 @@ namespace GameServerApp.World.Generation
             }
         }
 
+        private void ApplyHydrologyGradientCoupling(float[,] hydrology, float[,] flow)
+        {
+            double clamp = Math.Max(0.05, config.Water.HydrologyGradientClamp * 0.25);
+            double blend = Math.Clamp(
+                config.Water.HydrologyEdgeNormalizationBlend * 0.5 +
+                config.Water.HydrologyContinuityWeight * 0.35,
+                0.0,
+                0.85);
+            TerrainMaskUtility.ClampGradientCoupling(hydrology, flow, clamp, blend);
+        }
+
         private void ApplyErosionAwareDamping(float[,] hydrology, float[,] flow, float[,] erosionRisk)
         {
             double hydroWeight = Math.Clamp(config.Water.HydrologyEdgeStabilityWeight + config.Water.RiverBankErosionWeight, 0.0, 2.0) * 0.35;
@@ -1392,10 +1404,13 @@ namespace GameServerApp.World.Generation
                     double slopeNorm = Math.Clamp(slope / 10.0, 0.0, 1.0);
                     double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
                     double flowNorm = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double hydroGradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrology, x, z) - hydro);
+                    double flowGradient = Math.Abs(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0 - flowNorm);
                     double altitude = Math.Clamp(surface / surfaceRange, 0.0, 1.0);
                     double valley = Math.Clamp((config.Water.GlobalWaterLevel - surface) / 16.0, 0.0, 1.0);
                     double exposure = Math.Clamp((1.0 - altitude) * 0.65 + valley * 0.45, 0.0, 1.0);
-                    double combined = hydro * 0.4 + flowNorm * 0.28 + exposure * 0.2 + slopeNorm * 0.15;
+                    double continuityPenalty = Math.Clamp((hydroGradient + flowGradient) * 0.5, 0.0, 1.0);
+                    double combined = hydro * 0.4 + flowNorm * 0.28 + exposure * 0.2 + slopeNorm * 0.15 + continuityPenalty * 0.12;
 
                     risk[x, z] = (float)Math.Clamp(combined, 0.0, 1.0);
                 }
@@ -2014,6 +2029,82 @@ namespace GameServerApp.World.Generation
                         flowCopy[x, z] * (1.0 - blend * 0.5) + targetFlow * (blend * 0.5),
                         0.0,
                         Math.Max(8.0, flowCopy[x, z] + Math.Abs(delta) * 6.0));
+                }
+            }
+        }
+
+        public static void ClampGradientCoupling(float[,] hydrology, float[,] flow, double clamp, double blend)
+        {
+            clamp = Math.Max(0.0, clamp);
+            blend = Math.Clamp(blend, 0.0, 1.0);
+            if (blend <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float hydro = hydroCopy[x, z];
+                    float neighbourHydro = SampleInterior(hydroCopy, x, z);
+                    float flowValue = flowCopy[x, z];
+                    float neighbourFlow = SampleInterior(flowCopy, x, z);
+                    double hydroDelta = Math.Clamp(neighbourHydro - hydro, -clamp, clamp);
+                    double flowDelta = Math.Clamp(neighbourFlow - flowValue, -clamp * 6.0, clamp * 6.0);
+                    double targetHydro = hydro + hydroDelta * blend;
+                    double targetFlow = flowValue + flowDelta * blend * 0.5;
+                    hydrology[x, z] = Clamp01(targetHydro);
+                    flow[x, z] = (float)Math.Clamp(
+                        targetFlow,
+                        0.0,
+                        Math.Max(flowValue + Math.Abs(flowDelta) * blend * 2.0, neighbourFlow + Math.Abs(flowDelta) + 1.0));
+                }
+            }
+        }
+
+        public static void ApplyHydrologyContinuity(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int edgeRadius,
+            double continuityWeight)
+        {
+            continuityWeight = Math.Clamp(continuityWeight, 0.0, 1.0);
+            if (continuityWeight <= 0.0)
+            {
+                return;
+            }
+
+            edgeRadius = Math.Max(0, edgeRadius);
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFactor = edgeRadius > 0
+                        ? 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0)
+                        : 0.0;
+                    float hydro = Clamp01(hydrology[x, z]);
+                    float seamHydro = Clamp01(SampleInterior(hydrology, x, z));
+                    float flowNorm = Clamp01(flow[x, z] / 6.0f);
+                    float seamFlow = Clamp01(SampleInterior(flow, x, z) / 6.0f);
+                    double gradient = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flowNorm);
+                    double blend = continuityWeight * (0.25 + edgeFactor * 0.35);
+                    blend += Math.Clamp(gradient * continuityWeight * 0.35, 0.0, 0.65);
+                    double target = copy[x, z] * (1.0 - blend);
+                    double continuityAnchor = (hydro + flowNorm + seamHydro + seamFlow) * 0.25;
+                    target += (copy[x, z] * (1.0 - Math.Clamp(gradient * 0.2, 0.0, 0.25)) + continuityAnchor) * blend;
+                    mask[x, z] = Clamp01(target);
                 }
             }
         }

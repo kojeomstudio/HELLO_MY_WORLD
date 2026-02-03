@@ -163,6 +163,11 @@ namespace GameServerApp.World.Generation
                     double hydrologyEnvelope = (hydrology + seamHydro + flowMemory) * 0.333;
                     double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flow) * config.FlowStabilityWeight * 0.5, 0.0, 0.6);
                     double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * config.RiverSuppressionWeight * 0.35, 0.0, 0.65);
+                    double erosionGradient = Math.Abs(erosion - TerrainMaskUtility.SampleInterior(erosionRisk, x, z));
+                    double continuityStabilizer = 1.0 - Math.Clamp((hydrologyGradient + flowGradient + erosionGradient) * config.EdgeSealStrength * 0.2, 0.0, 0.45);
+                    double seamMemoryBoost = Math.Clamp((seamHydro + flowMemory) * config.MoistureRetentionWeight * 0.15, 0.0, 0.35);
+                    stability *= continuityStabilizer;
+                    stability = stability * (1.0 - riparianGuard * 0.1) + stability * (1.0 + seamMemoryBoost) * 0.1;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {

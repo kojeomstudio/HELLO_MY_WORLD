@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-03 (river/lake seam smoothing v11).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-03 (river/lake seam smoothing v12).
         /// </summary>
-        public const string HydrologySignature = "2026-02-03-hydrology-riverlake-v11";
+        public const string HydrologySignature = "2026-02-03-hydrology-riverlake-v12";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -90,7 +90,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_core_content_util_2026-02-03.json"
+                    "config/minecraft_feature_core_content_util_2026-02-03-session-40.json"
                 },
                 new[]
                 {

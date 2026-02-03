@@ -1952,6 +1952,50 @@ namespace MapGenLib
                 Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
                 Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
             }
+
+            EnhanceHydrologyContinuity(subWorldSize, hydrologyMask, flowAccumulation);
+        }
+
+        private static void EnhanceHydrologyContinuity(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float blend = CustomMathf.Clamp01(HydrologyEdgeNormalizationBlend * 0.5f + HydrologyContinuityWeight * 0.35f);
+            if (blend <= 0f)
+            {
+                return;
+            }
+
+            var hydroCopy = (float[,])hydrologyMask.Clone();
+            var flowCopy = (float[,])flowAccumulation.Clone();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int z = 0; z < depth; z++)
+                {
+                    int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, width - 1 - x), CustomMathf.Min(z, depth - 1 - z));
+                    float edgeFactor = 1f - CustomMathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float hydro = hydroCopy[x, z];
+                    float seamHydro = SampleInterior(hydroCopy, x, z);
+                    float flowValue = flowCopy[x, z];
+                    float seamFlow = SampleInterior(flowCopy, x, z);
+                    float flowNorm = CustomMathf.Clamp01(flowValue / 6f);
+                    float seamFlowNorm = CustomMathf.Clamp01(seamFlow / 6f);
+                    float gradient = CustomMathf.Abs(seamHydro - hydro) + CustomMathf.Abs(seamFlowNorm - flowNorm);
+                    float continuityBlend = CustomMathf.Clamp01(blend * (0.7f + edgeFactor * 0.5f) + gradient * blend * 0.35f);
+                    float anchor = (hydro + flowNorm + seamHydro + seamFlowNorm) * 0.25f;
+                    float targetHydro = hydro * (1f - continuityBlend) + (hydro * (1f - CustomMathf.Clamp01(gradient * 0.2f)) + anchor) * continuityBlend;
+                    hydrologyMask[x, z] = CustomMathf.Clamp01(targetHydro);
+                    float flowTarget = flowValue * (1f - continuityBlend * 0.35f) + (flowValue * 0.65f + seamFlow * 0.35f) * continuityBlend;
+                    flowAccumulation[x, z] = CustomMathf.Max(0f, flowTarget);
+                }
+            }
         }
 
         private static void AnchorHydrologyToSlope(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)

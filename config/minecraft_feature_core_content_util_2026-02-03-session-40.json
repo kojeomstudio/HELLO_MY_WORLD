@@ -1,0 +1,100 @@
+{
+  "generatedAt": "2026-02-03T12:40:00Z",
+  "version": "2026-02-03-session-40",
+  "hydrologySignature": "2026-02-03-hydrology-riverlake-v12",
+  "profileVersion": 14,
+  "scope": "minecraft client/server core-content-util",
+  "core": [
+    {
+      "id": "core-worldgen-hydrology",
+      "title": "Hydrology-stable worldgen (caves/rivers/lakes)",
+      "status": "in-progress",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "core-mapcontrol-sync",
+      "title": "World map control sync + signatures",
+      "status": "in-progress",
+      "sequence": 2,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core-proto-registry",
+      "title": "Protobuf registry validation + fingerprint",
+      "status": "in-progress",
+      "sequence": 3,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "GameServer/Testing/DummyProtocolClient.cs"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content-river-lake-shaping",
+      "title": "River curvature + lake outflow harmonization",
+      "status": "in-progress",
+      "sequence": 4,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ]
+    },
+    {
+      "id": "content-cave-stability",
+      "title": "Cave stability (moisture ceiling, riparian buffers)",
+      "status": "in-progress",
+      "sequence": 5,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json"
+      ]
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util-dummy-client",
+      "title": "Dummy protocol client (packet matrix + hydrology signature)",
+      "status": "in-progress",
+      "sequence": 6,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ]
+    },
+    {
+      "id": "util-config-validation",
+      "title": "JSON config validation + regeneration hooks",
+      "status": "planned",
+      "sequence": 7,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Configuration/WorldGenerationConfig.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "config/world_map_control_profile.json"
+      ]
+    }
+  ]
+}

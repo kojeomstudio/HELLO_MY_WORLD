@@ -1,11 +1,11 @@
 # 2026-02-03 Core / Content / Utility Feature List
 
-**Source:** `config/minecraft_feature_core_content_util_2026-02-03.json`  
+**Source:** `config/minecraft_feature_core_content_util_2026-02-03-session-40.json`  
 **Scope:** Minecraft-like client/server features grouped by Core, Content, Utility with implementation order.  
-**Hydrology Signature:** `2026-02-03-hydrology-riverlake-v11` (SharedFeatureCatalog)
+**Hydrology Signature:** `2026-02-03-hydrology-riverlake-v12` (SharedFeatureCatalog) / Map-control profile v14
 
 ## Core
-- **CORE-015 (order 1)** Hydrology v11 map-control + profile sync — update hydrology smoothing/seam stability, regenerate map-control profile, mirror to Unity.
+- **CORE-015 (order 1)** Hydrology v12 map-control + profile sync – update hydrology smoothing/seam stability, regenerate map-control profile (v14), mirror to Unity.
 - **CORE-016 (order 2)** Shared DLL + protobuf contract alignment — keep GameCommon.dll enums and SharedProtocol DTOs aligned; refresh proto reports.
 
 ## Content

@@ -1,0 +1,1174 @@
+{
+  "generatedAt": "2026-02-03T12:40:00Z",
+  "version": "2026-02-03-session-41",
+  "hydrologySignature": "2026-02-03-hydrology-riverlake-v12",
+  "profileVersion": 15,
+  "scope": "minecraft client/server core-content-util",
+  "core": [
+    {
+      "id": "core-worldgen-hydrology",
+      "title": "Hydrology-stable worldgen (caves/rivers/lakes)",
+      "status": "completed",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "core-mapcontrol-sync",
+      "title": "World map control sync + signatures",
+      "status": "completed",
+      "sequence": 2,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core-proto-registry",
+      "title": "Protobuf registry validation + fingerprint",
+      "status": "completed",
+      "sequence": 3,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "GameServer/Testing/DummyProtocolClient.cs"
+      ]
+    },
+    {
+      "id": "core-networking",
+      "title": "Networking infrastructure and packet handling",
+      "status": "completed",
+      "sequence": 4,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/Session.cs",
+        "GameServer/Network/EnhancedProtocolHandler.cs"
+      ]
+    },
+    {
+      "id": "core-chunk-system",
+      "title": "Chunk loading/unloading and synchronization",
+      "status": "completed",
+      "sequence": 5,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/ChunkData.cs",
+        "GameServer/Synchronization/ChunkSyncCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/AChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/TerrainChunk.cs"
+      ]
+    },
+    {
+      "id": "core-entity-system",
+      "title": "Entity spawning, updating, and despawning",
+      "status": "completed",
+      "sequence": 6,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Entity.cs",
+        "GameServer/Synchronization/EntitySyncCoordinator.cs",
+        "GameServer/World/Spawning/MobSpawningSystem.cs"
+      ]
+    },
+    {
+      "id": "core-block-system",
+      "title": "Block placement, destruction, and change synchronization",
+      "status": "completed",
+      "sequence": 7,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/BlockData.cs",
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "GameCommon/Blocks/BlockRegistry.cs"
+      ]
+    },
+    {
+      "id": "core-inventory-system",
+      "title": "Player inventory management and synchronization",
+      "status": "completed",
+      "sequence": 8,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Item.cs",
+        "GameServer/Systems/InventorySystem.cs",
+        "GameServer/Handlers/InventoryHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+      ]
+    },
+    {
+      "id": "core-health-hunger",
+      "title": "Health and hunger system",
+      "status": "completed",
+      "sequence": 9,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs"
+      ]
+    },
+    {
+      "id": "core-movement",
+      "title": "Player movement and position synchronization",
+      "status": "completed",
+      "sequence": 10,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/MovementHandler.cs",
+        "GameServer/Models/Vector3.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerController.cs"
+      ]
+    },
+    {
+      "id": "core-time-weather",
+      "title": "World time and weather system",
+      "status": "completed",
+      "sequence": 11,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/WorldTimeSystem.cs",
+        "GameServer/Systems/WeatherSystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+      ]
+    },
+    {
+      "id": "core-combat",
+      "title": "Combat system and damage handling",
+      "status": "completed",
+      "sequence": 12,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/CombatSystem.cs",
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Models/Character.cs"
+      ]
+    },
+    {
+      "id": "core-crafting",
+      "title": "Crafting system and recipe management",
+      "status": "completed",
+      "sequence": 13,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/CraftingHandler.cs",
+        "GameServer/Handlers/RecipeListHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+        "config/recipes.json"
+      ]
+    },
+    {
+      "id": "core-container",
+      "title": "Container system (chests, furnaces, etc.)",
+      "status": "completed",
+      "sequence": 14,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Models/ContainerRecord.cs",
+        "GameServer/Systems/ContainerSystem.cs"
+      ]
+    },
+    {
+      "id": "core-chat",
+      "title": "Chat system and messaging",
+      "status": "completed",
+      "sequence": 15,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ChatHandler.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessages.cs"
+      ]
+    },
+    {
+      "id": "core-auth",
+      "title": "Authentication and session management",
+      "status": "completed",
+      "sequence": 16,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/LoginHandler.cs",
+        "GameServer/SessionManager.cs",
+        "SharedProtocol/GameAuth.cs"
+      ]
+    },
+    {
+      "id": "core-physics",
+      "title": "Physics system and collision detection",
+      "status": "completed",
+      "sequence": 17,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/PhysicsSystem.cs",
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/WaterPhysicsSystem.cs"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content-river-lake-shaping",
+      "title": "River curvature + lake outflow harmonization",
+      "status": "completed",
+      "sequence": 18,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ]
+    },
+    {
+      "id": "content-cave-stability",
+      "title": "Cave stability (moisture ceiling, riparian buffers)",
+      "status": "completed",
+      "sequence": 19,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json"
+      ]
+    },
+    {
+      "id": "content-biomes",
+      "title": "Biome generation and distribution",
+      "status": "completed",
+      "sequence": 20,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "GameServer/Models/BiomeType.cs",
+        "config/biomes.json"
+      ]
+    },
+    {
+      "id": "content-ores",
+      "title": "Ore distribution and generation",
+      "status": "completed",
+      "sequence": 21,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-vegetation",
+      "title": "Vegetation and tree generation",
+      "status": "completed",
+      "sequence": 22,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-dungeons",
+      "title": "Dungeon and structure generation",
+      "status": "completed",
+      "sequence": 23,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-items",
+      "title": "Item definitions and properties",
+      "status": "completed",
+      "sequence": 24,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "config/items.json",
+        "config/items_config.json",
+        "config/item_categories.json"
+      ]
+    },
+    {
+      "id": "content-blocks",
+      "title": "Block definitions and properties",
+      "status": "completed",
+      "sequence": 25,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "config/blocks.json",
+        "GameCommon/Blocks/BlockProperties.cs",
+        "GameCommon/Blocks/BlockType.cs"
+      ]
+    },
+    {
+      "id": "content-mobs",
+      "title": "Mob definitions and spawning",
+      "status": "completed",
+      "sequence": 26,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningConfig.cs",
+        "Assets/MyAssets/Scripts/DataFiles/DataFile/AnimalDataFile.cs"
+      ]
+    },
+    {
+      "id": "content-achievements",
+      "title": "Achievement system",
+      "status": "completed",
+      "sequence": 27,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-statistics",
+      "title": "Player statistics tracking",
+      "status": "completed",
+      "sequence": 28,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Character.cs"
+      ]
+    },
+    {
+      "id": "content-effects",
+      "title": "Potion and effect system",
+      "status": "completed",
+      "sequence": 29,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-enchanting",
+      "title": "Enchanting system",
+      "status": "completed",
+      "sequence": 30,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-world-border",
+      "title": "World border system",
+      "status": "completed",
+      "sequence": 31,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/WorldBorderSystem.cs"
+      ]
+    },
+    {
+      "id": "content-clouds",
+      "title": "Cloud generation",
+      "status": "completed",
+      "sequence": 32,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+      ]
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util-dummy-client",
+      "title": "Dummy protocol client (packet matrix + hydrology signature)",
+      "status": "completed",
+      "sequence": 33,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ]
+    },
+    {
+      "id": "util-config-validation",
+      "title": "JSON config validation + regeneration hooks",
+      "status": "completed",
+      "sequence": 34,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Configuration/WorldGenerationConfig.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "config/world_map_control_profile.json"
+      ]
+    },
+    {
+      "id": "util-data-driven",
+      "title": "Data-driven configuration management",
+      "status": "completed",
+      "sequence": 35,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/DataDriven/DataManager.cs",
+        "GameCommon/DataDriven/DataModels.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "GameServer/Configuration/DataDrivenConfigManager.cs"
+      ]
+    },
+    {
+      "id": "util-logging",
+      "title": "Logging and error handling utilities",
+      "status": "completed",
+      "sequence": 36,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Utils/Logger.cs",
+        "GameServer/Utils/ErrorHandler.cs"
+      ]
+    },
+    {
+      "id": "util-noise",
+      "title": "Noise generation utilities",
+      "status": "completed",
+      "sequence": 37,
+      "owners": ["GameServer", "MapGeneratorLib"],
+      "artifacts": [
+        "GameServer/Utils/Noise.cs",
+        "GameServer/Utils/SimplexNoise.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "util-performance",
+      "title": "Performance monitoring and metrics",
+      "status": "completed",
+      "sequence": 38,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Utils/PerformanceMonitor.cs",
+        "GameServer/Systems/ServerMetricsService.cs"
+      ]
+    },
+    {
+      "id": "util-config-manager",
+      "title": "Unified configuration manager",
+      "status": "completed",
+      "sequence": 39,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/Configuration/ConfigManager.cs",
+        "GameCommon/Configuration/UnifiedConfigManager.cs",
+        "GameCommon/Configuration/ConfigModels.cs"
+      ]
+    },
+    {
+      "id": "util-compression",
+      "title": "Data compression utilities",
+      "status": "completed",
+      "sequence": 40,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/LZFCompress.cs"
+      ]
+    },
+    {
+      "id": "util-save-load",
+      "title": "Save and load system",
+      "status": "completed",
+      "sequence": 41,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs"
+      ]
+    },
+    {
+      "id": "util-data-files",
+      "title": "Data file readers and managers",
+      "status": "completed",
+      "sequence": 42,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+        "Assets/MyAssets/Scripts/DataFiles/Tables/ATableReader.cs"
+      ]
+    },
+    {
+      "id": "util-input",
+      "title": "Input management system",
+      "status": "completed",
+      "sequence": 43,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Input/InputManager.cs",
+        "Assets/MyAssets/Scripts/Input/WindowInput.cs",
+        "Assets/MyAssets/Scripts/Input/MobileInput.cs"
+      ]
+    },
+    {
+      "id": "util-ui",
+      "title": "UI management and popups",
+      "status": "completed",
+      "sequence": 44,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+        "Assets/MyAssets/Scripts/UI/UIPopupSupervisor.cs",
+        "Assets/MyAssets/Scripts/UI/MainMenuManager.cs"
+      ]
+    },
+    {
+      "id": "util-animation",
+      "title": "Animation controllers",
+      "status": "completed",
+      "sequence": 45,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Animation/ActorAnimationController.cs"
+      ]
+    },
+    {
+      "id": "util-particles",
+      "title": "Particle effect system",
+      "status": "completed",
+      "sequence": 46,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs"
+      ]
+    },
+    {
+      "id": "util-pathfinding",
+      "title": "Pathfinding system",
+      "status": "completed",
+      "sequence": 47,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/PathFinding/"
+      ]
+    },
+    {
+      "id": "util-state-machine",
+      "title": "State machine system",
+      "status": "completed",
+      "sequence": 48,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/StateMachine/"
+      ]
+    },
+    {
+      "id": "util-behavior-tree",
+      "title": "Behavior tree AI system",
+      "status": "completed",
+      "sequence": 49,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/AI/BehaviorTree.cs",
+        "Assets/MyAssets/Scripts/AI/BlackBoard.cs"
+      ]
+    },
+    {
+      "id": "util-collision",
+      "title": "Collision detection utilities",
+      "status": "completed",
+      "sequence": 50,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/"
+      ]
+    }
+  ]
+}
+  "generatedAt": "2026-02-03T12:40:00Z",
+  "version": "2026-02-03-session-41",
+  "hydrologySignature": "2026-02-03-hydrology-riverlake-v12",
+  "profileVersion": 15,
+  "scope": "minecraft client/server core-content-util",
+  "core": [
+    {
+      "id": "core-worldgen-hydrology",
+      "title": "Hydrology-stable worldgen (caves/rivers/lakes)",
+      "status": "completed",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "core-mapcontrol-sync",
+      "title": "World map control sync + signatures",
+      "status": "completed",
+      "sequence": 2,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core-proto-registry",
+      "title": "Protobuf registry validation + fingerprint",
+      "status": "completed",
+      "sequence": 3,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "GameServer/Testing/DummyProtocolClient.cs"
+      ]
+    },
+    {
+      "id": "core-networking",
+      "title": "Networking infrastructure and packet handling",
+      "status": "completed",
+      "sequence": 4,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/Session.cs",
+        "GameServer/Network/EnhancedProtocolHandler.cs"
+      ]
+    },
+    {
+      "id": "core-chunk-system",
+      "title": "Chunk loading/unloading and synchronization",
+      "status": "completed",
+      "sequence": 5,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/ChunkData.cs",
+        "GameServer/Synchronization/ChunkSyncCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/AChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/TerrainChunk.cs"
+      ]
+    },
+    {
+      "id": "core-entity-system",
+      "title": "Entity spawning, updating, and despawning",
+      "status": "completed",
+      "sequence": 6,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Entity.cs",
+        "GameServer/Synchronization/EntitySyncCoordinator.cs",
+        "GameServer/World/Spawning/MobSpawningSystem.cs"
+      ]
+    },
+    {
+      "id": "core-block-system",
+      "title": "Block placement, destruction, and change synchronization",
+      "status": "completed",
+      "sequence": 7,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/BlockData.cs",
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "GameCommon/Blocks/BlockRegistry.cs"
+      ]
+    },
+    {
+      "id": "core-inventory-system",
+      "title": "Player inventory management and synchronization",
+      "status": "completed",
+      "sequence": 8,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Item.cs",
+        "GameServer/Systems/InventorySystem.cs",
+        "GameServer/Handlers/InventoryHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+      ]
+    },
+    {
+      "id": "core-health-hunger",
+      "title": "Health and hunger system",
+      "status": "completed",
+      "sequence": 9,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs"
+      ]
+    },
+    {
+      "id": "core-movement",
+      "title": "Player movement and position synchronization",
+      "status": "completed",
+      "sequence": 10,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/MovementHandler.cs",
+        "GameServer/Models/Vector3.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerController.cs"
+      ]
+    },
+    {
+      "id": "core-time-weather",
+      "title": "World time and weather system",
+      "status": "completed",
+      "sequence": 11,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/WorldTimeSystem.cs",
+        "GameServer/Systems/WeatherSystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+      ]
+    },
+    {
+      "id": "core-combat",
+      "title": "Combat system and damage handling",
+      "status": "completed",
+      "sequence": 12,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/CombatSystem.cs",
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Models/Character.cs"
+      ]
+    },
+    {
+      "id": "core-crafting",
+      "title": "Crafting system and recipe management",
+      "status": "completed",
+      "sequence": 13,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/CraftingHandler.cs",
+        "GameServer/Handlers/RecipeListHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+        "config/recipes.json"
+      ]
+    },
+    {
+      "id": "core-container",
+      "title": "Container system (chests, furnaces, etc.)",
+      "status": "completed",
+      "sequence": 14,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Models/ContainerRecord.cs",
+        "GameServer/Systems/ContainerSystem.cs"
+      ]
+    },
+    {
+      "id": "core-chat",
+      "title": "Chat system and messaging",
+      "status": "completed",
+      "sequence": 15,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ChatHandler.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessages.cs"
+      ]
+    },
+    {
+      "id": "core-auth",
+      "title": "Authentication and session management",
+      "status": "completed",
+      "sequence": 16,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/LoginHandler.cs",
+        "GameServer/SessionManager.cs",
+        "SharedProtocol/GameAuth.cs"
+      ]
+    },
+    {
+      "id": "core-physics",
+      "title": "Physics system and collision detection",
+      "status": "completed",
+      "sequence": 17,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Systems/PhysicsSystem.cs",
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/WaterPhysicsSystem.cs"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content-river-lake-shaping",
+      "title": "River curvature + lake outflow harmonization",
+      "status": "completed",
+      "sequence": 18,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ]
+    },
+    {
+      "id": "content-cave-stability",
+      "title": "Cave stability (moisture ceiling, riparian buffers)",
+      "status": "completed",
+      "sequence": 19,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json"
+      ]
+    },
+    {
+      "id": "content-biomes",
+      "title": "Biome generation and distribution",
+      "status": "completed",
+      "sequence": 20,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "GameServer/Models/BiomeType.cs",
+        "config/biomes.json"
+      ]
+    },
+    {
+      "id": "content-ores",
+      "title": "Ore distribution and generation",
+      "status": "completed",
+      "sequence": 21,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-vegetation",
+      "title": "Vegetation and tree generation",
+      "status": "completed",
+      "sequence": 22,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-dungeons",
+      "title": "Dungeon and structure generation",
+      "status": "completed",
+      "sequence": 23,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+      ]
+    },
+    {
+      "id": "content-items",
+      "title": "Item definitions and properties",
+      "status": "completed",
+      "sequence": 24,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "config/items.json",
+        "config/items_config.json",
+        "config/item_categories.json"
+      ]
+    },
+    {
+      "id": "content-blocks",
+      "title": "Block definitions and properties",
+      "status": "completed",
+      "sequence": 25,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "config/blocks.json",
+        "GameCommon/Blocks/BlockProperties.cs",
+        "GameCommon/Blocks/BlockType.cs"
+      ]
+    },
+    {
+      "id": "content-mobs",
+      "title": "Mob definitions and spawning",
+      "status": "completed",
+      "sequence": 26,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningConfig.cs",
+        "Assets/MyAssets/Scripts/DataFiles/DataFile/AnimalDataFile.cs"
+      ]
+    },
+    {
+      "id": "content-achievements",
+      "title": "Achievement system",
+      "status": "completed",
+      "sequence": 27,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-statistics",
+      "title": "Player statistics tracking",
+      "status": "completed",
+      "sequence": 28,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Models/Character.cs"
+      ]
+    },
+    {
+      "id": "content-effects",
+      "title": "Potion and effect system",
+      "status": "completed",
+      "sequence": 29,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-enchanting",
+      "title": "Enchanting system",
+      "status": "completed",
+      "sequence": 30,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Handlers/ServerStatusHandler.cs"
+      ]
+    },
+    {
+      "id": "content-world-border",
+      "title": "World border system",
+      "status": "completed",
+      "sequence": 31,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/WorldBorderSystem.cs"
+      ]
+    },
+    {
+      "id": "content-clouds",
+      "title": "Cloud generation",
+      "status": "completed",
+      "sequence": 32,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+      ]
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util-dummy-client",
+      "title": "Dummy protocol client (packet matrix + hydrology signature)",
+      "status": "completed",
+      "sequence": 33,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ]
+    },
+    {
+      "id": "util-config-validation",
+      "title": "JSON config validation + regeneration hooks",
+      "status": "completed",
+      "sequence": 34,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Configuration/WorldGenerationConfig.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "config/world_map_control_profile.json"
+      ]
+    },
+    {
+      "id": "util-data-driven",
+      "title": "Data-driven configuration management",
+      "status": "completed",
+      "sequence": 35,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/DataDriven/DataManager.cs",
+        "GameCommon/DataDriven/DataModels.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "GameServer/Configuration/DataDrivenConfigManager.cs"
+      ]
+    },
+    {
+      "id": "util-logging",
+      "title": "Logging and error handling utilities",
+      "status": "completed",
+      "sequence": 36,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Utils/Logger.cs",
+        "GameServer/Utils/ErrorHandler.cs"
+      ]
+    },
+    {
+      "id": "util-noise",
+      "title": "Noise generation utilities",
+      "status": "completed",
+      "sequence": 37,
+      "owners": ["GameServer", "MapGeneratorLib"],
+      "artifacts": [
+        "GameServer/Utils/Noise.cs",
+        "GameServer/Utils/SimplexNoise.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "util-performance",
+      "title": "Performance monitoring and metrics",
+      "status": "completed",
+      "sequence": 38,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Utils/PerformanceMonitor.cs",
+        "GameServer/Systems/ServerMetricsService.cs"
+      ]
+    },
+    {
+      "id": "util-config-manager",
+      "title": "Unified configuration manager",
+      "status": "completed",
+      "sequence": 39,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/Configuration/ConfigManager.cs",
+        "GameCommon/Configuration/UnifiedConfigManager.cs",
+        "GameCommon/Configuration/ConfigModels.cs"
+      ]
+    },
+    {
+      "id": "util-compression",
+      "title": "Data compression utilities",
+      "status": "completed",
+      "sequence": 40,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/LZFCompress.cs"
+      ]
+    },
+    {
+      "id": "util-save-load",
+      "title": "Save and load system",
+      "status": "completed",
+      "sequence": 41,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs"
+      ]
+    },
+    {
+      "id": "util-data-files",
+      "title": "Data file readers and managers",
+      "status": "completed",
+      "sequence": 42,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+        "Assets/MyAssets/Scripts/DataFiles/Tables/ATableReader.cs"
+      ]
+    },
+    {
+      "id": "util-input",
+      "title": "Input management system",
+      "status": "completed",
+      "sequence": 43,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Input/InputManager.cs",
+        "Assets/MyAssets/Scripts/Input/WindowInput.cs",
+        "Assets/MyAssets/Scripts/Input/MobileInput.cs"
+      ]
+    },
+    {
+      "id": "util-ui",
+      "title": "UI management and popups",
+      "status": "completed",
+      "sequence": 44,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+        "Assets/MyAssets/Scripts/UI/UIPopupSupervisor.cs",
+        "Assets/MyAssets/Scripts/UI/MainMenuManager.cs"
+      ]
+    },
+    {
+      "id": "util-animation",
+      "title": "Animation controllers",
+      "status": "completed",
+      "sequence": 45,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Animation/ActorAnimationController.cs"
+      ]
+    },
+    {
+      "id": "util-particles",
+      "title": "Particle effect system",
+      "status": "completed",
+      "sequence": 46,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs"
+      ]
+    },
+    {
+      "id": "util-pathfinding",
+      "title": "Pathfinding system",
+      "status": "completed",
+      "sequence": 47,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/PathFinding/"
+      ]
+    },
+    {
+      "id": "util-state-machine",
+      "title": "State machine system",
+      "status": "completed",
+      "sequence": 48,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/StateMachine/"
+      ]
+    },
+    {
+      "id": "util-behavior-tree",
+      "title": "Behavior tree AI system",
+      "status": "completed",
+      "sequence": 49,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/AI/BehaviorTree.cs",
+        "Assets/MyAssets/Scripts/AI/BlackBoard.cs"
+      ]
+    },
+    {
+      "id": "util-collision",
+      "title": "Collision detection utilities",
+      "status": "completed",
+      "sequence": 50,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/"
+      ]
+    }
+  ]
+}
+

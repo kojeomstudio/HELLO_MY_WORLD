@@ -723,6 +723,13 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeBlendRadius,
                 Mathf.Max(0.05f, _worldConfig.Water.HydrologySeamRelaxBlend * 0.35f),
                 _worldConfig.Water.HydrologyEdgeVarianceClamp);
+            ApplyRiverContinuity(
+                mask,
+                hydrology,
+                flow,
+                _worldConfig.Water.HydrologyEdgeBlendRadius,
+                (float)_worldConfig.Water.RiverEdgeContinuityWeight,
+                (float)_worldConfig.Water.HydrologyEdgeVarianceClamp);
             SmoothField(mask, _worldConfig.Water.RiverIntensitySmoothIterations, _worldConfig.Water.RiverIntensitySmoothBlend);
             ApplyEdgeFeather(mask, Math.Max(_tuning.RiverEdgeFeather, _worldConfig.Water.RiverEdgeFeather));
             NormalizeEdges(
@@ -836,6 +843,7 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeBlendRadius,
                 _worldConfig.Water.HydrologyEdgeNormalizationIterations,
                 _worldConfig.Water.HydrologyEdgeNormalizationBlend);
+            ApplyLakeOutflowTaper(lakes, flow);
             ApplyOutflowChannels(lakes, heightMap, flow, _worldConfig.Water.LakeInflowBlendWeight, _tuning.LakeOutflowCarveDepth, outflowStabilityWeight);
             return lakes;
         }
@@ -1632,6 +1640,88 @@ namespace Minecraft.World
                     }
 
                     field[x, z] = Mathf.Clamp01(target);
+                }
+            }
+        }
+
+        private void ApplyRiverContinuity(float[,] mask, float[,] hydrology, float[,] flow, int edgeRadius, float continuityWeight, float varianceClamp)
+        {
+            continuityWeight = Mathf.Clamp01(continuityWeight);
+            edgeRadius = Mathf.Max(1, edgeRadius);
+            varianceClamp = Math.Max(0.001f, varianceClamp);
+            if (continuityWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+            float flowNormalizer = Mathf.Max(1f, _worldConfig.Water.RiverDepth);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Mathf.Min(Mathf.Min(x, sizeX - 1 - x), Mathf.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float seamHydro = SampleInterior(hydrology, x, z);
+                    float seamFlow = SampleInterior(flow, x, z) / flowNormalizer;
+                    float flowSample = flow[x, z] / flowNormalizer;
+                    float gradient = Mathf.Abs(seamHydro - hydrology[x, z]) + Mathf.Abs(seamFlow - flowSample);
+                    float seamAnchor = (copy[x, z] + hydrology[x, z] + seamHydro) / 3f;
+                    seamAnchor = (seamAnchor + seamFlow * 0.5f) * 0.75f;
+                    float blend = continuityWeight * falloff * (0.65f + gradient * 0.35f);
+                    float clampRange = Mathf.Max(varianceClamp * falloff, 0.02f);
+                    float target = copy[x, z] * (1f - blend) + seamAnchor * blend;
+                    target = Mathf.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = Mathf.Clamp01(target);
+                }
+            }
+        }
+
+        private void ApplyLakeOutflowTaper(float[,] lakes, float[,] flow)
+        {
+            float taperWeight = Mathf.Clamp01((float)_worldConfig.Lakes.LakeOutflowTaper);
+            float outflowStabilityWeight = Mathf.Clamp01((float)_worldConfig.Lakes.OutflowStabilityWeight);
+            if (taperWeight <= 0f)
+            {
+                return;
+            }
+
+            int edgeRadius = Mathf.Max(1, _worldConfig.Water.HydrologyEdgeBlendRadius);
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+            float flowNormalizer = Mathf.Max(1f, _worldConfig.Water.RiverDepth);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Mathf.Min(Mathf.Min(x, sizeX - 1 - x), Mathf.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius + 1));
+                    float seamFlow = SampleInterior(flow, x, z) / flowNormalizer;
+                    float flowSample = flow[x, z] / flowNormalizer;
+                    float flowGradient = Mathf.Abs(seamFlow - flowSample);
+                    float continuity = 1f - Mathf.Clamp(flowGradient * outflowStabilityWeight * 0.35f, 0f, 0.45f);
+                    float blend = taperWeight * falloff * (0.55f + flowGradient * 0.35f);
+                    float clampRange = Mathf.Max(taperWeight * falloff * 0.35f, 0.05f);
+                    float tapered = copy[x, z] * continuity;
+                    tapered = tapered * (1f - outflowStabilityWeight * 0.25f) + (copy[x, z] * 0.65f + seamFlow * 0.15f) * outflowStabilityWeight * 0.25f;
+                    float target = copy[x, z] * (1f - blend) + tapered * blend;
+                    target = Mathf.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    lakes[x, z] = Mathf.Clamp01(target);
                 }
             }
         }

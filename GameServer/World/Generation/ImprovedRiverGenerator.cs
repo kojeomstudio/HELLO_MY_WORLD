@@ -243,6 +243,13 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeBlendRadius,
                 Math.Max(0.05, config.HydrologySeamRelaxBlend * 0.35),
                 config.HydrologyEdgeVarianceClamp);
+            ApplyContinuityGuard(
+                mask,
+                hydrologyMask,
+                flowAccumulation,
+                config.HydrologyEdgeBlendRadius,
+                config.RiverEdgeContinuityWeight,
+                config.HydrologyEdgeVarianceClamp);
             ApplyHydrologyStability(
                 mask,
                 hydrologyMask,
@@ -293,6 +300,52 @@ namespace GameServerApp.World.Generation
 
                     double target = copy[x, z] * (1.0 - blend) + interior * blend;
                     target = Math.Clamp(target * (1.0 - guard), copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
+        }
+
+        private void ApplyContinuityGuard(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int edgeRadius,
+            double continuityWeight,
+            double varianceClamp)
+        {
+            continuityWeight = Math.Clamp(continuityWeight, 0.0, 1.0);
+            edgeRadius = Math.Max(1, edgeRadius);
+            varianceClamp = Math.Max(0.001, varianceClamp);
+            if (continuityWeight <= 0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(edgeRadius + 1);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0;
+                    double flowSample = flow[x, z] / 6.0;
+                    double gradient = Math.Abs(seamHydro - hydrology[x, z]) + Math.Abs(seamFlow - flowSample);
+                    double seamAnchor = (copy[x, z] + hydrology[x, z] + (float)seamHydro) / 3.0;
+                    seamAnchor = (seamAnchor + (float)seamFlow * 0.5f) * 0.75;
+                    double blend = continuityWeight * falloff * (0.65 + gradient * 0.35);
+                    double clampRange = Math.Max(varianceClamp * falloff, 0.02);
+                    double target = copy[x, z] * (1.0 - blend) + seamAnchor * blend;
+                    target = Math.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
                     mask[x, z] = TerrainMaskUtility.Clamp01((float)target);
                 }
             }

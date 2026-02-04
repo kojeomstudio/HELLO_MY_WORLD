@@ -6,8 +6,10 @@ using GameCommon.DataDriven;
 using GameCommon.World;
 using GameServerApp.Configuration;
 using GameServerApp.Testing;
-using GameServerApp.World;
 using SharedProtocol.EnhancedMinecraft;
+using ServerWorldMapControlProfileUtility = GameServerApp.World.WorldMapControlProfileUtility;
+using SharedWorldMapControlProfileUtility = GameCommon.World.WorldMapControlProfileUtility;
+using GameServerApp.World;
 
 namespace GameServerApp
 {
@@ -69,7 +71,7 @@ namespace GameServerApp
                 var config = ServerConfig.LoadFromFile();
                 EnsureWorldMapProfile(config);
                 var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
-                var profile = WorldMapControlProfileUtility.Load(worldGenConfig.MapControlProfilePath);
+                var profile = ServerWorldMapControlProfileUtility.Load(worldGenConfig.MapControlProfilePath);
                 Console.WriteLine(
                     $"Generated world map control profile at '{worldGenConfig.MapControlProfilePath}' " +
                     $"(hash: {profile?.ProfileHash ?? "unknown"}, version: {profile?.Version}, signature: {profile?.HydrologySignature}).");
@@ -369,12 +371,12 @@ namespace GameServerApp
             var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
             var profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
 
-            var profile = WorldMapControlProfile.Create(worldGenConfig, config.World);
+            var profile = ServerWorldMapControlProfileUtility.Create(worldGenConfig, config.World);
             profile.HydrologySignature = SharedFeatureCatalog.HydrologySignature;
             profile.Version = Math.Max(worldGenConfig.MapControlProfileVersion, profile.Version);
             profile.RenderDistance = Math.Max(profile.RenderDistance, mapSettings.DefaultRenderDistance);
             profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
-            WorldMapControlProfileUtility.Save(profile, profilePath);
+            ServerWorldMapControlProfileUtility.Save(profile, profilePath);
             TryMirrorProfileToStreamingAssets(profilePath);
         }
 

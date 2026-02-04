@@ -291,6 +291,7 @@ namespace GameServerApp.World.Generation
             AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
             SealEdges(mask, hydrologyMask, riverMask, config.EdgeSealStrength);
             SealWetCeilings(mask, hydrologyMask, flowMask, seaLevel);
+            ApplyRiparianStability(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             return mask;
         }
 
@@ -476,6 +477,68 @@ namespace GameServerApp.World.Generation
                         double sealingBias = 0.5 + hydro * 0.35 + river * 0.25 + gradient * 0.25;
                         double sealChance = strength * Math.Clamp(sealingBias, 0.0, 1.5);
                         if (mask[x, y, z] && random.NextDouble() < sealChance)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyRiparianStability(bool[,,] mask, float[,] hydrologyMask, float[,] flowMask, float[,]? riverMask, int seaLevel)
+        {
+            double edgeSeal = Math.Clamp(config.EdgeSealStrength, 0.0, 1.0);
+            double riparianGuard = Math.Clamp(config.RiparianCaveGuardWeight, 0.0, 1.0);
+            if (edgeSeal <= 0.0 && riparianGuard <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int edgeRadius = Math.Max(1, Math.Min(sizeX, sizeZ) / 4);
+            int clampTop = Math.Min(sizeY - 2, Math.Max(2, seaLevel));
+            int clampBottom = Math.Max(1, clampTop - Math.Max(2, config.RiparianPlugDepth));
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double falloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    if (falloff <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double hydrologyGradient = Math.Abs(seamHydro - hydrology);
+                    double guard = Math.Clamp(
+                        (hydrology + river) * riparianGuard * 0.65 +
+                        hydrologyGradient * edgeSeal * 0.35 +
+                        flow * config.MoistureRetentionWeight * 0.25,
+                        0.0,
+                        1.0);
+                    guard *= falloff;
+                    if (guard < 0.15)
+                    {
+                        continue;
+                    }
+
+                    for (int y = clampBottom; y <= clampTop; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - clampBottom) / Math.Max(1.0, clampTop - clampBottom), 0.0, 1.0);
+                        double sealChance = guard * depthFactor;
+                        if (sealChance > 0.6 || (sealChance > 0.3 && flow > 0.25f))
                         {
                             mask[x, y, z] = false;
                         }

@@ -29,7 +29,10 @@ namespace GameServerApp.Testing
         string HydrologySignature,
         int RegisteredCount,
         string ReportPath,
-        string ReferenceReportPath);
+        string ReferenceReportPath,
+        string ProfileHash,
+        int ProfileVersion,
+        string ProfilePath);
 
     public sealed class DummyProtocolClientSettings
     {
@@ -43,6 +46,7 @@ namespace GameServerApp.Testing
         public bool IncludeOptionalMessages { get; set; } = false;
         public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
         public string? ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
+        public string? WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
         public string[] Packets { get; set; } = new[] { "ChunkDataRequest", "ChunkUnloadNotification", "TimeUpdate" };
 
         public static DummyProtocolClientSettings Load(string path)
@@ -84,6 +88,25 @@ namespace GameServerApp.Testing
             ProtocolRegistry.ValidateBindings();
             ProtoDiagnostics.AssertFingerprint();
             ProtoDiagnostics.AssertRegistryClean();
+            WorldMapControlProfile? sharedProfile = null;
+            string profilePath = string.IsNullOrWhiteSpace(settings.WorldMapControlProfilePath)
+                ? string.Empty
+                : Path.GetFullPath(settings.WorldMapControlProfilePath);
+            if (!string.IsNullOrWhiteSpace(profilePath))
+            {
+                sharedProfile = WorldMapControlProfileUtility.Load(profilePath);
+                if (sharedProfile != null && string.IsNullOrWhiteSpace(sharedProfile.ProfileHash))
+                {
+                    sharedProfile.ProfileHash = WorldMapControlProfileUtility.ComputeHash(sharedProfile);
+                }
+
+                if (sharedProfile != null &&
+                    !string.Equals(sharedProfile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Hydrology signature mismatch between profile ({sharedProfile.HydrologySignature}) and shared catalog ({SharedFeatureCatalog.HydrologySignature}).");
+                }
+            }
+
             var registeredPackets = ProtocolRegistry.RegisteredMessageTypes
                 .Select(type => type.ToString())
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
@@ -219,6 +242,8 @@ namespace GameServerApp.Testing
                 : Path.GetFullPath(settings.ReferenceReportPath);
             int registeredCount = registeredPackets.Length;
             string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
+            string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
+            int profileVersion = sharedProfile?.Version ?? 0;
 
             var result = new ProtoProbeResult(
                 roundTripOk,
@@ -234,11 +259,15 @@ namespace GameServerApp.Testing
                 hydrologySignature,
                 registeredCount,
                 reportPath,
-                referenceReportPath);
+                referenceReportPath,
+                profileHash,
+                profileVersion,
+                profilePath);
 
             Console.WriteLine(
                 $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
                 $"Validated={validatedPackets.Count} Missing={missing.Count} OptionalMissing={optionalMissing.Count} " +
+                $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
                 $"DescriptorFingerprint={descriptorFingerprint}");
 
             if (!string.IsNullOrWhiteSpace(reportPath))

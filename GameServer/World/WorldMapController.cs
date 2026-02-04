@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GameServerApp;
 using GameServerApp.World.Generation;
 using Microsoft.Extensions.Logging;
+using GameCommon.World;
 
 namespace GameServerApp.World
 {

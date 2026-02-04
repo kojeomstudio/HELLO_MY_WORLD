@@ -7,6 +7,8 @@ using GameServerApp.World.Generation;
 using GameServerApp.World.Generation.Stages;
 using System.Numerics;
 using GameServerApp.Utils;
+using GameCommon.World;
+using ServerWorldMapControlProfileUtility = GameServerApp.World.WorldMapControlProfileUtility;
 
 namespace GameServerApp.World
 {
@@ -305,8 +307,8 @@ namespace GameServerApp.World
             _caveCeilingStabilityWeight = Math.Clamp(_worldGenConfig.Caves.CeilingStabilityWeight, 0.0, 1.0);
             _caveCeilingMoistureClamp = Math.Clamp(_worldGenConfig.Caves.CeilingMoistureClamp, 0.0, 1.0);
 
-            _mapControlProfile = WorldMapControlProfile.Create(_worldGenConfig, _worldSettings);
-            WorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
+            _mapControlProfile = ServerWorldMapControlProfileUtility.Create(_worldGenConfig, _worldSettings);
+            ServerWorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
             _improvedCoordinator = (_useImprovedCaves || _useImprovedRivers || _useImprovedLakes)
                 ? new ImprovedTerrainCoordinator(_worldGenConfig, _worldSettings)
                 : null;

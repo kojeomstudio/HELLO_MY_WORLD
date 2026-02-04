@@ -1,8 +1,8 @@
 {
-  "version": 15,
-  "profileHash": "cfd9cc4eb7e201bd244880717c585880588e90f27c275005753a7bc58de7ce7c",
+  "version": 16,
+  "profileHash": "0448e07cbdcca4bae0eff0b7e4ea09c18cd73a559b7d0a96155d99b0def665b8",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-02-04T06:36:31.0308081Z",
+  "generatedAtUtc": "2026-02-04T12:31:51.1119969Z",
   "hydrologySignature": "2026-02-04-hydrology-riverlake-v13",
   "chunkSize": 16,
   "renderDistance": 12,
@@ -74,6 +74,7 @@
   "riverDeltaWetlandStrength": 0.64,
   "riverSeamFillStrength": 0.68,
   "riverBankErosionWeight": 0.22,
+  "riverEdgeContinuityWeight": 0.52,
   "lakeSpawnWeightBias": 0.38,
   "lakeShorelineBlend": 0.75,
   "lakeWetlandSaturationThreshold": 0.6,
@@ -114,6 +115,5 @@
   "enableCaves": true,
   "useImprovedCaves": true,
   "useImprovedRivers": true,
-  "useImprovedLakes": true,
-  "riverEdgeContinuityWeight": 0.52
+  "useImprovedLakes": true
 }

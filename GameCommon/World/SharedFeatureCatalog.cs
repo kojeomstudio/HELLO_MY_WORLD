@@ -87,6 +87,8 @@ namespace GameCommon.World
                 FeatureLayer.Shared,
                 new[]
                 {
+                    "GameCommon/World/WorldMapControlProfile.cs",
+                    "GameCommon/World/WorldMapControlProfileUtility.cs",
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",

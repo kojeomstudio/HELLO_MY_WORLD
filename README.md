@@ -32,13 +32,13 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
-### 2026-02-04: Hydrology v13 + map-control profile v15
+### 2026-02-04: Hydrology v14 + map-control profile v16
 
-- Hydrology signature bumped to `2026-02-04-hydrology-riverlake-v13`; map-control profile version 15 with refreshed JSON configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
-- Worldgen improvements: river edge continuity blend, lake outflow taper, cave entrance dampening; seam smoothing across chunk edges (`MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`, `GameServer/World/WorldMapControlProfile.cs`).
-- Shared feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-04.json`) plus docs (`docs/2026-02-04-feature-core-content-util.md`); SharedFeatureCatalog hydrology signature v13.
-- Dummy protocol client reports hydrology signature/packet counts with refreshed probe/reference JSON (`GameServer/Testing/DummyProtocolClient.cs`, `config/protocol_dummy_client.json`, `config/proto_reference_report.json`, `reports/proto_probe_report.json`).
-- Rebuild/copy `GameCommon.dll` and `MapGeneratorLib.dll` to `Assets/Plugins/` after regenerating the map-control profile to keep Unity aligned.
+- Hydrology signature `2026-02-04-hydrology-riverlake-v13` kept; map-control profile version raised to **16** with seam-stable rivers/lakes and riparian cave damping (`config/world.json`, `config/world_map_control_profile.json`).
+- Shared world map profile now lives in `GameCommon/World/WorldMapControlProfile*.cs`; server builder delegates to the shared utility, and `SharedFeatureCatalog` lists the new shared artifacts.
+- Worldgen tweaks: river continuity guard (`RiverEdgeContinuityWeight`), lake outflow taper (`LakeOutflowTaper`), and riparian cave stability across server and Unity preview generators.
+- Dummy protocol client accepts `worldMapControlProfilePath`, reports profile hash/version, and warns on hydrology signature drift (`GameServer/Testing/DummyProtocolClient.cs`, `config/protocol_dummy_client.json`).
+- Docs: feature matrix (`docs/2026-02-04-session-42-feature-list.md`), worldgen/proto update (`docs/2026-02-04-worldgen-proto-updates.md`); rebuild/copy `GameCommon.dll` after regenerating the profile hash.
 
 ### 2026-02-03: Session 41 - Comprehensive Implementation & Validation
 

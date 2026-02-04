@@ -223,6 +223,12 @@ namespace GameServerApp.World.Generation
                 waterConfig.HydrologyEdgeBlendRadius,
                 waterConfig.HydrologyEdgeNormalizationIterations,
                 waterConfig.HydrologyEdgeNormalizationBlend);
+            ApplyOutflowTaper(
+                lakes,
+                flowAccumulation,
+                waterConfig.HydrologyEdgeBlendRadius,
+                lakeConfig.LakeOutflowTaper,
+                outflowStabilityWeight);
             ApplyRiparianEdgeFeather(lakes, hydrologyMask, flowAccumulation);
             ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
@@ -350,6 +356,51 @@ namespace GameServerApp.World.Generation
 
                     float shelfBlend = 1f - Math.Clamp(Math.Abs(depthBelowSea) / (float)Math.Max(1, shelfDepth), 0f, 1f);
                     field[x, z] = Math.Max(value, value * (0.85f + shelfBlend * 0.15f));
+                }
+            }
+        }
+
+        private void ApplyOutflowTaper(
+            float[,] lakes,
+            float[,] flow,
+            int edgeRadius,
+            double taperWeight,
+            double outflowStabilityWeight)
+        {
+            taperWeight = Math.Clamp(taperWeight, 0.0, 1.0);
+            outflowStabilityWeight = Math.Clamp(outflowStabilityWeight, 0.0, 1.0);
+            edgeRadius = Math.Max(1, edgeRadius);
+            if (taperWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double falloff = 1.0 - edgeDistance / (double)(edgeRadius + 1);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0;
+                    double flowSample = flow[x, z] / 6.0;
+                    double flowGradient = Math.Abs(seamFlow - flowSample);
+                    double continuity = 1.0 - Math.Clamp(flowGradient * outflowStabilityWeight * 0.35, 0.0, 0.45);
+                    double blend = taperWeight * falloff * (0.55 + flowGradient * 0.35);
+                    double clampRange = Math.Max(taperWeight * falloff * 0.35, 0.05);
+                    double tapered = copy[x, z] * continuity;
+                    tapered = tapered * (1.0 - outflowStabilityWeight * 0.25) + (copy[x, z] * 0.65 + (float)seamFlow * 0.15) * outflowStabilityWeight * 0.25;
+                    double target = copy[x, z] * (1.0 - blend) + tapered * blend;
+                    target = Math.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
                 }
             }
         }

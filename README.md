@@ -32,6 +32,14 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-04: Hydrology v13 + map-control profile v15
+
+- Hydrology signature bumped to `2026-02-04-hydrology-riverlake-v13`; map-control profile version 15 with refreshed JSON configs (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-config.json`, `Assets/StreamingAssets/world-map-control.json`).
+- Worldgen improvements: river edge continuity blend, lake outflow taper, cave entrance dampening; seam smoothing across chunk edges (`MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs`, `GameServer/World/WorldMapControlProfile.cs`).
+- Shared feature manifest updated (`config/minecraft_feature_core_content_util_2026-02-04.json`) plus docs (`docs/2026-02-04-feature-core-content-util.md`); SharedFeatureCatalog hydrology signature v13.
+- Dummy protocol client reports hydrology signature/packet counts with refreshed probe/reference JSON (`GameServer/Testing/DummyProtocolClient.cs`, `config/protocol_dummy_client.json`, `config/proto_reference_report.json`, `reports/proto_probe_report.json`).
+- Rebuild/copy `GameCommon.dll` and `MapGeneratorLib.dll` to `Assets/Plugins/` after regenerating the map-control profile to keep Unity aligned.
+
 ### 2026-02-03: Session 41 - Comprehensive Implementation & Validation
 
 - **Status:** ✅ COMPLETED
@@ -58,7 +66,7 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 **Documentation:**
 - Work plan: `plans/2026-02-03-comprehensive-implementation-plan.md`
-- Feature catalog: `config/minecraft_feature_core_content_util_2026-02-03-comprehensive.json`
+- Feature catalog: `config/minecraft_feature_core_content_util_2026-02-04.json`
 - Implementation report: `docs/2026-02-03-session-41-comprehensive-implementation-report.md`
 
 ### 2026-02-03: Hydrology v12 + map-control profile v14
@@ -446,5 +454,4 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-02
-
 

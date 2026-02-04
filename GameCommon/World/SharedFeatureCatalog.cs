@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-03 (river/lake seam smoothing v12).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-04 (river/lake seam smoothing v13).
         /// </summary>
-        public const string HydrologySignature = "2026-02-03-hydrology-riverlake-v12";
+        public const string HydrologySignature = "2026-02-04-hydrology-riverlake-v13";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,7 +82,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S18-CORE-01",
-                "Hydrology Reservoir WorldGen v11",
+                "Hydrology Reservoir WorldGen v13",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -90,7 +90,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_core_content_util_2026-02-03-session-40.json"
+                    "config/minecraft_feature_core_content_util_2026-02-04.json"
                 },
                 new[]
                 {
@@ -168,7 +168,7 @@ namespace GameCommon.World
                 new[] { HydrologySignature },
                 "in-progress",
                 "high"),
-            new SharedFeatureDescriptor(
+                new SharedFeatureDescriptor(
                 "S18-UTIL-02",
                 "Data-Driven Config Parity",
                 FeatureCategory.Utility,
@@ -177,7 +177,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_core_content_util_2026-02-03.json"
+                    "config/minecraft_feature_core_content_util_2026-02-04.json"
                 },
                 new[] { HydrologySignature },
                 "in-progress",

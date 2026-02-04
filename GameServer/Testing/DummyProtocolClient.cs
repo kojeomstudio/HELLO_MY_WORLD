@@ -236,6 +236,11 @@ namespace GameServerApp.Testing
                 reportPath,
                 referenceReportPath);
 
+            Console.WriteLine(
+                $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
+                $"Validated={validatedPackets.Count} Missing={missing.Count} OptionalMissing={optionalMissing.Count} " +
+                $"DescriptorFingerprint={descriptorFingerprint}");
+
             if (!string.IsNullOrWhiteSpace(reportPath))
             {
                 try

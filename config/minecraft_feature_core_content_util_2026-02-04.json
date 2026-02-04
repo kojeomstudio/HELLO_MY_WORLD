@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-02-04T12:20:00Z",
+  "version": "2026-02-04-session-41",
+  "hydrologySignature": "2026-02-04-hydrology-riverlake-v13",
+  "profileVersion": 15,
+  "scope": "minecraft client/server core-content-util",
+  "core": [
+    {
+      "id": "core-worldgen-hydrology-v13",
+      "title": "Hydrology-stable worldgen (caves/rivers/lakes) v13",
+      "status": "in-progress",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ]
+    },
+    {
+      "id": "core-mapcontrol-architecture",
+      "title": "World map control architecture + signatures",
+      "status": "in-progress",
+      "sequence": 2,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core-shared-contracts",
+      "title": "Shared DLL + protobuf contract alignment",
+      "status": "in-progress",
+      "sequence": 3,
+      "owners": ["SharedProtocol", "GameCommon"],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "GameCommon/GameCommon.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content-cave-river-lake-v13",
+      "title": "Cave ventilation + river/lake seam stabilization",
+      "status": "in-progress",
+      "sequence": 4,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ]
+    },
+    {
+      "id": "content-worldmap-client-sync",
+      "title": "Unity map-control parity with server profile",
+      "status": "in-progress",
+      "sequence": 5,
+      "owners": ["Unity", "GameCommon"],
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "GameCommon/World/SharedFeatureCatalog.cs"
+      ]
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util-dummy-client-probe",
+      "title": "Dummy protocol client (packet matrix + probe reports)",
+      "status": "in-progress",
+      "sequence": 6,
+      "owners": ["GameServer"],
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ]
+    },
+    {
+      "id": "util-config-validation",
+      "title": "JSON config validation + regeneration hooks",
+      "status": "planned",
+      "sequence": 7,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/Configuration/WorldGenerationConfig.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "core-worldgen-hydrology-v13",
+      "name": "Hydrology-stable worldgen v13",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Cave/river/lake seam continuity, hydrology v13 profile.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "core-mapcontrol-architecture",
+      "name": "World map control architecture + signatures",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Profile hash/signature parity across server/client; StreamingAssets sync.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "core-shared-contracts",
+      "name": "Shared DLL + protobuf contract alignment",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll + SharedProtocol bindings kept in sync.",
+      "order": 3,
+      "status": "in-progress",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "content-cave-river-lake-v13",
+      "name": "Cave ventilation + river/lake seam stabilization",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Entrance dampening, river edge continuity blend, lake outflow taper.",
+      "order": 4,
+      "status": "in-progress",
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "content-worldmap-client-sync",
+      "name": "Unity map-control parity with server profile",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "StreamingAssets profile parity, hydrology signature validation.",
+      "order": 5,
+      "status": "in-progress",
+      "artifacts": [
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "util-dummy-client-probe",
+      "name": "Dummy protocol client (packet matrix + probe reports)",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Hydrology-aware proto probe with registered/missing packet reporting.",
+      "order": 6,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "util-config-validation",
+      "name": "JSON config validation + regeneration hooks",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World/config/profile validation with map-control mirroring.",
+      "order": 7,
+      "status": "planned",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": []
+    }
+  ]
+}

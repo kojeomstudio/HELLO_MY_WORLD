@@ -105,6 +105,7 @@ namespace GameServerApp.World
         public double LakeFlowSeepageWeight { get; set; }
         public double LakeVarianceWeight { get; set; }
         public double LakeOutflowStabilityWeight { get; set; }
+        public double LakeOutflowTaper { get; set; }
         public double CaveEdgeSealStrength { get; set; }
         public double SupportPillarChance { get; set; }
         public int CaveStabilitySmoothIterations { get; set; }
@@ -123,12 +124,14 @@ namespace GameServerApp.World
         public double CaveRiverSuppressionWeight { get; set; }
         public double RiparianCaveGuardWeight { get; set; }
         public double CaveCeilingMoistureClamp { get; set; }
+        public double CaveEntranceFlowDampening { get; set; }
         public bool EnableRivers { get; set; }
         public bool EnableLakes { get; set; }
         public bool EnableCaves { get; set; }
         public bool UseImprovedCaves { get; set; }
         public bool UseImprovedRivers { get; set; }
         public bool UseImprovedLakes { get; set; }
+        public double RiverEdgeContinuityWeight { get; set; }
 
         public static WorldMapControlProfile Create(WorldGenerationConfig config, WorldSettings worldSettings)
         {
@@ -213,6 +216,7 @@ namespace GameServerApp.World
                 RiverReliefPenaltyWeight = config.Water.RiverReliefPenaltyWeight,
                 RiverBankStabilityClamp = config.Water.RiverBankStabilityClamp,
                 RiverEdgeFeather = config.Water.RiverEdgeFeather,
+                RiverEdgeContinuityWeight = config.Water.RiverEdgeContinuityWeight,
                 RiverMouthSmoothRadius = Math.Max(1, config.Water.RiverMouthSmoothRadius),
                 RiverDeltaWetlandStrength = config.Water.RiverDeltaWetlandStrength,
                 RiverSeamFillStrength = config.Water.RiverSeamFillStrength,
@@ -232,6 +236,7 @@ namespace GameServerApp.World
                 LakeFlowSeepageWeight = config.Lakes.FlowSeepageWeight,
                 LakeVarianceWeight = config.Lakes.VarianceWeight,
                 LakeOutflowStabilityWeight = config.Lakes.OutflowStabilityWeight,
+                LakeOutflowTaper = config.Lakes.LakeOutflowTaper,
                 CaveEdgeSealStrength = config.Caves.EdgeSealStrength,
                 SupportPillarChance = config.Caves.SupportPillarChance,
                 CaveStabilitySmoothIterations = Math.Max(0, config.Caves.StabilitySmoothIterations),
@@ -241,6 +246,7 @@ namespace GameServerApp.World
                 CaveSupportFlowBias = config.Caves.SupportFlowBias,
                 CaveMoistureRetentionWeight = config.Caves.MoistureRetentionWeight,
                 CaveMoistureFlowClamp = config.Caves.MoistureFlowClamp,
+                CaveEntranceFlowDampening = config.Caves.CaveEntranceFlowDampening,
                 CaveRiparianPlugDepth = Math.Max(0, config.Caves.RiparianPlugDepth),
                 CaveCeilingStabilityWeight = config.Caves.CeilingStabilityWeight,
                 CaveHydrologyWeight = config.Caves.HydrologyStabilityWeight,
@@ -337,6 +343,7 @@ namespace GameServerApp.World
                 .Append(profile.RiverReliefPenaltyWeight).Append('|')
                 .Append(profile.RiverBankStabilityClamp).Append('|')
                 .Append(profile.RiverEdgeFeather).Append('|')
+                .Append(profile.RiverEdgeContinuityWeight).Append('|')
                 .Append(profile.RiverMouthSmoothRadius).Append('|')
                 .Append(profile.RiverDeltaWetlandStrength).Append('|')
                 .Append(profile.RiverSeamFillStrength).Append('|')
@@ -356,6 +363,7 @@ namespace GameServerApp.World
                 .Append(profile.LakeFlowSeepageWeight).Append('|')
                 .Append(profile.LakeVarianceWeight).Append('|')
                 .Append(profile.LakeOutflowStabilityWeight).Append('|')
+                .Append(profile.LakeOutflowTaper).Append('|')
                 .Append(profile.CaveEdgeSealStrength).Append('|')
                 .Append(profile.SupportPillarChance).Append('|')
                 .Append(profile.CaveStabilitySmoothIterations).Append('|')
@@ -367,6 +375,7 @@ namespace GameServerApp.World
                 .Append(profile.CaveCeilingStabilityWeight).Append('|')
                 .Append(profile.CaveMoistureRetentionWeight).Append('|')
                 .Append(profile.CaveMoistureFlowClamp).Append('|')
+                .Append(profile.CaveEntranceFlowDampening).Append('|')
                 .Append(profile.CaveHydrologyWeight).Append('|')
                 .Append(profile.CaveFlowWeight).Append('|')
                 .Append(profile.CaveRoughnessWeight).Append('|')

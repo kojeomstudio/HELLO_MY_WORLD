@@ -474,7 +474,10 @@ namespace GameWorld
                 config.Caves.RiverSuppressionWeight,
                 config.Caves.RiparianCaveGuardWeight,
                 config.Water.HydrologyReservoirIterations,
-                config.Water.HydrologyReservoirBlend);
+                config.Water.HydrologyReservoirBlend,
+                config.Water.RiverEdgeContinuityWeight,
+                config.Lakes.LakeOutflowTaper,
+                config.Caves.CaveEntranceFlowDampening);
             return WorldMapSignature.Compute(context);
         }
 

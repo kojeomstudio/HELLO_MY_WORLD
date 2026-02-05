@@ -74,6 +74,7 @@ namespace GameServerApp.World.Generation
                     float seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
                     float seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
                     float riverPressure = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    float seamRiver = riverMask != null ? TerrainMaskUtility.SampleInterior(riverMask, x, z) : riverPressure;
                     double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double edgeFactor = ComputeEdgeFalloff(x, z, chunkSize);
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
@@ -163,11 +164,17 @@ namespace GameServerApp.World.Generation
                     double hydrologyEnvelope = (hydrology + seamHydro + flowMemory) * 0.333;
                     double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flow) * config.FlowStabilityWeight * 0.5, 0.0, 0.6);
                     double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * config.RiverSuppressionWeight * 0.35, 0.0, 0.65);
+                    double divergenceGuard = Math.Clamp(
+                        (hydrologyGradient + flowGradient) * config.CeilingMoistureClamp * 0.25 +
+                        Math.Abs(seamRiver - riverPressure) * config.EdgeSealStrength * 0.25,
+                        0.0,
+                        0.6);
                     double erosionGradient = Math.Abs(erosion - TerrainMaskUtility.SampleInterior(erosionRisk, x, z));
                     double continuityStabilizer = 1.0 - Math.Clamp((hydrologyGradient + flowGradient + erosionGradient) * config.EdgeSealStrength * 0.2, 0.0, 0.45);
                     double seamMemoryBoost = Math.Clamp((seamHydro + flowMemory) * config.MoistureRetentionWeight * 0.15, 0.0, 0.35);
                     stability *= continuityStabilizer;
                     stability = stability * (1.0 - riparianGuard * 0.1) + stability * (1.0 + seamMemoryBoost) * 0.1;
+                    stability *= 1.0 - divergenceGuard * 0.35;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -243,6 +250,7 @@ namespace GameServerApp.World.Generation
                         threshold += hydrologyShadow * 0.2;
                         threshold += moistureContinuity * 0.25;
                         threshold += flowShadowDrift * 0.1;
+                        threshold += divergenceGuard * 0.45;
                         threshold += aquiferPenalty * 0.2;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;

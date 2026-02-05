@@ -10,7 +10,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 8,
   "MapControlProfilePath": "world-map-control.json",
-  "MapControlProfileVersion": 14,
+  "MapControlProfileVersion": 18,
   "OneTileUnit": 0.0625,
   "GlobalWaterLevel": 62,
   "RiverCenterThreshold": 0.0125,

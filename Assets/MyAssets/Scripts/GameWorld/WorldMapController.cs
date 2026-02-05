@@ -372,6 +372,7 @@ namespace GameWorld
             ApplyCurvatureHydrologyGuide(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            DiffuseHydrologyEdges(hydrology, flow);
             ApplyWaterTableEnvelope(heightMap, hydrology, flow);
             ApplyHydrologyEdgeEnvelope(hydrology, flow);
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
@@ -565,6 +566,11 @@ namespace GameWorld
                     double hydrologyEnvelope = (hydrologySample + seamHydro + flowMemory) / 3.0;
                     double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.FlowStabilityWeight * 0.5, 0.0, 0.6);
                     double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * worldConfig.Caves.RiverSuppressionWeight * 0.35, 0.0, 0.65);
+                    double divergenceGuard = Math.Clamp(
+                        (hydrologyGradient + flowGradient) * worldConfig.Caves.CeilingMoistureClamp * 0.25 +
+                        Math.Abs(seamRiver - riverPressure) * worldConfig.Caves.EdgeSealStrength * 0.25,
+                        0.0,
+                        0.6);
                     double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor) * seamStability * continuityClamp;
                     stability *= 1.0 - riparianPenalty * 0.25;
                     stability *= 1.0 - riparianBridge * 0.2;
@@ -577,6 +583,7 @@ namespace GameWorld
                     stability *= 1.0 - moistureContinuity * 0.35;
                     stability *= 1.0 - hydrologyShadow * 0.1;
                     stability *= 1.0 - aquiferPenalty * 0.3;
+                    stability *= 1.0 - divergenceGuard * 0.35;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -605,6 +612,7 @@ namespace GameWorld
                         threshold += flowShadowDrift * 0.1;
                         threshold += aquiferPenalty * 0.2;
                         threshold += slopeThresholdPenalty * 0.5;
+                        threshold += divergenceGuard * 0.45;
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (noise > threshold && stability > 0.08)
@@ -1843,6 +1851,73 @@ namespace GameWorld
             }
         }
 
+        private void DiffuseHydrologyEdges(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            if (sizeX < 4 || sizeZ < 4)
+            {
+                return;
+            }
+
+            int edgeRadius = Math.Max(1, profile.HydrologyEdgeBlendRadius);
+            int iterations = Math.Max(1, Math.Min(3, profile.HydrologyEdgeStabilityIterations / 2));
+            float baseBlend = Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.5f + profile.HydrologyContinuityWeight * 0.35f);
+            float varianceClamp = Mathf.Max(0.001f, profile.HydrologyEdgeVarianceClamp);
+            float fluxBlend = Mathf.Clamp01(profile.HydrologyEdgeFluxBlend);
+            float flowClamp = Mathf.Max(0.5f, profile.HydrologyFlowDivergenceClamp * 12f);
+
+            if (baseBlend <= 0f)
+            {
+                return;
+            }
+
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        if (edgeDistance > edgeRadius)
+                        {
+                            hydroBuffer[x, z] = hydrology[x, z];
+                            flowBuffer[x, z] = flow[x, z];
+                            continue;
+                        }
+
+                        float tension = 1f - Mathf.Clamp01(edgeDistance / (float)Math.Max(1, edgeRadius));
+                        float blend = baseBlend * (0.65f + tension * 0.35f);
+                        float neighbourHydro = SampleInterior(hydrology, x, z);
+                        float neighbourFlow = SampleInterior(flow, x, z);
+                        float hydroVariance = SampleVariance(hydrology, x, z);
+                        float flowVariance = SampleVariance(flow, x, z);
+
+                        float targetHydro = hydrology[x, z] * (1f - blend) + neighbourHydro * blend;
+                        targetHydro -= hydroVariance * varianceClamp * 0.5f;
+                        targetHydro = Mathf.Clamp(targetHydro, 0f, 1.25f);
+
+                        float targetFlow = flow[x, z] * (1f - blend) + neighbourFlow * blend;
+                        targetFlow -= flowVariance * varianceClamp * 0.35f;
+                        targetFlow += targetHydro * fluxBlend * 0.1f;
+                        targetFlow = Mathf.Clamp(targetFlow, 0f, Mathf.Max(flow[x, z] + 1f, flowClamp));
+
+                        hydroBuffer[x, z] = Mathf.Clamp01(targetHydro);
+                        flowBuffer[x, z] = Mathf.Clamp01(targetFlow);
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+                Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
+
+            NormalizeEdgeBands(hydrology, edgeRadius, baseBlend, varianceClamp);
+            NormalizeEdgeBands(flow, edgeRadius, baseBlend * 0.85f, varianceClamp * 1.35f);
+        }
+
         private void ApplyWaterTableEnvelope(int[,] heightMap, float[,] hydrology, float[,] flow)
         {
             int sizeX = hydrology.GetLength(0);
@@ -2494,6 +2569,73 @@ namespace GameWorld
             }
 
             Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static void NormalizeEdgeBands(float[,] field, int radius, float interiorBlend, float clampRange)
+        {
+            if (radius <= 0 || interiorBlend <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            var buffer = (float[,])field.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > radius)
+                    {
+                        continue;
+                    }
+
+                    float falloff = 1f - Mathf.Clamp01(edgeDistance / (float)(radius + 1));
+                    float blend = interiorBlend * falloff;
+                    float interior = SampleInterior(field, x, z);
+                    float candidate = field[x, z] * (1f - blend) + interior * blend;
+                    if (clampRange > 0f)
+                    {
+                        candidate = Mathf.Clamp(candidate, field[x, z] - clampRange, field[x, z] + clampRange);
+                    }
+
+                    buffer[x, z] = Mathf.Clamp01(candidate);
+                }
+            }
+
+            Array.Copy(buffer, field, buffer.Length);
+        }
+
+        private static float SampleVariance(float[,] field, int x, int z, int radius = 1)
+        {
+            int sizeX = field.GetLength(0);
+            int sizeZ = field.GetLength(1);
+            float sum = 0f;
+            float sumSq = 0f;
+            int count = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = Mathf.Clamp(x + dx, 0, sizeX - 1);
+                    int nz = Mathf.Clamp(z + dz, 0, sizeZ - 1);
+                    float value = field[nx, nz];
+                    sum += value;
+                    sumSq += value * value;
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return 0f;
+            }
+
+            float mean = sum / count;
+            return Mathf.Max(0f, sumSq / count - mean * mean);
         }
 
         private static void BlendInterior(float[,] field, float blend)

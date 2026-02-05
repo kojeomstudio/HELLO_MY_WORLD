@@ -2786,9 +2786,78 @@ namespace MapGenLib
                     }
 
                     Array.Copy(hydroBuffer, hydrologyMask, hydrologyMask.Length);
-                    Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
-                }
+                Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
             }
+        }
+
+        private static void DiffuseHydrologyEdges(float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = hydrologyMask.GetLength(0);
+            int depth = hydrologyMask.GetLength(1);
+            if (width < 4 || depth < 4)
+            {
+                return;
+            }
+
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            int iterations = CustomMathf.Max(1, CustomMathf.Min(3, HydrologyEdgeStabilityIterations / 2));
+            float baseBlend = CustomMathf.Clamp(HydrologyEdgeNormalizationBlend * 0.5f + HydrologyContinuityWeight * 0.35f, 0f, 0.95f);
+            float varianceClamp = CustomMathf.Max(0.001f, HydrologyEdgeVarianceClamp);
+            float fluxBlend = CustomMathf.Clamp(HydrologyEdgeFluxBlend, 0f, 1f);
+            float flowClamp = CustomMathf.Max(0.5f, HydrologyFlowDivergenceClamp * 12f);
+
+            if (baseBlend <= 0f)
+            {
+                return;
+            }
+
+            var hydroBuffer = (float[,])hydrologyMask.Clone();
+            var flowBuffer = (float[,])flowAccumulation.Clone();
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int z = 0; z < depth; z++)
+                    {
+                        int edgeDistance = CustomMathf.Min(CustomMathf.Min(x, width - 1 - x), CustomMathf.Min(z, depth - 1 - z));
+                        if (edgeDistance > edgeRadius)
+                        {
+                            hydroBuffer[x, z] = hydrologyMask[x, z];
+                            flowBuffer[x, z] = flowAccumulation[x, z];
+                            continue;
+                        }
+
+                        float tension = 1f - CustomMathf.Clamp01(edgeDistance / (float)CustomMathf.Max(1, edgeRadius));
+                        float blend = baseBlend * (0.65f + tension * 0.35f);
+                        float neighbourHydro = SampleInterior(hydrologyMask, x, z);
+                        float neighbourFlow = SampleInterior(flowAccumulation, x, z);
+                        float hydroVariance = CustomMathf.Abs(neighbourHydro - hydrologyMask[x, z]);
+                        float flowVariance = CustomMathf.Abs(neighbourFlow - flowAccumulation[x, z]);
+
+                        float targetHydro = hydrologyMask[x, z] * (1f - blend) + neighbourHydro * blend;
+                        targetHydro -= hydroVariance * varianceClamp * 0.5f;
+                        targetHydro = CustomMathf.Clamp(targetHydro, 0f, 1.25f);
+
+                        float targetFlow = flowAccumulation[x, z] * (1f - blend) + neighbourFlow * blend;
+                        targetFlow -= flowVariance * varianceClamp * 0.35f;
+                        targetFlow += targetHydro * fluxBlend * 0.1f;
+                        targetFlow = CustomMathf.Clamp(targetFlow, 0f, CustomMathf.Max(flowAccumulation[x, z] + 1f, flowClamp));
+
+                        hydroBuffer[x, z] = targetHydro;
+                        flowBuffer[x, z] = targetFlow;
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrologyMask, hydroBuffer.Length);
+                Array.Copy(flowBuffer, flowAccumulation, flowAccumulation.Length);
+            }
+        }
         }
 
         private static void NormalizeHydrologyRange(SubWorldSize subWorldSize, float[,] hydrologyMask, float[,] flowAccumulation)
@@ -3892,6 +3961,7 @@ namespace MapGenLib
             ApplyWaterTableEnvelope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyEdges(hydrologyMask, flowAccumulation);
+            DiffuseHydrologyEdges(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
             HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyHydrologyReservoirBuffer(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -5221,6 +5291,7 @@ namespace MapGenLib
             ApplyWaterTableEnvelope(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             SmoothHydrologyFields(hydrologyMask, flowAccumulation);
             NormalizeHydrologyEdges(hydrologyMask, flowAccumulation);
+            DiffuseHydrologyEdges(hydrologyMask, flowAccumulation);
             NormalizeHydrologyRange(subWorldSize, hydrologyMask, flowAccumulation);
             HarmonizeHydrologyWithSurface(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             ApplyHydrologyReservoirBuffer(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
@@ -6111,6 +6182,7 @@ namespace MapGenLib
             ProjectHydrologyEdgeFlux(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ApplyWaterTableEnvelope(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             SmoothHydrologyFields(caveHydrologyMask, caveFlowAccumulation);
+            DiffuseHydrologyEdges(caveHydrologyMask, caveFlowAccumulation);
             NormalizeHydrologyRange(subWorldSize, caveHydrologyMask, caveFlowAccumulation);
             HarmonizeHydrologyWithSurface(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);
             ApplyHydrologyReservoirBuffer(subWorldSize, caveSurfaceCache, caveHydrologyMask, caveFlowAccumulation);

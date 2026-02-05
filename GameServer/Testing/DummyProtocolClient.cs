@@ -236,6 +236,11 @@ namespace GameServerApp.Testing
                 Console.WriteLine($"[ProtoProbe][WARN] Required protocol bindings missing: {string.Join(", ", requiredMissing)}");
             }
 
+            if (optionalMissing.Count > 0)
+            {
+                Console.WriteLine($"[ProtoProbe][INFO] Optional protocol bindings not registered: {string.Join(", ", optionalMissing)}");
+            }
+
             var missing = new HashSet<string>(requiredMissing, StringComparer.OrdinalIgnoreCase);
             missing.UnionWith(missingBindings);
             var reportPath = string.IsNullOrWhiteSpace(settings.OutputReportPath)

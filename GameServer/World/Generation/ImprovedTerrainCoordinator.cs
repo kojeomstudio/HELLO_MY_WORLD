@@ -57,6 +57,7 @@ namespace GameServerApp.World.Generation
             ApplyCurvatureHydrologyGuide(heightMap, hydrology, flow);
             ApplyHydrologyContinuityEnvelope(heightMap, hydrology, flow);
             NormalizeHydrologyFlowEdges(hydrology, flow);
+            DiffuseHydrologyEdges(hydrology, flow);
             ApplyWaterTableEnvelope(heightMap, hydrology, flow);
             ApplyHydrologyEdgeEnvelope(hydrology, flow);
             ApplyCrossChunkHydrologyStitch(hydrology, flow);
@@ -1037,6 +1038,73 @@ namespace GameServerApp.World.Generation
                 Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
                 Array.Copy(flowBuffer, flow, flowBuffer.Length);
             }
+        }
+
+        private void DiffuseHydrologyEdges(float[,] hydrology, float[,] flow)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            if (sizeX < 4 || sizeZ < 4)
+            {
+                return;
+            }
+
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            int iterations = Math.Max(1, Math.Min(3, config.Water.HydrologyEdgeStabilityIterations / 2));
+            double baseBlend = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend * 0.5 + config.Water.HydrologyContinuityWeight * 0.35, 0.0, 0.95);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyEdgeVarianceClamp);
+            double fluxBlend = Math.Clamp(config.Water.HydrologyEdgeFluxBlend, 0.0, 1.0);
+            double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 12.0);
+
+            if (baseBlend <= 0.0)
+            {
+                return;
+            }
+
+            var hydroBuffer = (float[,])hydrology.Clone();
+            var flowBuffer = (float[,])flow.Clone();
+
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    for (int z = 0; z < sizeZ; z++)
+                    {
+                        int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                        if (edgeDistance > edgeRadius)
+                        {
+                            hydroBuffer[x, z] = hydrology[x, z];
+                            flowBuffer[x, z] = flow[x, z];
+                            continue;
+                        }
+
+                        double tension = 1.0 - Math.Clamp(edgeDistance / (double)Math.Max(1, edgeRadius), 0.0, 1.0);
+                        double blend = baseBlend * (0.65 + tension * 0.35);
+                        double neighbourHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                        double neighbourFlow = TerrainMaskUtility.SampleInterior(flow, x, z);
+                        double hydroVariance = TerrainMaskUtility.SampleVariance(hydrology, x, z);
+                        double flowVariance = TerrainMaskUtility.SampleVariance(flow, x, z);
+
+                        double targetHydro = hydrology[x, z] * (1.0 - blend) + neighbourHydro * blend;
+                        targetHydro -= hydroVariance * varianceClamp * 0.5;
+                        targetHydro = Math.Clamp(targetHydro, 0.0, 1.25);
+
+                        double targetFlow = flow[x, z] * (1.0 - blend) + neighbourFlow * blend;
+                        targetFlow -= flowVariance * varianceClamp * 0.35;
+                        targetFlow += targetHydro * fluxBlend * 0.1;
+                        targetFlow = Math.Clamp(targetFlow, 0.0, Math.Max(flow[x, z] + 1.0, flowClamp));
+
+                        hydroBuffer[x, z] = TerrainMaskUtility.Clamp01((float)targetHydro);
+                        flowBuffer[x, z] = TerrainMaskUtility.Clamp01((float)targetFlow);
+                    }
+                }
+
+                Array.Copy(hydroBuffer, hydrology, hydroBuffer.Length);
+                Array.Copy(flowBuffer, flow, flowBuffer.Length);
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, baseBlend, varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, baseBlend * 0.85, varianceClamp * 1.35);
         }
 
         private void ApplyCrossChunkHydrologyStitch(float[,] hydrology, float[,] flow)

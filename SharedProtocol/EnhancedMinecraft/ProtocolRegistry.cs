@@ -180,11 +180,20 @@ public static class ProtocolRegistry
             if (!string.Equals(actualPackage, expectedPackage, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    $"EnhancedMinecraft contract '{binding.MessageType}' is sourced from package '{actualPackage}', expected '{expectedPackage}'. Regenerate protobuf DTOs or fix using directives so registry bindings point at the current protoc output.");
+                $"EnhancedMinecraft contract '{binding.MessageType}' is sourced from package '{actualPackage}', expected '{expectedPackage}'. Regenerate protobuf DTOs or fix using directives so registry bindings point at the current protoc output.");
             }
         }
 
         EnsureRequiredBindings();
+
+        var optionalMissing = GetUnregisteredOptionalTypes().ToArray();
+        if (optionalMissing.Length > 0)
+        {
+            Console.WriteLine(
+                "[Proto][INFO] Optional EnhancedMinecraft message bindings missing: " +
+                string.Join(", ", optionalMissing) +
+                ". Register bindings or regenerate DTOs if these packets become required.");
+        }
     }
 
     public static bool TryResolveContractType(MinecraftMessageType messageType, out Type? contractType)

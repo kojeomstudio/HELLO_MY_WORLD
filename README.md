@@ -32,6 +32,14 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-05: Hydrology v15 + map-control profile v18
+
+- Hydrology signature bumped to `2026-02-05-hydrology-riverlake-cave-v15`; map-control profile version raised to **18** with regenerated hash in `config/world_map_control_profile.json` and `Assets/StreamingAssets/world-map-control.json` (world config versions updated accordingly).
+- Added hydrology edge diffusion + riparian cave divergence guard across server (`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`, `ImprovedCaveGenerator.cs`), Unity preview (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`), and MapGeneratorLib (`MapGeneratorLib/.../WorldGenAlgorithms.cs`).
+- Refreshed client/server feature catalog with core/content/util split and implementation order: `config/minecraft_feature_client_server_core_content_util_2026-02-05-session-45.json`, `docs/minecraft_feature_client_server_core_content_util_2026-02-05-session-45.md`.
+- Protocol registry now logs optional binding gaps during validation (`SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`); dummy client reports profile hash/signature and optional coverage from `config/protocol_dummy_client.json` (`GameServer/Testing/DummyProtocolClient.cs`).
+- Shared feature manifest updated to hydrology v15 and profile v18 for GameCommon.dll + Unity/server consumers (`GameCommon/World/SharedFeatureCatalog.cs`).
+
 ### 2026-02-05: Session 44 - Comprehensive Implementation & Validation
 
 **Status:** ✅ COMPLETED
@@ -611,6 +619,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-02
-
 
 

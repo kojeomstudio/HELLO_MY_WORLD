@@ -1448,6 +1448,7 @@ namespace GameWorld
             var copy = (float[,])erosionRisk.Clone();
             double riverSuppression = Math.Clamp(worldConfig.Caves.RiverSuppressionWeight, 0.0, 1.0);
             double rimErosion = Math.Clamp(worldConfig.Water.LakeRimErosionWeight, 0.0, 1.0);
+            double riparianGuard = Math.Clamp(worldConfig.Caves.RiparianCaveGuardWeight, 0.0, 1.0);
 
             for (int x = 0; x < sizeX; x++)
             {
@@ -1461,9 +1462,10 @@ namespace GameWorld
                         continue;
                     }
 
-                    double wetBuffer = wetness * (riverSuppression * 0.65 + rimErosion * 0.25);
+                    double guardBoost = riparianGuard * wetness;
+                    double wetBuffer = wetness * (riverSuppression * 0.65 + rimErosion * 0.25 + guardBoost * 0.3);
                     double variance = SampleInterior(copy, x, z);
-                    double stability = 1.0 + variance * 0.2;
+                    double stability = 1.0 + variance * (0.2 + guardBoost * 0.25);
                     erosionRisk[x, z] = Mathf.Clamp01((float)Math.Min(1.0, copy[x, z] + wetBuffer * stability));
                 }
             }

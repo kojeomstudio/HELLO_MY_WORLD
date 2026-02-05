@@ -231,6 +231,10 @@ namespace GameServerApp.Testing
             var optionalMissing = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
                 .Select(type => type.ToString())
                 .ToList();
+            if (requiredMissing.Count > 0)
+            {
+                Console.WriteLine($"[ProtoProbe][WARN] Required protocol bindings missing: {string.Join(", ", requiredMissing)}");
+            }
 
             var missing = new HashSet<string>(requiredMissing, StringComparer.OrdinalIgnoreCase);
             missing.UnionWith(missingBindings);

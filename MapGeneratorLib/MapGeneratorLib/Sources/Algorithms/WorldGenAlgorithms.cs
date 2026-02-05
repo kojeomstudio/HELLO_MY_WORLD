@@ -6210,6 +6210,9 @@ namespace MapGenLib
                     float saturation = hydrology * CaveHydrologyWeight + flow * CaveFlowWeight + (1f - depthFactor) * CaveDepthWeight + roughnessBlend + gradientBias * 0.08f + curvatureBias * 0.12f;
                     float suppression = 1f - CaveRiverSuppressionWeight * (1f - riverPressure);
                     suppression *= 1f - CustomMathf.Clamp01(riparian * CaveRiverSuppressionWeight * 0.35f);
+                    float riparianGuard = CustomMathf.Clamp01(CustomMathf.Max(hydrology, flow) * RiparianCaveGuardWeight + riparian * RiparianCaveGuardWeight * 0.5f + (1f - riverPressure) * RiparianCaveGuardWeight * 0.35f);
+                    float gradientGuard = CustomMathf.Clamp01(gradientStrength * RiparianCaveGuardWeight * 0.25f);
+                    float guardMultiplier = 1f - CustomMathf.Clamp01(riparianGuard * 0.35f + gradientGuard * 0.2f);
                     float supportBoost = 1f + waterTableBias * 0.35f + gradientStrength * 0.05f + curvatureBias * 0.08f;
                     float stability = saturation * supportBoost * suppression * CustomMathf.Clamp(moistureRetention, 0.25f, 1.15f);
                     stability *= hydrologyContinuity * flowContinuity;
@@ -6217,6 +6220,7 @@ namespace MapGenLib
                     float ceilingMoisturePenalty = CustomMathf.Clamp01(hydrology * CaveCeilingMoistureWeight + flow * CaveCeilingMoistureWeight * 0.5f + gradientStrength * CaveCeilingMoistureWeight * 0.15f);
                     stability *= 1f - (moisturePenalty + gradientPenalty * 0.15f) * 0.35f;
                     stability *= 1f - ceilingMoisturePenalty * 0.25f;
+                    stability *= guardMultiplier;
                     if (x == 0 || z == 0 || x == subWorldSize.SizeX - 1 || z == subWorldSize.SizeZ - 1)
                     {
                         float edgePenalty = CustomMathf.Clamp01(HydrologyEdgeStabilityWeight * 0.35f);

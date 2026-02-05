@@ -32,6 +32,14 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-05: Hydrology v14 + map-control profile v17
+
+- Hydrology signature bumped to `2026-02-05-hydrology-riverlake-cave-v14`; map-control profile version raised to **17** (`config/world.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`).
+- Riparian cave guard now applied in server worldgen and MapGeneratorLib, mirrored in Unity previews to stop caves from puncturing river/lake seams (`GameServer/World/WorldManager.cs`, `MapGeneratorLib/.../WorldGenAlgorithms.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+- Shared feature manifest refreshed (`config/minecraft_feature_core_content_util_2026-02-05.json`) and hydrology signature source updated in `GameCommon/World/SharedFeatureCatalog.cs`; docs added under `docs/2026-02-05-worldgen-proto-update.md` and `docs/2026-02-05-feature-core-content-util.md`.
+- Dummy protocol client logs missing required bindings in addition to registry checks; run with `config/protocol_dummy_client.json` to emit probe reports.
+- Rebuild/copy `GameCommon.dll` and `SharedProtocol.dll` to `Assets/Plugins/` after regenerating the profile hash to keep Unity aligned.
+
 ### 2026-02-04: Hydrology v14 + map-control profile v16
 
 - Hydrology signature `2026-02-04-hydrology-riverlake-v13` kept; map-control profile version raised to **16** with seam-stable rivers/lakes and riparian cave damping (`config/world.json`, `config/world_map_control_profile.json`).

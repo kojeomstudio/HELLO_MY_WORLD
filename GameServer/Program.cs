@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GameCommon.DataDriven;
@@ -150,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
             {
+                Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"),
                 Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json"),
                 Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03-session-40.json"),
                 Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03.json"),
@@ -202,6 +205,10 @@ namespace GameServerApp
                 if (result.MissingRequiredPackets.Count > 0)
                 {
                     Console.WriteLine("[ProtoProbe][WARN] Missing required bindings: " + string.Join(", ", result.MissingRequiredPackets));
+                }
+                if (result.MissingPrototypePackets.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe][WARN] Missing prototype bindings: " + string.Join(", ", result.MissingPrototypePackets));
                 }
                 if (result.OptionalUnregistered.Count > 0)
                 {
@@ -369,6 +376,7 @@ namespace GameServerApp
 
             var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
             var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
+            ApplyWorldMapRuntimeOverrides(worldGenConfig, mapSettings);
             var profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
 
             var profile = ServerWorldMapControlProfileUtility.Create(worldGenConfig, config.World);
@@ -378,6 +386,108 @@ namespace GameServerApp
             profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
             ServerWorldMapControlProfileUtility.Save(profile, profilePath);
             TryMirrorProfileToStreamingAssets(profilePath);
+        }
+
+        private static void ApplyWorldMapRuntimeOverrides(WorldGenerationConfig worldGenConfig, WorldMapControlSettings mapSettings)
+        {
+            string runtimePath = ResolveRepoPath(Path.Combine("config", "enhanced_world_map_control_server.json"));
+            if (!File.Exists(runtimePath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(runtimePath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var runtime = JsonSerializer.Deserialize<WorldMapRuntimeServerConfig>(json, options);
+                var section = runtime?.WorldMapControl;
+                if (section == null || !section.Enabled)
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(section.ProfilePath))
+                {
+                    worldGenConfig.MapControlProfilePath = section.ProfilePath!;
+                }
+
+                if (section.ProfileVersion > 0)
+                {
+                    worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
+                }
+
+                if (section.Defaults != null)
+                {
+                    if (section.Defaults.RenderDistance > 0)
+                    {
+                        mapSettings.DefaultRenderDistance = Math.Clamp(section.Defaults.RenderDistance.Value, 2, 32);
+                    }
+
+                    if (section.Defaults.MapScale > 0)
+                    {
+                        mapSettings.DefaultMapScale = Math.Clamp(section.Defaults.MapScale.Value, 0.25, 8.0);
+                    }
+
+                    if (section.Defaults.TerrainQuality > 0)
+                    {
+                        mapSettings.DefaultTerrainQuality = Math.Clamp(section.Defaults.TerrainQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.WaterQuality > 0)
+                    {
+                        mapSettings.DefaultWaterQuality = Math.Clamp(section.Defaults.WaterQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.VegetationQuality > 0)
+                    {
+                        mapSettings.DefaultVegetationQuality = Math.Clamp(section.Defaults.VegetationQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.ShowCoordinates.HasValue)
+                    {
+                        mapSettings.DefaultShowCoordinates = section.Defaults.ShowCoordinates.Value;
+                    }
+
+                    if (section.Defaults.ShowBiomeInfo.HasValue)
+                    {
+                        mapSettings.DefaultShowBiomeInfo = section.Defaults.ShowBiomeInfo.Value;
+                    }
+                }
+
+                if (section.TerrainGeneration != null)
+                {
+                    if (section.TerrainGeneration.MaxConcurrentChunkGenerations > 0)
+                    {
+                        mapSettings.MaxConcurrentChunkGenerations = Math.Clamp(section.TerrainGeneration.MaxConcurrentChunkGenerations.Value, 1, 64);
+                    }
+
+                    if (section.TerrainGeneration.UpdateBatchSize > 0)
+                    {
+                        mapSettings.UpdateBatchSize = Math.Clamp(section.TerrainGeneration.UpdateBatchSize.Value, 1, 1024);
+                    }
+
+                    if (section.TerrainGeneration.UpdateIntervalMs > 0)
+                    {
+                        mapSettings.UpdateIntervalMs = Math.Clamp(section.TerrainGeneration.UpdateIntervalMs.Value, 16, 60_000);
+                    }
+                }
+
+                if (section.Cache?.MaxCachedChunks > 0)
+                {
+                    int unloadFromCacheBudget = Math.Max(2, (int)Math.Ceiling(Math.Sqrt(section.Cache.MaxCachedChunks.Value)));
+                    mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, unloadFromCacheBudget);
+                }
+
+                mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
+                Console.WriteLine(
+                    $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlRuntime][WARN] Failed to apply '{runtimePath}': {ex.Message}");
+            }
         }
 
         private static void TryMirrorProfileToStreamingAssets(string profilePath)
@@ -427,6 +537,75 @@ namespace GameServerApp
             
             Console.WriteLine("\nConfiguration file: server-config.json");
             Console.WriteLine("Edit the file and restart the server to apply changes.");
+        }
+
+        private sealed class WorldMapRuntimeServerConfig
+        {
+            [JsonPropertyName("worldMapControl")]
+            public WorldMapControlRuntimeSection? WorldMapControl { get; set; }
+        }
+
+        private sealed class WorldMapControlRuntimeSection
+        {
+            [JsonPropertyName("enabled")]
+            public bool Enabled { get; set; } = true;
+
+            [JsonPropertyName("profilePath")]
+            public string? ProfilePath { get; set; }
+
+            [JsonPropertyName("profileVersion")]
+            public int ProfileVersion { get; set; }
+
+            [JsonPropertyName("defaults")]
+            public WorldMapRuntimeDefaults? Defaults { get; set; }
+
+            [JsonPropertyName("cache")]
+            public WorldMapRuntimeCache? Cache { get; set; }
+
+            [JsonPropertyName("terrainGeneration")]
+            public WorldMapRuntimeTerrainGeneration? TerrainGeneration { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeDefaults
+        {
+            [JsonPropertyName("renderDistance")]
+            public int? RenderDistance { get; set; }
+
+            [JsonPropertyName("mapScale")]
+            public double? MapScale { get; set; }
+
+            [JsonPropertyName("showCoordinates")]
+            public bool? ShowCoordinates { get; set; }
+
+            [JsonPropertyName("showBiomeInfo")]
+            public bool? ShowBiomeInfo { get; set; }
+
+            [JsonPropertyName("terrainQuality")]
+            public int? TerrainQuality { get; set; }
+
+            [JsonPropertyName("waterQuality")]
+            public int? WaterQuality { get; set; }
+
+            [JsonPropertyName("vegetationQuality")]
+            public int? VegetationQuality { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeCache
+        {
+            [JsonPropertyName("maxCachedChunks")]
+            public int? MaxCachedChunks { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeTerrainGeneration
+        {
+            [JsonPropertyName("maxConcurrentChunkGenerations")]
+            public int? MaxConcurrentChunkGenerations { get; set; }
+
+            [JsonPropertyName("updateBatchSize")]
+            public int? UpdateBatchSize { get; set; }
+
+            [JsonPropertyName("updateIntervalMs")]
+            public int? UpdateIntervalMs { get; set; }
         }
     }
 }

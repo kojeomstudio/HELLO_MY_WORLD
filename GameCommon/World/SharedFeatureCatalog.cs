@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-05 (river/lake/cave continuity v15).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-06 (river/lake/cave continuity v16).
         /// </summary>
-        public const string HydrologySignature = "2026-02-05-hydrology-riverlake-cave-v15";
+        public const string HydrologySignature = "2026-02-06-hydrology-riverlake-cave-v16";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -81,8 +81,8 @@ namespace GameCommon.World
         private static readonly List<SharedFeatureDescriptor> features = new()
         {
             new SharedFeatureDescriptor(
-                "S18-CORE-01",
-                "Hydrology Reservoir WorldGen v15",
+                "S19-CORE-01",
+                "Hydrology Reservoir WorldGen v16",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -92,7 +92,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-05-session-45.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"
                 },
                 new[]
                 {
@@ -104,7 +104,7 @@ namespace GameCommon.World
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-CORE-02",
+                "S19-CORE-02",
                 "Shared DLL + Proto Contracts",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
@@ -118,7 +118,7 @@ namespace GameCommon.World
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-CONTENT-01",
+                "S19-CONTENT-01",
                 "Hydrology-Aware Caves",
                 FeatureCategory.Content,
                 FeatureLayer.Server,
@@ -131,7 +131,7 @@ namespace GameCommon.World
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-CONTENT-02",
+                "S19-CONTENT-02",
                 "River Curvature + Hydrology Warp",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
@@ -144,7 +144,7 @@ namespace GameCommon.World
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-CONTENT-03",
+                "S19-CONTENT-03",
                 "Lake Shoreline + Outflow Harmonization",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
@@ -157,7 +157,7 @@ namespace GameCommon.World
                 "in-progress",
                 "medium"),
             new SharedFeatureDescriptor(
-                "S18-UTIL-01",
+                "S19-UTIL-01",
                 "Proto Registry + Fingerprint Validation",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
@@ -171,7 +171,7 @@ namespace GameCommon.World
                 "in-progress",
                 "high"),
                 new SharedFeatureDescriptor(
-                "S18-UTIL-02",
+                "S19-UTIL-02",
                 "Data-Driven Config Parity",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
@@ -179,13 +179,13 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-05-session-45.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"
                 },
                 new[] { HydrologySignature },
                 "in-progress",
                 "high"),
             new SharedFeatureDescriptor(
-                "S18-UTIL-03",
+                "S19-UTIL-03",
                 "Dummy Protocol Client Round-Trip",
                 FeatureCategory.Utility,
                 FeatureLayer.Server,

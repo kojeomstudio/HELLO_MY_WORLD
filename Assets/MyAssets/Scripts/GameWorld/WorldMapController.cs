@@ -27,6 +27,7 @@ namespace GameWorld
         [SerializeField] private Transform playerTransform;
         [SerializeField] private int viewRadiusChunks = 4;
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
+        [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
 
         private const string PipelineVersion = SharedFeatureCatalog.HydrologySignature;
         private WorldMapControlProfile profile = null!;
@@ -50,6 +51,7 @@ namespace GameWorld
             ProtoRuntime.EnsureInitialized();
             ProtoDiagnostics.AssertFingerprint();
             LoadProfile();
+            ApplyRuntimeStreamingOverrides();
             configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
             lastConfigWriteUtc = File.Exists(configPath) ? File.GetLastWriteTimeUtc(configPath) : DateTime.MinValue;
             worldConfig = WorldConfig.Instance;
@@ -58,6 +60,54 @@ namespace GameWorld
             cancellation = new CancellationTokenSource();
             buildSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrentChunkBuilds));
             _ = ProcessQueueAsync(cancellation.Token);
+        }
+
+        private void ApplyRuntimeStreamingOverrides()
+        {
+            if (string.IsNullOrWhiteSpace(runtimeControlConfigFileName))
+            {
+                return;
+            }
+
+            var runtimePath = Path.Combine(Application.streamingAssetsPath, runtimeControlConfigFileName);
+            if (!File.Exists(runtimePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(runtimePath);
+                var runtime = JsonUtility.FromJson<ClientRuntimeRoot>(json);
+                if (runtime?.worldMapControl == null)
+                {
+                    return;
+                }
+
+                if (runtime.worldMapControl.defaults != null && runtime.worldMapControl.defaults.renderDistance > 0)
+                {
+                    viewRadiusChunks = Mathf.Clamp(runtime.worldMapControl.defaults.renderDistance, 1, 16);
+                }
+
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.maxConcurrentChunkRequests > 0)
+                {
+                    maxConcurrentChunkBuilds = Mathf.Clamp(runtime.worldMapControl.performance.maxConcurrentChunkRequests, 1, 64);
+                }
+
+                if (enableDebugLogging)
+                {
+                    Debug.Log(
+                        $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
+                        $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds})");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (enableDebugLogging)
+                {
+                    Debug.LogWarning($"[WorldMapController] Failed to load runtime streaming config '{runtimePath}': {ex.Message}");
+                }
+            }
         }
 
         private void OnDestroy()
@@ -331,6 +381,31 @@ namespace GameWorld
                 return string.Empty;
             }
         }
+
+        [Serializable]
+        private sealed class ClientRuntimeRoot
+        {
+            public ClientRuntimeWorldMapControl worldMapControl = new ClientRuntimeWorldMapControl();
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimeWorldMapControl
+        {
+            public ClientRuntimeDefaults defaults = new ClientRuntimeDefaults();
+            public ClientRuntimePerformance performance = new ClientRuntimePerformance();
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimeDefaults
+        {
+            public int renderDistance = 4;
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimePerformance
+        {
+            public int maxConcurrentChunkRequests = 4;
+        }
     }
 
     /// <summary>
@@ -571,6 +646,10 @@ namespace GameWorld
                         Math.Abs(seamRiver - riverPressure) * worldConfig.Caves.EdgeSealStrength * 0.25,
                         0.0,
                         0.6);
+                    double karstPotential = Math.Clamp(
+                        (1.0 - Math.Clamp(slope * 0.05, 0.0, 0.6)) * (hydrologyEnvelope * 0.6 + flowMemory * 0.4),
+                        0.0,
+                        1.0);
                     double stability = ComputeColumnStability(surface, hydrologySample, riverPressure, flowSample, edgeFactor) * seamStability * continuityClamp;
                     stability *= 1.0 - riparianPenalty * 0.25;
                     stability *= 1.0 - riparianBridge * 0.2;
@@ -584,6 +663,7 @@ namespace GameWorld
                     stability *= 1.0 - hydrologyShadow * 0.1;
                     stability *= 1.0 - aquiferPenalty * 0.3;
                     stability *= 1.0 - divergenceGuard * 0.35;
+                    stability *= 1.0 - Math.Clamp(karstPotential * worldConfig.Caves.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -613,6 +693,8 @@ namespace GameWorld
                         threshold += aquiferPenalty * 0.2;
                         threshold += slopeThresholdPenalty * 0.5;
                         threshold += divergenceGuard * 0.45;
+                        threshold += karstPotential * worldConfig.Caves.CaveEntranceFlowDampening * 0.12;
+                        threshold += Math.Clamp((1.0 - depthFactor) * karstPotential * 0.08, 0.0, 0.15);
                         threshold = Math.Clamp(threshold, 0.22, 0.8);
 
                         if (noise > threshold && stability > 0.08)
@@ -722,6 +804,20 @@ namespace GameWorld
                     pressure *= 1.0 + varianceAssist;
                     pressure *= 1.0 - Math.Clamp(erosion * profile.RiverReliefPenaltyWeight * 0.35, 0.0, 0.35);
                     pressure *= 1.0 - Math.Clamp((erosionMemory + erosion) * profile.RiverBankErosionWeight * 0.25, 0.0, 0.35);
+                    double floodplainAnchor = Math.Clamp(
+                        (hydrologySample + seamHydro + flowSample + flowMemory) * profile.RiverDeltaWetlandStrength * 0.2,
+                        0.0,
+                        0.7);
+                    double avulsionPotential = Math.Clamp(
+                        (hydrologyGradient + Math.Abs(flowSample - seamHydro) + erosion) * profile.RiverConfluenceBoost * 0.2,
+                        0.0,
+                        0.65);
+                    double bankCohesion = 1.0 - Math.Clamp(
+                        (gradient + erosion) * profile.RiverBankStabilityClamp * 0.1,
+                        0.0,
+                        0.55);
+                    pressure = pressure * (1.0 - avulsionPotential * 0.18) + floodplainAnchor * avulsionPotential * 0.12;
+                    pressure *= bankCohesion;
 
                     double headwater = 1.0 - Math.Clamp(flowSample * profile.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
@@ -825,6 +921,11 @@ namespace GameWorld
                     outflowAnchor *= 1.0 + outflowSealWeight * (1.0 - divergencePenalty) * 0.35;
                     outflowAnchor *= 1.0 - flowShadow * 0.4;
                     weight += outflowAnchor;
+                    double catchmentConnectivity = Math.Clamp((seamHydro + flowMemory + flowSample) / 3.0, 0.0, 1.2);
+                    double connectivityAssist = catchmentConnectivity *
+                        (profile.RiverConfluenceBoost * 0.12 + profile.LakeOutflowStabilityWeight * 0.2);
+                    weight += connectivityAssist * (1.0 - flowShadow * 0.35);
+                    weight *= 1.0 - Math.Clamp(Math.Abs(catchmentConnectivity - wetness) * 0.15, 0.0, 0.25);
                     double varianceAssist = Math.Clamp((hydrologyGradient + flowGradient) * profile.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     double seamNormalization = 1.0 - Math.Clamp(hydrologyGradient * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.55);
                     double flowConsistency = 1.0 - Math.Clamp(Math.Abs(flowMemory - flowSample) * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.5);

@@ -1,32 +1,32 @@
 {
   "worldMapControl": {
     "enabled": true,
-    "profilePath": "config/world_map_control_profiles.json",
-    "profileVersion": 1,
+    "profilePath": "config/world_map_control_profile.json",
+    "profileVersion": 19,
     "defaults": {
-      "renderDistance": 4,
+      "renderDistance": 12,
       "mapScale": 1.0,
-      "showCoordinates": false,
-      "showBiomeInfo": false,
-      "terrainQuality": 2,
-      "waterQuality": 2,
-      "vegetationQuality": 2
+      "showCoordinates": true,
+      "showBiomeInfo": true,
+      "terrainQuality": 3,
+      "waterQuality": 3,
+      "vegetationQuality": 3
     },
     "cache": {
-      "maxCachedChunks": 256,
+      "maxCachedChunks": 576,
       "cleanupIntervalSeconds": 60,
       "enableChunkCache": true
     },
     "realTimeUpdates": {
       "enabled": true,
-      "updateIntervalMs": 1000,
+      "updateIntervalMs": 200,
       "broadcastToChunkOnly": true
     },
     "terrainGeneration": {
       "chunkSize": 16,
       "seed": 13371337,
-      "maxConcurrentChunkGenerations": 4,
-      "updateBatchSize": 24,
+      "maxConcurrentChunkGenerations": 8,
+      "updateBatchSize": 48,
       "updateIntervalMs": 100
     }
   }

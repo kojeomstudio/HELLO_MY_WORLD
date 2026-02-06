@@ -32,6 +32,16 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-06: Hydrology v16 + map-control runtime config integration
+
+- Hydrology signature bumped to `2026-02-06-hydrology-riverlake-cave-v16`; world map control profile target version raised to **19**.
+- River/lake/cave generation logic was retuned for floodplain avulsion balancing, lake catchment connectivity, and karst-style cave wetness guards across server and Unity preview paths.
+- Server now consumes `config/enhanced_world_map_control_server.json` at runtime to override map-control defaults/profile path/profile version.
+- Client preview now consumes `Assets/StreamingAssets/enhanced_world_map_control_client.json` for runtime streaming defaults.
+- Dummy protobuf probe now reports generated-descriptor coverage and unbound descriptor names (`GameServer/Testing/DummyProtocolClient.cs`, `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`).
+- Session feature inventory refreshed: `config/minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json`, `docs/2026-02-06-minecraft-feature-core-content-util-session-47.md`.
+- Feature manifest loader now prioritizes the session-47 JSON, and proto probe output separates `Missing required bindings` from `Missing prototype bindings` for optional packet diagnostics.
+
 ### 2026-02-05: Hydrology v15 + map-control profile v18
 
 - Hydrology signature bumped to `2026-02-05-hydrology-riverlake-cave-v15`; map-control profile version raised to **18** with regenerated hash in `config/world_map_control_profile.json` and `Assets/StreamingAssets/world-map-control.json` (world config versions updated accordingly).

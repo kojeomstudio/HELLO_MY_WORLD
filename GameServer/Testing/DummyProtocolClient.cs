@@ -23,11 +23,15 @@ namespace GameServerApp.Testing
         string NetworkError,
         IReadOnlyCollection<string> ValidatedPackets,
         IReadOnlyCollection<string> MissingRequiredPackets,
+        IReadOnlyCollection<string> MissingPrototypePackets,
         IReadOnlyCollection<string> OptionalUnregistered,
         IReadOnlyCollection<string> RegisteredPackets,
         string DescriptorFingerprint,
         string HydrologySignature,
         int RegisteredCount,
+        int GeneratedDescriptorCount,
+        int BoundDescriptorCount,
+        IReadOnlyCollection<string> UnboundGeneratedDescriptors,
         string ReportPath,
         string ReferenceReportPath,
         string ProfileHash,
@@ -114,7 +118,9 @@ namespace GameServerApp.Testing
             string descriptorFingerprint = ProtoFingerprint.ComputeFingerprint();
             probeNetwork |= settings.ProbeNetwork;
             var validatedPackets = new List<string>();
-            var missingBindings = new List<string>();
+            var requiredProbeMissing = new List<string>();
+            var optionalProbeMissing = new List<string>();
+            var missingPrototypePackets = new List<string>();
             var packetsToProbe = new HashSet<MinecraftMessageType>();
 
             if (settings.ValidateAllKnownPackets)
@@ -142,7 +148,15 @@ namespace GameServerApp.Testing
                 if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Missing prototype for '{messageType}'. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
-                    missingBindings.Add(messageType.ToString());
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
                     continue;
                 }
 
@@ -150,7 +164,15 @@ namespace GameServerApp.Testing
                 if (descriptorParser == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
-                    missingBindings.Add(messageType.ToString());
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
                     continue;
                 }
 
@@ -164,13 +186,29 @@ namespace GameServerApp.Testing
                     }
                     else
                     {
-                        missingBindings.Add(messageType.ToString());
+                        missingPrototypePackets.Add(messageType.ToString());
+                        if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                        {
+                            optionalProbeMissing.Add(messageType.ToString());
+                        }
+                        else
+                        {
+                            requiredProbeMissing.Add(messageType.ToString());
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Round-trip failed for '{messageType}': {ex.Message}");
-                    missingBindings.Add(messageType.ToString());
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
                 }
             }
 
@@ -228,8 +266,22 @@ namespace GameServerApp.Testing
             var requiredMissing = ProtocolRegistry.GetUnregisteredRequiredMessages()
                 .Select(type => type.ToString())
                 .ToList();
+            requiredMissing.AddRange(requiredProbeMissing);
+            requiredMissing = requiredMissing
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
             var optionalMissing = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
                 .Select(type => type.ToString())
+                .ToList();
+            optionalMissing.AddRange(optionalProbeMissing);
+            optionalMissing = optionalMissing
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            missingPrototypePackets = missingPrototypePackets
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (requiredMissing.Count > 0)
             {
@@ -240,9 +292,10 @@ namespace GameServerApp.Testing
             {
                 Console.WriteLine($"[ProtoProbe][INFO] Optional protocol bindings not registered: {string.Join(", ", optionalMissing)}");
             }
-
-            var missing = new HashSet<string>(requiredMissing, StringComparer.OrdinalIgnoreCase);
-            missing.UnionWith(missingBindings);
+            if (missingPrototypePackets.Count > 0)
+            {
+                Console.WriteLine($"[ProtoProbe][WARN] Prototype resolution failed for: {string.Join(", ", missingPrototypePackets)}");
+            }
             var reportPath = string.IsNullOrWhiteSpace(settings.OutputReportPath)
                 ? string.Empty
                 : Path.GetFullPath(settings.OutputReportPath);
@@ -253,6 +306,8 @@ namespace GameServerApp.Testing
             string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
             string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
             int profileVersion = sharedProfile?.Version ?? 0;
+            var coverage = ProtocolRegistry.GetBindingCoverage();
+            var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
 
             var result = new ProtoProbeResult(
                 roundTripOk,
@@ -261,12 +316,16 @@ namespace GameServerApp.Testing
                 networkOk,
                 networkError,
                 validatedPackets.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
-                missing.ToArray(),
+                requiredMissing,
+                missingPrototypePackets,
                 optionalMissing,
                 registeredPackets,
                 descriptorFingerprint,
                 hydrologySignature,
                 registeredCount,
+                coverage.GeneratedDescriptors,
+                coverage.BoundDescriptors,
+                unboundGeneratedDescriptors,
                 reportPath,
                 referenceReportPath,
                 profileHash,
@@ -275,7 +334,8 @@ namespace GameServerApp.Testing
 
             Console.WriteLine(
                 $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
-                $"Validated={validatedPackets.Count} Missing={missing.Count} OptionalMissing={optionalMissing.Count} " +
+                $"Validated={validatedPackets.Count} Missing={requiredMissing.Count} MissingPrototype={missingPrototypePackets.Count} OptionalMissing={optionalMissing.Count} " +
+                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} " +
                 $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
                 $"DescriptorFingerprint={descriptorFingerprint}");
 

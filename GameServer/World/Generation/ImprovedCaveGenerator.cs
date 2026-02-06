@@ -175,6 +175,12 @@ namespace GameServerApp.World.Generation
                     stability *= continuityStabilizer;
                     stability = stability * (1.0 - riparianGuard * 0.1) + stability * (1.0 + seamMemoryBoost) * 0.1;
                     stability *= 1.0 - divergenceGuard * 0.35;
+                    double karstPotential = Math.Clamp(
+                        (1.0 - Math.Clamp(slope * 0.05, 0.0, 0.6)) * (hydrologyEnvelope * 0.6 + flowMemory * 0.4),
+                        0.0,
+                        1.0);
+                    double roofKarstGuard = Math.Clamp(karstPotential * config.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
+                    stability *= 1.0 - roofKarstGuard;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -261,6 +267,8 @@ namespace GameServerApp.World.Generation
                         threshold += roofGuard * config.EdgeSealStrength * 0.2;
                         threshold += ceilingHydration;
                         threshold += divergenceBrake * config.FlowStabilityWeight * 0.2;
+                        threshold += karstPotential * config.CaveEntranceFlowDampening * 0.12;
+                        threshold += Math.Clamp((1.0 - depthFactor) * karstPotential * 0.08, 0.0, 0.15);
                         if (y >= surface - Math.Max(2, config.RiparianPlugDepth) && riparianSuppression > 0.2)
                         {
                             continue;

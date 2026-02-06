@@ -60,7 +60,7 @@ public static class ProtocolRegistry
     {
         var all = Enum.GetValues(typeof(MinecraftMessageType)).Cast<MinecraftMessageType>();
         return all
-            .Where(type => !IsRegistered(type) && !ProtocolValidator.IsOptionalMessage(type))
+            .Where(type => !IsRegistered(type) && !OptionalMessageTypes.Contains(type))
             .ToArray();
     }
 
@@ -70,6 +70,9 @@ public static class ProtocolRegistry
             .Where(type => !IsRegistered(type))
             .ToArray();
     }
+
+    public static bool IsOptionalMessageType(MinecraftMessageType messageType) =>
+        OptionalMessageTypes.Contains(messageType);
 
     /// <summary>
     /// Throws if the provided message type is not registered. This is useful for early validation
@@ -107,6 +110,35 @@ public static class ProtocolRegistry
 
     internal static IEnumerable<(MinecraftMessageType MessageType, string DescriptorName)> RegisteredDescriptors =>
         Bindings.Select(binding => (binding.MessageType, binding.DescriptorName));
+
+    /// <summary>
+    /// Returns generated protobuf message descriptors that are currently not mapped by ProtocolRegistry.
+    /// This helps validate that newly generated contracts are intentionally optional or still pending wiring.
+    /// </summary>
+    public static IReadOnlyCollection<string> GetGeneratedDescriptorsWithoutBindings()
+    {
+        var generated = EnhancedMinecraftGameReflection.Descriptor?.MessageTypes
+            .Select(descriptor => descriptor.Name)
+            .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
+        var bound = Bindings
+            .Select(binding => binding.DescriptorName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return generated
+            .Where(name => !bound.Contains(name))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Returns protocol binding coverage against generated EnhancedMinecraft descriptors.
+    /// </summary>
+    public static (int BoundDescriptors, int GeneratedDescriptors) GetBindingCoverage()
+    {
+        int generated = EnhancedMinecraftGameReflection.Descriptor?.MessageTypes.Count ?? 0;
+        int bound = Bindings.Length;
+        return (bound, generated);
+    }
 
     public static void ValidateBindings()
     {

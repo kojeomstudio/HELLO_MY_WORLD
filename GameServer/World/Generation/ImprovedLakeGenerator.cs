@@ -161,6 +161,11 @@ namespace GameServerApp.World.Generation
                     double stabilitySeal = 1.0 + outflowSealWeight * (1.0 - divergencePenalty) * 0.35;
                     outflowAnchor *= (1.0 + downhillBias * 0.05) * stabilitySeal;
                     weight += outflowAnchor * (1.0 - flowShadow * 0.5);
+                    double catchmentConnectivity = Math.Clamp((seamHydro + flowMemory + downhillFlow) / 3.0, 0.0, 1.2);
+                    double connectivityAssist = catchmentConnectivity *
+                        (waterConfig.RiverConfluenceBoost * 0.12 + outflowStabilityWeight * 0.2);
+                    weight += connectivityAssist * (1.0 - flowShadow * 0.35);
+                    weight *= 1.0 - Math.Clamp(Math.Abs(catchmentConnectivity - wetness) * 0.15, 0.0, 0.25);
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);

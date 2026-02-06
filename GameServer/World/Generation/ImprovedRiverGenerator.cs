@@ -199,6 +199,20 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + varianceAssist;
                     pressure *= erosionBrake;
                     pressure *= 1.0 - Math.Clamp(erosion * reliefPenalty * 0.25, 0.0, 0.25);
+                    double floodplainAnchor = Math.Clamp(
+                        (hydrology + seamHydro + flow + flowMemory) * config.RiverDeltaWetlandStrength * 0.2,
+                        0.0,
+                        0.7);
+                    double avulsionPotential = Math.Clamp(
+                        (hydrologyVariance + flowVariance + erosion) * config.RiverConfluenceBoost * 0.2,
+                        0.0,
+                        0.65);
+                    double bankCohesion = 1.0 - Math.Clamp(
+                        (gradient + erosion) * config.RiverBankStabilityClamp * 0.1,
+                        0.0,
+                        0.55);
+                    pressure = pressure * (1.0 - avulsionPotential * 0.18) + floodplainAnchor * avulsionPotential * 0.12;
+                    pressure *= bankCohesion;
 
                     double flowBridge = (hydrology + seamHydro + flowMemory) * config.HydrologyEdgeFlowBias * 0.15;
                     double flowLockWeight = Math.Clamp(config.HydrologyEdgeFlowLockWeight, 0.0, 1.0);

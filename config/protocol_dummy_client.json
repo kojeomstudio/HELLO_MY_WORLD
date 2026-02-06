@@ -4,6 +4,7 @@
   "connectTimeoutMs": 750,
   "receiveTimeoutMs": 750,
   "roundTripCount": 3,
+  "maxNetworkProbePackets": 4,
   "probeNetwork": false,
   "validateAllKnownPackets": true,
   "includeOptionalMessages": true,

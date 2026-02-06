@@ -15,6 +15,16 @@ using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp.Testing
 {
+    public sealed record ProtoProbePacketDiagnostic(
+        string MessageType,
+        bool IsOptional,
+        bool IsRegistered,
+        bool PrototypeResolved,
+        bool RoundTripOk,
+        string DescriptorName,
+        string DescriptorPackage,
+        string ErrorMessage);
+
     public sealed record ProtoProbeResult(
         bool RoundTripOk,
         string DescriptorName,
@@ -36,7 +46,8 @@ namespace GameServerApp.Testing
         string ReferenceReportPath,
         string ProfileHash,
         int ProfileVersion,
-        string ProfilePath);
+        string ProfilePath,
+        IReadOnlyCollection<ProtoProbePacketDiagnostic> PacketDiagnostics);
 
     public sealed class DummyProtocolClientSettings
     {
@@ -48,6 +59,7 @@ namespace GameServerApp.Testing
         public bool ProbeNetwork { get; set; } = false;
         public bool ValidateAllKnownPackets { get; set; } = true;
         public bool IncludeOptionalMessages { get; set; } = false;
+        public int MaxNetworkProbePackets { get; set; } = 4;
         public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
         public string? ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
         public string? WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
@@ -90,6 +102,7 @@ namespace GameServerApp.Testing
         public async Task<ProtoProbeResult> RunAsync(bool probeNetwork, CancellationToken cancellationToken)
         {
             ProtocolRegistry.ValidateBindings();
+            ProtocolValidator.ValidateEnhancedContracts();
             ProtoDiagnostics.AssertFingerprint();
             ProtoDiagnostics.AssertRegistryClean();
             WorldMapControlProfile? sharedProfile = null;
@@ -121,6 +134,8 @@ namespace GameServerApp.Testing
             var requiredProbeMissing = new List<string>();
             var optionalProbeMissing = new List<string>();
             var missingPrototypePackets = new List<string>();
+            var packetDiagnostics = new List<ProtoProbePacketDiagnostic>();
+            var networkProbePayloads = new List<byte[]>();
             var packetsToProbe = new HashSet<MinecraftMessageType>();
 
             if (settings.ValidateAllKnownPackets)
@@ -137,6 +152,15 @@ namespace GameServerApp.Testing
                 if (!Enum.TryParse(packetName, ignoreCase: true, out MinecraftMessageType messageType))
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Unknown packet '{packetName}' in config. Skipping.");
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        packetName,
+                        IsOptional: false,
+                        IsRegistered: false,
+                        PrototypeResolved: false,
+                        RoundTripOk: false,
+                        DescriptorName: string.Empty,
+                        DescriptorPackage: string.Empty,
+                        ErrorMessage: "Unknown message type in config."));
                     continue;
                 }
 
@@ -145,11 +169,12 @@ namespace GameServerApp.Testing
 
             foreach (var messageType in packetsToProbe)
             {
+                bool isOptional = ProtocolRegistry.IsOptionalMessageType(messageType);
                 if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Missing prototype for '{messageType}'. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
                     missingPrototypePackets.Add(messageType.ToString());
-                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    if (isOptional)
                     {
                         optionalProbeMissing.Add(messageType.ToString());
                     }
@@ -157,15 +182,27 @@ namespace GameServerApp.Testing
                     {
                         requiredProbeMissing.Add(messageType.ToString());
                     }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: ProtocolRegistry.IsRegistered(messageType),
+                        PrototypeResolved: false,
+                        RoundTripOk: false,
+                        DescriptorName: string.Empty,
+                        DescriptorPackage: string.Empty,
+                        ErrorMessage: "Prototype not resolved from ProtocolRegistry."));
                     continue;
                 }
 
                 var descriptorParser = prototype.Descriptor?.Parser;
+                string descriptorName = prototype.Descriptor?.Name ?? string.Empty;
+                string descriptorPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
                 if (descriptorParser == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
                     missingPrototypePackets.Add(messageType.ToString());
-                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    if (isOptional)
                     {
                         optionalProbeMissing.Add(messageType.ToString());
                     }
@@ -173,6 +210,16 @@ namespace GameServerApp.Testing
                     {
                         requiredProbeMissing.Add(messageType.ToString());
                     }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: "Descriptor parser missing."));
                     continue;
                 }
 
@@ -183,11 +230,25 @@ namespace GameServerApp.Testing
                     if (parsed != null)
                     {
                         validatedPackets.Add(messageType.ToString());
+                        if (bytes.Length > 0)
+                        {
+                            networkProbePayloads.Add(bytes);
+                        }
+
+                        packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                            messageType.ToString(),
+                            isOptional,
+                            IsRegistered: true,
+                            PrototypeResolved: true,
+                            RoundTripOk: true,
+                            DescriptorName: descriptorName,
+                            DescriptorPackage: descriptorPackage,
+                            ErrorMessage: string.Empty));
                     }
                     else
                     {
                         missingPrototypePackets.Add(messageType.ToString());
-                        if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                        if (isOptional)
                         {
                             optionalProbeMissing.Add(messageType.ToString());
                         }
@@ -195,13 +256,23 @@ namespace GameServerApp.Testing
                         {
                             requiredProbeMissing.Add(messageType.ToString());
                         }
+
+                        packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                            messageType.ToString(),
+                            isOptional,
+                            IsRegistered: true,
+                            PrototypeResolved: true,
+                            RoundTripOk: false,
+                            DescriptorName: descriptorName,
+                            DescriptorPackage: descriptorPackage,
+                            ErrorMessage: "Descriptor parser returned null payload."));
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Round-trip failed for '{messageType}': {ex.Message}");
                     missingPrototypePackets.Add(messageType.ToString());
-                    if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                    if (isOptional)
                     {
                         optionalProbeMissing.Add(messageType.ToString());
                     }
@@ -209,6 +280,16 @@ namespace GameServerApp.Testing
                     {
                         requiredProbeMissing.Add(messageType.ToString());
                     }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: ex.Message));
                 }
             }
 
@@ -228,6 +309,38 @@ namespace GameServerApp.Testing
             if (roundTripOk)
             {
                 validatedPackets.Add(nameof(ChunkLoadRequest));
+                packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                    nameof(ChunkLoadRequest),
+                    IsOptional: false,
+                    IsRegistered: true,
+                    PrototypeResolved: true,
+                    RoundTripOk: true,
+                    DescriptorName: ChunkLoadRequest.Descriptor.Name,
+                    DescriptorPackage: ChunkLoadRequest.Descriptor.File.Package,
+                    ErrorMessage: string.Empty));
+            }
+            else
+            {
+                packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                    nameof(ChunkLoadRequest),
+                    IsOptional: false,
+                    IsRegistered: true,
+                    PrototypeResolved: true,
+                    RoundTripOk: false,
+                    DescriptorName: ChunkLoadRequest.Descriptor.Name,
+                    DescriptorPackage: ChunkLoadRequest.Descriptor.File.Package,
+                    ErrorMessage: "Sample chunk request round-trip failed."));
+            }
+
+            networkProbePayloads.Insert(0, payload);
+            int maxProbePackets = Math.Max(1, settings.MaxNetworkProbePackets);
+            var selectedProbePayloads = networkProbePayloads
+                .Where(bytes => bytes.Length > 0)
+                .Take(maxProbePackets)
+                .ToArray();
+            if (selectedProbePayloads.Length == 0)
+            {
+                selectedProbePayloads = new[] { payload };
             }
 
             bool networkAttempted = false;
@@ -250,9 +363,12 @@ namespace GameServerApp.Testing
                     await using NetworkStream stream = client.GetStream();
                     for (int i = 0; i < Math.Max(1, settings.RoundTripCount); i++)
                     {
-                        byte[] lengthPrefix = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(payload.Length));
-                        await stream.WriteAsync(lengthPrefix, cancellationToken);
-                        await stream.WriteAsync(payload, cancellationToken);
+                        foreach (var probePayload in selectedProbePayloads)
+                        {
+                            byte[] lengthPrefix = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(probePayload.Length));
+                            await stream.WriteAsync(lengthPrefix, cancellationToken);
+                            await stream.WriteAsync(probePayload, cancellationToken);
+                        }
                     }
 
                     networkOk = true;
@@ -330,12 +446,13 @@ namespace GameServerApp.Testing
                 referenceReportPath,
                 profileHash,
                 profileVersion,
-                profilePath);
+                profilePath,
+                packetDiagnostics);
 
             Console.WriteLine(
                 $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
                 $"Validated={validatedPackets.Count} Missing={requiredMissing.Count} MissingPrototype={missingPrototypePackets.Count} OptionalMissing={optionalMissing.Count} " +
-                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} " +
+                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} PacketDiagnostics={packetDiagnostics.Count} " +
                 $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
                 $"DescriptorFingerprint={descriptorFingerprint}");
 

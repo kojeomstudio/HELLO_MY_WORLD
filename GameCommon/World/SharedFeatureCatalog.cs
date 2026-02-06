@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-06 (river/lake/cave continuity v16).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-06 (river/lake/cave continuity v17).
         /// </summary>
-        public const string HydrologySignature = "2026-02-06-hydrology-riverlake-cave-v16";
+        public const string HydrologySignature = "2026-02-06-hydrology-riverlake-cave-v17";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,7 +82,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology Reservoir WorldGen v16",
+                "Hydrology Reservoir WorldGen v17",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]

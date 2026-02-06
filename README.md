@@ -32,6 +32,38 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-06: Session 49 - Hydrology v17 + Map-Control Profile v20 + Proto Diagnostics
+
+**Status:** COMPLETED
+
+- Hydrology signature bumped to `2026-02-06-hydrology-riverlake-cave-v17` (`GameCommon/World/SharedFeatureCatalog.cs`).
+- World map control profile target version raised to **20** (`GameServer/World/WorldGenerationConfig.cs`, `config/world.json`, `Assets/StreamingAssets/world-config.json`).
+- Applied additional terrain coupling passes:
+  - `ImprovedTerrainCoordinator`: confluence-memory hydrology pass.
+  - `ImprovedRiverGenerator`: confluence continuity memory pass.
+  - `ImprovedLakeGenerator`: spillway continuity pass.
+  - `ImprovedCaveGenerator`: aquifer continuity sealing pass.
+- Improved world map signature parity by using effective profile values on both server/client signature builders (`GameServer/World/WorldMapControlManager.cs`, `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`).
+- Dummy protobuf probe report enhanced with per-packet diagnostics (`PacketDiagnostics`) and bounded multi-payload network probe support (`maxNetworkProbePackets` in `config/protocol_dummy_client.json`).
+- Session 49 Core/Content/Utility inventory added and wired as top-priority manifest:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json`
+  - `GameServer/Program.cs` manifest lookup priority updated.
+- Regenerated and mirrored map profile:
+  - `config/world_map_control_profile.json` (version 20, v17 signature)
+  - `Assets/StreamingAssets/world-map-control.json`
+
+**Validation Commands**
+- `dotnet build SharedProtocol/SharedProtocol.csproj`
+- `dotnet build GameCommon/GameCommon.csproj`
+- `dotnet build GameServer/GameServer.csproj`
+- `dotnet test GameServer/GameServer.csproj`
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+
+**Session Docs**
+- Plan: `plans/2026-02-06-session-49-comprehensive-implementation-plan.md`
+- Report: `docs/2026-02-06-session-49-worldgen-mapcontrol-proto-update.md`
+
 ### 2026-02-06: Session 48 - Comprehensive Architecture Review & Validation
 
 **Status:** ✅ COMPLETED
@@ -688,6 +720,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-02
-
 
 

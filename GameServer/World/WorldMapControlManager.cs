@@ -346,6 +346,13 @@ namespace GameServerApp.World
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtocolRegistry.ValidateBindings();
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
+            int effectiveChunkSize = controlProfile?.ChunkSize > 0 ? controlProfile.ChunkSize : generationConfig.ChunkSize;
+            int effectiveRenderDistance = controlProfile?.RenderDistance > 0 ? controlProfile.RenderDistance : generationConfig.RenderDistance;
+            int effectiveSimulationDistance = controlProfile?.SimulationDistance > 0 ? controlProfile.SimulationDistance : generationConfig.SimulationDistance;
+            int effectiveGlobalWaterLevel = controlProfile?.GlobalWaterLevel > 0 ? controlProfile.GlobalWaterLevel : generationConfig.Water.GlobalWaterLevel;
+            string effectiveHydrologySignature = string.IsNullOrWhiteSpace(controlProfile?.HydrologySignature)
+                ? SharedFeatureCatalog.HydrologySignature
+                : controlProfile!.HydrologySignature;
             var context = new WorldMapSignatureContext(
                 PipelineVersion,
                 generationConfig.WorldName,
@@ -354,12 +361,12 @@ namespace GameServerApp.World
                 ProtoFingerprint.ComputeFingerprint(),
                 controlProfile?.Version ?? generationConfig.MapControlProfileVersion,
                 controlProfile?.ProfileHash ?? "no-profile",
-                controlProfile?.HydrologySignature ?? SharedFeatureCatalog.HydrologySignature,
-                generationConfig.ChunkSize,
+                effectiveHydrologySignature,
+                effectiveChunkSize,
                 generationConfig.WorldHeight,
-                generationConfig.RenderDistance,
-                generationConfig.SimulationDistance,
-                generationConfig.Water.GlobalWaterLevel,
+                effectiveRenderDistance,
+                effectiveSimulationDistance,
+                effectiveGlobalWaterLevel,
                 generationConfig.TerrainGeneration.SeaLevel,
                 generationConfig.Water.HydrologyFlowPersistence,
                 generationConfig.Water.HydrologyFlowGain,

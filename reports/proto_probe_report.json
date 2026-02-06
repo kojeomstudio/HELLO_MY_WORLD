@@ -63,7 +63,7 @@
     "WeatherChange"
   ],
   "DescriptorFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
-  "HydrologySignature": "2026-02-06-hydrology-riverlake-cave-v16",
+  "HydrologySignature": "2026-02-06-hydrology-riverlake-cave-v17",
   "RegisteredCount": 14,
   "GeneratedDescriptorCount": 54,
   "BoundDescriptorCount": 14,
@@ -111,7 +111,259 @@
   ],
   "ReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\reports\\proto_probe_report.json",
   "ReferenceReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\proto_reference_report.json",
-  "ProfileHash": "0060aad0143649e32d206aa5a385ec34974ccb128ccd2103988da45e633b66e0",
-  "ProfileVersion": 19,
-  "ProfilePath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\world_map_control_profile.json"
+  "ProfileHash": "4231dc601a463c9fa43319971aaedaf91f4829a00d12f1bb2d8f19546b3aa049",
+  "ProfileVersion": 20,
+  "ProfilePath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\world_map_control_profile.json",
+  "PacketDiagnostics": [
+    {
+      "MessageType": "PlayerStateUpdate",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "PlayerInfo",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "PlayerActionRequest",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "PlayerActionRequest",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "PlayerActionResponse",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "PlayerActionResponse",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "ChunkDataRequest",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ChunkLoadRequest",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "ChunkDataResponse",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ChunkLoadResponse",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "ChunkUnloadNotification",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ChunkUnloadNotification",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "ChunkUnloadAcknowledge",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ChunkUnloadAck",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "BlockChangeNotification",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "BlockChangeBroadcast",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "EntitySpawn",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "EntitySpawnBroadcast",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "EntityDespawn",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "EntityDespawnBroadcast",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "TimeUpdate",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "TimeUpdateBroadcast",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "WeatherChange",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "WeatherUpdateBroadcast",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "SoundEffect",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "SoundEffect",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "ParticleEffect",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ParticleEffect",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    },
+    {
+      "MessageType": "MultiBlockChange",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "InventoryUpdate",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ItemUse",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ItemDrop",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ItemPickup",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "EntityUpdate",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "EntityInteract",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ContainerOpen",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ContainerClose",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ContainerUpdate",
+      "IsOptional": true,
+      "IsRegistered": false,
+      "PrototypeResolved": false,
+      "RoundTripOk": false,
+      "DescriptorName": "",
+      "DescriptorPackage": "",
+      "ErrorMessage": "Prototype not resolved from ProtocolRegistry."
+    },
+    {
+      "MessageType": "ChunkLoadRequest",
+      "IsOptional": false,
+      "IsRegistered": true,
+      "PrototypeResolved": true,
+      "RoundTripOk": true,
+      "DescriptorName": "ChunkLoadRequest",
+      "DescriptorPackage": "EnhancedMinecraftProtocol",
+      "ErrorMessage": ""
+    }
+  ]
 }

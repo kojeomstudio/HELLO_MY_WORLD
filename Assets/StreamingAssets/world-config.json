@@ -1,4 +1,4 @@
-{
+﻿{
   "WorldName": "HELLO_MY_WORLD",
   "Seed": 0,
   "GameMode": "survival",
@@ -7,7 +7,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 12,
   "MapControlProfilePath": "config/world_map_control_profile.json",
-  "MapControlProfileVersion": 19,
+  "MapControlProfileVersion": 20,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,

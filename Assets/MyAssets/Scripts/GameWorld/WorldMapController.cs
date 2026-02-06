@@ -482,6 +482,13 @@ namespace GameWorld
         {
             ProtoDiagnostics.AssertFingerprint();
             ProtocolRegistry.ValidateBindings();
+            int effectiveChunkSize = controlProfile.ChunkSize > 0 ? controlProfile.ChunkSize : config.ChunkSize;
+            int effectiveRenderDistance = controlProfile.RenderDistance > 0 ? controlProfile.RenderDistance : config.RenderDistance;
+            int effectiveSimulationDistance = controlProfile.SimulationDistance > 0 ? controlProfile.SimulationDistance : config.SimulationDistance;
+            int effectiveGlobalWaterLevel = controlProfile.GlobalWaterLevel > 0 ? controlProfile.GlobalWaterLevel : config.Water.GlobalWaterLevel;
+            string effectiveHydrologySignature = string.IsNullOrEmpty(controlProfile.HydrologySignature)
+                ? SharedFeatureCatalog.HydrologySignature
+                : controlProfile.HydrologySignature;
             var context = new WorldMapSignatureContext(
                 PipelineVersion,
                 config.WorldName,
@@ -490,12 +497,12 @@ namespace GameWorld
                 ProtoFingerprint.ComputeFingerprint(),
                 controlProfile.Version,
                 controlProfile.ProfileHash,
-                string.IsNullOrEmpty(controlProfile.HydrologySignature) ? SharedFeatureCatalog.HydrologySignature : controlProfile.HydrologySignature,
-                controlProfile.ChunkSize,
+                effectiveHydrologySignature,
+                effectiveChunkSize,
                 config.WorldHeight,
-                config.RenderDistance,
-                config.SimulationDistance,
-                controlProfile.GlobalWaterLevel,
+                effectiveRenderDistance,
+                effectiveSimulationDistance,
+                effectiveGlobalWaterLevel,
                 config.Terrain.SeaLevel,
                 config.Water.HydrologyFlowPersistence,
                 config.Water.HydrologyFlowGain,

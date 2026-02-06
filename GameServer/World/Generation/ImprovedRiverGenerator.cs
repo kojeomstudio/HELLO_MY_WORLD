@@ -281,6 +281,7 @@ namespace GameServerApp.World.Generation
                 config.HydrologyEdgeNormalizationIterations,
                 config.HydrologyEdgeNormalizationBlend);
             ApplyRiparianEdgeFeather(mask, hydrologyMask, flowAccumulation);
+            ApplyConfluenceMemory(mask, hydrologyMask, flowAccumulation);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -315,6 +316,50 @@ namespace GameServerApp.World.Generation
                     double target = copy[x, z] * (1.0 - blend) + interior * blend;
                     target = Math.Clamp(target * (1.0 - guard), copy[x, z] - clampRange, copy[x, z] + clampRange);
                     mask[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
+        }
+
+        private void ApplyConfluenceMemory(float[,] mask, float[,] hydrology, float[,] flow)
+        {
+            double confluenceBoost = Math.Clamp(config.RiverConfluenceBoost, 0.0, 2.0);
+            if (confluenceBoost <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+            double continuityWeight = Math.Clamp(config.RiverEdgeContinuityWeight, 0.0, 1.0);
+            double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            int edgeRadius = Math.Max(1, config.HydrologyEdgeBlendRadius);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double flowSample = flow[x, z] / 6.0;
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0;
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double hydrologySample = hydrology[x, z];
+                    double divergence = Math.Min(1.0, Math.Abs(flowSample - seamFlow) / divergenceClamp);
+                    double confluenceSeed = Math.Clamp((flowSample + seamFlow) * 0.5 + seamHydro * 0.35, 0.0, 1.0);
+                    if (confluenceSeed <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double gradient = Math.Abs(seamHydro - hydrologySample);
+                    double bridge = confluenceSeed * confluenceBoost * (0.1 + continuityWeight * 0.25 + flowMemoryWeight * 0.2);
+                    bridge *= 1.0 - Math.Clamp(divergence * 0.35 + gradient * 0.3, 0.0, 0.55);
+                    bridge *= 1.0 + edgeFalloff * continuityWeight * 0.15;
+
+                    double target = copy[x, z] + bridge;
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
                 }
             }
         }

@@ -238,6 +238,7 @@ namespace GameServerApp.World.Generation
             ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
+            ApplySpillwayContinuity(lakes, heightMap, flowAccumulation, riverMask);
             return lakes;
         }
 
@@ -474,6 +475,54 @@ namespace GameServerApp.World.Generation
             }
 
             Array.Copy(buffer, lakes, buffer.Length);
+        }
+
+        private void ApplySpillwayContinuity(float[,] lakes, int[,] heightMap, float[,] flow, float[,]? riverMask)
+        {
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+            double inflowBlend = Math.Clamp(waterConfig.LakeInflowBlendWeight, 0.0, 1.0);
+            double outflowSeal = Math.Clamp(lakeConfig.OutflowSealWeight, 0.0, 1.0);
+            double stability = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            int spillDepth = Math.Max(1, lakeConfig.OutflowCarveDepth + 1);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float lakeStrength = copy[x, z];
+                    if (lakeStrength <= 0.3f)
+                    {
+                        continue;
+                    }
+
+                    int cx = x;
+                    int cz = z;
+                    float memory = lakeStrength;
+                    float flowMemory = flow[x, z];
+                    for (int step = 0; step < spillDepth; step++)
+                    {
+                        var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, cx, cz);
+                        if (downhill == (0, 0))
+                        {
+                            break;
+                        }
+
+                        cx = Math.Clamp(cx + downhill.X, 0, sizeX - 1);
+                        cz = Math.Clamp(cz + downhill.Z, 0, sizeZ - 1);
+                        float riverAssist = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[cx, cz]) : 0f;
+                        float channelFlow = flow[cx, cz];
+                        float flowGradient = Math.Abs(channelFlow - flowMemory);
+                        float channelBias = TerrainMaskUtility.Clamp01((float)(inflowBlend * 0.35 + outflowSeal * 0.25 + stability * 0.2));
+                        float continuity = TerrainMaskUtility.Clamp01(1f - flowGradient * (float)(stability * 0.2));
+                        float spill = TerrainMaskUtility.Clamp01(memory * (0.7f + channelBias * 0.3f) * continuity + riverAssist * 0.2f);
+                        lakes[cx, cz] = Math.Max(lakes[cx, cz], spill);
+                        memory = spill;
+                        flowMemory = channelFlow;
+                    }
+                }
+            }
         }
     }
 }

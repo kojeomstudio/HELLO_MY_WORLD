@@ -82,7 +82,7 @@ namespace GameServerApp
 
             if (args.Contains("--proto-probe"))
             {
-                await RunDummyProtocolProbeAsync(probeNetwork: true, CancellationToken.None);
+                await RunDummyProtocolProbeAsync(probeNetwork: false, CancellationToken.None);
                 return 0;
             }
             
@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-53.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-51.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"),

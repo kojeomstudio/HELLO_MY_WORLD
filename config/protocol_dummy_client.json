@@ -7,7 +7,7 @@
   "maxNetworkProbePackets": 4,
   "probeNetwork": false,
   "validateAllKnownPackets": true,
-  "includeOptionalMessages": true,
+  "includeOptionalMessages": false,
   "outputReportPath": "reports/proto_probe_report.json",
   "referenceReportPath": "config/proto_reference_report.json",
   "worldMapControlProfilePath": "config/world_map_control_profile.json",

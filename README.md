@@ -32,6 +32,50 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-07: Session 53 - Watershed Retention v18 + Map Control Profile v22 + Proto Required-Coverage Diagnostics
+
+**Status:** COMPLETED
+
+- Terrain generation continuity improvements applied for cave/river/lake coupling by adding a watershed-retention pass after confluence-memory:
+  - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+  - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture hardened on server reload path:
+  - empty profile-hash self-heal on profile load
+  - map-control profile version downgrade prevention during config reload
+  - file: `GameServer/World/WorldMapControlManager.cs`
+- Hydrology and profile baseline updated:
+  - signature: `2026-02-07-hydrology-riverlake-cave-v18`
+  - profile version: `22`
+  - files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf diagnostics extended with required-only unbound descriptor coverage:
+  - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
+  - `GameServer/Testing/DummyProtocolClient.cs`
+  - `reports/proto_probe_report.json`
+- Session-53 Core/Content/Utility manifest added and prioritized by loader:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-07-session-53.json`
+  - `GameServer/Program.cs`
+
+**Validation:**
+
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (profile v22 generated)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (required bindings missing: 0)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+
+**Documentation:**
+
+- Work plan: `plans/2026-02-07-session-53-comprehensive-work-plan.md`
+- Feature inventory: `docs/2026-02-07-session-53-minecraft-feature-core-content-util.md`
+- Session report: `docs/2026-02-07-session-53-worldgen-mapcontrol-proto-update.md`
+
 ### 2026-02-07: Session 51 - Spillway Continuity + Signature Parity v21 + Proto Reference Diagnostics
 
 **Status:** COMPLETED

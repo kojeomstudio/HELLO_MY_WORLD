@@ -456,6 +456,7 @@ namespace GameWorld
             var erosionRisk = BuildErosionRiskMask(heightMap, hydrology, flow);
             ApplyErosionDamping(hydrology, flow, erosionRisk);
             ApplyHydrologyMomentum(heightMap, hydrology, flow, erosionRisk);
+            ApplyWatershedRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplySubterraneanHydrologyShield(heightMap, hydrology, flow, erosionRisk);
             ApplyRiparianFlowBridge(heightMap, hydrology, flow, erosionRisk);
 
@@ -1456,6 +1457,65 @@ namespace GameWorld
                     flow[x, z] = Mathf.Clamp((float)blendedFlow, 0f, 1.35f);
                 }
             }
+        }
+
+        private void ApplyWatershedRetentionField(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            double persistence = Math.Clamp(worldConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double flowMemoryWeight = Math.Clamp(worldConfig.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double continuityWeight = Math.Clamp(worldConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double edgeBlend = Math.Clamp(worldConfig.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, worldConfig.Water.HydrologyVarianceClamp);
+            double flowClamp = Math.Max(0.5, worldConfig.Water.HydrologyFlowDivergenceClamp * 14.0);
+            int edgeRadius = Math.Max(1, worldConfig.Water.HydrologyEdgeBlendRadius);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int downZ = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double downhillHydro = hydroCopy[downX, downZ];
+                    double downhillFlow = flowCopy[downX, downZ];
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double basinBias = Math.Clamp(1.0 - relief / 14.0, 0.0, 1.0);
+                    double seamBias = (seamHydro + seamFlow + downhillHydro + downhillFlow) * 0.25;
+                    double gradient = Math.Abs(seamFlow - flowValue) + Math.Abs(seamHydro - hydro) * 0.5;
+                    double divergenceBrake = 1.0 - Math.Clamp(gradient * 0.35, 0.0, 0.45);
+                    double slopeBrake = 1.0 - Math.Clamp(slope * worldConfig.Water.HydrologySlopePenalty / 96.0, 0.0, 0.55);
+                    double erosionBrake = 1.0 - erosion * 0.25;
+                    double retention = Math.Clamp(
+                        basinBias * (0.25 + continuityWeight * 0.35) +
+                        seamBias * (0.15 + flowMemoryWeight * 0.35),
+                        0.0,
+                        1.25);
+
+                    double hydroTarget = hydro * (1.0 - continuityWeight * 0.35) + retention * divergenceBrake * erosionBrake;
+                    hydroTarget += downhillHydro * persistence * 0.12;
+
+                    double flowTarget = flowValue * (1.0 - persistence * 0.3) +
+                        (seamFlow * 0.22 + downhillFlow * 0.28 + retention * 0.35) * persistence;
+                    flowTarget *= slopeBrake * erosionBrake;
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 0.9));
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(flowTarget, 0.0, Math.Max(flowClamp, flowValue + retention * 0.45)));
+                }
+            }
+
+            NormalizeEdgeBands(hydrology, edgeRadius, edgeBlend * 0.75f, (float)varianceClamp);
+            NormalizeEdgeBands(flow, edgeRadius, (float)Math.Max(0.05, edgeBlend * 0.6), (float)(varianceClamp * 1.3));
         }
 
         private void ApplySubterraneanHydrologyShield(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)

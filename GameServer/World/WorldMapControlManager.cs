@@ -189,6 +189,17 @@ namespace GameServerApp.World
             profileChanged = false;
             MaybeReloadGenerationConfig(ref profileChanged);
             var loaded = WorldMapControlProfileUtility.Load(generationConfig.MapControlProfilePath);
+            if (loaded != null)
+            {
+                loaded.EnsureDefaults();
+                if (string.IsNullOrWhiteSpace(loaded.ProfileHash))
+                {
+                    loaded.ProfileHash = WorldMapControlProfileUtility.ComputeHash(loaded);
+                    WorldMapControlProfileUtility.Save(loaded, generationConfig.MapControlProfilePath);
+                    profileChanged = true;
+                }
+            }
+
             string currentProfileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
 
             bool configNewerThanProfile = GetWriteTime(generationConfig.SourcePath) > GetWriteTime(generationConfig.MapControlProfilePath);
@@ -259,6 +270,7 @@ namespace GameServerApp.World
 
             var reloaded = WorldGenerationConfig.Load(generationConfig.SourcePath);
             reloaded.MapControlProfilePath = generationConfig.MapControlProfilePath;
+            reloaded.MapControlProfileVersion = Math.Max(generationConfig.MapControlProfileVersion, reloaded.MapControlProfileVersion);
             generationConfig = reloaded;
             worldConfigWriteTime = writeTime;
             worldConfigHash = newConfigHash;

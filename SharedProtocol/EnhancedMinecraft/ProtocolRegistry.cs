@@ -21,6 +21,20 @@ public static class ProtocolRegistry
 {
     private sealed record ProtocolBinding(MinecraftMessageType MessageType, string DescriptorName, Func<IMessage> Factory);
 
+    private static readonly HashSet<string> OptionalDescriptorNames = new(StringComparer.Ordinal)
+    {
+        "MultiBlockChange",
+        "InventoryUpdate",
+        "ItemUse",
+        "ItemDrop",
+        "ItemPickup",
+        "EntityUpdate",
+        "EntityInteract",
+        "ContainerOpen",
+        "ContainerClose",
+        "ContainerUpdate"
+    };
+
     private static readonly ProtocolBinding[] Bindings =
     {
         new(MinecraftMessageType.PlayerStateUpdate, nameof(EnhancedMinecraftProtocol.PlayerInfo), () => new EnhancedMinecraftProtocol.PlayerInfo()),
@@ -132,6 +146,14 @@ public static class ProtocolRegistry
 
         return generated
             .Where(name => !bound.Contains(name))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static IReadOnlyCollection<string> GetGeneratedRequiredDescriptorsWithoutBindings()
+    {
+        return GetGeneratedDescriptorsWithoutBindings()
+            .Where(name => !OptionalDescriptorNames.Contains(name))
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
     }

@@ -75,6 +75,7 @@ namespace GameServerApp.World.Generation
             ApplyErosionAwareDamping(hydrology, flow, erosionRisk);
             ApplyHydrologyMomentum(heightMap, hydrology, flow, erosionRisk);
             ApplyConfluenceMemoryField(heightMap, hydrology, flow, erosionRisk);
+            ApplyWatershedRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplySubterraneanHydrologyShield(heightMap, hydrology, flow, erosionRisk);
             ApplyRiparianFlowBridge(heightMap, hydrology, flow, erosionRisk);
 
@@ -361,6 +362,69 @@ namespace GameServerApp.World.Generation
 
             TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.7, varianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.55, varianceClamp * 1.2);
+        }
+
+        private void ApplyWatershedRetentionField(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            double persistence = Math.Clamp(config.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double flowMemoryWeight = Math.Clamp(config.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double continuityWeight = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double edgeBlend = Math.Clamp(config.Water.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            double flowClamp = Math.Max(0.5, config.Water.HydrologyFlowDivergenceClamp * 14.0);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    var downhill = TerrainMaskUtility.ComputeDownhillVector(heightMap, x, z);
+                    int dx = Math.Clamp(x + downhill.X, 0, sizeX - 1);
+                    int dz = Math.Clamp(z + downhill.Z, 0, sizeZ - 1);
+
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double downhillHydro = hydroCopy[dx, dz];
+                    double downhillFlow = flowCopy[dx, dz];
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double basinBias = Math.Clamp(1.0 - relief / 14.0, 0.0, 1.0);
+                    double seamBias = (seamHydro + seamFlow + downhillHydro + downhillFlow) * 0.25;
+                    double gradient = Math.Abs(seamFlow - flowValue) + Math.Abs(seamHydro - hydro) * 0.5;
+                    double divergenceBrake = 1.0 - Math.Clamp(gradient * 0.35, 0.0, 0.45);
+                    double slopeBrake = 1.0 - Math.Clamp(slope * config.Water.HydrologySlopePenalty / 96.0, 0.0, 0.55);
+                    double erosionBrake = 1.0 - erosion * 0.25;
+                    double retention = Math.Clamp(
+                        basinBias * (0.25 + continuityWeight * 0.35) +
+                        seamBias * (0.15 + flowMemoryWeight * 0.35),
+                        0.0,
+                        1.25);
+
+                    double hydroTarget = hydro * (1.0 - continuityWeight * 0.35) + retention * divergenceBrake * erosionBrake;
+                    hydroTarget += downhillHydro * persistence * 0.12;
+
+                    double flowTarget = flowValue * (1.0 - persistence * 0.3) +
+                        (seamFlow * 0.22 + downhillFlow * 0.28 + retention * 0.35) * persistence;
+                    flowTarget *= slopeBrake * erosionBrake;
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 0.9));
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(flowTarget, 0.0, Math.Max(flowClamp, flowValue + retention * 0.45)));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, edgeBlend * 0.75, varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, Math.Max(0.05, edgeBlend * 0.6), varianceClamp * 1.3);
         }
 
         private void ApplySubterraneanHydrologyShield(
@@ -1618,6 +1682,45 @@ namespace GameServerApp.World.Generation
             double dx = center - east;
             double dz = center - north;
             return Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        public static double ComputeLocalRelief(int[,] heightMap, int x, int z, int radius)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            int min = int.MaxValue;
+            int max = int.MinValue;
+            int samples = 0;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx < 0 || nx >= sizeX || nz < 0 || nz >= sizeZ)
+                    {
+                        continue;
+                    }
+
+                    int height = heightMap[nx, nz];
+                    if (height <= 0)
+                    {
+                        continue;
+                    }
+
+                    min = Math.Min(min, height);
+                    max = Math.Max(max, height);
+                    samples++;
+                }
+            }
+
+            if (samples == 0)
+            {
+                return 0.0;
+            }
+
+            return max - min;
         }
 
         public static void Smooth2D(float[,] field, int iterations, double blend)

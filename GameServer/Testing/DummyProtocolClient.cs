@@ -28,6 +28,7 @@ namespace GameServerApp.Testing
     public sealed record ProtoRegistryReferenceSummary(
         IReadOnlyCollection<string> GeneratedDescriptors,
         IReadOnlyCollection<string> RegisteredMessageTypes,
+        IReadOnlyCollection<string> UnboundRequiredGeneratedDescriptors,
         IReadOnlyCollection<string> UnboundGeneratedDescriptors,
         IReadOnlyCollection<ProtocolBindingDiagnostic> BindingDiagnostics);
 
@@ -47,7 +48,9 @@ namespace GameServerApp.Testing
         int RegisteredCount,
         int GeneratedDescriptorCount,
         int BoundDescriptorCount,
+        int UnboundRequiredDescriptorCount,
         IReadOnlyCollection<string> UnboundGeneratedDescriptors,
+        IReadOnlyCollection<string> UnboundRequiredGeneratedDescriptors,
         string ReportPath,
         string ReferenceReportPath,
         string ProfileHash,
@@ -431,9 +434,11 @@ namespace GameServerApp.Testing
             int profileVersion = sharedProfile?.Version ?? 0;
             var coverage = ProtocolRegistry.GetBindingCoverage();
             var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
+            var unboundRequiredGeneratedDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings();
             var registryReferenceSummary = new ProtoRegistryReferenceSummary(
                 ProtocolRegistry.GetGeneratedDescriptorNames(),
                 registeredPackets,
+                unboundRequiredGeneratedDescriptors,
                 unboundGeneratedDescriptors,
                 ProtocolRegistry.GetBindingDiagnostics());
 
@@ -453,7 +458,9 @@ namespace GameServerApp.Testing
                 registeredCount,
                 coverage.GeneratedDescriptors,
                 coverage.BoundDescriptors,
+                unboundRequiredGeneratedDescriptors.Count,
                 unboundGeneratedDescriptors,
+                unboundRequiredGeneratedDescriptors,
                 reportPath,
                 referenceReportPath,
                 profileHash,
@@ -465,7 +472,7 @@ namespace GameServerApp.Testing
             Console.WriteLine(
                 $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
                 $"Validated={validatedPackets.Count} Missing={requiredMissing.Count} MissingPrototype={missingPrototypePackets.Count} OptionalMissing={optionalMissing.Count} " +
-                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} PacketDiagnostics={packetDiagnostics.Count} " +
+                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} UnboundRequired={unboundRequiredGeneratedDescriptors.Count} PacketDiagnostics={packetDiagnostics.Count} " +
                 $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
                 $"DescriptorFingerprint={descriptorFingerprint}");
 

@@ -32,6 +32,42 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-07: Session 51 - Spillway Continuity + Signature Parity v21 + Proto Reference Diagnostics
+
+**Status:** COMPLETED
+
+- Terrain continuity tuning applied for caves/rivers/lakes with spillway-aware routing and aquifer dampening parity:
+  - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+  - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World map signature architecture expanded (shared context + hash inputs) to include additional spillway-sensitive controls:
+  - `GameCommon/World/WorldMapContracts.cs`
+  - `GameCommon/World/WorldMapSignature.cs`
+  - server/client signature call sites updated.
+- Protobuf reference diagnostics enriched in probe report outputs:
+  - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
+  - `GameServer/Testing/DummyProtocolClient.cs`
+  - `reports/proto_probe_report.json`
+- Data-driven world config and profile version raised to **21**:
+  - `config/world.json`
+  - `Assets/StreamingAssets/world-config.json`
+  - `config/world_map_control_profile.json`
+  - `Assets/StreamingAssets/world-map-control.json`
+- Core/Content/Utility feature inventory refreshed:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-07-session-51.json`
+
+**Validation:**
+
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (profile v21 generated)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (required bindings OK; optional missing prototypes reported)
+
+**Documentation:**
+
+- Work plan: `plans/2026-02-07-session-51-comprehensive-work-plan.md`
+- Session report: `docs/2026-02-07-session-51-worldgen-mapcontrol-proto-update.md`
+
 ### 2026-02-06: Session 50 - Comprehensive Review & Validation
 
 **Status:** ✅ COMPLETED

@@ -151,15 +151,16 @@ namespace GameServerApp
             try
             {
                 string[] manifestCandidates =
-            {
-                Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json"),
-                Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"),
-                Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json"),
-                Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03-session-40.json"),
-                Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03.json"),
-                Path.Combine("config", "minecraft_feature_core_content_util_2026-02-02-session-38.json"),
-                Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json")
-            };
+                {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-51.json"),
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json"),
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03-session-40.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-02-session-38.json"),
+                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json")
+                };
 
                 FeatureManifest? manifest = null;
                 string manifestPath = string.Empty;

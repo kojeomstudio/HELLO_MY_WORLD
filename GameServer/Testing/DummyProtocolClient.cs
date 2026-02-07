@@ -25,6 +25,12 @@ namespace GameServerApp.Testing
         string DescriptorPackage,
         string ErrorMessage);
 
+    public sealed record ProtoRegistryReferenceSummary(
+        IReadOnlyCollection<string> GeneratedDescriptors,
+        IReadOnlyCollection<string> RegisteredMessageTypes,
+        IReadOnlyCollection<string> UnboundGeneratedDescriptors,
+        IReadOnlyCollection<ProtocolBindingDiagnostic> BindingDiagnostics);
+
     public sealed record ProtoProbeResult(
         bool RoundTripOk,
         string DescriptorName,
@@ -47,6 +53,7 @@ namespace GameServerApp.Testing
         string ProfileHash,
         int ProfileVersion,
         string ProfilePath,
+        ProtoRegistryReferenceSummary RegistryReferences,
         IReadOnlyCollection<ProtoProbePacketDiagnostic> PacketDiagnostics);
 
     public sealed class DummyProtocolClientSettings
@@ -424,6 +431,11 @@ namespace GameServerApp.Testing
             int profileVersion = sharedProfile?.Version ?? 0;
             var coverage = ProtocolRegistry.GetBindingCoverage();
             var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
+            var registryReferenceSummary = new ProtoRegistryReferenceSummary(
+                ProtocolRegistry.GetGeneratedDescriptorNames(),
+                registeredPackets,
+                unboundGeneratedDescriptors,
+                ProtocolRegistry.GetBindingDiagnostics());
 
             var result = new ProtoProbeResult(
                 roundTripOk,
@@ -447,6 +459,7 @@ namespace GameServerApp.Testing
                 profileHash,
                 profileVersion,
                 profilePath,
+                registryReferenceSummary,
                 packetDiagnostics);
 
             Console.WriteLine(

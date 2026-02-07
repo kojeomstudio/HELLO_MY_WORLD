@@ -549,10 +549,13 @@ namespace GameWorld
                 config.Water.HydrologyPressureGradientClamp,
                 config.Water.HydrologyEdgeFlowBias,
                 config.Water.HydrologyEdgeFlowLockWeight,
+                config.Water.HydrologyEdgeTangentWeight,
                 config.Water.RiverFlowAlignmentWeight,
                 config.Water.RiverConfluenceBoost,
                 config.Water.LakeRimErosionWeight,
                 config.Lakes.VarianceWeight,
+                config.Water.LakeInflowBlendWeight,
+                config.Lakes.OutflowCarveDepth,
                 config.Caves.EdgeSealStrength,
                 config.Caves.RiverSuppressionWeight,
                 config.Caves.RiparianCaveGuardWeight,
@@ -1292,6 +1295,12 @@ namespace GameWorld
             double edgeSeal = Math.Clamp(profile.HydrologyEdgeStabilityWeight, 0.0, 1.0);
             double outflowStability = Math.Clamp(profile.LakeOutflowStabilityWeight, 0.0, 1.0);
             double edgeLock = Math.Clamp(profile.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+            double outflowTaper = Math.Clamp(profile.LakeOutflowTaper, 0.0, 1.0);
+            double edgeTangentWeight = Math.Clamp(profile.HydrologyEdgeTangentWeight, 0.0, 1.0);
+            double directionalBlend = Math.Clamp(profile.HydrologyDirectionalBlend, 0.0, 1.0);
+            double riverContinuityWeight = Math.Clamp(profile.RiverEdgeContinuityWeight, 0.0, 1.0);
+            double flowPersistence = Math.Clamp(profile.HydrologyFlowPersistence, 0.0, 1.0);
+            double spillwayDepthBias = Math.Clamp((profile.LakeOutflowCarveDepth + profile.LakeShelfDepth) / 24.0, 0.05, 0.55);
 
             var hydroCopy = (float[,])hydrology.Clone();
             var flowCopy = (float[,])flow.Clone();
@@ -1317,14 +1326,40 @@ namespace GameWorld
                     double continuityBrake = 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * continuity * 0.35, 0.0, 0.35);
                     double edgeSealBlend = 1.0 - Math.Clamp(lake * edgeSeal * 0.25, 0.0, 0.25);
                     double shorelineGuard = 1.0 - Math.Clamp(outflowStability * lake * 0.5, 0.0, 0.4);
+                    var downhill = ComputeDownhillVector(heightMap, x, z);
+                    int downX = Mathf.Clamp(x + downhill.x, 0, sizeX - 1);
+                    int downZ = Mathf.Clamp(z + downhill.y, 0, sizeZ - 1);
+                    int tangentX = Mathf.Clamp(x - downhill.y, 0, sizeX - 1);
+                    int tangentZ = Mathf.Clamp(z + downhill.x, 0, sizeZ - 1);
+                    double downHydro = hydroCopy[downX, downZ];
+                    double downFlow = flowCopy[downX, downZ];
+                    double tangentHydro = hydroCopy[tangentX, tangentZ];
+                    double tangentFlow = flowCopy[tangentX, tangentZ];
+                    double spillwayPressure =
+                        Math.Max(0.0, hydroBase - downHydro) +
+                        Math.Max(0.0, flowCopy[x, z] - downFlow) * 0.35;
+                    double spillwayBlend = Math.Clamp(
+                        lake * outflowTaper * (0.45 + riverContinuityWeight * 0.35) +
+                        spillwayPressure * 0.2 +
+                        spillwayDepthBias,
+                        0.0,
+                        1.25);
+                    double directionalHydro = downHydro * (0.45 + outflowStability * 0.2) + tangentHydro * edgeTangentWeight * 0.15;
+                    double directionalFlow = downFlow * (0.55 + directionalBlend * 0.25) + tangentFlow * edgeTangentWeight * 0.2;
                     double hydroTarget = hydroBase + infiltration * slopeGuard * riverGuard;
-                    hydroTarget = hydroTarget * continuityBrake * edgeSealBlend * shorelineGuard + flowMemory * inflowBlend * 0.25;
+                    hydroTarget =
+                        hydroTarget * continuityBrake * edgeSealBlend * shorelineGuard * (1.0 - spillwayBlend * 0.35) +
+                        directionalHydro * spillwayBlend * 0.35 +
+                        flowMemory * inflowBlend * 0.25;
                     hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.25));
 
                     double flowTarget = flowCopy[x, z] * (1.0 - lake * 0.25);
                     flowTarget += hydrology[x, z] * (seepageWeight * 0.35 + inflowBlend * 0.2);
+                    flowTarget += directionalFlow * spillwayBlend * (0.25 + riverContinuityWeight * 0.35);
+                    flowTarget += spillwayPressure * flowPersistence * (0.08 + outflowTaper * 0.1);
                     flowTarget += flowMemory * edgeLock * 0.15;
                     flowTarget *= continuityBrake * shorelineGuard;
+                    flowTarget *= 1.0 - Math.Clamp(spillwayDepthBias * lake * 0.18, 0.0, 0.15);
                     flow[x, z] = Mathf.Clamp((float)Math.Clamp(flowTarget + lake * 0.05, 0.0, 1.2));
                 }
             }
@@ -1429,6 +1464,8 @@ namespace GameWorld
             double moistureRetention = Math.Clamp(worldConfig.Caves.MoistureRetentionWeight, 0.0, 1.0);
             double flowMemory = Math.Clamp(worldConfig.Water.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double slopePenalty = Math.Max(0.001, worldConfig.Water.HydrologySlopePenalty);
+            double entranceDampening = Math.Clamp(worldConfig.Caves.CaveEntranceFlowDampening, 0.0, 1.0);
+            double ceilingMoistureClamp = Math.Clamp(worldConfig.Caves.CeilingMoistureClamp, 0.0, 1.0);
             int sizeX = hydrology.GetLength(0);
             int sizeZ = hydrology.GetLength(1);
             var hydroCopy = (float[,])hydrology.Clone();
@@ -1443,11 +1480,13 @@ namespace GameWorld
                     double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
                     double seal = Math.Clamp(sealStrength * (0.25 + slope / (slopePenalty * 8.0) + curvature * 0.12), 0.0, 0.65);
                     double retention = 1.0 - Math.Clamp(erosion * moistureRetention * 0.5, 0.0, 0.55);
+                    double entranceGuard = 1.0 - Math.Clamp(flowCopy[x, z] * entranceDampening * 0.25, 0.0, 0.35);
+                    double aquiferGuard = 1.0 - Math.Clamp(hydroCopy[x, z] * ceilingMoistureClamp * 0.2, 0.0, 0.25);
                     double hydroTarget = hydroCopy[x, z] * (1.0 - seal) + flowCopy[x, z] * flowMemory * 0.25;
-                    hydroTarget = Math.Clamp(hydroTarget * retention, 0.0, 1.3);
+                    hydroTarget = Math.Clamp(hydroTarget * retention * aquiferGuard + hydroCopy[x, z] * (1.0 - aquiferGuard) * 0.15, 0.0, 1.3);
 
                     double flowTarget = flowCopy[x, z] * (1.0 - seal * 0.35) + hydroCopy[x, z] * 0.15;
-                    flowTarget *= 1.0 - erosion * 0.25;
+                    flowTarget *= (1.0 - erosion * 0.25) * entranceGuard;
                     flowTarget = Math.Clamp(flowTarget, 0.0, 1.1);
 
                     hydrology[x, z] = Mathf.Clamp01((float)hydroTarget);

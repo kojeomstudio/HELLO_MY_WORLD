@@ -87,10 +87,13 @@ namespace GameCommon.World
             double hydrologyPressureGradientClamp,
             double hydrologyEdgeFlowBias,
             double hydrologyEdgeFlowLockWeight,
+            double hydrologyEdgeTangentWeight,
             double riverFlowAlignmentWeight,
             double riverConfluenceBoost,
             double lakeRimErosionWeight,
             double lakeVarianceWeight,
+            double lakeInflowBlendWeight,
+            int lakeOutflowCarveDepth,
             double caveEdgeSealStrength,
             double caveRiverSuppressionWeight,
             double riparianCaveGuardWeight,
@@ -159,10 +162,13 @@ namespace GameCommon.World
             HydrologyPressureGradientClamp = hydrologyPressureGradientClamp;
             HydrologyEdgeFlowBias = hydrologyEdgeFlowBias;
             HydrologyEdgeFlowLockWeight = hydrologyEdgeFlowLockWeight;
+            HydrologyEdgeTangentWeight = hydrologyEdgeTangentWeight;
             RiverFlowAlignmentWeight = riverFlowAlignmentWeight;
             RiverConfluenceBoost = riverConfluenceBoost;
             LakeRimErosionWeight = lakeRimErosionWeight;
             LakeVarianceWeight = lakeVarianceWeight;
+            LakeInflowBlendWeight = lakeInflowBlendWeight;
+            LakeOutflowCarveDepth = lakeOutflowCarveDepth;
             CaveEdgeSealStrength = caveEdgeSealStrength;
             CaveRiverSuppressionWeight = caveRiverSuppressionWeight;
             RiparianCaveGuardWeight = riparianCaveGuardWeight;
@@ -237,10 +243,13 @@ namespace GameCommon.World
         public double HydrologyPressureGradientClamp { get; }
         public double HydrologyEdgeFlowBias { get; }
         public double HydrologyEdgeFlowLockWeight { get; }
+        public double HydrologyEdgeTangentWeight { get; }
         public double RiverFlowAlignmentWeight { get; }
         public double RiverConfluenceBoost { get; }
         public double LakeRimErosionWeight { get; }
         public double LakeVarianceWeight { get; }
+        public double LakeInflowBlendWeight { get; }
+        public int LakeOutflowCarveDepth { get; }
         public double CaveEdgeSealStrength { get; }
         public double CaveRiverSuppressionWeight { get; }
         public double RiparianCaveGuardWeight { get; }

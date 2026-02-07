@@ -11,6 +11,12 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// EnhancedMinecraft protobuf message prototypes. This provides a single source of truth
 /// so both the server and client can verify that regenerated contracts are wired in correctly.
 /// </summary>
+public sealed record ProtocolBindingDiagnostic(
+    MinecraftMessageType MessageType,
+    string DescriptorName,
+    string DescriptorPackage,
+    string ClrType);
+
 public static class ProtocolRegistry
 {
     private sealed record ProtocolBinding(MinecraftMessageType MessageType, string DescriptorName, Func<IMessage> Factory);
@@ -127,6 +133,37 @@ public static class ProtocolRegistry
         return generated
             .Where(name => !bound.Contains(name))
             .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Returns generated descriptor names for diagnostics and report generation.
+    /// </summary>
+    public static IReadOnlyCollection<string> GetGeneratedDescriptorNames()
+    {
+        return EnhancedMinecraftGameReflection.Descriptor?.MessageTypes
+            .Select(descriptor => descriptor.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray() ?? Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Returns per-binding descriptor diagnostics to help track registry-to-protobuf mapping drift.
+    /// </summary>
+    public static IReadOnlyCollection<ProtocolBindingDiagnostic> GetBindingDiagnostics()
+    {
+        return Bindings
+            .Select(binding =>
+            {
+                var prototype = binding.Factory();
+                var descriptor = prototype.Descriptor;
+                return new ProtocolBindingDiagnostic(
+                    binding.MessageType,
+                    binding.DescriptorName,
+                    descriptor?.File?.Package ?? string.Empty,
+                    descriptor?.ClrType?.FullName ?? string.Empty);
+            })
+            .OrderBy(diagnostic => diagnostic.MessageType.ToString(), StringComparer.Ordinal)
             .ToArray();
     }
 

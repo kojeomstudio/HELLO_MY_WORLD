@@ -32,6 +32,39 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-08: Session 55 - Hydrology v19 + Map-Control Cache/Queue Hardening + Protobuf DTO Refresh
+
+**Status:** COMPLETED
+
+- Session plan created and tracked in `plans/2026-02-08-session-55-comprehensive-work-plan.md` with todo/completed updates.
+- Core/Content/Utility inventory refreshed and prioritized:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-08-session-55.json`
+  - `docs/2026-02-08-session-55-minecraft-feature-core-content-util.md`
+- Terrain generation controls expanded for cave/river/lake coupling:
+  - Added catchment, braiding, spillway continuity, aquifer barrier weights.
+  - Target profile version updated to `23`.
+  - Hydrology signature updated to `2026-02-08-hydrology-riverlake-cave-v19`.
+- World-map control architecture improved:
+  - Server cache limit + recency eviction in `GameServer/World/WorldMapControlManager.cs`
+  - Client queue deduplication and preview chunk budget control in `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared DLL contracts updated for cross client/server map signature parity:
+  - `GameCommon/World/WorldMapContracts.cs`
+  - `GameCommon/World/WorldMapSignature.cs`
+  - `GameCommon/World/SharedFeatureCatalog.cs`
+- Protobuf pipeline reviewed and refreshed:
+  - Regenerated DTOs via `scripts/generate_proto.ps1`
+  - Verified sync via `scripts/verify_protobuf.ps1`
+  - Probe report updated: `reports/proto_probe_report.json`
+  - Optional prototype gaps remain informational (required gaps = 0).
+
+**Validation:**
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success; NU1603 warning)
+- `dotnet build GameServer/GameServer.csproj` (success; warnings only)
+- `dotnet test GameServer/GameServer.csproj` (completed without test failures)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success, v23 profile generated)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0)
+
 ### 2026-02-07: Session 54 - Comprehensive Implementation & Validation
 
 **Status:** ✅ COMPLETED
@@ -747,4 +780,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

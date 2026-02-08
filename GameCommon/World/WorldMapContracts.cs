@@ -43,6 +43,7 @@ namespace GameCommon.World
             int globalWaterLevel,
             int seaLevel,
             double flowPersistence,
+            double hydrologyCatchmentWeight,
             double flowGain,
             double watershedStitchWeight,
             int watershedStitchRadius,
@@ -90,6 +91,7 @@ namespace GameCommon.World
             double hydrologyEdgeTangentWeight,
             double riverFlowAlignmentWeight,
             double riverConfluenceBoost,
+            double riverBraidingWeight,
             double lakeRimErosionWeight,
             double lakeVarianceWeight,
             double lakeInflowBlendWeight,
@@ -101,7 +103,9 @@ namespace GameCommon.World
             double hydrologyReservoirBlend,
             double riverEdgeContinuityWeight,
             double lakeOutflowTaper,
-            double caveEntranceFlowDampening)
+            double lakeSpillwayContinuityWeight,
+            double caveEntranceFlowDampening,
+            double caveAquiferBarrierWeight)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -118,6 +122,7 @@ namespace GameCommon.World
             GlobalWaterLevel = globalWaterLevel;
             SeaLevel = seaLevel;
             FlowPersistence = flowPersistence;
+            HydrologyCatchmentWeight = hydrologyCatchmentWeight;
             FlowGain = flowGain;
             WatershedStitchWeight = watershedStitchWeight;
             WatershedStitchRadius = watershedStitchRadius;
@@ -165,6 +170,7 @@ namespace GameCommon.World
             HydrologyEdgeTangentWeight = hydrologyEdgeTangentWeight;
             RiverFlowAlignmentWeight = riverFlowAlignmentWeight;
             RiverConfluenceBoost = riverConfluenceBoost;
+            RiverBraidingWeight = riverBraidingWeight;
             LakeRimErosionWeight = lakeRimErosionWeight;
             LakeVarianceWeight = lakeVarianceWeight;
             LakeInflowBlendWeight = lakeInflowBlendWeight;
@@ -176,7 +182,9 @@ namespace GameCommon.World
             HydrologyReservoirBlend = hydrologyReservoirBlend;
             RiverEdgeContinuityWeight = riverEdgeContinuityWeight;
             LakeOutflowTaper = lakeOutflowTaper;
+            LakeSpillwayContinuityWeight = lakeSpillwayContinuityWeight;
             CaveEntranceFlowDampening = caveEntranceFlowDampening;
+            CaveAquiferBarrierWeight = caveAquiferBarrierWeight;
         }
 
         public string PipelineVersion { get; }
@@ -194,6 +202,7 @@ namespace GameCommon.World
         public int GlobalWaterLevel { get; }
         public int SeaLevel { get; }
         public double FlowPersistence { get; }
+        public double HydrologyCatchmentWeight { get; }
         public double FlowGain { get; }
         public double WatershedStitchWeight { get; }
         public int WatershedStitchRadius { get; }
@@ -230,7 +239,9 @@ namespace GameCommon.World
         public double HydrologyReservoirBlend { get; }
         public double RiverEdgeContinuityWeight { get; }
         public double LakeOutflowTaper { get; }
+        public double LakeSpillwayContinuityWeight { get; }
         public double CaveEntranceFlowDampening { get; }
+        public double CaveAquiferBarrierWeight { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }
@@ -246,6 +257,7 @@ namespace GameCommon.World
         public double HydrologyEdgeTangentWeight { get; }
         public double RiverFlowAlignmentWeight { get; }
         public double RiverConfluenceBoost { get; }
+        public double RiverBraidingWeight { get; }
         public double LakeRimErosionWeight { get; }
         public double LakeVarianceWeight { get; }
         public double LakeInflowBlendWeight { get; }

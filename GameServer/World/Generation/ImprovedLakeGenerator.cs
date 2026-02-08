@@ -40,6 +40,7 @@ namespace GameServerApp.World.Generation
             double flowMemoryWeight = Math.Clamp(waterConfig.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double varianceWeight = Math.Clamp(lakeConfig.VarianceWeight, 0.0, 1.0);
             double outflowStabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            double spillwayContinuityWeight = Math.Clamp(lakeConfig.SpillwayContinuityWeight, 0.0, 1.0);
             double outflowSealWeight = Math.Clamp(lakeConfig.OutflowSealWeight, 0.0, 1.0);
             double edgeNormalizationStrength = Math.Clamp(waterConfig.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
             double waterTableClampWeight = Math.Clamp(waterConfig.HydrologyWaterTableClampWeight, 0.0, 1.0);
@@ -165,6 +166,8 @@ namespace GameServerApp.World.Generation
                     double connectivityAssist = catchmentConnectivity *
                         (waterConfig.RiverConfluenceBoost * 0.12 + outflowStabilityWeight * 0.2);
                     weight += connectivityAssist * (1.0 - flowShadow * 0.35);
+                    weight *= 1.0 + catchmentConnectivity * spillwayContinuityWeight * 0.08;
+                    weight *= 1.0 - Math.Clamp(flowGradient * spillwayContinuityWeight * 0.18, 0.0, 0.25);
                     weight *= 1.0 - Math.Clamp(Math.Abs(catchmentConnectivity - wetness) * 0.15, 0.0, 0.25);
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
@@ -238,7 +241,7 @@ namespace GameServerApp.World.Generation
             ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
-            ApplySpillwayContinuity(lakes, heightMap, flowAccumulation, riverMask);
+            ApplySpillwayContinuity(lakes, heightMap, flowAccumulation, riverMask, spillwayContinuityWeight);
             return lakes;
         }
 
@@ -477,7 +480,7 @@ namespace GameServerApp.World.Generation
             Array.Copy(buffer, lakes, buffer.Length);
         }
 
-        private void ApplySpillwayContinuity(float[,] lakes, int[,] heightMap, float[,] flow, float[,]? riverMask)
+        private void ApplySpillwayContinuity(float[,] lakes, int[,] heightMap, float[,] flow, float[,]? riverMask, double spillwayContinuityWeight)
         {
             int sizeX = lakes.GetLength(0);
             int sizeZ = lakes.GetLength(1);
@@ -485,6 +488,7 @@ namespace GameServerApp.World.Generation
             double inflowBlend = Math.Clamp(waterConfig.LakeInflowBlendWeight, 0.0, 1.0);
             double outflowSeal = Math.Clamp(lakeConfig.OutflowSealWeight, 0.0, 1.0);
             double stability = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            spillwayContinuityWeight = Math.Clamp(spillwayContinuityWeight, 0.0, 1.0);
             int spillDepth = Math.Max(1, lakeConfig.OutflowCarveDepth + 1);
 
             for (int x = 0; x < sizeX; x++)
@@ -515,8 +519,8 @@ namespace GameServerApp.World.Generation
                         float channelFlow = flow[cx, cz];
                         float flowGradient = Math.Abs(channelFlow - flowMemory);
                         float channelBias = TerrainMaskUtility.Clamp01((float)(inflowBlend * 0.35 + outflowSeal * 0.25 + stability * 0.2));
-                        float continuity = TerrainMaskUtility.Clamp01(1f - flowGradient * (float)(stability * 0.2));
-                        float spill = TerrainMaskUtility.Clamp01(memory * (0.7f + channelBias * 0.3f) * continuity + riverAssist * 0.2f);
+                        float continuity = TerrainMaskUtility.Clamp01(1f - flowGradient * (float)(stability * 0.2 + spillwayContinuityWeight * 0.22));
+                        float spill = TerrainMaskUtility.Clamp01(memory * (0.7f + channelBias * 0.3f + (float)spillwayContinuityWeight * 0.08f) * continuity + riverAssist * 0.2f);
                         lakes[cx, cz] = Math.Max(lakes[cx, cz], spill);
                         memory = spill;
                         flowMemory = channelFlow;

@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-08-session-55.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-53.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-51.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json"),
@@ -478,6 +479,7 @@ namespace GameServerApp
 
                 if (section.Cache?.MaxCachedChunks > 0)
                 {
+                    mapSettings.MaxCachedChunks = Math.Max(64, section.Cache.MaxCachedChunks.Value);
                     int unloadFromCacheBudget = Math.Max(2, (int)Math.Ceiling(Math.Sqrt(section.Cache.MaxCachedChunks.Value)));
                     mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, unloadFromCacheBudget);
                 }
@@ -485,7 +487,7 @@ namespace GameServerApp
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {

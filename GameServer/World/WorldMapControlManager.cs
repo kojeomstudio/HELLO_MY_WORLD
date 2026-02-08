@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using GameCommon.World;
@@ -26,6 +27,7 @@ namespace GameServerApp.World
         private readonly WorldSettings worldSettings;
         private readonly ConcurrentDictionary<int, WorldMapProfile> profiles = new();
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
+        private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
@@ -46,7 +48,12 @@ namespace GameServerApp.World
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
             worldConfigHash = ComputeFileHash(this.generationConfig.SourcePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
-            maxCachedChunks = Math.Max(this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance, this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
+            int computedBudget = Math.Max(
+                this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance,
+                this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
+            maxCachedChunks = this.settings.MaxCachedChunks > 0
+                ? Math.Max(64, this.settings.MaxCachedChunks)
+                : computedBudget;
             RefreshGenerationSignature(rebuildPipeline: false);
         }
 
@@ -217,6 +224,7 @@ namespace GameServerApp.World
                 controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
                 WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
                 chunkCache.Clear();
+                chunkAccessTimes.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 RefreshGenerationSignature(rebuildPipeline: false);
@@ -230,6 +238,7 @@ namespace GameServerApp.World
             {
                 controlProfile = loaded;
                 chunkCache.Clear();
+                chunkAccessTimes.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -245,11 +254,13 @@ namespace GameServerApp.World
             var key = (chunkX, chunkZ);
             if (chunkCache.TryGetValue(key, out var cached))
             {
+                chunkAccessTimes[key] = DateTime.UtcNow;
                 return cached;
             }
 
             var generated = await pipeline.GenerateChunkAsync(chunkX, chunkZ);
             chunkCache[key] = generated;
+            chunkAccessTimes[key] = DateTime.UtcNow;
             EnforceCacheBudget();
             return generated;
         }
@@ -277,6 +288,7 @@ namespace GameServerApp.World
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
             chunkCache.Clear();
+            chunkAccessTimes.Clear();
             profileChanged = true;
             RefreshGenerationSignature(rebuildPipeline: false);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -300,6 +312,26 @@ namespace GameServerApp.World
 
                 if (chunkCache.TryRemove(key, out _))
                 {
+                    chunkAccessTimes.TryRemove(key, out _);
+                    overBudget--;
+                }
+            }
+
+            if (overBudget <= 0)
+            {
+                return;
+            }
+
+            foreach (var key in chunkAccessTimes.OrderBy(entry => entry.Value).Select(entry => entry.Key))
+            {
+                if (overBudget <= 0)
+                {
+                    break;
+                }
+
+                if (chunkCache.TryRemove(key, out _))
+                {
+                    chunkAccessTimes.TryRemove(key, out _);
                     overBudget--;
                 }
             }
@@ -346,6 +378,7 @@ namespace GameServerApp.World
 
             generationSignature = newSignature;
             chunkCache.Clear();
+            chunkAccessTimes.Clear();
 
             if (rebuildPipeline)
             {
@@ -381,6 +414,7 @@ namespace GameServerApp.World
                 effectiveGlobalWaterLevel,
                 generationConfig.TerrainGeneration.SeaLevel,
                 generationConfig.Water.HydrologyFlowPersistence,
+                generationConfig.Water.HydrologyCatchmentWeight,
                 generationConfig.Water.HydrologyFlowGain,
                 generationConfig.Water.HydrologyWatershedStitchWeight,
                 generationConfig.Water.HydrologyWatershedStitchRadius,
@@ -428,6 +462,7 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyEdgeTangentWeight,
                 generationConfig.Water.RiverFlowAlignmentWeight,
                 generationConfig.Water.RiverConfluenceBoost,
+                generationConfig.Water.RiverBraidingWeight,
                 generationConfig.Water.LakeRimErosionWeight,
                 generationConfig.Lakes.VarianceWeight,
                 generationConfig.Water.LakeInflowBlendWeight,
@@ -439,7 +474,9 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyReservoirBlend,
                 generationConfig.Water.RiverEdgeContinuityWeight,
                 generationConfig.Lakes.LakeOutflowTaper,
-                generationConfig.Caves.CaveEntranceFlowDampening);
+                generationConfig.Lakes.SpillwayContinuityWeight,
+                generationConfig.Caves.CaveEntranceFlowDampening,
+                generationConfig.Caves.AquiferBarrierWeight);
 
             return WorldMapSignature.Compute(context);
         }

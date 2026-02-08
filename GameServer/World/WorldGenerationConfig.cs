@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 22;
+        public int MapControlProfileVersion { get; set; } = 23;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -135,6 +135,7 @@ namespace GameServerApp.World
         public int HydrologyWaterTableClampRange { get; set; } = 26;
         public double HydrologyWaterTableSlopeWeight { get; set; } = 0.7;
         public double HydrologyFlowPersistence { get; set; } = 0.9;
+        public double HydrologyCatchmentWeight { get; set; } = 0.46;
         public double HydrologyGradientWeight { get; set; } = 0.38;
         public double HydrologyGradientSlopeWeight { get; set; } = 0.5;
         public double HydrologyGradientClamp { get; set; } = 1.52;
@@ -164,6 +165,7 @@ namespace GameServerApp.World
         public double RiverBankStabilityClamp { get; set; } = 0.52;
         public double LakeInflowBlendWeight { get; set; } = 0.64;
         public double RiverConfluenceBoost { get; set; } = 0.62;
+        public double RiverBraidingWeight { get; set; } = 0.34;
         public double RiverEdgeFeather { get; set; } = 0.66;
         public double RiverEdgeContinuityWeight { get; set; } = 0.52;
         public int RiverMouthSmoothRadius { get; set; } = 8;
@@ -223,6 +225,7 @@ namespace GameServerApp.World
         public double MoistureRetentionWeight { get; set; } = 0.55;
         public double MoistureFlowClamp { get; set; } = 0.55;
         public double RiparianCaveGuardWeight { get; set; } = 0.46;
+        public double AquiferBarrierWeight { get; set; } = 0.52;
         public double EdgeSealStrength { get; set; } = 0.72;
         public double SupportPillarChance { get; set; } = 0.3;
         public int RiparianPlugDepth { get; set; } = 5;
@@ -250,5 +253,6 @@ namespace GameServerApp.World
         public double VarianceWeight { get; set; } = 0.46;
         public double OutflowStabilityWeight { get; set; } = 0.72;
         public double LakeOutflowTaper { get; set; } = 0.42;
+        public double SpillwayContinuityWeight { get; set; } = 0.58;
     }
 }

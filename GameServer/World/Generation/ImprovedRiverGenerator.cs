@@ -37,6 +37,8 @@ namespace GameServerApp.World.Generation
             double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
             double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double catchmentWeight = Math.Clamp(config.HydrologyCatchmentWeight, 0.0, 1.0);
+            double braidingWeight = Math.Clamp(config.RiverBraidingWeight, 0.0, 1.0);
             double edgeNormalizationStrength = Math.Clamp(config.HydrologyEdgeNormalizationBlend, 0.0, 1.0);
             double waterTableClampWeight = Math.Clamp(config.HydrologyWaterTableClampWeight, 0.0, 1.0);
             double waterTableClampRange = Math.Max(1.0, config.HydrologyWaterTableClampRange);
@@ -165,7 +167,8 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + waterMemory;
                     pressure *= 1.0 + depthBias * 0.05;
                     pressure *= 1.0 - Math.Clamp(divergencePenalty * 0.35, 0.0, 0.35);
-                    pressure = pressure * (1.0 - braidedAssist * 0.25) + braidedAssist * 0.08;
+                    double braidingAssist = Math.Clamp((hydrologyVariance + flowVariance + divergencePenalty) * braidingWeight * 0.45, 0.0, 0.35);
+                    pressure = pressure * (1.0 - (braidedAssist + braidingAssist) * 0.25) + (braidedAssist + braidingAssist) * 0.08;
                     pressure = pressure * (1.0 - hydrologyShadow * 0.25) + (hydrology + seamHydro) * hydrologyShadow * 0.15;
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
@@ -183,8 +186,10 @@ namespace GameServerApp.World.Generation
                     double curvature = ComputeCurvature(heightMap, x, z);
                     double basinAssist = Math.Clamp(curvature * config.HydrologyCurvatureWeight * 0.2, -0.35, 0.35);
                     double ridgePenalty = Math.Max(0.0, -basinAssist);
+                    double catchmentAssist = Math.Clamp((seamHydro + interiorFlow + Math.Max(0.0, -curvature) * 0.15) * catchmentWeight * 0.35, 0.0, 0.45);
                     pressure *= 1.0 + Math.Max(0.0, basinAssist) * 0.4;
                     pressure *= 1.0 - Math.Clamp(ridgePenalty * 0.75, 0.0, 0.45);
+                    pressure = pressure * (1.0 - catchmentWeight * 0.15) + catchmentAssist * catchmentWeight * 0.35;
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;

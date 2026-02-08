@@ -27,6 +27,8 @@ namespace GameWorld
         [SerializeField] private Transform playerTransform;
         [SerializeField] private int viewRadiusChunks = 4;
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
+        [SerializeField] private int maxQueuedChunkRequests = 1024;
+        [SerializeField] private int maxLoadedPreviewChunks = 2048;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
 
         private const string PipelineVersion = SharedFeatureCatalog.HydrologySignature;
@@ -44,6 +46,7 @@ namespace GameWorld
         private string lastProfileFileHash = string.Empty;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
+        private readonly ConcurrentDictionary<Vector2Int, byte> queuedChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
 
         private void Awake()
@@ -89,16 +92,27 @@ namespace GameWorld
                     viewRadiusChunks = Mathf.Clamp(runtime.worldMapControl.defaults.renderDistance, 1, 16);
                 }
 
+                if (runtime.worldMapControl.defaults != null && runtime.worldMapControl.defaults.maxLoadedPreviewChunks > 0)
+                {
+                    maxLoadedPreviewChunks = Mathf.Clamp(runtime.worldMapControl.defaults.maxLoadedPreviewChunks, 64, 8192);
+                }
+
                 if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.maxConcurrentChunkRequests > 0)
                 {
                     maxConcurrentChunkBuilds = Mathf.Clamp(runtime.worldMapControl.performance.maxConcurrentChunkRequests, 1, 64);
+                }
+
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.maxQueuedChunkRequests > 0)
+                {
+                    maxQueuedChunkRequests = Mathf.Clamp(runtime.worldMapControl.performance.maxQueuedChunkRequests, 64, 16384);
                 }
 
                 if (enableDebugLogging)
                 {
                     Debug.Log(
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
-                        $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds})");
+                        $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
+                        $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks})");
                 }
             }
             catch (Exception ex)
@@ -114,6 +128,7 @@ namespace GameWorld
         {
             cancellation?.Cancel();
             buildSemaphore?.Dispose();
+            queuedChunks.Clear();
             loadedChunks.Clear();
         }
 
@@ -284,9 +299,30 @@ namespace GameWorld
                         continue;
                     }
 
-                    requestQueue.Enqueue(pos);
+                    EnqueueChunk(pos);
                 }
             }
+        }
+
+        private void EnqueueChunk(Vector2Int pos)
+        {
+            if (loadedChunks.ContainsKey(pos))
+            {
+                return;
+            }
+
+            if (!queuedChunks.TryAdd(pos, 0))
+            {
+                return;
+            }
+
+            if (requestQueue.Count >= Math.Max(64, maxQueuedChunkRequests))
+            {
+                queuedChunks.TryRemove(pos, out _);
+                return;
+            }
+
+            requestQueue.Enqueue(pos);
         }
 
         private async Task ProcessQueueAsync(CancellationToken token)
@@ -299,6 +335,8 @@ namespace GameWorld
                     continue;
                 }
 
+                queuedChunks.TryRemove(pos, out _);
+
                 if (loadedChunks.ContainsKey(pos))
                 {
                     continue;
@@ -309,6 +347,7 @@ namespace GameWorld
                 {
                     var chunk = await generator.GenerateChunkAsync(pos, token);
                     loadedChunks[pos] = chunk;
+                    EnforceLoadedChunkBudget();
                     if (enableDebugLogging)
                     {
                         Debug.Log($"[WorldMapController] Built preview chunk {pos}");
@@ -351,6 +390,41 @@ namespace GameWorld
                 if (enableDebugLogging)
                 {
                     Debug.Log($"[WorldMapController] Unloaded preview chunk {pos}");
+                }
+            }
+        }
+
+        private void EnforceLoadedChunkBudget()
+        {
+            int budget = Math.Max(64, maxLoadedPreviewChunks);
+            if (loadedChunks.Count <= budget)
+            {
+                return;
+            }
+
+            var center = playerTransform != null ? WorldToChunk(playerTransform.position) : Vector2Int.zero;
+            while (loadedChunks.Count > budget)
+            {
+                bool found = false;
+                int farthestDistance = -1;
+                Vector2Int farthest = Vector2Int.zero;
+
+                foreach (var kvp in loadedChunks)
+                {
+                    int distance = Mathf.Abs(kvp.Key.x - center.x) + Mathf.Abs(kvp.Key.y - center.y);
+                    if (distance <= farthestDistance)
+                    {
+                        continue;
+                    }
+
+                    farthestDistance = distance;
+                    farthest = kvp.Key;
+                    found = true;
+                }
+
+                if (!found || !loadedChunks.TryRemove(farthest, out _))
+                {
+                    break;
                 }
             }
         }
@@ -399,12 +473,14 @@ namespace GameWorld
         private sealed class ClientRuntimeDefaults
         {
             public int renderDistance = 4;
+            public int maxLoadedPreviewChunks = 2048;
         }
 
         [Serializable]
         private sealed class ClientRuntimePerformance
         {
             public int maxConcurrentChunkRequests = 4;
+            public int maxQueuedChunkRequests = 1024;
         }
     }
 
@@ -506,6 +582,7 @@ namespace GameWorld
                 effectiveGlobalWaterLevel,
                 config.Terrain.SeaLevel,
                 config.Water.HydrologyFlowPersistence,
+                config.Water.HydrologyCatchmentWeight,
                 config.Water.HydrologyFlowGain,
                 config.Water.HydrologyWatershedStitchWeight,
                 config.Water.HydrologyWatershedStitchRadius,
@@ -553,6 +630,7 @@ namespace GameWorld
                 config.Water.HydrologyEdgeTangentWeight,
                 config.Water.RiverFlowAlignmentWeight,
                 config.Water.RiverConfluenceBoost,
+                config.Water.RiverBraidingWeight,
                 config.Water.LakeRimErosionWeight,
                 config.Lakes.VarianceWeight,
                 config.Water.LakeInflowBlendWeight,
@@ -564,7 +642,9 @@ namespace GameWorld
                 config.Water.HydrologyReservoirBlend,
                 config.Water.RiverEdgeContinuityWeight,
                 config.Lakes.LakeOutflowTaper,
-                config.Caves.CaveEntranceFlowDampening);
+                config.Lakes.SpillwayContinuityWeight,
+                config.Caves.CaveEntranceFlowDampening,
+                config.Caves.AquiferBarrierWeight);
             return WorldMapSignature.Compute(context);
         }
 
@@ -600,6 +680,7 @@ namespace GameWorld
             double horizontal = Math.Max(0.0001, worldConfig.Caves.HorizontalFrequency);
             double vertical = Math.Max(0.0001, worldConfig.Caves.VerticalFrequency);
             double moistureFlowClamp = Math.Max(0.0, worldConfig.Caves.MoistureFlowClamp);
+            double aquiferBarrierWeight = Math.Clamp(worldConfig.Caves.AquiferBarrierWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -650,6 +731,10 @@ namespace GameWorld
                         0.0,
                         1.0);
                     double hydrologyEnvelope = (hydrologySample + seamHydro + flowMemory) / 3.0;
+                    double aquiferBarrier = Math.Clamp(
+                        (hydrologyEnvelope + flowMemory + riverPressure) * aquiferBarrierWeight * 0.5,
+                        0.0,
+                        0.75);
                     double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flowSample) * worldConfig.Caves.FlowStabilityWeight * 0.5, 0.0, 0.6);
                     double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * worldConfig.Caves.RiverSuppressionWeight * 0.35, 0.0, 0.65);
                     double divergenceGuard = Math.Clamp(
@@ -673,6 +758,7 @@ namespace GameWorld
                     stability *= 1.0 - moistureContinuity * 0.35;
                     stability *= 1.0 - hydrologyShadow * 0.1;
                     stability *= 1.0 - aquiferPenalty * 0.3;
+                    stability *= 1.0 - aquiferBarrier * 0.28;
                     stability *= 1.0 - divergenceGuard * 0.35;
                     stability *= 1.0 - Math.Clamp(karstPotential * worldConfig.Caves.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
 
@@ -702,6 +788,7 @@ namespace GameWorld
                         threshold += moistureContinuity * 0.25;
                         threshold += flowShadowDrift * 0.1;
                         threshold += aquiferPenalty * 0.2;
+                        threshold += aquiferBarrier * 0.25;
                         threshold += slopeThresholdPenalty * 0.5;
                         threshold += divergenceGuard * 0.45;
                         threshold += karstPotential * worldConfig.Caves.CaveEntranceFlowDampening * 0.12;
@@ -734,6 +821,8 @@ namespace GameWorld
             double depthBias = Math.Clamp(profile.RiverDepth / 12.0, 0.0, 1.0);
             double anisotropyDamping = Math.Clamp(profile.RiverAnisotropyDamping, 0.0, 1.0);
             double bankStabilityClamp = Math.Clamp(profile.RiverBankStabilityClamp, 0.0, 1.0);
+            double catchmentWeight = Math.Clamp(worldConfig.Water.HydrologyCatchmentWeight, 0.0, 1.0);
+            double braidingWeight = Math.Clamp(worldConfig.Water.RiverBraidingWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -793,7 +882,8 @@ namespace GameWorld
                     pressure *= 1.0 + waterMemory;
                     pressure *= 1.0 + depthBias * 0.05;
                     pressure *= 1.0 - Math.Clamp(divergencePenalty * 0.35, 0.0, 0.35);
-                    pressure = pressure * (1.0 - braidedAssist * 0.25) + braidedAssist * 0.08;
+                    double braidingAssist = Math.Clamp((hydrologyGradient + Math.Abs(flowSample - seamHydro) + divergencePenalty) * braidingWeight * 0.25, 0.0, 0.35);
+                    pressure = pressure * (1.0 - (braidedAssist + braidingAssist) * 0.25) + (braidedAssist + braidingAssist) * 0.08;
                     double pressureStabilizer = 1.0 - Math.Clamp(
                         (pressureGradient / Math.Max(0.0001, profile.HydrologyPressureGradientClamp)) * Math.Clamp(profile.HydrologyPressureBlend, 0.0, 1.0),
                         0.0,
@@ -829,6 +919,8 @@ namespace GameWorld
                         0.55);
                     pressure = pressure * (1.0 - avulsionPotential * 0.18) + floodplainAnchor * avulsionPotential * 0.12;
                     pressure *= bankCohesion;
+                    double catchmentAssist = Math.Clamp((seamHydro + flowMemory + Math.Max(0.0, seaLevel - heightMap[x, z]) * 0.02) * catchmentWeight * 0.2, 0.0, 0.4);
+                    pressure = pressure * (1.0 - catchmentWeight * 0.15) + catchmentAssist * catchmentWeight * 0.35;
 
                     double headwater = 1.0 - Math.Clamp(flowSample * profile.RiverHeadwaterStabilityWeight, 0.0, 0.65);
                     pressure *= 1.0 + headwater * 0.1;
@@ -877,6 +969,7 @@ namespace GameWorld
             double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
             double flowPersistence = Math.Clamp(profile.HydrologyFlowPersistence, 0.0, 1.0);
             double outflowSealWeight = Math.Clamp(profile.LakeOutflowSealWeight, 0.0, 1.0);
+            double spillwayContinuityWeight = Math.Clamp(worldConfig.Lakes.SpillwayContinuityWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -936,6 +1029,8 @@ namespace GameWorld
                     double connectivityAssist = catchmentConnectivity *
                         (profile.RiverConfluenceBoost * 0.12 + profile.LakeOutflowStabilityWeight * 0.2);
                     weight += connectivityAssist * (1.0 - flowShadow * 0.35);
+                    weight *= 1.0 + catchmentConnectivity * spillwayContinuityWeight * 0.08;
+                    weight *= 1.0 - Math.Clamp(flowGradient * spillwayContinuityWeight * 0.18, 0.0, 0.25);
                     weight *= 1.0 - Math.Clamp(Math.Abs(catchmentConnectivity - wetness) * 0.15, 0.0, 0.25);
                     double varianceAssist = Math.Clamp((hydrologyGradient + flowGradient) * profile.HydrologyVarianceBlend * 0.1, -0.25, 0.35);
                     double seamNormalization = 1.0 - Math.Clamp(hydrologyGradient * profile.HydrologyEdgeNormalizationBlend, 0.0, 0.55);

@@ -47,6 +47,7 @@ namespace GameServerApp.World.Generation
             double lavaThreshold = Math.Clamp(config.LavaThreshold, 0.0, 1.0);
             double waterThreshold = Math.Clamp(config.WaterThreshold, 0.0, 1.0);
             double moistureFlowClamp = Math.Max(0.0, config.MoistureFlowClamp);
+            double aquiferBarrierWeight = Math.Clamp(config.AquiferBarrierWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -162,6 +163,10 @@ namespace GameServerApp.World.Generation
                         1.0);
                     stability *= 1.0 - aquiferPenalty * 0.3;
                     double hydrologyEnvelope = (hydrology + seamHydro + flowMemory) * 0.333;
+                    double aquiferBarrier = Math.Clamp(
+                        (hydrologyEnvelope + seamMemory + riverPressure) * aquiferBarrierWeight * 0.5,
+                        0.0,
+                        0.75);
                     double flowContinuity = Math.Clamp(Math.Abs(flowMemory - flow) * config.FlowStabilityWeight * 0.5, 0.0, 0.6);
                     double riparianBridge = Math.Clamp((hydrologyEnvelope + riverPressure) * config.RiverSuppressionWeight * 0.35, 0.0, 0.65);
                     double divergenceGuard = Math.Clamp(
@@ -181,6 +186,7 @@ namespace GameServerApp.World.Generation
                         1.0);
                     double roofKarstGuard = Math.Clamp(karstPotential * config.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
                     stability *= 1.0 - roofKarstGuard;
+                    stability *= 1.0 - aquiferBarrier * 0.28;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -258,6 +264,7 @@ namespace GameServerApp.World.Generation
                         threshold += flowShadowDrift * 0.1;
                         threshold += divergenceGuard * 0.45;
                         threshold += aquiferPenalty * 0.2;
+                        threshold += aquiferBarrier * 0.25;
                         threshold += Math.Clamp(flowShadow * 0.15, 0.0, 0.25);
                         threshold += variancePenalty * 0.25;
                         threshold += Math.Clamp(flowVariance * config.RoughnessStabilityWeight * 0.2, 0.0, 0.25);

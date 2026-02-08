@@ -32,6 +32,7 @@ namespace GameCommon.World
                 .Append(context.GlobalWaterLevel).Append('|')
                 .Append(context.SeaLevel).Append('|')
                 .Append(context.FlowPersistence).Append('|')
+                .Append(context.HydrologyCatchmentWeight).Append('|')
                 .Append(context.FlowGain).Append('|')
                 .Append(context.WatershedStitchWeight).Append('|')
                 .Append(context.WatershedStitchRadius).Append('|')
@@ -79,6 +80,7 @@ namespace GameCommon.World
                 .Append(context.HydrologyEdgeTangentWeight).Append('|')
                 .Append(context.RiverFlowAlignmentWeight).Append('|')
                 .Append(context.RiverConfluenceBoost).Append('|')
+                .Append(context.RiverBraidingWeight).Append('|')
                 .Append(context.LakeRimErosionWeight).Append('|')
                 .Append(context.LakeVarianceWeight).Append('|')
                 .Append(context.LakeInflowBlendWeight).Append('|')
@@ -90,7 +92,9 @@ namespace GameCommon.World
                 .Append(context.HydrologyReservoirBlend).Append('|')
                 .Append(context.RiverEdgeContinuityWeight).Append('|')
                 .Append(context.LakeOutflowTaper).Append('|')
-                .Append(context.CaveEntranceFlowDampening);
+                .Append(context.LakeSpillwayContinuityWeight).Append('|')
+                .Append(context.CaveEntranceFlowDampening).Append('|')
+                .Append(context.CaveAquiferBarrierWeight);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

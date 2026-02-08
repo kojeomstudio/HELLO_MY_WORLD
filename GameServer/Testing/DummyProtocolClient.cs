@@ -132,6 +132,11 @@ namespace GameServerApp.Testing
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Hydrology signature mismatch between profile ({sharedProfile.HydrologySignature}) and shared catalog ({SharedFeatureCatalog.HydrologySignature}).");
                 }
+
+                if (sharedProfile != null && sharedProfile.Version <= 0)
+                {
+                    Console.WriteLine("[ProtoProbe][WARN] World-map control profile version is missing or invalid.");
+                }
             }
 
             var registeredPackets = ProtocolRegistry.RegisteredMessageTypes

@@ -47,7 +47,9 @@ namespace GameWorld
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, byte> queuedChunks = new();
+        private readonly ConcurrentDictionary<Vector2Int, byte> buildingChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
+        private int queuedRequestCount;
 
         private void Awake()
         {
@@ -129,7 +131,10 @@ namespace GameWorld
             cancellation?.Cancel();
             buildSemaphore?.Dispose();
             queuedChunks.Clear();
+            buildingChunks.Clear();
             loadedChunks.Clear();
+            while (requestQueue.TryDequeue(out _)) { }
+            Interlocked.Exchange(ref queuedRequestCount, 0);
         }
 
         private void Update()
@@ -205,6 +210,10 @@ namespace GameWorld
                     lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
+                    queuedChunks.Clear();
+                    buildingChunks.Clear();
+                    while (requestQueue.TryDequeue(out _)) { }
+                    Interlocked.Exchange(ref queuedRequestCount, 0);
                     generatorReloaded = true;
                     if (enableDebugLogging)
                     {
@@ -249,6 +258,10 @@ namespace GameWorld
                     profile = newProfile;
                     generator = new EnhancedTerrainGenerator(profile, worldConfig);
                     loadedChunks.Clear();
+                    queuedChunks.Clear();
+                    buildingChunks.Clear();
+                    while (requestQueue.TryDequeue(out _)) { }
+                    Interlocked.Exchange(ref queuedRequestCount, 0);
                     lastProfileHash = profile.ProfileHash;
                     lastProfileFileHash = fileHash;
                     lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
@@ -279,6 +292,10 @@ namespace GameWorld
                 lastProfileSignature = generationSignature;
                 generator = new EnhancedTerrainGenerator(profile, worldConfig);
                 loadedChunks.Clear();
+                queuedChunks.Clear();
+                buildingChunks.Clear();
+                while (requestQueue.TryDequeue(out _)) { }
+                Interlocked.Exchange(ref queuedRequestCount, 0);
                 if (enableDebugLogging)
                 {
                     Debug.Log($"[WorldMapController] Regenerated map preview generator for signature={generationSignature}");
@@ -306,7 +323,7 @@ namespace GameWorld
 
         private void EnqueueChunk(Vector2Int pos)
         {
-            if (loadedChunks.ContainsKey(pos))
+            if (loadedChunks.ContainsKey(pos) || buildingChunks.ContainsKey(pos))
             {
                 return;
             }
@@ -316,13 +333,14 @@ namespace GameWorld
                 return;
             }
 
-            if (requestQueue.Count >= Math.Max(64, maxQueuedChunkRequests))
+            if (Volatile.Read(ref queuedRequestCount) >= Math.Max(64, maxQueuedChunkRequests))
             {
                 queuedChunks.TryRemove(pos, out _);
                 return;
             }
 
             requestQueue.Enqueue(pos);
+            Interlocked.Increment(ref queuedRequestCount);
         }
 
         private async Task ProcessQueueAsync(CancellationToken token)
@@ -335,9 +353,14 @@ namespace GameWorld
                     continue;
                 }
 
+                if (Volatile.Read(ref queuedRequestCount) > 0)
+                {
+                    Interlocked.Decrement(ref queuedRequestCount);
+                }
+
                 queuedChunks.TryRemove(pos, out _);
 
-                if (loadedChunks.ContainsKey(pos))
+                if (loadedChunks.ContainsKey(pos) || !buildingChunks.TryAdd(pos, 0))
                 {
                     continue;
                 }
@@ -359,6 +382,7 @@ namespace GameWorld
                 }
                 finally
                 {
+                    buildingChunks.TryRemove(pos, out _);
                     buildSemaphore.Release();
                 }
             }

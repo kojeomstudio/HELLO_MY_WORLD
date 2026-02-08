@@ -32,6 +32,39 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-08: Session 57 - Terrain v20 + Map-Control v24 + Protocol Validation
+
+**Status:** COMPLETED
+
+- Work plan created/updated in `plans/2026-02-08-session-57-comprehensive-implementation-plan.md`.
+- Core/Content/Utility sequential manifest regenerated:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-08-session-57.json`
+- Terrain generation algorithms improved:
+  - River: catchment-braiding bridge (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake: catchment spillway stitch (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave: hydrology seam vault sealing (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+- World-map control architecture hardened:
+  - Server inflight chunk dedup and profile/signature drift rebuild (`GameServer/World/WorldMapControlManager.cs`)
+  - Server controller signature now includes profile version + hydrology signature (`GameServer/World/WorldMapController.cs`)
+  - Client queue/building dedup + deterministic queue budget counter (`Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`)
+- Shared DLL and config parity updated:
+  - Hydrology signature bumped to `2026-02-08-hydrology-riverlake-cave-v20`
+  - Map-control profile target version bumped to `24`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf usage/reference checks improved:
+  - Dummy probe warns when profile version is invalid (`GameServer/Testing/DummyProtocolClient.cs`)
+  - Session-57 feature manifest is prioritized on server startup (`GameServer/Program.cs`)
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success, warnings only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success, warnings only)
+- `dotnet test GameServer/GameServer.csproj` (completed)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success, profile v24)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+
 ### 2026-02-08: Session 56 - Comprehensive Validation
 
 **Status:** ✅ COMPLETED
@@ -857,4 +890,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

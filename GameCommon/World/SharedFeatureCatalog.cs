@@ -54,9 +54,9 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-08 (catchment/braiding/spillway/aquifer continuity v19).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-08 (catchment/braiding/spillway/aquifer continuity v20).
         /// </summary>
-        public const string HydrologySignature = "2026-02-08-hydrology-riverlake-cave-v19";
+        public const string HydrologySignature = "2026-02-08-hydrology-riverlake-cave-v20";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -82,7 +82,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology Reservoir WorldGen v17",
+                "Hydrology Reservoir WorldGen v20",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -128,7 +128,7 @@ namespace GameCommon.World
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 new[] { HydrologySignature, "config/world.json", "config/enhanced_terrain_generation.json" },
-                "in-progress",
+                "implemented",
                 "high"),
             new SharedFeatureDescriptor(
                 "S19-CONTENT-02",
@@ -141,7 +141,7 @@ namespace GameCommon.World
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },
                 new[] { HydrologySignature, "config/world.json" },
-                "in-progress",
+                "implemented",
                 "high"),
             new SharedFeatureDescriptor(
                 "S19-CONTENT-03",
@@ -154,7 +154,7 @@ namespace GameCommon.World
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },
                 new[] { HydrologySignature, "config/world.json" },
-                "in-progress",
+                "implemented",
                 "medium"),
             new SharedFeatureDescriptor(
                 "S19-UTIL-01",
@@ -168,7 +168,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlManager.cs"
                 },
                 new[] { HydrologySignature },
-                "in-progress",
+                "implemented",
                 "high"),
                 new SharedFeatureDescriptor(
                 "S19-UTIL-02",
@@ -182,7 +182,7 @@ namespace GameCommon.World
                     "config/minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"
                 },
                 new[] { HydrologySignature },
-                "in-progress",
+                "implemented",
                 "high"),
             new SharedFeatureDescriptor(
                 "S19-UTIL-03",
@@ -195,7 +195,7 @@ namespace GameCommon.World
                     "config/protocol_dummy_client.json"
                 },
                 new[] { "SharedProtocol", "EnhancedMinecraftProtocol" },
-                "in-progress",
+                "implemented",
                 "medium")
         };
     }

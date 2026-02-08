@@ -28,6 +28,7 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<int, WorldMapProfile> profiles = new();
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
+        private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
@@ -218,13 +219,16 @@ namespace GameServerApp.World
                 !string.Equals(profileContentHash, currentProfileContentHash, StringComparison.OrdinalIgnoreCase);
             bool signatureMismatch = loaded != null &&
                 !string.Equals(loaded.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase);
+            bool profileSignatureMismatch = loaded != null &&
+                !string.Equals(ComputeGenerationSignatureForProfile(loaded), generationSignature, StringComparison.Ordinal);
 
-            if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch || profileFileUpdated || profileContentChanged || signatureMismatch)
+            if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch || profileFileUpdated || profileContentChanged || signatureMismatch || profileSignatureMismatch)
             {
                 controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
                 WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
                 chunkCache.Clear();
                 chunkAccessTimes.Clear();
+                inflightChunkGenerations.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 RefreshGenerationSignature(rebuildPipeline: false);
@@ -239,6 +243,7 @@ namespace GameServerApp.World
                 controlProfile = loaded;
                 chunkCache.Clear();
                 chunkAccessTimes.Clear();
+                inflightChunkGenerations.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -258,11 +263,32 @@ namespace GameServerApp.World
                 return cached;
             }
 
-            var generated = await pipeline.GenerateChunkAsync(chunkX, chunkZ);
-            chunkCache[key] = generated;
-            chunkAccessTimes[key] = DateTime.UtcNow;
-            EnforceCacheBudget();
-            return generated;
+            if (inflightChunkGenerations.TryGetValue(key, out var inflight))
+            {
+                return await inflight.ConfigureAwait(false);
+            }
+
+            var generationTask = pipeline.GenerateChunkAsync(chunkX, chunkZ);
+            if (!inflightChunkGenerations.TryAdd(key, generationTask))
+            {
+                if (inflightChunkGenerations.TryGetValue(key, out var existing))
+                {
+                    return await existing.ConfigureAwait(false);
+                }
+            }
+
+            try
+            {
+                var generated = await generationTask.ConfigureAwait(false);
+                chunkCache[key] = generated;
+                chunkAccessTimes[key] = DateTime.UtcNow;
+                EnforceCacheBudget();
+                return generated;
+            }
+            finally
+            {
+                inflightChunkGenerations.TryRemove(key, out _);
+            }
         }
 
         private void MaybeReloadGenerationConfig(ref bool profileChanged)
@@ -289,6 +315,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
             chunkCache.Clear();
             chunkAccessTimes.Clear();
+            inflightChunkGenerations.Clear();
             profileChanged = true;
             RefreshGenerationSignature(rebuildPipeline: false);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -379,10 +406,25 @@ namespace GameServerApp.World
             generationSignature = newSignature;
             chunkCache.Clear();
             chunkAccessTimes.Clear();
+            inflightChunkGenerations.Clear();
 
             if (rebuildPipeline)
             {
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
+            }
+        }
+
+        private string ComputeGenerationSignatureForProfile(WorldMapControlProfile profile)
+        {
+            var previous = controlProfile;
+            controlProfile = profile;
+            try
+            {
+                return ComputeGenerationSignature();
+            }
+            finally
+            {
+                controlProfile = previous;
             }
         }
 

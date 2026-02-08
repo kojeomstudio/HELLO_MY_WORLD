@@ -4,8 +4,8 @@
   "metadata": {
     "session": "55",
     "date": "2026-02-08",
-    "hydrologySignature": "2026-02-08-hydrology-riverlake-cave-v19",
-    "mapControlProfileVersion": 23,
+    "hydrologySignature": "2026-02-08-hydrology-riverlake-cave-v20",
+    "mapControlProfileVersion": 24,
     "description": "Core/Content/Utility ordered inventory for session-55: catchment/braiding/spillway/aquifer terrain coupling, map-control cache architecture hardening, and protobuf validation continuity."
   },
   "implementationSequence": [

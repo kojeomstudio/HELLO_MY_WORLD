@@ -316,6 +316,7 @@ namespace GameServerApp.World.Generation
             SealWetCeilings(mask, hydrologyMask, flowMask, seaLevel);
             ApplyRiparianStability(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyAquiferContinuitySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
+            ApplyHydrologySeamVault(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             return mask;
         }
 
@@ -645,6 +646,65 @@ namespace GameServerApp.World.Generation
                         double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
                         double sealChance = seal * (0.55 + depthFactor * 0.45);
                         if (sealChance > 0.58 || (sealChance > 0.36 && wetness > 0.4))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyHydrologySeamVault(bool[,,] mask, float[,] hydrologyMask, float[,] flowMask, float[,]? riverMask, int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, Math.Max(3, seaLevel + 4));
+            int bottom = Math.Max(1, seaLevel - Math.Max(4, config.RiparianPlugDepth + 2));
+
+            double aquiferBarrierWeight = Math.Clamp(config.AquiferBarrierWeight, 0.0, 1.0);
+            double guardWeight = Math.Clamp(config.RiparianCaveGuardWeight, 0.0, 1.0);
+            double edgeSeal = Math.Clamp(config.EdgeSealStrength, 0.0, 1.0);
+            double moistureRetention = Math.Clamp(config.MoistureRetentionWeight, 0.0, 1.0);
+            double moistureFlowClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double hydroGradient = Math.Abs(seamHydro - hydro);
+                    double flowGradient = Math.Abs(seamFlow - flow);
+
+                    double seamWetness = Math.Clamp(
+                        hydro * 0.38 + seamHydro * 0.22 + flow * 0.18 + seamFlow * 0.12 + river * 0.1,
+                        0.0,
+                        1.15);
+
+                    double continuity = Math.Clamp((hydroGradient + flowGradient) / moistureFlowClamp, 0.0, 1.0);
+                    double vaultWeight = seamWetness * (aquiferBarrierWeight * 0.5 + guardWeight * 0.25 + moistureRetention * 0.15);
+                    vaultWeight += continuity * edgeSeal * 0.3;
+                    vaultWeight = Math.Clamp(vaultWeight, 0.0, 0.95);
+
+                    if (vaultWeight < 0.28)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double sealChance = vaultWeight * (0.55 + depthFactor * 0.45);
+                        if (sealChance > 0.55 || (sealChance > 0.38 && seamWetness > 0.42))
                         {
                             mask[x, y, z] = false;
                         }

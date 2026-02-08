@@ -242,7 +242,61 @@ namespace GameServerApp.World.Generation
             ApplyWetlandBuffer(lakes, Math.Min(lakeConfig.WetlandBufferRadius, lakeConfig.MaxRadius), lakeConfig.ShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             ApplySpillwayContinuity(lakes, heightMap, flowAccumulation, riverMask, spillwayContinuityWeight);
+            ApplyCatchmentSpillwayStitch(lakes, hydrologyMask, flowAccumulation, riverMask, spillwayContinuityWeight);
             return lakes;
+        }
+
+        private void ApplyCatchmentSpillwayStitch(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            double spillwayContinuityWeight)
+        {
+            spillwayContinuityWeight = Math.Clamp(spillwayContinuityWeight, 0.0, 1.0);
+            if (spillwayContinuityWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+            double taperWeight = Math.Clamp(lakeConfig.LakeOutflowTaper, 0.0, 1.0);
+            double varianceWeight = Math.Clamp(lakeConfig.VarianceWeight, 0.0, 1.0);
+            double seamFill = Math.Clamp(waterConfig.RiverSeamFillStrength, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float lake = copy[x, z];
+                    if (lake <= 0.2f)
+                    {
+                        continue;
+                    }
+
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double riverAssist = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double divergence = Math.Min(1.0, Math.Abs(flowSample - seamFlow) / divergenceClamp);
+
+                    double catchmentPressure = Math.Clamp(
+                        lake * 0.35 + flowSample * 0.3 + seamFlow * 0.15 + seamHydro * 0.12 + riverAssist * 0.08,
+                        0.0,
+                        1.3);
+
+                    double stitch = catchmentPressure * spillwayContinuityWeight * (0.14 + taperWeight * 0.2 + varianceWeight * 0.1);
+                    stitch *= 1.0 - Math.Clamp(divergence * 0.45 + Math.Abs(hydro - seamHydro) * 0.25, 0.0, 0.75);
+
+                    double minFloor = Math.Max(lake, catchmentPressure * seamFill * 0.22);
+                    double target = Math.Max(minFloor, lake + stitch);
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(target, 0.0, 1.0));
+                }
+            }
         }
 
         private void ApplyRiparianEdgeFeather(float[,] mask, float[,] hydrology, float[,] flow)

@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 23;
+        public int MapControlProfileVersion = 24;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();

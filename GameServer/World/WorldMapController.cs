@@ -34,7 +34,7 @@ namespace GameServerApp.World
     /// </summary>
     public sealed class WorldMapController : IDisposable
     {
-        private const string PipelineVersion = "2026-01-22-river-lake-cave-coupling";
+        private const string PipelineVersion = SharedFeatureCatalog.HydrologySignature;
         private readonly ILogger<WorldMapController> logger;
         private readonly WorldSettings worldSettings;
         private WorldGenerationConfig generationConfig;
@@ -225,10 +225,16 @@ namespace GameServerApp.World
                 if (currentProfileWrite > profileWriteTime)
                 {
                     var loaded = WorldMapControlProfileUtility.Load(profilePath);
-                    if (loaded != null && !string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase))
+                    if (loaded != null)
                     {
-                        controlProfile = loaded;
-                        reloadNeeded = true;
+                        bool hashChanged = !string.Equals(loaded.ProfileHash, controlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase);
+                        bool signatureChanged = !string.Equals(loaded.HydrologySignature, controlProfile.HydrologySignature, StringComparison.OrdinalIgnoreCase);
+                        bool versionChanged = loaded.Version != controlProfile.Version;
+                        if (hashChanged || signatureChanged || versionChanged)
+                        {
+                            controlProfile = loaded;
+                            reloadNeeded = true;
+                        }
                     }
 
                     profileWriteTime = currentProfileWrite;
@@ -270,7 +276,11 @@ namespace GameServerApp.World
         private string ComputeGenerationSignature()
         {
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
-            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{controlProfile?.ProfileHash ?? "no-profile"}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{generationConfig.Water.HydrologyGradientStabilityIterations}:{generationConfig.Water.HydrologyGradientStabilityBlend}:{generationConfig.Water.HydrologyGradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}";
+            string hydrologySignature = string.IsNullOrWhiteSpace(controlProfile?.HydrologySignature)
+                ? SharedFeatureCatalog.HydrologySignature
+                : controlProfile!.HydrologySignature;
+            int profileVersion = controlProfile?.Version ?? generationConfig.MapControlProfileVersion;
+            return $"{PipelineVersion}:{generationConfig.WorldName}:{seed}:{generationConfig.MapControlProfileVersion}:{profileVersion}:{hydrologySignature}:{controlProfile?.ProfileHash ?? "no-profile"}:{generationConfig.ChunkSize}:{generationConfig.WorldHeight}:{generationConfig.RenderDistance}:{generationConfig.SimulationDistance}:{generationConfig.Water.GlobalWaterLevel}:{generationConfig.TerrainGeneration.SeaLevel}:{generationConfig.Water.HydrologyFlowPersistence}:{generationConfig.Water.HydrologyWatershedStitchWeight}:{generationConfig.Water.HydrologyWatershedStitchRadius}:{generationConfig.Water.HydrologyGradientStabilityIterations}:{generationConfig.Water.HydrologyGradientStabilityBlend}:{generationConfig.Water.HydrologyGradientClamp}:{generationConfig.Lakes.FlowSeepageWeight}:{generationConfig.Caves.CeilingMoistureWeight}:{generationConfig.Caves.CeilingMoistureClamp}";
         }
     }
 }

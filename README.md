@@ -32,6 +32,38 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-09: Session 59 - Hydrology v21 (River/Lake/Cave) + Map-Control/Profile v25 + Protocol Validation
+
+**Status:** COMPLETED
+
+- Work plan created and tracked in `plans/2026-02-09-session-59-comprehensive-work-plan.md`.
+- Core/Content/Utility inventory refreshed and exported:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-09-session-59.json`
+- Terrain generation improvements applied (caves/rivers/lakes):
+  - River mouth continuity bridge pass (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake mouth stability pass (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave river-lake boundary seal pass (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+- World map control architecture improved:
+  - Server `WorldMapController` generation signature unified to shared `WorldMapSignature` context/hash path.
+  - Signature and profile parity hardened with shared fingerprint validation.
+- Shared signature/profile/config synchronized:
+  - Hydrology signature bumped to `2026-02-09-hydrology-riverlake-cave-v21`
+  - Map-control profile target bumped to `25`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/enhanced_world_map_control_server.json`
+  - Regenerated and mirrored profile: `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Feature manifest loader priority updated:
+  - `GameServer/Program.cs` now prioritizes session-59 manifest first.
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success, warnings only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success, warnings only)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success, profile v25 generated)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0, optional missing bindings reported)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+- `dotnet test GameServer/TerrainGenerationTest.csproj` (failed: project file malformed with multiple root elements; existing pre-existing issue)
+
 ### 2026-02-08: Session 57 - Terrain v20 + Map-Control v24 + Protocol Validation
 
 **Status:** COMPLETED

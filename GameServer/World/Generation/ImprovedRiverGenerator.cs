@@ -288,8 +288,67 @@ namespace GameServerApp.World.Generation
             ApplyRiparianEdgeFeather(mask, hydrologyMask, flowAccumulation);
             ApplyConfluenceMemory(mask, hydrologyMask, flowAccumulation);
             ApplyCatchmentBraidingBridge(mask, hydrologyMask, flowAccumulation);
+            ApplyMouthContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyMouthContinuityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double continuityWeight = Math.Clamp(config.RiverEdgeContinuityWeight, 0.0, 1.0);
+            double deltaWeight = Math.Clamp(config.RiverDeltaWetlandStrength, 0.0, 1.0);
+            if (continuityWeight <= 0.0 && deltaWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int mouthRadius = Math.Max(2, config.RiverMouthSmoothRadius);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river < 0.18)
+                    {
+                        continue;
+                    }
+
+                    int elevation = heightMap[x, z];
+                    double seaProximity = 1.0 - Math.Clamp(
+                        Math.Abs(elevation - seaLevel) / Math.Max(1.0, mouthRadius * 2.5),
+                        0.0,
+                        1.0);
+                    if (seaProximity <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double flowGradient = Math.Abs(flowSample - seamFlow);
+                    double hydroGradient = Math.Abs(hydro - seamHydro);
+
+                    double mouthMemory = Math.Clamp(
+                        river * 0.55 + seamHydro * 0.2 + seamFlow * 0.25,
+                        0.0,
+                        1.35);
+                    double bridge = seaProximity * (continuityWeight * 0.26 + deltaWeight * 0.2);
+                    bridge *= 1.0 - Math.Clamp(flowGradient * 0.55 + hydroGradient * 0.45, 0.0, 0.85);
+                    double target = Math.Max(river, mouthMemory + bridge);
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyCatchmentBraidingBridge(float[,] mask, float[,] hydrology, float[,] flow)

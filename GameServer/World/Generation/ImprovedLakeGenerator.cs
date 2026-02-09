@@ -243,7 +243,72 @@ namespace GameServerApp.World.Generation
             ApplyOutflowChannels(lakes, heightMap, flowAccumulation, waterConfig.LakeInflowBlendWeight, lakeConfig.OutflowCarveDepth, outflowStabilityWeight);
             ApplySpillwayContinuity(lakes, heightMap, flowAccumulation, riverMask, spillwayContinuityWeight);
             ApplyCatchmentSpillwayStitch(lakes, hydrologyMask, flowAccumulation, riverMask, spillwayContinuityWeight);
+            ApplyLakeMouthStability(lakes, riverMask, flowAccumulation, heightMap, seaLevel);
             return lakes;
+        }
+
+        private void ApplyLakeMouthStability(
+            float[,] lakes,
+            float[,]? riverMask,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            if (riverMask == null)
+            {
+                return;
+            }
+
+            double continuityWeight = Math.Clamp(lakeConfig.SpillwayContinuityWeight, 0.0, 1.0);
+            double stabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            if (continuityWeight <= 0.0 && stabilityWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int mouthRadius = Math.Max(2, waterConfig.RiverMouthSmoothRadius);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.18)
+                    {
+                        continue;
+                    }
+
+                    int elevation = heightMap[x, z];
+                    double seaProximity = 1.0 - Math.Clamp(
+                        Math.Abs(elevation - seaLevel) / Math.Max(1.0, mouthRadius * 2.0),
+                        0.0,
+                        1.0);
+                    if (seaProximity <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double river = TerrainMaskUtility.Clamp01(riverMask[x, z]);
+                    double seamRiver = TerrainMaskUtility.SampleInterior(riverMask, x, z);
+                    double flowSample = TerrainMaskUtility.Clamp01(flow[x, z] * 0.2f);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double flowGradient = Math.Abs(flowSample - seamFlow);
+                    double riverGradient = Math.Abs(river - seamRiver);
+
+                    double mouthAssist = Math.Clamp(
+                        river * 0.4 + seamRiver * 0.25 + seamFlow * 0.2 + flowSample * 0.15,
+                        0.0,
+                        1.0);
+                    double boost = seaProximity * mouthAssist * (continuityWeight * 0.25 + stabilityWeight * 0.2);
+                    boost *= 1.0 - Math.Clamp(flowGradient * 0.6 + riverGradient * 0.5, 0.0, 0.9);
+
+                    double target = Math.Max(lake, lake + boost);
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
         }
 
         private void ApplyCatchmentSpillwayStitch(

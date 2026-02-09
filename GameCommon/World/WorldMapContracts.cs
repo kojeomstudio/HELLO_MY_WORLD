@@ -35,6 +35,8 @@ namespace GameCommon.World
             string protoComputed,
             int profileVersion,
             string profileHash,
+            string worldConfigHash,
+            string profileFileHash,
             string hydrologySignature,
             int chunkSize,
             int worldHeight,
@@ -114,6 +116,8 @@ namespace GameCommon.World
             ProtoComputed = protoComputed;
             ProfileVersion = profileVersion;
             ProfileHash = profileHash;
+            WorldConfigHash = worldConfigHash;
+            ProfileFileHash = profileFileHash;
             HydrologySignature = hydrologySignature;
             ChunkSize = chunkSize;
             WorldHeight = worldHeight;
@@ -194,6 +198,8 @@ namespace GameCommon.World
         public string ProtoComputed { get; }
         public int ProfileVersion { get; }
         public string ProfileHash { get; }
+        public string WorldConfigHash { get; }
+        public string ProfileFileHash { get; }
         public string HydrologySignature { get; }
         public int ChunkSize { get; }
         public int WorldHeight { get; }

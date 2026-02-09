@@ -448,6 +448,8 @@ namespace GameServerApp.World
                 ProtoFingerprint.ComputeFingerprint(),
                 controlProfile?.Version ?? generationConfig.MapControlProfileVersion,
                 controlProfile?.ProfileHash ?? "no-profile",
+                string.IsNullOrWhiteSpace(worldConfigHash) ? ComputeFileHash(generationConfig.SourcePath) : worldConfigHash,
+                string.IsNullOrWhiteSpace(profileContentHash) ? ComputeFileHash(generationConfig.MapControlProfilePath) : profileContentHash,
                 effectiveHydrologySignature,
                 effectiveChunkSize,
                 generationConfig.WorldHeight,

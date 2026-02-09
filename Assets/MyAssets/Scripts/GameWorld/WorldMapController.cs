@@ -598,6 +598,8 @@ namespace GameWorld
                 ProtoFingerprint.ComputeFingerprint(),
                 controlProfile.Version,
                 controlProfile.ProfileHash,
+                ComputeFileHash(configPath),
+                ComputeFileHash(Path.Combine(Application.streamingAssetsPath, profileFileName)),
                 effectiveHydrologySignature,
                 effectiveChunkSize,
                 config.WorldHeight,

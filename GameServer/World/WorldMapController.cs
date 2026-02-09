@@ -46,6 +46,8 @@ namespace GameServerApp.World
         private DateTime profileWriteTime;
         private DateTime worldConfigWriteTime;
         private string generationSignature;
+        private string worldConfigHash;
+        private string profileFileHash;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
@@ -77,6 +79,8 @@ namespace GameServerApp.World
             WorldMapControlProfileUtility.Save(controlProfile, profilePath);
             profileWriteTime = GetWriteTime(profilePath);
             worldConfigWriteTime = GetWriteTime(worldConfigPath);
+            worldConfigHash = ComputeFileHash(worldConfigPath);
+            profileFileHash = ComputeFileHash(profilePath);
             generationSignature = ComputeGenerationSignature();
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
@@ -219,6 +223,7 @@ namespace GameServerApp.World
                 {
                     generationConfig = WorldGenerationConfig.Load(worldConfigPath);
                     worldConfigWriteTime = currentWorldWrite;
+                    worldConfigHash = ComputeFileHash(worldConfigPath);
                     reloadNeeded = true;
                 }
 
@@ -239,6 +244,7 @@ namespace GameServerApp.World
                     }
 
                     profileWriteTime = currentProfileWrite;
+                    profileFileHash = ComputeFileHash(profilePath);
                 }
 
                 if (reloadNeeded)
@@ -262,6 +268,26 @@ namespace GameServerApp.World
             catch
             {
                 return DateTime.MinValue;
+            }
+        }
+
+        private static string ComputeFileHash(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                using var stream = File.OpenRead(path);
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                var hash = sha.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
@@ -295,6 +321,8 @@ namespace GameServerApp.World
                 ProtoFingerprint.ComputeFingerprint(),
                 controlProfile?.Version ?? generationConfig.MapControlProfileVersion,
                 controlProfile?.ProfileHash ?? "no-profile",
+                string.IsNullOrWhiteSpace(worldConfigHash) ? ComputeFileHash(worldConfigPath) : worldConfigHash,
+                string.IsNullOrWhiteSpace(profileFileHash) ? ComputeFileHash(profilePath) : profileFileHash,
                 effectiveHydrologySignature,
                 effectiveChunkSize,
                 generationConfig.WorldHeight,

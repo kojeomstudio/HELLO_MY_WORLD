@@ -289,8 +289,67 @@ namespace GameServerApp.World.Generation
             ApplyConfluenceMemory(mask, hydrologyMask, flowAccumulation);
             ApplyCatchmentBraidingBridge(mask, hydrologyMask, flowAccumulation);
             ApplyMouthContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyTributaryConvergenceLock(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyTributaryConvergenceLock(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double confluenceWeight = Math.Clamp(
+                config.RiverConfluenceBoost * 0.35 + config.RiverEdgeContinuityWeight * 0.45,
+                0.0,
+                1.0);
+            if (confluenceWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int mouthRadius = Math.Max(2, config.RiverMouthSmoothRadius);
+            var copy = (float[,])mask.Clone();
+            double memoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            double meanderDamping = 1.0 - Math.Clamp(config.RiverMeanderJitter * 0.5, 0.0, 0.45);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    if (flowNode < 0.22)
+                    {
+                        continue;
+                    }
+
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double convergence = Math.Clamp(
+                        flowNode * 0.45 + seamFlow * 0.25 + hydro * 0.15 + seamHydro * 0.15,
+                        0.0,
+                        1.2);
+                    convergence *= 1.0 - Math.Clamp(divergence * 0.55 + Math.Abs(hydro - seamHydro) * 0.2, 0.0, 0.8);
+
+                    double baseRiver = copy[x, z];
+                    double memoryFloor = Math.Max(baseRiver, convergence * (0.16 + memoryWeight * 0.24));
+                    double elevationPenalty = Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 3.0),
+                        0.0,
+                        1.0);
+                    double lockWeight = (0.12 + confluenceWeight * 0.26 + memoryWeight * 0.12) * meanderDamping;
+                    lockWeight *= 1.0 - elevationPenalty * 0.3;
+                    double target = Math.Max(memoryFloor, baseRiver + convergence * lockWeight);
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyMouthContinuityBridge(

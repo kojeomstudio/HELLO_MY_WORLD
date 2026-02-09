@@ -318,7 +318,85 @@ namespace GameServerApp.World.Generation
             ApplyAquiferContinuitySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyHydrologySeamVault(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyRiverLakeBoundarySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
+            ApplyFloodedPocketPruning(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             return mask;
+        }
+
+        private void ApplyFloodedPocketPruning(bool[,,] mask, float[,] hydrologyMask, float[,] flowMask, float[,]? riverMask, int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, Math.Max(3, seaLevel + 5));
+            int bottom = Math.Max(1, seaLevel - Math.Max(5, config.RiparianPlugDepth + 3));
+
+            double barrierWeight = Math.Clamp(config.AquiferBarrierWeight, 0.0, 1.0);
+            double guardWeight = Math.Clamp(config.RiparianCaveGuardWeight, 0.0, 1.0);
+            double moistureWeight = Math.Clamp(config.MoistureRetentionWeight, 0.0, 1.0);
+            double edgeSeal = Math.Clamp(config.EdgeSealStrength, 0.0, 1.0);
+            double flowClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double hydroGradient = Math.Abs(seamHydro - hydro);
+                    double flowGradient = Math.Abs(seamFlow - flow);
+                    double continuity = Math.Clamp((hydroGradient + flowGradient) / flowClamp, 0.0, 1.0);
+
+                    double wetness = Math.Clamp(
+                        hydro * 0.4 + seamHydro * 0.2 + flow * 0.2 + seamFlow * 0.1 + river * 0.1,
+                        0.0,
+                        1.2);
+                    double pruningWeight = wetness * (barrierWeight * 0.4 + guardWeight * 0.3 + moistureWeight * 0.2);
+                    pruningWeight += continuity * edgeSeal * 0.25;
+                    pruningWeight = Math.Clamp(pruningWeight, 0.0, 0.95);
+                    if (pruningWeight < 0.3)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int localAirNeighbors = 0;
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                if (dx == 0 && dz == 0)
+                                {
+                                    continue;
+                                }
+
+                                int nx = Math.Clamp(x + dx, 0, sizeX - 1);
+                                int nz = Math.Clamp(z + dz, 0, sizeZ - 1);
+                                if (mask[nx, y, nz])
+                                {
+                                    localAirNeighbors++;
+                                }
+                            }
+                        }
+
+                        double pocketBias = 1.0 - Math.Clamp(localAirNeighbors / 8.0, 0.0, 1.0);
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double pruneChance = pruningWeight * (0.52 + pocketBias * 0.28 + depthFactor * 0.2);
+                        if (pruneChance > 0.57 || (pruneChance > 0.4 && wetness > 0.48))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyRiverLakeBoundarySeal(

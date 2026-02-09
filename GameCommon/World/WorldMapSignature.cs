@@ -24,6 +24,8 @@ namespace GameCommon.World
                 .Append(context.ProtoComputed).Append('|')
                 .Append(context.ProfileVersion).Append('|')
                 .Append(context.ProfileHash).Append('|')
+                .Append(context.WorldConfigHash).Append('|')
+                .Append(context.ProfileFileHash).Append('|')
                 .Append(context.HydrologySignature).Append('|')
                 .Append(context.ChunkSize).Append('|')
                 .Append(context.WorldHeight).Append('|')

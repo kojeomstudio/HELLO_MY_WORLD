@@ -32,6 +32,43 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-09: Session 61 - Hydrology v22 (Tributary/Basin/Flooded-Pocket) + Map Signature Hash Hardening + Profile v26
+
+**Status:** COMPLETED
+
+- Work plan created and tracked in `plans/2026-02-09-session-61-comprehensive-work-plan.md`.
+- Core/Content/Utility inventory refreshed and exported:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-09-session-61.json`
+- Terrain generation improvements applied (caves/rivers/lakes):
+  - River tributary convergence lock pass (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake basin retention lock pass (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave flooded pocket pruning pass (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+- World map control architecture improved:
+  - Shared signature contract now includes world/profile file hashes:
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+  - Applied to server/client signature computation paths:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared signature/profile/config synchronized:
+  - Hydrology signature bumped to `2026-02-09-hydrology-riverlake-cave-v22`
+  - Map-control profile target bumped to `26`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/enhanced_world_map_control_server.json`
+  - Regenerated and mirrored profile: `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Feature manifest loader priority updated:
+  - `GameServer/Program.cs` now prioritizes session-61 manifest first.
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success, warnings only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success, warnings only)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success, profile v26 generated)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0, optional bindings warning only)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+- `dotnet test GameServer/TerrainGenerationTest.csproj` (failed: existing malformed project file with multiple root elements)
+
 ### 2026-02-09: Session 59 - Hydrology v21 (River/Lake/Cave) + Map-Control/Profile v25 + Protocol Validation
 
 **Status:** COMPLETED

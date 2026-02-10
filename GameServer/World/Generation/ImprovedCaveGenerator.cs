@@ -319,7 +319,73 @@ namespace GameServerApp.World.Generation
             ApplyHydrologySeamVault(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyRiverLakeBoundarySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyFloodedPocketPruning(mask, hydrologyMask, flowMask, riverMask, seaLevel);
+            ApplyMoistureChannelDampening(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
+        }
+
+        private void ApplyMoistureChannelDampening(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(3, config.RiparianPlugDepth + 2));
+            int bottom = Math.Max(1, seaLevel - Math.Max(4, config.RiparianPlugDepth + 2));
+            double dampWeight = Math.Clamp(
+                config.CaveEntranceFlowDampening * 0.4 + config.AquiferBarrierWeight * 0.35 + config.RiparianCaveGuardWeight * 0.25,
+                0.0,
+                1.0);
+            if (dampWeight <= 0.0)
+            {
+                return;
+            }
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double continuity = Math.Clamp(Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flow), 0.0, 1.0);
+                    double channel = Math.Clamp(
+                        hydro * 0.35 + seamHydro * 0.18 + flow * 0.2 + seamFlow * 0.17 + river * 0.1,
+                        0.0,
+                        1.2);
+                    double dampening = channel * dampWeight;
+                    dampening += continuity * config.EdgeSealStrength * 0.25;
+                    dampening += slope * config.CeilingStabilityWeight * 0.015;
+                    dampening = Math.Clamp(dampening, 0.0, 0.92);
+
+                    if (dampening < 0.3)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double sealChance = dampening * (0.48 + depthFactor * 0.42);
+                        if (sealChance > 0.57 || (sealChance > 0.41 && channel > 0.55))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyFloodedPocketPruning(bool[,,] mask, float[,] hydrologyMask, float[,] flowMask, float[,]? riverMask, int seaLevel)

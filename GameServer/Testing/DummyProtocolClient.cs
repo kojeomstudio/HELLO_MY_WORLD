@@ -45,6 +45,8 @@ namespace GameServerApp.Testing
         IReadOnlyCollection<string> RegisteredPackets,
         string DescriptorFingerprint,
         string HydrologySignature,
+        string ProfileHydrologySignature,
+        bool ProfileHydrologyMatchesShared,
         int RegisteredCount,
         int GeneratedDescriptorCount,
         int BoundDescriptorCount,
@@ -435,6 +437,10 @@ namespace GameServerApp.Testing
                 : Path.GetFullPath(settings.ReferenceReportPath);
             int registeredCount = registeredPackets.Length;
             string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
+            string profileHydrologySignature = sharedProfile?.HydrologySignature ?? string.Empty;
+            bool profileHydrologyMatchesShared =
+                string.IsNullOrWhiteSpace(profileHydrologySignature) ||
+                string.Equals(profileHydrologySignature, hydrologySignature, StringComparison.OrdinalIgnoreCase);
             string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
             int profileVersion = sharedProfile?.Version ?? 0;
             var coverage = ProtocolRegistry.GetBindingCoverage();
@@ -460,6 +466,8 @@ namespace GameServerApp.Testing
                 registeredPackets,
                 descriptorFingerprint,
                 hydrologySignature,
+                profileHydrologySignature,
+                profileHydrologyMatchesShared,
                 registeredCount,
                 coverage.GeneratedDescriptors,
                 coverage.BoundDescriptors,
@@ -478,6 +486,7 @@ namespace GameServerApp.Testing
                 $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
                 $"Validated={validatedPackets.Count} Missing={requiredMissing.Count} MissingPrototype={missingPrototypePackets.Count} OptionalMissing={optionalMissing.Count} " +
                 $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} UnboundRequired={unboundRequiredGeneratedDescriptors.Count} PacketDiagnostics={packetDiagnostics.Count} " +
+                $"ProfileHydrologyMatch={profileHydrologyMatchesShared} " +
                 $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
                 $"DescriptorFingerprint={descriptorFingerprint}");
 

@@ -290,8 +290,59 @@ namespace GameServerApp.World.Generation
             ApplyCatchmentBraidingBridge(mask, hydrologyMask, flowAccumulation);
             ApplyMouthContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyTributaryConvergenceLock(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyCrossChunkFloodplainBridge(mask, hydrologyMask, flowAccumulation, chunkX, chunkZ);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyCrossChunkFloodplainBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int chunkX,
+            int chunkZ)
+        {
+            double continuityWeight = Math.Clamp(config.RiverEdgeContinuityWeight, 0.0, 1.0);
+            double memoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
+            double seamFill = Math.Clamp(config.RiverSeamFillStrength, 0.0, 1.0);
+            double edgeVarianceClamp = Math.Max(0.001, config.HydrologyEdgeVarianceClamp);
+            int edgeRadius = Math.Max(1, config.HydrologyEdgeBlendRadius + config.HydrologyWatershedStitchRadius);
+            if (continuityWeight <= 0.0 && memoryWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double floodplainMemory = Math.Clamp((hydro + seamHydro + flowSample + seamFlow) * 0.25, 0.0, 1.2);
+                    double noise = ComputeEdgeNoise(chunkX, chunkZ, x, z);
+                    double memoryBridge = floodplainMemory * (0.1 + continuityWeight * 0.24 + memoryWeight * 0.2);
+                    memoryBridge *= 0.8 + noise * 0.4;
+                    double seamAnchor = floodplainMemory * seamFill * (0.6 + noise * 0.25);
+                    double blend = edgeFalloff * (0.2 + continuityWeight * 0.2 + memoryWeight * 0.15);
+                    double target = copy[x, z] * (1.0 - blend) + (seamAnchor + memoryBridge) * blend;
+                    double clampRange = Math.Max(0.03, edgeVarianceClamp * (0.4 + edgeFalloff * 0.8));
+                    target = Math.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyTributaryConvergenceLock(
@@ -705,6 +756,17 @@ namespace GameServerApp.World.Generation
             }
 
             return count == 0 ? field[cx, cz] : sum / count;
+        }
+
+        private static double ComputeEdgeNoise(int chunkX, int chunkZ, int x, int z)
+        {
+            uint value = (uint)HashCode.Combine(chunkX, chunkZ, x, z, 0x5F3759DF);
+            value ^= value >> 16;
+            value *= 0x7FEB352D;
+            value ^= value >> 15;
+            value *= 0x846CA68B;
+            value ^= value >> 16;
+            return (value & 0xFFFF) / 65535.0;
         }
     }
 }

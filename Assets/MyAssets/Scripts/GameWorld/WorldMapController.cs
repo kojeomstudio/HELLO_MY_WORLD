@@ -670,7 +670,15 @@ namespace GameWorld
                 config.Lakes.LakeOutflowTaper,
                 config.Lakes.SpillwayContinuityWeight,
                 config.Caves.CaveEntranceFlowDampening,
-                config.Caves.AquiferBarrierWeight);
+                config.Caves.AquiferBarrierWeight,
+                config.Water.RiverNoiseScale,
+                config.Water.RiverIntensitySmoothIterations,
+                config.Water.RiverIntensitySmoothBlend,
+                config.Lakes.ShorelineBlend,
+                config.Lakes.WetlandSaturationThreshold,
+                config.Caves.SupportDensity,
+                config.Caves.MoistureRetentionWeight,
+                config.Caves.CeilingStabilityWeight);
             return WorldMapSignature.Compute(context);
         }
 

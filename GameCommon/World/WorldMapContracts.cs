@@ -107,7 +107,15 @@ namespace GameCommon.World
             double lakeOutflowTaper,
             double lakeSpillwayContinuityWeight,
             double caveEntranceFlowDampening,
-            double caveAquiferBarrierWeight)
+            double caveAquiferBarrierWeight,
+            double riverNoiseScale,
+            int riverIntensitySmoothIterations,
+            double riverIntensitySmoothBlend,
+            double lakeShorelineBlend,
+            double lakeWetlandSaturationThreshold,
+            double caveSupportDensity,
+            double caveMoistureRetentionWeight,
+            double caveCeilingStabilityWeight)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -189,6 +197,14 @@ namespace GameCommon.World
             LakeSpillwayContinuityWeight = lakeSpillwayContinuityWeight;
             CaveEntranceFlowDampening = caveEntranceFlowDampening;
             CaveAquiferBarrierWeight = caveAquiferBarrierWeight;
+            RiverNoiseScale = riverNoiseScale;
+            RiverIntensitySmoothIterations = riverIntensitySmoothIterations;
+            RiverIntensitySmoothBlend = riverIntensitySmoothBlend;
+            LakeShorelineBlend = lakeShorelineBlend;
+            LakeWetlandSaturationThreshold = lakeWetlandSaturationThreshold;
+            CaveSupportDensity = caveSupportDensity;
+            CaveMoistureRetentionWeight = caveMoistureRetentionWeight;
+            CaveCeilingStabilityWeight = caveCeilingStabilityWeight;
         }
 
         public string PipelineVersion { get; }
@@ -248,6 +264,14 @@ namespace GameCommon.World
         public double LakeSpillwayContinuityWeight { get; }
         public double CaveEntranceFlowDampening { get; }
         public double CaveAquiferBarrierWeight { get; }
+        public double RiverNoiseScale { get; }
+        public int RiverIntensitySmoothIterations { get; }
+        public double RiverIntensitySmoothBlend { get; }
+        public double LakeShorelineBlend { get; }
+        public double LakeWetlandSaturationThreshold { get; }
+        public double CaveSupportDensity { get; }
+        public double CaveMoistureRetentionWeight { get; }
+        public double CaveCeilingStabilityWeight { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }

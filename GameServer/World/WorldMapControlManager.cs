@@ -520,7 +520,15 @@ namespace GameServerApp.World
                 generationConfig.Lakes.LakeOutflowTaper,
                 generationConfig.Lakes.SpillwayContinuityWeight,
                 generationConfig.Caves.CaveEntranceFlowDampening,
-                generationConfig.Caves.AquiferBarrierWeight);
+                generationConfig.Caves.AquiferBarrierWeight,
+                generationConfig.Water.RiverNoiseScale,
+                generationConfig.Water.RiverIntensitySmoothIterations,
+                generationConfig.Water.RiverIntensitySmoothBlend,
+                generationConfig.Lakes.ShorelineBlend,
+                generationConfig.Lakes.WetlandSaturationThreshold,
+                generationConfig.Caves.SupportDensity,
+                generationConfig.Caves.MoistureRetentionWeight,
+                generationConfig.Caves.CeilingStabilityWeight);
 
             return WorldMapSignature.Compute(context);
         }

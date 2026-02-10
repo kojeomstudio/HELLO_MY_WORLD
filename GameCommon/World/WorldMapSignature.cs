@@ -96,7 +96,15 @@ namespace GameCommon.World
                 .Append(context.LakeOutflowTaper).Append('|')
                 .Append(context.LakeSpillwayContinuityWeight).Append('|')
                 .Append(context.CaveEntranceFlowDampening).Append('|')
-                .Append(context.CaveAquiferBarrierWeight);
+                .Append(context.CaveAquiferBarrierWeight).Append('|')
+                .Append(context.RiverNoiseScale).Append('|')
+                .Append(context.RiverIntensitySmoothIterations).Append('|')
+                .Append(context.RiverIntensitySmoothBlend).Append('|')
+                .Append(context.LakeShorelineBlend).Append('|')
+                .Append(context.LakeWetlandSaturationThreshold).Append('|')
+                .Append(context.CaveSupportDensity).Append('|')
+                .Append(context.CaveMoistureRetentionWeight).Append('|')
+                .Append(context.CaveCeilingStabilityWeight);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

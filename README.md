@@ -32,6 +32,48 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-10: Session 63 - Hydrology v23 (Floodplain/Spillway/Moisture-Channel) + Map Signature Input Expansion + Profile v27
+
+**Status:** COMPLETED
+
+- Work plan created and tracked in `plans/2026-02-10-session-63-comprehensive-work-plan.md` with `to do/completed` updates.
+- Core/Content/Utility inventory refreshed and exported:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-10-session-63.json`
+- Terrain generation improvements applied:
+  - River: cross-chunk floodplain bridge pass (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake: spillway erosion damping pass (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave: moisture-channel dampening pass (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+- World-map control architecture hardened:
+  - Extended shared generation signature context with additional river/lake/cave control inputs:
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+  - Applied aligned signature computation on server/client:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared DLL/config/profile synchronization:
+  - Hydrology signature bumped to `2026-02-10-hydrology-riverlake-cave-v23`
+  - Map-control profile target bumped to `27`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/enhanced_world_map_control_server.json`
+  - Regenerated profile and mirror: `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf usage validation and dummy client probe enhancement:
+  - Added profile hydrology parity fields to probe result:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+  - Updated reports:
+    - `reports/proto_probe_report.json`
+    - `config/proto_reference_report.json`
+  - Required missing bindings remained `0`; optional packet gaps remain warning-only.
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success; NU1603 warning only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success; NU1603 warnings only)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success; profile v27, signature v23)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0, optional warnings only)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+- `dotnet test GameServer/GameServer.csproj` (completed)
+
 ### 2026-02-09: Session 61 - Hydrology v22 (Tributary/Basin/Flooded-Pocket) + Map Signature Hash Hardening + Profile v26
 
 **Status:** COMPLETED

@@ -245,7 +245,64 @@ namespace GameServerApp.World.Generation
             ApplyCatchmentSpillwayStitch(lakes, hydrologyMask, flowAccumulation, riverMask, spillwayContinuityWeight);
             ApplyLakeMouthStability(lakes, riverMask, flowAccumulation, heightMap, seaLevel);
             ApplyBasinRetentionLock(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplySpillwayErosionDamping(lakes, hydrologyMask, heightMap, flowAccumulation, riverMask);
             return lakes;
+        }
+
+        private void ApplySpillwayErosionDamping(
+            float[,] lakes,
+            float[,] hydrology,
+            int[,] heightMap,
+            float[,] flow,
+            float[,]? riverMask)
+        {
+            double stabilityWeight = Math.Clamp(lakeConfig.OutflowStabilityWeight, 0.0, 1.0);
+            double continuityWeight = Math.Clamp(lakeConfig.SpillwayContinuityWeight, 0.0, 1.0);
+            double erosionWeight = Math.Clamp(waterConfig.LakeRimErosionWeight, 0.0, 1.0);
+            if (stabilityWeight <= 0.0 && continuityWeight <= 0.0 && erosionWeight <= 0.0)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+            double varianceClamp = Math.Max(0.001, waterConfig.HydrologyEdgeVarianceClamp);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.14)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowSample = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double flowGradient = Math.Abs(flowSample - seamFlow);
+                    double hydroGradient = Math.Abs(hydro - seamHydro);
+                    double spillwayMemory = Math.Clamp(
+                        lake * 0.45 + flowSample * 0.2 + seamFlow * 0.15 + river * 0.1 + seamHydro * 0.1,
+                        0.0,
+                        1.2);
+
+                    double damping = flowGradient * stabilityWeight * 0.2;
+                    damping += hydroGradient * continuityWeight * 0.15;
+                    damping += slope * erosionWeight * 0.015;
+                    damping = Math.Clamp(damping, 0.0, 0.45);
+                    double floor = Math.Max(lake * (1.0 - damping * 0.45), spillwayMemory * 0.12);
+                    double target = lake * (1.0 - damping) + floor * damping;
+                    double clampRange = Math.Max(0.03, varianceClamp * 0.85);
+                    target = Math.Clamp(target, lake - clampRange, lake + clampRange);
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
         }
 
         private void ApplyBasinRetentionLock(

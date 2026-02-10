@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-10
-        /// (cross-chunk floodplain bridge + spillway erosion damping + moisture-channel dampening v23).
+        /// (karst ridge cave guard + avulsion damping + backwater retention v24).
         /// </summary>
-        public const string HydrologySignature = "2026-02-10-hydrology-riverlake-cave-v23";
+        public const string HydrologySignature = "2026-02-10-hydrology-riverlake-cave-v24";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-63.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"
                 },
                 new[]
                 {
@@ -180,7 +180,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-63.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

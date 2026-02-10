@@ -1,0 +1,24 @@
+{
+  "host": "127.0.0.1",
+  "port": 9000,
+  "connectTimeoutMs": 1500,
+  "receiveTimeoutMs": 1500,
+  "probeNetwork": false,
+  "maxPacketsToSend": 6,
+  "packets": [
+    "PlayerStateUpdate",
+    "PlayerActionRequest",
+    "PlayerActionResponse",
+    "ChunkDataRequest",
+    "ChunkDataResponse",
+    "BlockChangeNotification",
+    "ChunkUnloadNotification",
+    "ChunkUnloadAcknowledge",
+    "TimeUpdate",
+    "WeatherChange",
+    "SoundEffect",
+    "ParticleEffect",
+    "EntitySpawn",
+    "EntityDespawn"
+  ]
+}

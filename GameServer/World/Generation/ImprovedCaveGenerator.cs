@@ -320,7 +320,94 @@ namespace GameServerApp.World.Generation
             ApplyRiverLakeBoundarySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyFloodedPocketPruning(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyMoistureChannelDampening(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyKarstRidgeCollapseGuard(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
+        }
+
+        private void ApplyKarstRidgeCollapseGuard(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            double guardWeight = Math.Clamp(
+                config.CaveEntranceFlowDampening * 0.35 +
+                config.CeilingStabilityWeight * 0.35 +
+                config.AquiferBarrierWeight * 0.30,
+                0.0,
+                1.0);
+            if (guardWeight <= 0.01)
+            {
+                return;
+            }
+
+            int edgeRadius = Math.Max(1, Math.Min(sizeX, sizeZ) / 5);
+            int ridgeWindow = Math.Max(2, config.RiparianPlugDepth + 3);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius * 2)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 2, sizeY - 2);
+                    int top = Math.Min(surface - 1, seaLevel + ridgeWindow + 4);
+                    int bottom = Math.Max(1, top - ridgeWindow);
+                    if (top <= bottom)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius * 2 + 1), 0.0, 1.0);
+                    double seamGradient = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flow);
+                    double ridgeRisk = Math.Clamp(
+                        slope * config.CeilingStabilityWeight * 0.03 +
+                        relief * 0.015 +
+                        seamGradient * config.EdgeSealStrength * 0.25 +
+                        river * config.RiverSuppressionWeight * 0.35 +
+                        hydro * config.MoistureRetentionWeight * 0.25 +
+                        flow * config.FlowStabilityWeight * 0.25,
+                        0.0,
+                        1.4);
+
+                    ridgeRisk *= 0.65 + edgeFalloff * 0.35;
+                    if (ridgeRisk < 0.2)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double sealChance = ridgeRisk * guardWeight * (0.45 + depthFactor * 0.55);
+                        if (sealChance > 0.58 || (sealChance > 0.35 && relief > 3.5))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyMoistureChannelDampening(

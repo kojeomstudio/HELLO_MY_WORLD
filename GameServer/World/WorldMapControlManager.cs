@@ -324,26 +324,8 @@ namespace GameServerApp.World
 
         private void EnforceCacheBudget()
         {
-            int overBudget = chunkCache.Count - maxCachedChunks;
-            if (overBudget <= 0)
-            {
-                return;
-            }
-
-            foreach (var key in chunkCache.Keys)
-            {
-                if (overBudget <= 0)
-                {
-                    break;
-                }
-
-                if (chunkCache.TryRemove(key, out _))
-                {
-                    chunkAccessTimes.TryRemove(key, out _);
-                    overBudget--;
-                }
-            }
-
+            int budget = GetEffectiveCacheBudget();
+            int overBudget = chunkCache.Count - budget;
             if (overBudget <= 0)
             {
                 return;
@@ -362,6 +344,46 @@ namespace GameServerApp.World
                     overBudget--;
                 }
             }
+
+            if (overBudget <= 0)
+            {
+                return;
+            }
+
+            foreach (var key in chunkCache.Keys)
+            {
+                if (overBudget <= 0)
+                {
+                    break;
+                }
+
+                if (chunkCache.TryRemove(key, out _))
+                {
+                    chunkAccessTimes.TryRemove(key, out _);
+                    overBudget--;
+                }
+            }
+        }
+
+        private int GetEffectiveCacheBudget()
+        {
+            int renderDistance = controlProfile?.RenderDistance > 0
+                ? controlProfile.RenderDistance
+                : settings.DefaultRenderDistance;
+            int simulationDistance = controlProfile?.SimulationDistance > 0
+                ? controlProfile.SimulationDistance
+                : settings.DefaultUnloadDistance;
+
+            renderDistance = Math.Max(1, renderDistance);
+            simulationDistance = Math.Max(1, simulationDistance);
+
+            int renderWindow = (renderDistance * 2 + 1) * (renderDistance * 2 + 1);
+            int simulationWindow = (simulationDistance * 2 + 1) * (simulationDistance * 2 + 1);
+            int profileBudget = Math.Max(renderWindow, simulationWindow);
+
+            int expandedBudget = Math.Max(maxCachedChunks, profileBudget);
+            int hardCap = Math.Max(128, maxCachedChunks * 2);
+            return Math.Clamp(expandedBudget, 64, hardCap);
         }
 
         private static DateTime GetWriteTime(string path)

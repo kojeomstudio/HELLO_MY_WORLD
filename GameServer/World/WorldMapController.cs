@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GameServerApp;
@@ -48,6 +49,7 @@ namespace GameServerApp.World
         private string generationSignature;
         private string worldConfigHash;
         private string profileFileHash;
+        private int maxLoadedChunks;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
@@ -81,6 +83,7 @@ namespace GameServerApp.World
             worldConfigWriteTime = GetWriteTime(worldConfigPath);
             worldConfigHash = ComputeFileHash(worldConfigPath);
             profileFileHash = ComputeFileHash(profilePath);
+            maxLoadedChunks = ComputeLoadedChunkBudget();
             generationSignature = ComputeGenerationSignature();
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
@@ -123,6 +126,7 @@ namespace GameServerApp.World
             {
                 var chunk = await task.ConfigureAwait(false);
                 loadedChunks[pos] = chunk;
+                EnforceLoadedChunkBudget();
                 return chunk;
             }
             finally
@@ -250,6 +254,7 @@ namespace GameServerApp.World
                 if (reloadNeeded)
                 {
                     ResetPipeline();
+                    maxLoadedChunks = ComputeLoadedChunkBudget();
                     logger.LogInformation(
                         "[WorldMapController] Reloaded map-control profile hash={Hash} (config updated: {ConfigPath}, signature: {Signature})",
                         controlProfile.ProfileHash,
@@ -295,9 +300,49 @@ namespace GameServerApp.World
         {
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
             generationSignature = ComputeGenerationSignature();
+            maxLoadedChunks = ComputeLoadedChunkBudget();
             loadedChunks.Clear();
             generationTasks.Clear();
             accessTimes.Clear();
+        }
+
+        private int ComputeLoadedChunkBudget()
+        {
+            int renderDistance = controlProfile?.RenderDistance > 0
+                ? controlProfile.RenderDistance
+                : Math.Max(1, generationConfig.RenderDistance);
+            int simulationDistance = controlProfile?.SimulationDistance > 0
+                ? controlProfile.SimulationDistance
+                : Math.Max(1, generationConfig.SimulationDistance);
+            int renderWindow = (renderDistance * 2 + 1) * (renderDistance * 2 + 1);
+            int simulationWindow = (simulationDistance * 2 + 1) * (simulationDistance * 2 + 1);
+            int baseline = Math.Max(renderWindow, simulationWindow);
+            int withSlack = baseline + Math.Max(64, baseline / 4);
+            return Math.Clamp(withSlack, 128, 8192);
+        }
+
+        private void EnforceLoadedChunkBudget()
+        {
+            int budget = Math.Max(128, maxLoadedChunks);
+            int overBudget = loadedChunks.Count - budget;
+            if (overBudget <= 0)
+            {
+                return;
+            }
+
+            foreach (var key in accessTimes.OrderBy(entry => entry.Value).Select(entry => entry.Key))
+            {
+                if (overBudget <= 0)
+                {
+                    break;
+                }
+
+                if (loadedChunks.TryRemove(key, out _))
+                {
+                    accessTimes.TryRemove(key, out _);
+                    overBudget--;
+                }
+            }
         }
 
         private string ComputeGenerationSignature()

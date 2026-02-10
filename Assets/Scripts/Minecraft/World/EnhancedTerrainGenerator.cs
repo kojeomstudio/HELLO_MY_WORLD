@@ -732,6 +732,7 @@ namespace Minecraft.World
                 (float)_worldConfig.Water.HydrologyEdgeVarianceClamp);
             SmoothField(mask, _worldConfig.Water.RiverIntensitySmoothIterations, _worldConfig.Water.RiverIntensitySmoothBlend);
             ApplyEdgeFeather(mask, Math.Max(_tuning.RiverEdgeFeather, _worldConfig.Water.RiverEdgeFeather));
+            ApplyRiverAvulsionDampening(mask, hydrology, flow, heightMap);
             NormalizeEdges(
                 mask,
                 _worldConfig.Water.HydrologyEdgeBlendRadius,
@@ -845,6 +846,7 @@ namespace Minecraft.World
                 _worldConfig.Water.HydrologyEdgeNormalizationBlend);
             ApplyLakeOutflowTaper(lakes, flow);
             ApplyOutflowChannels(lakes, heightMap, flow, _worldConfig.Water.LakeInflowBlendWeight, _tuning.LakeOutflowCarveDepth, outflowStabilityWeight);
+            ApplyLakeBackwaterRetention(lakes, hydrology, flow, riverMask, heightMap);
             return lakes;
         }
 
@@ -974,6 +976,7 @@ namespace Minecraft.World
 
             SmoothField(mask, _worldConfig.Caves.StabilitySmoothIterations, _worldConfig.Caves.StabilitySmoothBlend, _worldConfig.Caves.SupportDensity);
             PruneIsolatedCaves(mask, heightMap);
+            ApplyCaveKarstCollapseGuard(mask, hydrology, flow, riverMask, heightMap);
             return mask;
         }
 
@@ -1008,6 +1011,100 @@ namespace Minecraft.World
                     }
                 }
             }
+        }
+
+        private void ApplyCaveKarstCollapseGuard(bool[,,] mask, float[,] hydrology, float[,] flow, float[,] riverMask, int[,] heightMap)
+        {
+            float guardWeight = Mathf.Clamp01(
+                _worldConfig.Caves.CaveEntranceFlowDampening * 0.35f +
+                _worldConfig.Caves.CaveCeilingStabilityWeight * 0.35f +
+                _worldConfig.Caves.AquiferBarrierWeight * 0.30f);
+            if (guardWeight <= 0f)
+            {
+                return;
+            }
+
+            int edgeRadius = Mathf.Max(1, Mathf.Min(_chunkSize, _chunkSize) / 5);
+            int ridgeWindow = Mathf.Max(2, _worldConfig.Caves.RiparianPlugDepth + 3);
+
+            for (int x = 0; x < _chunkSize; x++)
+            {
+                for (int z = 0; z < _chunkSize; z++)
+                {
+                    int edgeDistance = Mathf.Min(Mathf.Min(x, _chunkSize - 1 - x), Mathf.Min(z, _chunkSize - 1 - z));
+                    if (edgeDistance > edgeRadius * 2)
+                    {
+                        continue;
+                    }
+
+                    int surface = Mathf.Clamp(heightMap[x, z], 2, _worldHeight - 2);
+                    int top = Mathf.Min(surface - 1, _seaLevel + ridgeWindow + 4);
+                    int bottom = Mathf.Max(1, top - ridgeWindow);
+                    if (top <= bottom)
+                    {
+                        continue;
+                    }
+
+                    float hydro = Mathf.Clamp01(hydrology[x, z]);
+                    float flowSample = Mathf.Clamp01(flow[x, z]);
+                    float seamHydro = Mathf.Clamp01(SampleInterior(hydrology, x, z));
+                    float seamFlow = Mathf.Clamp01(SampleInterior(flow, x, z));
+                    float river = Mathf.Clamp01(riverMask[x, z]);
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float relief = SampleRelief(heightMap, x, z, Mathf.Max(1, edgeRadius));
+                    float edgeFalloff = 1f - Mathf.Clamp01(edgeDistance / (float)(edgeRadius * 2 + 1));
+                    float seamGradient = Mathf.Abs(seamHydro - hydro) + Mathf.Abs(seamFlow - flowSample);
+                    float ridgeRisk = Mathf.Clamp(
+                        slope * _worldConfig.Caves.CaveCeilingStabilityWeight * 0.03f +
+                        relief * 0.015f +
+                        seamGradient * _worldConfig.Caves.EdgeSealStrength * 0.25f +
+                        river * _worldConfig.Caves.RiverSuppressionWeight * 0.35f +
+                        hydro * _worldConfig.Caves.MoistureRetentionWeight * 0.25f +
+                        flowSample * _worldConfig.Caves.FlowStabilityWeight * 0.25f,
+                        0f,
+                        1.4f);
+
+                    ridgeRisk *= 0.65f + edgeFalloff * 0.35f;
+                    if (ridgeRisk < 0.2f)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        float depthFactor = 1f - Mathf.Clamp01((y - bottom) / Mathf.Max(1f, top - bottom));
+                        float sealChance = ridgeRisk * guardWeight * (0.45f + depthFactor * 0.55f);
+                        if (sealChance > 0.58f || (sealChance > 0.35f && relief > 3.5f))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private float SampleRelief(int[,] heightMap, int x, int z, int radius)
+        {
+            int min = int.MaxValue;
+            int max = int.MinValue;
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int nx = Mathf.Clamp(x + dx, 0, _chunkSize - 1);
+                    int nz = Mathf.Clamp(z + dz, 0, _chunkSize - 1);
+                    int h = heightMap[nx, nz];
+                    min = Math.Min(min, h);
+                    max = Math.Max(max, h);
+                }
+            }
+
+            return max <= min ? 0f : max - min;
         }
 
         private int CountCaveNeighbours(bool[,,] mask, int x, int y, int z)
@@ -1685,6 +1782,59 @@ namespace Minecraft.World
             }
         }
 
+        private void ApplyRiverAvulsionDampening(float[,] mask, float[,] hydrology, float[,] flow, int[,] heightMap)
+        {
+            float dampingWeight = Mathf.Clamp01(
+                _worldConfig.Water.RiverBankStabilityClamp * 0.45f +
+                _worldConfig.Water.RiverGradientPenalty * 0.35f +
+                _worldConfig.Water.RiverEdgeContinuityWeight * 0.20f);
+            if (dampingWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            float divergenceClamp = Mathf.Max(0.0001f, _worldConfig.Water.HydrologyFlowDivergenceClamp);
+            int mouthRadius = Mathf.Max(2, _worldConfig.Water.RiverMouthSmoothRadius);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float river = copy[x, z];
+                    if (river <= 0.08f)
+                    {
+                        continue;
+                    }
+
+                    float flowSample = Mathf.Clamp01(flow[x, z] / 6f);
+                    float seamFlow = Mathf.Clamp01(SampleInterior(flow, x, z) / 6f);
+                    float hydro = Mathf.Clamp01(hydrology[x, z]);
+                    float seamHydro = Mathf.Clamp01(SampleInterior(hydrology, x, z));
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float divergence = Mathf.Clamp01(Mathf.Abs(flowSample - seamFlow) / divergenceClamp);
+                    float hydroGradient = Mathf.Abs(seamHydro - hydro);
+                    float mouthBlend = 1f - Mathf.Clamp01(Mathf.Abs(heightMap[x, z] - _seaLevel) / Mathf.Max(1f, mouthRadius * 2f));
+
+                    float avulsionRisk = Mathf.Clamp01(
+                        divergence * 0.45f +
+                        hydroGradient * 0.25f +
+                        slope * _worldConfig.Water.RiverGradientPenalty * 0.02f);
+
+                    float continuity = Mathf.Clamp(
+                        (flowSample + seamFlow + hydro + seamHydro) * (0.2f + _worldConfig.Water.HydrologyFlowMemoryWeight * 0.2f),
+                        0f,
+                        1.2f);
+                    float damping = avulsionRisk * dampingWeight * (0.55f + mouthBlend * 0.35f);
+                    float floor = continuity * _worldConfig.Water.RiverSeamFillStrength * (0.12f + mouthBlend * 0.08f);
+                    float target = Mathf.Max(river * (1f - damping) + floor * damping, floor);
+                    mask[x, z] = Mathf.Clamp(target, 0f, 1.35f);
+                }
+            }
+        }
+
         private void ApplyLakeOutflowTaper(float[,] lakes, float[,] flow)
         {
             float taperWeight = Mathf.Clamp01((float)_worldConfig.Lakes.LakeOutflowTaper);
@@ -1721,6 +1871,61 @@ namespace Minecraft.World
                     tapered = tapered * (1f - outflowStabilityWeight * 0.25f) + (copy[x, z] * 0.65f + seamFlow * 0.15f) * outflowStabilityWeight * 0.25f;
                     float target = copy[x, z] * (1f - blend) + tapered * blend;
                     target = Mathf.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    lakes[x, z] = Mathf.Clamp01(target);
+                }
+            }
+        }
+
+        private void ApplyLakeBackwaterRetention(float[,] lakes, float[,] hydrology, float[,] flow, float[,] riverMask, int[,] heightMap)
+        {
+            float retentionWeight = Mathf.Clamp01(
+                _worldConfig.Lakes.OutflowStabilityWeight * 0.45f +
+                _worldConfig.Lakes.SpillwayContinuityWeight * 0.35f +
+                _worldConfig.Lakes.FlowSeepageWeight * 0.20f);
+            if (retentionWeight <= 0f)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            float divergenceClamp = Mathf.Max(0.0001f, _worldConfig.Water.HydrologyFlowDivergenceClamp);
+            int mouthRadius = Mathf.Max(2, _worldConfig.Water.RiverMouthSmoothRadius);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    float lake = copy[x, z];
+                    if (lake <= 0.12f)
+                    {
+                        continue;
+                    }
+
+                    float hydro = Mathf.Clamp01(hydrology[x, z]);
+                    float seamHydro = Mathf.Clamp01(SampleInterior(hydrology, x, z));
+                    float flowSample = Mathf.Clamp01(flow[x, z] / 6f);
+                    float seamFlow = Mathf.Clamp01(SampleInterior(flow, x, z) / 6f);
+                    float river = Mathf.Clamp01(riverMask[x, z]);
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float divergence = Mathf.Clamp01(Mathf.Abs(flowSample - seamFlow) / divergenceClamp);
+                    float hydroGradient = Mathf.Abs(hydro - seamHydro);
+                    float mouthBlend = 1f - Mathf.Clamp01(Mathf.Abs(heightMap[x, z] - _seaLevel) / Mathf.Max(1f, mouthRadius * 2f));
+
+                    float backwater = Mathf.Clamp(
+                        (hydro + seamHydro + flowSample + seamFlow) * 0.25f +
+                        river * 0.2f +
+                        mouthBlend * _worldConfig.Water.RiverDeltaWetlandStrength * 0.2f,
+                        0f,
+                        1.25f);
+                    float erosionPenalty = Mathf.Clamp01(
+                        slope * _worldConfig.Water.LakeRimErosionWeight * 0.02f +
+                        divergence * 0.35f +
+                        hydroGradient * 0.25f);
+
+                    float retention = backwater * retentionWeight * (0.55f + mouthBlend * 0.3f);
+                    float target = Mathf.Max(lake * (1f - erosionPenalty) + retention * erosionPenalty, backwater * 0.18f);
                     lakes[x, z] = Mathf.Clamp01(target);
                 }
             }

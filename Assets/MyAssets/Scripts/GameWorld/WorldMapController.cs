@@ -420,7 +420,12 @@ namespace GameWorld
 
         private void EnforceLoadedChunkBudget()
         {
-            int budget = Math.Max(64, maxLoadedPreviewChunks);
+            int profileRender = profile != null ? Math.Max(1, profile.RenderDistance) : Math.Max(1, viewRadiusChunks);
+            int profileSimulation = profile != null ? Math.Max(1, profile.SimulationDistance) : profileRender;
+            int renderWindow = (profileRender * 2 + 1) * (profileRender * 2 + 1);
+            int simulationWindow = (profileSimulation * 2 + 1) * (profileSimulation * 2 + 1);
+            int profileBudget = Math.Max(renderWindow, simulationWindow);
+            int budget = Math.Clamp(Math.Max(Math.Max(64, maxLoadedPreviewChunks), profileBudget), 64, 8192);
             if (loadedChunks.Count <= budget)
             {
                 return;

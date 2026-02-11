@@ -2,7 +2,7 @@
   "worldMapControl": {
     "enabled": true,
     "profilePath": "config/world_map_control_profile.json",
-    "profileVersion": 28,
+    "profileVersion": 29,
     "defaults": {
       "renderDistance": 12,
       "mapScale": 1.0,
@@ -13,7 +13,7 @@
       "vegetationQuality": 3
     },
     "cache": {
-      "maxCachedChunks": 576,
+      "maxCachedChunks": 640,
       "cleanupIntervalSeconds": 60,
       "enableChunkCache": true
     },

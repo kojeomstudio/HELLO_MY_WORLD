@@ -32,6 +32,7 @@ namespace GameServerApp.World
         private readonly int maxCachedChunks;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
+        private DateTime lastInflightPruneUtc;
         private string generationSignature = string.Empty;
         private string worldConfigHash;
         private string profileContentHash;
@@ -47,6 +48,7 @@ namespace GameServerApp.World
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
             worldConfigWriteTime = GetWriteTime(this.generationConfig.SourcePath);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
+            lastInflightPruneUtc = DateTime.UtcNow;
             worldConfigHash = ComputeFileHash(this.generationConfig.SourcePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
             int computedBudget = Math.Max(
@@ -256,6 +258,7 @@ namespace GameServerApp.World
 
         private async Task<ChunkData> GenerateOrGetChunkAsync(int chunkX, int chunkZ)
         {
+            PruneInflightGenerations();
             var key = (chunkX, chunkZ);
             if (chunkCache.TryGetValue(key, out var cached))
             {
@@ -380,10 +383,32 @@ namespace GameServerApp.World
             int renderWindow = (renderDistance * 2 + 1) * (renderDistance * 2 + 1);
             int simulationWindow = (simulationDistance * 2 + 1) * (simulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow, simulationWindow);
-
-            int expandedBudget = Math.Max(maxCachedChunks, profileBudget);
+            int inflightPressure = inflightChunkGenerations.Count;
+            int pressureBudget = profileBudget + inflightPressure * 2;
+            int expandedBudget = Math.Max(maxCachedChunks, pressureBudget);
             int hardCap = Math.Max(128, maxCachedChunks * 2);
             return Math.Clamp(expandedBudget, 64, hardCap);
+        }
+
+        private void PruneInflightGenerations()
+        {
+            var now = DateTime.UtcNow;
+            if ((now - lastInflightPruneUtc).TotalSeconds < 2)
+            {
+                return;
+            }
+
+            lastInflightPruneUtc = now;
+            foreach (var pair in inflightChunkGenerations)
+            {
+                var task = pair.Value;
+                if (!task.IsCompleted)
+                {
+                    continue;
+                }
+
+                inflightChunkGenerations.TryRemove(pair.Key, out _);
+            }
         }
 
         private static DateTime GetWriteTime(string path)
@@ -429,6 +454,7 @@ namespace GameServerApp.World
             chunkCache.Clear();
             chunkAccessTimes.Clear();
             inflightChunkGenerations.Clear();
+            lastInflightPruneUtc = DateTime.UtcNow;
 
             if (rebuildPipeline)
             {

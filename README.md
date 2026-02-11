@@ -32,6 +32,55 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-11: Session 67 - Hydrology v25 (Anabranch/Floodplain/Vadose) + Map-Control Profile v29 + Strict Dummy Probe
+
+**Status:** COMPLETED
+
+- Work plan created and continuously updated:
+  - `plans/2026-02-11-session-67-comprehensive-work-plan.md`
+- Core/Content/Utility feature inventory refreshed and exported:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-11-session-67.json`
+- Terrain generation improvements applied (server + client parity):
+  - River: anabranch stability bridge (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake: floodplain terrace bridge (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave: vadose bypass seal (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+  - Unity parity implementation (`Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`)
+- World-map control architecture strengthened:
+  - Server inflight generation prune, dynamic cache pressure budget, and dangling access trim:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+  - Client queue-pressure-aware loaded chunk budget and runtime JSON reload:
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared/config/profile synchronization:
+  - Hydrology signature bumped to `2026-02-11-hydrology-riverlake-cave-v25`
+  - Profile version bumped to `29`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/enhanced_world_map_control_server.json`, `config/enhanced_world_map_control_client.json`
+  - Regenerated profile/mirror: `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf and dummy client validation improvements:
+  - Strict required-binding option added:
+    - `Tools/DummyMinecraftClient/Program.cs`
+    - `config/dummy_minecraft_client.json`
+  - Probe outputs refreshed:
+    - `reports/proto_probe_report.json`
+    - `config/proto_reference_report.json`
+  - Required bindings missing: `0`; optional packet bindings remain warning-only.
+- Shared DLL architecture revalidated:
+  - `GameServer/GameServer.csproj` references `SharedProtocol` + `GameCommon`
+  - `Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` references `SharedProtocol` + `GameCommon`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success; NU1603 warning only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success; NU1603 warnings only)
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` (success)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success; profile v29, signature v25)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0, optional warnings only)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` (success; 14/14 round-trip)
+- `dotnet test SharedProtocol/SharedProtocol.csproj` (completed; no failing tests reported)
+- `dotnet test GameServer/GameServer.csproj` (completed; no failing tests reported)
+
 ### 2026-02-10: Session 65 - Hydrology v24 (Karst/Avulsion/Backwater) + Map-Control Profile v28 + Dummy Client Config Runtime
 
 **Status:** COMPLETED

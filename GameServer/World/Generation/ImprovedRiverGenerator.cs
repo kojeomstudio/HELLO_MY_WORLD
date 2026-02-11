@@ -292,6 +292,7 @@ namespace GameServerApp.World.Generation
             ApplyTributaryConvergenceLock(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyAvulsionDampingBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyCrossChunkFloodplainBridge(mask, hydrologyMask, flowAccumulation, chunkX, chunkZ);
+            ApplyAnabranchStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -406,6 +407,73 @@ namespace GameServerApp.World.Generation
                     double target = copy[x, z] * (1.0 - blend) + (seamAnchor + memoryBridge) * blend;
                     double clampRange = Math.Max(0.03, edgeVarianceClamp * (0.4 + edgeFalloff * 0.8));
                     target = Math.Clamp(target, copy[x, z] - clampRange, copy[x, z] + clampRange);
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyAnabranchStabilityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double branchWeight = Math.Clamp(
+                config.RiverBraidingWeight * 0.4 +
+                config.RiverConfluenceBoost * 0.35 +
+                config.RiverEdgeContinuityWeight * 0.25,
+                0.0,
+                1.0);
+            if (branchWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            double reliefPenaltyWeight = Math.Clamp(config.RiverReliefPenaltyWeight, 0.0, 1.0);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.15)
+                    {
+                        continue;
+                    }
+
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowGradient = Math.Abs(flowNode - seamFlow);
+                    double hydroGradient = Math.Abs(hydro - seamHydro);
+                    double divergence = Math.Min(1.0, flowGradient / divergenceClamp);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, seaLevel * 1.5);
+
+                    double branchMemory = Math.Clamp(
+                        flowNode * 0.4 + seamFlow * 0.25 + hydro * 0.2 + seamHydro * 0.15,
+                        0.0,
+                        1.25);
+                    double branchAssist = branchMemory * branchWeight * (0.18 + config.RiverSeamFillStrength * 0.18);
+                    branchAssist *= 1.0 - Math.Clamp(divergence * 0.45 + hydroGradient * 0.25, 0.0, 0.75);
+
+                    double cutoffRisk = Math.Clamp(
+                        flowGradient * 0.35 +
+                        hydroGradient * 0.25 +
+                        slope * config.RiverGradientPenalty * 0.02 +
+                        relief * reliefPenaltyWeight * 0.35,
+                        0.0,
+                        0.9);
+
+                    double floor = Math.Max(river * (0.82 + config.RiverEdgeContinuityWeight * 0.08), branchMemory * 0.16);
+                    double target = river * (1.0 - cutoffRisk * 0.22) + branchAssist * (0.35 + cutoffRisk * 0.2);
+                    target = Math.Max(target, floor);
                     mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
                 }
             }

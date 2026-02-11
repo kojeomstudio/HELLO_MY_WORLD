@@ -18,6 +18,7 @@
       "chunkUpdateThrottleMs": 50,
       "maxConcurrentChunkRequests": 8,
       "maxQueuedChunkRequests": 2048,
+      "queuePressureFactor": 3,
       "enableChunkPrediction": true
     },
     "defaults": {

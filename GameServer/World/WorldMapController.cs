@@ -323,7 +323,8 @@ namespace GameServerApp.World
 
         private void EnforceLoadedChunkBudget()
         {
-            int budget = Math.Max(128, maxLoadedChunks);
+            TrimDanglingAccessTimes();
+            int budget = Math.Max(128, Math.Min(8192, maxLoadedChunks + generationTasks.Count * 2));
             int overBudget = loadedChunks.Count - budget;
             if (overBudget <= 0)
             {
@@ -342,6 +343,38 @@ namespace GameServerApp.World
                     accessTimes.TryRemove(key, out _);
                     overBudget--;
                 }
+            }
+
+            if (overBudget <= 0)
+            {
+                return;
+            }
+
+            foreach (var key in loadedChunks.Keys)
+            {
+                if (overBudget <= 0)
+                {
+                    break;
+                }
+
+                if (loadedChunks.TryRemove(key, out _))
+                {
+                    accessTimes.TryRemove(key, out _);
+                    overBudget--;
+                }
+            }
+        }
+
+        private void TrimDanglingAccessTimes()
+        {
+            foreach (var key in accessTimes.Keys)
+            {
+                if (loadedChunks.ContainsKey(key))
+                {
+                    continue;
+                }
+
+                accessTimes.TryRemove(key, out _);
             }
         }
 

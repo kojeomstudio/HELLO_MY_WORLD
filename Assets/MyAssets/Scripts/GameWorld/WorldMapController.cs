@@ -29,6 +29,7 @@ namespace GameWorld
         [SerializeField] private int maxConcurrentChunkBuilds = 4;
         [SerializeField] private int maxQueuedChunkRequests = 1024;
         [SerializeField] private int maxLoadedPreviewChunks = 2048;
+        [SerializeField] private int queuePressureFactor = 2;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
 
         private const string PipelineVersion = SharedFeatureCatalog.HydrologySignature;
@@ -109,12 +110,18 @@ namespace GameWorld
                     maxQueuedChunkRequests = Mathf.Clamp(runtime.worldMapControl.performance.maxQueuedChunkRequests, 64, 16384);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queuePressureFactor > 0)
+                {
+                    queuePressureFactor = Mathf.Clamp(runtime.worldMapControl.performance.queuePressureFactor, 1, 8);
+                }
+
                 if (enableDebugLogging)
                 {
                     Debug.Log(
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
-                        $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks})");
+                        $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
+                        $"queuePressureFactor={queuePressureFactor})");
                 }
             }
             catch (Exception ex)
@@ -339,6 +346,14 @@ namespace GameWorld
                 return;
             }
 
+            int pressureLimit = GetDynamicLoadedChunkBudget() * Mathf.Max(1, queuePressureFactor);
+            int pending = loadedChunks.Count + buildingChunks.Count + Volatile.Read(ref queuedRequestCount);
+            if (pending >= pressureLimit)
+            {
+                queuedChunks.TryRemove(pos, out _);
+                return;
+            }
+
             requestQueue.Enqueue(pos);
             Interlocked.Increment(ref queuedRequestCount);
         }
@@ -420,12 +435,7 @@ namespace GameWorld
 
         private void EnforceLoadedChunkBudget()
         {
-            int profileRender = profile != null ? Math.Max(1, profile.RenderDistance) : Math.Max(1, viewRadiusChunks);
-            int profileSimulation = profile != null ? Math.Max(1, profile.SimulationDistance) : profileRender;
-            int renderWindow = (profileRender * 2 + 1) * (profileRender * 2 + 1);
-            int simulationWindow = (profileSimulation * 2 + 1) * (profileSimulation * 2 + 1);
-            int profileBudget = Math.Max(renderWindow, simulationWindow);
-            int budget = Math.Clamp(Math.Max(Math.Max(64, maxLoadedPreviewChunks), profileBudget), 64, 8192);
+            int budget = GetDynamicLoadedChunkBudget();
             if (loadedChunks.Count <= budget)
             {
                 return;
@@ -456,6 +466,19 @@ namespace GameWorld
                     break;
                 }
             }
+        }
+
+        private int GetDynamicLoadedChunkBudget()
+        {
+            int profileRender = profile != null ? Math.Max(1, profile.RenderDistance) : Math.Max(1, viewRadiusChunks);
+            int profileSimulation = profile != null ? Math.Max(1, profile.SimulationDistance) : profileRender;
+            int renderWindow = (profileRender * 2 + 1) * (profileRender * 2 + 1);
+            int simulationWindow = (profileSimulation * 2 + 1) * (profileSimulation * 2 + 1);
+            int profileBudget = Math.Max(renderWindow, simulationWindow);
+            int baseBudget = Math.Clamp(Math.Max(Math.Max(64, maxLoadedPreviewChunks), profileBudget), 64, 8192);
+            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
+            int pressureBoost = Mathf.Min(Math.Max(64, baseBudget / 4), inFlight);
+            return Math.Clamp(baseBudget + pressureBoost, 64, 8192);
         }
 
         private Vector2Int WorldToChunk(Vector3 position)
@@ -510,6 +533,7 @@ namespace GameWorld
         {
             public int maxConcurrentChunkRequests = 4;
             public int maxQueuedChunkRequests = 1024;
+            public int queuePressureFactor = 2;
         }
     }
 
@@ -846,7 +870,190 @@ namespace GameWorld
             ApplyEdgeSeal(mask, hydrology, riverMask, worldConfig.Caves.EdgeSealStrength);
             ApplyRiparianPlugs(mask, hydrology, riverMask, worldConfig.Caves.RiparianPlugDepth);
             AddSupportColumns(mask, hydrology, riverMask);
+            ApplyCaveVadoseBypassSeal(mask, hydrology, flowMask, riverMask, heightMap);
             return mask;
+        }
+
+        private void ApplyCaveVadoseBypassSeal(bool[,,] mask, float[,] hydrology, float[,] flowMask, float[,] riverMask, int[,] heightMap)
+        {
+            double sealWeight = Math.Clamp(
+                worldConfig.Caves.AquiferBarrierWeight * 0.4 +
+                worldConfig.Caves.CaveEntranceFlowDampening * 0.35 +
+                worldConfig.Caves.EdgeSealStrength * 0.25,
+                0.0,
+                1.0);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, worldConfig.Caves.RiparianPlugDepth + 3));
+            int bottom = Math.Max(2, seaLevel - Math.Max(6, worldConfig.Caves.RiparianPlugDepth + 4));
+            double divergenceClamp = Math.Max(0.0001, worldConfig.Caves.MoistureFlowClamp);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flow = Math.Clamp(flowMask[x, z], 0.0f, 1.0f);
+                    double seamFlow = Math.Clamp(SampleInterior(flowMask, x, z), 0.0f, 1.0f);
+                    double river = Math.Clamp(riverMask[x, z], 0.0f, 1.0f);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double continuity = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flow);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double wetness = Math.Clamp(hydro * 0.38 + seamHydro * 0.22 + flow * 0.2 + seamFlow * 0.1 + river * 0.1, 0.0, 1.2);
+                    if (wetness < 0.3)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        double bypassRisk = wetness * (worldConfig.Caves.MoistureRetentionWeight * 0.3 + 0.42);
+                        bypassRisk += continuity * worldConfig.Caves.EdgeSealStrength * 0.2;
+                        bypassRisk += divergence * worldConfig.Caves.FlowStabilityWeight * 0.25;
+                        bypassRisk += slope * worldConfig.Caves.CaveCeilingStabilityWeight * 0.015;
+                        bypassRisk += Math.Clamp((2 - lateralOpen) * 0.1, 0.0, 0.3);
+                        bypassRisk = Math.Clamp(bypassRisk * sealWeight, 0.0, 1.0);
+
+                        if (bypassRisk > 0.56 || (bypassRisk > 0.4 && lateralOpen <= 1))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyRiverAnabranchBridge(float[,] mask, float[,] hydrology, float[,] flow, int[,] heightMap)
+        {
+            double branchWeight = Math.Clamp(
+                profile.RiverBraidingWeight * 0.4 +
+                profile.RiverConfluenceBoost * 0.35 +
+                profile.RiverEdgeContinuityWeight * 0.25,
+                0.0,
+                1.0);
+            if (branchWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.15)
+                    {
+                        continue;
+                    }
+
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flowGradient = Math.Abs(flowNode - seamFlow);
+                    double hydroGradient = Math.Abs(hydro - seamHydro);
+                    double divergence = Math.Min(1.0, flowGradient / divergenceClamp);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, seaLevel * 1.5);
+
+                    double branchMemory = Math.Clamp(
+                        flowNode * 0.4 + seamFlow * 0.25 + hydro * 0.2 + seamHydro * 0.15,
+                        0.0,
+                        1.25);
+                    double branchAssist = branchMemory * branchWeight * (0.18 + profile.RiverSeamFillStrength * 0.18);
+                    branchAssist *= 1.0 - Math.Clamp(flowGradient * 0.45 + hydroGradient * 0.25, 0.0, 0.75);
+                    double cutoffRisk = Math.Clamp(
+                        flowGradient * 0.35 +
+                        hydroGradient * 0.25 +
+                        slope * profile.RiverGradientPenalty * 0.02 +
+                        relief * profile.RiverReliefPenaltyWeight * 0.35,
+                        0.0,
+                        0.9);
+                    double floor = Math.Max(river * (0.82 + profile.RiverEdgeContinuityWeight * 0.08), branchMemory * 0.16);
+                    double target = river * (1.0 - cutoffRisk * 0.22) + branchAssist * (0.35 + cutoffRisk * 0.2);
+                    mask[x, z] = Mathf.Clamp((float)Math.Max(target, floor), 0f, 1.35f);
+                }
+            }
+        }
+
+        private void ApplyLakeFloodplainTerraceBridge(float[,] lakes, float[,] hydrology, float[,] flow, float[,] riverMask, int[,] heightMap)
+        {
+            double terraceWeight = Math.Clamp(
+                profile.LakeShorelineBlend * 0.35 +
+                profile.LakeOutflowStabilityWeight * 0.35 +
+                profile.RiverDeltaWetlandStrength * 0.3,
+                0.0,
+                1.0);
+            if (terraceWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int terraceBand = Math.Max(2, profile.RiverMouthSmoothRadius + profile.LakeShelfDepth);
+            double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    double elevation = Math.Abs(heightMap[x, z] - seaLevel);
+                    if (elevation > terraceBand * 3.0)
+                    {
+                        continue;
+                    }
+
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double riverAssist = Math.Clamp(riverMask[x, z], 0.0f, 1.0f);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double bandBlend = 1.0 - Math.Clamp(elevation / Math.Max(1.0, terraceBand * 3.0), 0.0, 1.0);
+                    double terraceSeed = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.2 + flowNode * 0.2 + seamFlow * 0.15 + riverAssist * 0.15,
+                        0.0,
+                        1.2);
+
+                    double terrace = terraceSeed * terraceWeight * (0.35 + bandBlend * 0.4);
+                    terrace *= 1.0 - Math.Clamp(divergence * 0.35 + slope * profile.LakeRimErosionWeight * 0.02, 0.0, 0.65);
+                    double floor = Math.Max(lake * (0.84 + profile.HydrologyContinuityWeight * 0.08), terraceSeed * 0.14);
+                    double target = lake * (1.0 - terraceWeight * 0.12) + terrace * 0.35;
+                    lakes[x, z] = Mathf.Clamp01((float)Math.Max(target, floor));
+                }
+            }
         }
 
         private float[,] BuildRiverMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
@@ -977,6 +1184,7 @@ namespace GameWorld
             StabilizeEdges(mask, profile.HydrologyEdgeBlendRadius, 1, profile.RiverEdgeFeather, profile.RiverSeamFillStrength);
             RelaxEdges(mask, profile.HydrologyEdgeNormalizationIterations, profile.HydrologyEdgeNormalizationBlend);
             RelaxEdges(mask, profile.HydrologySeamRelaxIterations, profile.HydrologySeamRelaxBlend);
+            ApplyRiverAnabranchBridge(mask, hydrology, flow, heightMap);
             return mask;
         }
 
@@ -1117,6 +1325,7 @@ namespace GameWorld
             ApplyLakeShelves(lakes, heightMap, seaLevel, shelfDepth, maxDepth);
             ApplyRiparianBuffer(lakes, Math.Min(profile.LakeWetlandBufferRadius, profile.LakeMaxRadius), profile.LakeShorelineBlend);
             ApplyOutflowChannels(lakes, heightMap, flow, profile.LakeInflowBlendWeight, profile.LakeOutflowCarveDepth);
+            ApplyLakeFloodplainTerraceBridge(lakes, hydrology, flow, riverMask, heightMap);
             return lakes;
         }
 

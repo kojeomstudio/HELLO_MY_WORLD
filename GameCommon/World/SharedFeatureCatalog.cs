@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-10
-        /// (karst ridge cave guard + avulsion damping + backwater retention v24).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-11
+        /// (anabranch river bridge + floodplain terrace lake bridge + vadose bypass cave seal v25).
         /// </summary>
-        public const string HydrologySignature = "2026-02-10-hydrology-riverlake-cave-v24";
+        public const string HydrologySignature = "2026-02-11-hydrology-riverlake-cave-v25";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology Reservoir WorldGen v23",
+                "Hydrology Reservoir WorldGen v25",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-11-session-67.json"
                 },
                 new[]
                 {
@@ -180,7 +180,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-11-session-67.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

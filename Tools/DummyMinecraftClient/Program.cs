@@ -15,6 +15,7 @@ public sealed class DummyClientConfig
     public int ReceiveTimeoutMs { get; set; } = 1500;
     public bool ProbeNetwork { get; set; } = false;
     public int MaxPacketsToSend { get; set; } = 6;
+    public bool StrictRequiredBindings { get; set; } = true;
     public string[] Packets { get; set; } = new[]
     {
         "PlayerStateUpdate",
@@ -76,6 +77,26 @@ public static class Program
         ProtoRuntime.EnsureInitialized();
         ProtoFingerprint.AssertDescriptorFingerprint();
         ProtocolRegistry.ValidateBindings();
+        var missingRequiredBindings = ProtocolRegistry.GetUnregisteredRequiredMessages().ToArray();
+        var missingOptionalBindings = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
+            .Select(type => type.ToString())
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missingRequiredBindings.Length > 0)
+        {
+            Console.WriteLine("[WARN] Missing required protocol bindings: " + string.Join(", ", missingRequiredBindings));
+            if (config.StrictRequiredBindings)
+            {
+                Console.WriteLine("[ERROR] Strict mode enabled; aborting dummy client run.");
+                return 1;
+            }
+        }
+
+        if (missingOptionalBindings.Length > 0)
+        {
+            Console.WriteLine("[INFO] Optional protocol bindings not registered: " + string.Join(", ", missingOptionalBindings));
+        }
 
         var packetTypes = ResolvePackets(config.Packets);
         int roundTripOk = 0;
@@ -118,7 +139,7 @@ public static class Program
             networkOk = await ProbeNetworkAsync(config, payloads);
         }
 
-        return roundTripOk == packetTypes.Count && networkOk ? 0 : 1;
+        return roundTripOk == packetTypes.Count && networkOk && missingRequiredBindings.Length == 0 ? 0 : 1;
     }
 
     private static List<MinecraftMessageType> ResolvePackets(IEnumerable<string> packetNames)

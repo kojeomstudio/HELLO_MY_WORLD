@@ -321,6 +321,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodedPocketPruning(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyMoistureChannelDampening(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyKarstRidgeCollapseGuard(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyVadoseBypassSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -467,6 +468,79 @@ namespace GameServerApp.World.Generation
                         double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
                         double sealChance = dampening * (0.48 + depthFactor * 0.42);
                         if (sealChance > 0.57 || (sealChance > 0.41 && channel > 0.55))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyVadoseBypassSeal(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, config.RiparianPlugDepth + 3));
+            int bottom = Math.Max(2, seaLevel - Math.Max(6, config.RiparianPlugDepth + 4));
+            double sealWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.4 +
+                config.CaveEntranceFlowDampening * 0.35 +
+                config.EdgeSealStrength * 0.25,
+                0.0,
+                1.0);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double continuity = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flow);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double wetness = Math.Clamp(hydro * 0.38 + seamHydro * 0.22 + flow * 0.2 + seamFlow * 0.1 + river * 0.1, 0.0, 1.2);
+                    if (wetness < 0.3)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        double bypassRisk = wetness * (0.42 + config.MoistureRetentionWeight * 0.25);
+                        bypassRisk += continuity * config.EdgeSealStrength * 0.2;
+                        bypassRisk += divergence * config.FlowStabilityWeight * 0.25;
+                        bypassRisk += slope * config.CeilingStabilityWeight * 0.015;
+                        bypassRisk += Math.Clamp((2 - lateralOpen) * 0.1, 0.0, 0.3);
+                        bypassRisk = Math.Clamp(bypassRisk * sealWeight, 0.0, 1.0);
+
+                        if (bypassRisk > 0.56 || (bypassRisk > 0.4 && lateralOpen <= 1))
                         {
                             mask[x, y, z] = false;
                         }

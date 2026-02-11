@@ -293,8 +293,76 @@ namespace GameServerApp.World.Generation
             ApplyAvulsionDampingBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyCrossChunkFloodplainBridge(mask, hydrologyMask, flowAccumulation, chunkX, chunkZ);
             ApplyAnabranchStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyFloodPulseContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyFloodPulseContinuityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel,
+            int chunkX,
+            int chunkZ)
+        {
+            double pulseWeight = Math.Clamp(
+                config.RiverSeamFillStrength * 0.4 +
+                config.RiverEdgeContinuityWeight * 0.35 +
+                config.HydrologyFlowMemoryWeight * 0.25,
+                0.0,
+                1.0);
+            if (pulseWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(2, config.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double river = copy[x, z];
+                    if (river <= 0.06)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, config.HydrologyWatershedStitchRadius));
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double mouthBlend = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
+                    double pulseNoise = ComputeEdgeNoise(chunkX, chunkZ, x, z);
+                    double seamBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+
+                    double pulse = (hydro + seamHydro + flowNode + seamFlow) * 0.25;
+                    pulse += mouthBlend * config.RiverDeltaWetlandStrength * 0.25;
+                    pulse *= 0.85 + pulseNoise * 0.3;
+                    pulse *= 1.0 - Math.Clamp(divergence * 0.35 + slope * config.RiverGradientPenalty * 0.02, 0.0, 0.6);
+                    pulse *= 1.0 - Math.Clamp(relief * config.RiverReliefPenaltyWeight * 0.012, 0.0, 0.45);
+
+                    double blend = pulseWeight * seamBand * (0.45 + config.HydrologyFlowPersistence * 0.35);
+                    double floor = Math.Max(river * (0.8 + config.RiverEdgeContinuityWeight * 0.1), pulse * 0.14);
+                    double target = river * (1.0 - blend) + pulse * blend;
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyAvulsionDampingBridge(

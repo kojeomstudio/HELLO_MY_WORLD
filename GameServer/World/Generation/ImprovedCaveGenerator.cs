@@ -322,7 +322,97 @@ namespace GameServerApp.World.Generation
             ApplyMoistureChannelDampening(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyKarstRidgeCollapseGuard(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyVadoseBypassSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyPhreaticSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
+        }
+
+        private void ApplyPhreaticSeal(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int edgeRadius = Math.Max(1, Math.Min(sizeX, sizeZ) / 5);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, config.RiparianPlugDepth + 4));
+            int bottom = Math.Max(2, seaLevel - Math.Max(6, config.RiparianPlugDepth + 5));
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+            double sealWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.38 +
+                config.RiparianCaveGuardWeight * 0.34 +
+                config.CaveEntranceFlowDampening * 0.28,
+                0.0,
+                1.0);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius * 2)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, config.RiparianPlugDepth + 2));
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double wetness = Math.Clamp(
+                        hydro * 0.34 + seamHydro * 0.24 + flow * 0.18 + seamFlow * 0.14 + river * 0.1,
+                        0.0,
+                        1.2);
+                    if (wetness < 0.32)
+                    {
+                        continue;
+                    }
+
+                    double continuity = Math.Abs(seamHydro - hydro) + Math.Abs(seamFlow - flow);
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius * 2 + 1), 0.0, 1.0);
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double phreaticRisk = wetness * (0.42 + config.MoistureRetentionWeight * 0.28);
+                        phreaticRisk += continuity * config.EdgeSealStrength * 0.24;
+                        phreaticRisk += divergence * config.FlowStabilityWeight * 0.2;
+                        phreaticRisk += slope * config.CeilingStabilityWeight * 0.015;
+                        phreaticRisk += relief * config.RiverSuppressionWeight * 0.012;
+                        phreaticRisk += edgeBand * config.EdgeSealStrength * 0.1;
+                        phreaticRisk += Math.Clamp((2 - lateralOpen) * 0.09, 0.0, 0.3);
+                        phreaticRisk *= sealWeight * (0.75 + depthFactor * 0.25);
+                        phreaticRisk = Math.Clamp(phreaticRisk, 0.0, 1.0);
+
+                        if (phreaticRisk > 0.58 || (phreaticRisk > 0.42 && lateralOpen <= 1))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyKarstRidgeCollapseGuard(

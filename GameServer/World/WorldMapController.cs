@@ -50,6 +50,8 @@ namespace GameServerApp.World
         private string worldConfigHash;
         private string profileFileHash;
         private int maxLoadedChunks;
+        private int queuePressureFactor;
+        private int queueLimit;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
@@ -84,6 +86,7 @@ namespace GameServerApp.World
             worldConfigHash = ComputeFileHash(worldConfigPath);
             profileFileHash = ComputeFileHash(profilePath);
             maxLoadedChunks = ComputeLoadedChunkBudget();
+            RecomputeQueuePolicy();
             generationSignature = ComputeGenerationSignature();
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
@@ -254,7 +257,6 @@ namespace GameServerApp.World
                 if (reloadNeeded)
                 {
                     ResetPipeline();
-                    maxLoadedChunks = ComputeLoadedChunkBudget();
                     logger.LogInformation(
                         "[WorldMapController] Reloaded map-control profile hash={Hash} (config updated: {ConfigPath}, signature: {Signature})",
                         controlProfile.ProfileHash,
@@ -301,6 +303,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings, logger);
             generationSignature = ComputeGenerationSignature();
             maxLoadedChunks = ComputeLoadedChunkBudget();
+            RecomputeQueuePolicy();
             loadedChunks.Clear();
             generationTasks.Clear();
             accessTimes.Clear();
@@ -319,6 +322,18 @@ namespace GameServerApp.World
             int baseline = Math.Max(renderWindow, simulationWindow);
             int withSlack = baseline + Math.Max(64, baseline / 4);
             return Math.Clamp(withSlack, 128, 8192);
+        }
+
+        private void RecomputeQueuePolicy()
+        {
+            int renderWindow = Math.Max(1, controlProfile.RenderDistance * 2 + 1);
+            int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
+            int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
+            queueLimit = Math.Clamp(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * 2), 128, 16384);
+
+            double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
+            queuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
+            queuePressureFactor = Math.Clamp(queuePressureFactor, 1, 6);
         }
 
         private void EnforceLoadedChunkBudget()
@@ -479,7 +494,11 @@ namespace GameServerApp.World
                 generationConfig.Lakes.WetlandSaturationThreshold,
                 generationConfig.Caves.SupportDensity,
                 generationConfig.Caves.MoistureRetentionWeight,
-                generationConfig.Caves.CeilingStabilityWeight);
+                generationConfig.Caves.CeilingStabilityWeight,
+                Math.Max(64, maxLoadedChunks),
+                generationTasks.Count,
+                Math.Max(1, queuePressureFactor),
+                Math.Max(64, queueLimit));
 
             return WorldMapSignature.Compute(context);
         }

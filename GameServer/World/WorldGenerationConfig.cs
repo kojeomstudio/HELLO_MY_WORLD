@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 29;
+        public int MapControlProfileVersion { get; set; } = 30;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -130,11 +130,11 @@ namespace GameServerApp.World
         public double HydrologyVarianceClamp { get; set; } = 0.58;
         public double HydrologyEdgeNormalizationBlend { get; set; } = 0.58;
         public int HydrologyEdgeNormalizationIterations { get; set; } = 4;
-        public double HydrologyFlowMemoryWeight { get; set; } = 0.56;
-        public double HydrologyWaterTableClampWeight { get; set; } = 0.66;
+        public double HydrologyFlowMemoryWeight { get; set; } = 0.60;
+        public double HydrologyWaterTableClampWeight { get; set; } = 0.69;
         public int HydrologyWaterTableClampRange { get; set; } = 26;
         public double HydrologyWaterTableSlopeWeight { get; set; } = 0.7;
-        public double HydrologyFlowPersistence { get; set; } = 0.9;
+        public double HydrologyFlowPersistence { get; set; } = 0.94;
         public double HydrologyCatchmentWeight { get; set; } = 0.46;
         public double HydrologyGradientWeight { get; set; } = 0.38;
         public double HydrologyGradientSlopeWeight { get; set; } = 0.5;
@@ -164,13 +164,13 @@ namespace GameServerApp.World
         public double RiverMeanderJitter { get; set; } = 0.3;
         public double RiverBankStabilityClamp { get; set; } = 0.52;
         public double LakeInflowBlendWeight { get; set; } = 0.64;
-        public double RiverConfluenceBoost { get; set; } = 0.72;
-        public double RiverBraidingWeight { get; set; } = 0.48;
+        public double RiverConfluenceBoost { get; set; } = 0.78;
+        public double RiverBraidingWeight { get; set; } = 0.53;
         public double RiverEdgeFeather { get; set; } = 0.66;
-        public double RiverEdgeContinuityWeight { get; set; } = 0.72;
-        public int RiverMouthSmoothRadius { get; set; } = 8;
-        public double RiverDeltaWetlandStrength { get; set; } = 0.64;
-        public double RiverSeamFillStrength { get; set; } = 0.76;
+        public double RiverEdgeContinuityWeight { get; set; } = 0.84;
+        public int RiverMouthSmoothRadius { get; set; } = 10;
+        public double RiverDeltaWetlandStrength { get; set; } = 0.70;
+        public double RiverSeamFillStrength { get; set; } = 0.80;
         public bool EnableRivers { get; set; } = true;
         public bool EnableLakes { get; set; } = true;
         public bool UseImprovedRivers { get; set; } = true;
@@ -240,7 +240,7 @@ namespace GameServerApp.World
         public int MinDepth { get; set; } = 3;
         public int MaxDepth { get; set; } = 9;
         public int MaxRadius { get; set; } = 9;
-        public int LakeBasinSmoothIterations { get; set; } = 5;
+        public int LakeBasinSmoothIterations { get; set; } = 7;
         public double SpawnWeightBias { get; set; } = 0.38;
         public double ShorelineBlend { get; set; } = 0.75;
         public double RiverProximitySuppression { get; set; } = 0.42;
@@ -249,10 +249,10 @@ namespace GameServerApp.World
         public double OutflowSealWeight { get; set; } = 0.56;
         public int ShelfDepth { get; set; } = 3;
         public int WetlandBufferRadius { get; set; } = 6;
-        public double FlowSeepageWeight { get; set; } = 0.64;
+        public double FlowSeepageWeight { get; set; } = 0.70;
         public double VarianceWeight { get; set; } = 0.46;
-        public double OutflowStabilityWeight { get; set; } = 0.82;
-        public double LakeOutflowTaper { get; set; } = 0.62;
-        public double SpillwayContinuityWeight { get; set; } = 0.78;
+        public double OutflowStabilityWeight { get; set; } = 0.85;
+        public double LakeOutflowTaper { get; set; } = 0.68;
+        public double SpillwayContinuityWeight { get; set; } = 0.88;
     }
 }

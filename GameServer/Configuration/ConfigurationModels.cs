@@ -195,5 +195,7 @@ namespace GameServerApp.Configuration
         public int DefaultChunkLOD { get; set; } = 2;
         public int DefaultUnloadDistance { get; set; } = 12;
         public int MaxCachedChunks { get; set; } = 0;
+        public int MaxQueuedChunkRequests { get; set; } = 2048;
+        public int QueuePressureFactor { get; set; } = 2;
     }
 }

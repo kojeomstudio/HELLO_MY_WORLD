@@ -707,7 +707,11 @@ namespace GameWorld
                 config.Lakes.WetlandSaturationThreshold,
                 config.Caves.SupportDensity,
                 config.Caves.MoistureRetentionWeight,
-                config.Caves.CeilingStabilityWeight);
+                config.Caves.CeilingStabilityWeight,
+                GetDynamicLoadedChunkBudget(),
+                buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount)),
+                Mathf.Max(1, queuePressureFactor),
+                Mathf.Max(64, maxQueuedChunkRequests));
             return WorldMapSignature.Compute(context);
         }
 

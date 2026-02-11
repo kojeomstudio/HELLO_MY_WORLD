@@ -115,7 +115,11 @@ namespace GameCommon.World
             double lakeWetlandSaturationThreshold,
             double caveSupportDensity,
             double caveMoistureRetentionWeight,
-            double caveCeilingStabilityWeight)
+            double caveCeilingStabilityWeight,
+            int previewChunkBudget,
+            int previewInflightBudget,
+            int previewQueuePressureFactor,
+            int previewQueueLimit)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -205,6 +209,10 @@ namespace GameCommon.World
             CaveSupportDensity = caveSupportDensity;
             CaveMoistureRetentionWeight = caveMoistureRetentionWeight;
             CaveCeilingStabilityWeight = caveCeilingStabilityWeight;
+            PreviewChunkBudget = previewChunkBudget;
+            PreviewInflightBudget = previewInflightBudget;
+            PreviewQueuePressureFactor = previewQueuePressureFactor;
+            PreviewQueueLimit = previewQueueLimit;
         }
 
         public string PipelineVersion { get; }
@@ -272,6 +280,10 @@ namespace GameCommon.World
         public double CaveSupportDensity { get; }
         public double CaveMoistureRetentionWeight { get; }
         public double CaveCeilingStabilityWeight { get; }
+        public int PreviewChunkBudget { get; }
+        public int PreviewInflightBudget { get; }
+        public int PreviewQueuePressureFactor { get; }
+        public int PreviewQueueLimit { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }

@@ -30,6 +30,8 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
         private readonly int maxCachedChunks;
+        private int dynamicQueueLimit;
+        private int dynamicQueuePressureFactor;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
         private DateTime lastInflightPruneUtc;
@@ -57,6 +59,8 @@ namespace GameServerApp.World
             maxCachedChunks = this.settings.MaxCachedChunks > 0
                 ? Math.Max(64, this.settings.MaxCachedChunks)
                 : computedBudget;
+            dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
+            dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             RefreshGenerationSignature(rebuildPipeline: false);
         }
 
@@ -312,6 +316,7 @@ namespace GameServerApp.World
             reloaded.MapControlProfilePath = generationConfig.MapControlProfilePath;
             reloaded.MapControlProfileVersion = Math.Max(generationConfig.MapControlProfileVersion, reloaded.MapControlProfileVersion);
             generationConfig = reloaded;
+            RecomputeQueuePolicy();
             worldConfigWriteTime = writeTime;
             worldConfigHash = newConfigHash;
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
@@ -323,6 +328,22 @@ namespace GameServerApp.World
             RefreshGenerationSignature(rebuildPipeline: false);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
+        }
+
+        private void RecomputeQueuePolicy()
+        {
+            int renderWindow = Math.Max(1, settings.DefaultRenderDistance * 2 + 1);
+            int profileWindow = Math.Max(1, controlProfile?.RenderDistance ?? settings.DefaultRenderDistance) * 2 + 1;
+            int mapWindow = Math.Max(renderWindow * renderWindow, profileWindow * profileWindow);
+            int inflightBudget = Math.Max(8, settings.MaxConcurrentChunkGenerations * Math.Max(2, settings.UpdateBatchSize / 8));
+            int queueByCache = Math.Max(128, Math.Min(8192, GetEffectiveCacheBudget() * 3));
+            int queueByWindow = Math.Max(128, mapWindow * Math.Max(2, settings.UpdateBatchSize / 8));
+            dynamicQueueLimit = Math.Clamp(Math.Max(queueByCache, queueByWindow), 128, 16384);
+
+            double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
+            dynamicQueuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
+            dynamicQueuePressureFactor = Math.Clamp(dynamicQueuePressureFactor, 1, 6);
+            _ = inflightBudget;
         }
 
         private void EnforceCacheBudget()
@@ -444,6 +465,7 @@ namespace GameServerApp.World
 
         private void RefreshGenerationSignature(bool rebuildPipeline)
         {
+            RecomputeQueuePolicy();
             string newSignature = ComputeGenerationSignature();
             if (string.Equals(newSignature, generationSignature, StringComparison.Ordinal))
             {
@@ -576,7 +598,11 @@ namespace GameServerApp.World
                 generationConfig.Lakes.WetlandSaturationThreshold,
                 generationConfig.Caves.SupportDensity,
                 generationConfig.Caves.MoistureRetentionWeight,
-                generationConfig.Caves.CeilingStabilityWeight);
+                generationConfig.Caves.CeilingStabilityWeight,
+                GetEffectiveCacheBudget(),
+                inflightChunkGenerations.Count,
+                Math.Max(1, dynamicQueuePressureFactor),
+                Math.Max(64, dynamicQueueLimit));
 
             return WorldMapSignature.Compute(context);
         }

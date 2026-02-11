@@ -32,6 +32,58 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-11: Session 68 - Hydrology v26 + Map-Control Queue Policy Hardening + Proto/Dummy Probe Refresh
+
+**Status:** COMPLETED
+
+- Work plan created and updated:
+  - `plans/2026-02-11-session-68-comprehensive-work-plan.md`
+- Core/Content/Utility inventory refreshed and exported:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-11-session-68.json`
+- Terrain generation improvements applied (server + client parity):
+  - River: flood pulse continuity bridge pass (`GameServer/World/Generation/ImprovedRiverGenerator.cs`)
+  - Lake: spillback bridge pass (`GameServer/World/Generation/ImprovedLakeGenerator.cs`)
+  - Cave: phreatic seal pass (`GameServer/World/Generation/ImprovedCaveGenerator.cs`)
+  - Client parity implementation (`Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs`)
+- World-map control architecture improved:
+  - Shared signature contract now includes runtime queue/cache budget context:
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+  - Applied to server/client signature computation paths:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+  - Server runtime queue policy tuning and JSON-driven queue/caching settings:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/Program.cs`
+    - `config/world_map_control_queue_policy.json`
+- Shared/config/profile synchronization:
+  - Hydrology signature bumped to `2026-02-11-hydrology-riverlake-cave-v26`
+  - Map-control profile target bumped to `30`
+  - Updated `config/world.json`, `Assets/StreamingAssets/world-config.json`, `config/enhanced_world_map_control_server.json`, `config/enhanced_world_map_control_client.json`
+  - Regenerated profile/mirror: `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf and dummy client validation improvements:
+  - Optional packet probe mode aligned for server/standalone dummy clients:
+    - `config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `Tools/DummyMinecraftClient/Program.cs`
+  - Probe outputs refreshed:
+    - `reports/proto_probe_report.json`
+    - `config/proto_reference_report.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj` (success; NU1603 warning only)
+- `dotnet build GameCommon/GameCommon.csproj` (success)
+- `dotnet build GameServer/GameServer.csproj` (success; existing nullable/async warnings only)
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` (success)
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` (success; profile v30, signature v26)
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` (success; required missing bindings 0)
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest` (success)
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` (generated DTOs up to date)
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` (success; required packets 14/14)
+- `dotnet test SharedProtocol/SharedProtocol.csproj` (completed)
+- `dotnet test GameServer/GameServer.csproj` (completed)
+
 ### 2026-02-11: Session 67 - Comprehensive Implementation Review & Validation
 
 **Status:** COMPLETED
@@ -1220,4 +1272,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

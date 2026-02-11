@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-11
-        /// (anabranch river bridge + floodplain terrace lake bridge + vadose bypass cave seal v25).
+        /// (flood-pulse river continuity + spillback lake bridge + phreatic cave seal v26).
         /// </summary>
-        public const string HydrologySignature = "2026-02-11-hydrology-riverlake-cave-v25";
+        public const string HydrologySignature = "2026-02-11-hydrology-riverlake-cave-v26";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology Reservoir WorldGen v25",
+                "Hydrology Reservoir WorldGen v26",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]

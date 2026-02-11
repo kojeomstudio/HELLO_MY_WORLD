@@ -16,6 +16,7 @@ public sealed class DummyClientConfig
     public bool ProbeNetwork { get; set; } = false;
     public int MaxPacketsToSend { get; set; } = 6;
     public bool StrictRequiredBindings { get; set; } = true;
+    public bool IncludeOptionalMessages { get; set; } = false;
     public string[] Packets { get; set; } = new[]
     {
         "PlayerStateUpdate",
@@ -99,7 +100,17 @@ public static class Program
         }
 
         var packetTypes = ResolvePackets(config.Packets);
+        if (config.IncludeOptionalMessages)
+        {
+            packetTypes.AddRange(ProtocolRegistry.GetOptionalMessagesWithoutBindings());
+            packetTypes = packetTypes.Distinct().ToList();
+        }
+
+        int requiredTargets = packetTypes.Count(type => !ProtocolRegistry.IsOptionalMessageType(type));
+        int optionalTargets = packetTypes.Count - requiredTargets;
         int roundTripOk = 0;
+        int requiredRoundTripOk = 0;
+        int optionalRoundTripOk = 0;
         var payloads = new List<(MinecraftMessageType Type, byte[] Payload)>();
 
         foreach (var messageType in packetTypes)
@@ -122,6 +133,14 @@ public static class Program
 
                 _ = parser.ParseFrom(payload);
                 roundTripOk++;
+                if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                {
+                    optionalRoundTripOk++;
+                }
+                else
+                {
+                    requiredRoundTripOk++;
+                }
                 payloads.Add((messageType, payload));
                 Console.WriteLine($"[OK] {messageType} round-trip ({payload.Length} bytes)");
             }
@@ -131,7 +150,7 @@ public static class Program
             }
         }
 
-        Console.WriteLine($"Round-trip result: {roundTripOk}/{packetTypes.Count}");
+        Console.WriteLine($"Round-trip result: total={roundTripOk}/{packetTypes.Count}, required={requiredRoundTripOk}/{requiredTargets}, optional={optionalRoundTripOk}/{optionalTargets}");
 
         bool networkOk = true;
         if (probeNetwork)
@@ -139,7 +158,13 @@ public static class Program
             networkOk = await ProbeNetworkAsync(config, payloads);
         }
 
-        return roundTripOk == packetTypes.Count && networkOk && missingRequiredBindings.Length == 0 ? 0 : 1;
+        bool roundTripPassed = requiredRoundTripOk == requiredTargets;
+        if (!roundTripPassed)
+        {
+            Console.WriteLine("[WARN] Some required packet round-trips failed. Check registry/prototype mappings.");
+        }
+
+        return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 ? 0 : 1;
     }
 
     private static List<MinecraftMessageType> ResolvePackets(IEnumerable<string> packetNames)

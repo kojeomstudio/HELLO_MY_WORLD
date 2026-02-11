@@ -248,7 +248,88 @@ namespace GameServerApp.World.Generation
             ApplySpillwayErosionDamping(lakes, hydrologyMask, heightMap, flowAccumulation, riverMask);
             ApplyBackwaterRetentionBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyFloodplainTerraceBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplySpillbackBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
             return lakes;
+        }
+
+        private void ApplySpillbackBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel,
+            int chunkX,
+            int chunkZ)
+        {
+            double spillbackWeight = Math.Clamp(
+                lakeConfig.SpillwayContinuityWeight * 0.4 +
+                lakeConfig.OutflowStabilityWeight * 0.35 +
+                waterConfig.HydrologyFlowMemoryWeight * 0.25,
+                0.0,
+                1.0);
+            if (spillbackWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int edgeRadius = Math.Max(2, waterConfig.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, waterConfig.HydrologyWatershedStitchRadius));
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double mouthBlend = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, waterConfig.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
+                    double bandBlend = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double pulseNoise = ComputeEdgeNoise(chunkX, chunkZ, x, z);
+
+                    double spillback = (hydro + seamHydro + flowNode + seamFlow) * 0.25;
+                    spillback += river * 0.18 + mouthBlend * waterConfig.RiverDeltaWetlandStrength * 0.2;
+                    spillback *= 0.85 + pulseNoise * 0.3;
+                    spillback *= 1.0 - Math.Clamp(divergence * 0.35 + slope * waterConfig.LakeRimErosionWeight * 0.02, 0.0, 0.65);
+                    spillback *= 1.0 - Math.Clamp(relief * waterConfig.RiverReliefPenaltyWeight * 0.01, 0.0, 0.45);
+
+                    double blend = spillbackWeight * bandBlend * (0.45 + lakeConfig.FlowSeepageWeight * 0.35);
+                    double floor = Math.Max(lake * (0.82 + lakeConfig.OutflowStabilityWeight * 0.1), spillback * 0.15);
+                    double target = lake * (1.0 - blend) + spillback * blend;
+                    lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.0);
+                }
+            }
+        }
+
+        private static double ComputeEdgeNoise(int chunkX, int chunkZ, int x, int z)
+        {
+            uint value = (uint)HashCode.Combine(chunkX, chunkZ, x, z, 0x9E3779B9);
+            value ^= value >> 16;
+            value *= 0x7FEB352D;
+            value ^= value >> 15;
+            value *= 0x846CA68B;
+            value ^= value >> 16;
+            return (value & 0xFFFF) / 65535.0;
         }
 
         private void ApplyBackwaterRetentionBridge(

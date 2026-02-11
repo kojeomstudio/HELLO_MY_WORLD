@@ -483,6 +483,11 @@ namespace GameServerApp
                     {
                         mapSettings.UpdateIntervalMs = Math.Clamp(section.TerrainGeneration.UpdateIntervalMs.Value, 16, 60_000);
                     }
+
+                    if (section.TerrainGeneration.UpdateBatchSize > 0)
+                    {
+                        mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.TerrainGeneration.UpdateBatchSize.Value * 32, 128, 16384);
+                    }
                 }
 
                 if (section.Cache?.MaxCachedChunks > 0)
@@ -490,12 +495,17 @@ namespace GameServerApp
                     mapSettings.MaxCachedChunks = Math.Max(64, section.Cache.MaxCachedChunks.Value);
                     int unloadFromCacheBudget = Math.Max(2, (int)Math.Ceiling(Math.Sqrt(section.Cache.MaxCachedChunks.Value)));
                     mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, unloadFromCacheBudget);
+                    mapSettings.MaxQueuedChunkRequests = Math.Max(mapSettings.MaxQueuedChunkRequests, Math.Clamp(section.Cache.MaxCachedChunks.Value * 3, 128, 16384));
                 }
+
+                mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
+                    ? 3
+                    : 2;
 
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {

@@ -38,7 +38,7 @@ Gaps for this session:
 - [x] Verify using references and compile integrity
 - [x] Run compile/tests/proto checks
 - [x] Update README and docs markdown files under `docs/`
-- [ ] Commit all changes and push to `origin/master`
+- [x] Commit all changes and push to `origin/master`
 
 ## Completed
 - [x] Pre-task local pending changes committed and pushed (`e29d4432`)
@@ -75,3 +75,6 @@ Gaps for this session:
   - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
   - `dotnet test SharedProtocol/SharedProtocol.csproj`
   - `dotnet test GameServer/GameServer.csproj`
+- [x] Session-67 final delivery committed and pushed:
+  - `e612762a` feat(session-67): apply hydrology v25 map-control v29 and protocol validation updates
+  - `origin/master` push completed

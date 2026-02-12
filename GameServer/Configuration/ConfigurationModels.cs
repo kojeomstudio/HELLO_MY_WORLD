@@ -197,5 +197,8 @@ namespace GameServerApp.Configuration
         public int MaxCachedChunks { get; set; } = 0;
         public int MaxQueuedChunkRequests { get; set; } = 2048;
         public int QueuePressureFactor { get; set; } = 2;
+        public double QueueSlackRatio { get; set; } = 2.0;
+        public int QueueOverloadDrainFactor { get; set; } = 2;
+        public int QueueBackoffDelayMs { get; set; } = 4;
     }
 }

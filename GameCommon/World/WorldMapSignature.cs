@@ -108,7 +108,8 @@ namespace GameCommon.World
                 .Append(context.PreviewChunkBudget).Append('|')
                 .Append(context.PreviewInflightBudget).Append('|')
                 .Append(context.PreviewQueuePressureFactor).Append('|')
-                .Append(context.PreviewQueueLimit);
+                .Append(context.PreviewQueueLimit).Append('|')
+                .Append(context.PreviewQueueSlackRatio);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

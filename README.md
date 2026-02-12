@@ -32,6 +32,62 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-12: Session 72 - Hydrology v28 / Adaptive Queue Slack Policy / Terrain Floodplain Retention
+
+**Status:** COMPLETED
+
+- Terrain generation algorithm improvements (server + client parity):
+  - Added floodplain slackwater retention pass to strengthen cave/river/lake continuity in low-relief basins.
+  - Files:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs` (`EnhancedTerrainGenerator`)
+- World-map control architecture and queue control hardening:
+  - Added data-driven queue slack ratio / overload drain / backoff delay controls.
+  - Applied to server runtime parser and map-control managers, and Unity client map controller.
+  - Files:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/Program.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `config/enhanced_world_map_control_client.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Shared signature/profile/config sync:
+  - Hydrology signature: `2026-02-12-hydrology-riverlake-cave-v28`
+  - Map-control profile version: `32`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+- Core/Content/Utility feature inventory refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-12-session-72.json`
+
+**Validation:**
+- Build:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj`
+  - `dotnet build GameCommon/GameCommon.csproj`
+  - `dotnet build GameServer/GameServer.csproj`
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj`
+- Tests:
+  - `dotnet test SharedProtocol/SharedProtocol.csproj`
+  - `dotnet test GameServer/GameServer.csproj`
+- Protobuf and packet validation:
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest`
+
+**Documentation:**
+- `docs/2026-02-12-session-72-comprehensive-implementation-report.md`
+- `plans/2026-02-12-session-72-comprehensive-work-plan.md`
+
 ### 2026-02-12: Session 70 - Hydrology v27 / Map-Control Queue Policy / Proto Consistency
 
 **Status:** COMPLETED

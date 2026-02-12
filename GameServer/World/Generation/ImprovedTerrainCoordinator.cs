@@ -78,6 +78,7 @@ namespace GameServerApp.World.Generation
             ApplyWatershedRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplySubterraneanHydrologyShield(heightMap, hydrology, flow, erosionRisk);
             ApplyRiparianFlowBridge(heightMap, hydrology, flow, erosionRisk);
+            ApplyFloodplainSlackwaterRetention(heightMap, hydrology, flow, erosionRisk);
             ApplyHydrologyConfluenceSpillwayField(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
@@ -377,6 +378,71 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.8, varianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.7, varianceClamp * 1.35);
             TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.4, 0.0, 0.9));
+        }
+
+        private void ApplyFloodplainSlackwaterRetention(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            double seamBlend = Math.Clamp(config.Water.HydrologySeamRelaxBlend, 0.0, 1.0);
+            double continuity = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double persistence = Math.Clamp(config.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double catchmentWeight = Math.Clamp(config.Water.HydrologyCatchmentWeight, 0.0, 1.0);
+            double pressureBlend = Math.Clamp(config.Water.HydrologyPressureBlend, 0.0, 1.0);
+            double gradientWeight = Math.Clamp(config.Water.HydrologyGradientWeight, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius + 1);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+
+                    double slackwater = Math.Clamp(
+                        (1.0 - slope / 10.0) * 0.45 +
+                        (1.0 - relief / 18.0) * 0.2 +
+                        seamHydro * 0.2 +
+                        seamFlow * 0.08 +
+                        edgeFalloff * 0.07,
+                        0.0,
+                        1.0);
+
+                    double seepRetention = slackwater * (0.35 + continuity * 0.25 + catchmentWeight * 0.2);
+                    seepRetention *= 1.0 - Math.Clamp(erosion * 0.3, 0.0, 0.3);
+
+                    double pressure = (seamHydro + seamFlow * 0.5) * pressureBlend;
+                    double pressureGuard = 1.0 - Math.Clamp(Math.Abs(pressure - hydro) * gradientWeight * 0.35, 0.0, 0.4);
+                    double hydroTarget = hydro * (1.0 - seamBlend * 0.5) + (seamHydro + seepRetention + pressure * 0.2) * seamBlend * 0.5;
+                    hydroTarget *= pressureGuard;
+                    hydroTarget = Math.Clamp(hydroTarget, 0.0, 1.0 + varianceClamp * 0.35);
+
+                    double flowTarget = flowValue * (1.0 - seamBlend * 0.45) + (seamFlow * (0.35 + persistence * 0.25) + seepRetention * 0.45) * seamBlend * 0.55;
+                    flowTarget *= 1.0 - Math.Clamp(slackwater * 0.2, 0.0, 0.2);
+                    flowTarget = Math.Clamp(flowTarget, 0.0, Math.Max(1.3, flowValue + seepRetention * 0.5));
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)hydroTarget);
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)flowTarget);
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, Math.Max(0.05, seamBlend * 0.65), varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, Math.Max(0.05, seamBlend * 0.5), varianceClamp * 1.3);
         }
 
         private void ApplyHydrologyMomentum(

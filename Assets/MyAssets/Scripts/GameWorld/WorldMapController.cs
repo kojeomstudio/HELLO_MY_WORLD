@@ -30,6 +30,9 @@ namespace GameWorld
         [SerializeField] private int maxQueuedChunkRequests = 1024;
         [SerializeField] private int maxLoadedPreviewChunks = 2048;
         [SerializeField] private int queuePressureFactor = 2;
+        [SerializeField] private float queueSlackRatio = 2.0f;
+        [SerializeField] private int queueOverloadDrainFactor = 2;
+        [SerializeField] private int queueBackoffDelayMs = 4;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
         [SerializeField] private string queuePolicyFileName = "world_map_control_queue_policy.json";
 
@@ -117,13 +120,28 @@ namespace GameWorld
                     queuePressureFactor = Mathf.Clamp(runtime.worldMapControl.performance.queuePressureFactor, 1, 8);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueSlackRatio > 0f)
+                {
+                    queueSlackRatio = Mathf.Clamp(runtime.worldMapControl.performance.queueSlackRatio, 1.1f, 6.0f);
+                }
+
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueOverloadDrainFactor > 0)
+                {
+                    queueOverloadDrainFactor = Mathf.Clamp(runtime.worldMapControl.performance.queueOverloadDrainFactor, 1, 16);
+                }
+
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueBackoffDelayMs > 0)
+                {
+                    queueBackoffDelayMs = Mathf.Clamp(runtime.worldMapControl.performance.queueBackoffDelayMs, 1, 200);
+                }
+
                 if (enableDebugLogging)
                 {
                     Debug.Log(
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
                         $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
-                        $"queuePressureFactor={queuePressureFactor})");
+                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs})");
                 }
             }
             catch (Exception ex)
@@ -167,6 +185,21 @@ namespace GameWorld
                     queuePressureFactor = Mathf.Clamp(policy.client.queuePressureFactor, 1, 8);
                 }
 
+                if (policy.client.queueSlackRatio > 0f)
+                {
+                    queueSlackRatio = Mathf.Clamp(policy.client.queueSlackRatio, 1.1f, 6.0f);
+                }
+
+                if (policy.client.queueOverloadDrainFactor > 0)
+                {
+                    queueOverloadDrainFactor = Mathf.Clamp(policy.client.queueOverloadDrainFactor, 1, 16);
+                }
+
+                if (policy.client.queueBackoffDelayMs > 0)
+                {
+                    queueBackoffDelayMs = Mathf.Clamp(policy.client.queueBackoffDelayMs, 1, 200);
+                }
+
                 if (policy.client.maxLoadedPreviewChunks > 0)
                 {
                     maxLoadedPreviewChunks = Mathf.Clamp(policy.client.maxLoadedPreviewChunks, 64, 8192);
@@ -179,7 +212,7 @@ namespace GameWorld
 
                 if (enableDebugLogging)
                 {
-                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
                 }
             }
             catch (Exception ex)
@@ -401,10 +434,14 @@ namespace GameWorld
                 return;
             }
 
-            int pressureLimit = GetDynamicLoadedChunkBudget() * Mathf.Max(1, queuePressureFactor);
+            int pressureLimit = Mathf.Clamp(
+                Mathf.CeilToInt(GetDynamicLoadedChunkBudget() * Mathf.Max(1, queuePressureFactor) * Mathf.Max(1.1f, queueSlackRatio)),
+                64,
+                16384);
             int pending = loadedChunks.Count + buildingChunks.Count + Volatile.Read(ref queuedRequestCount);
             if (pending >= pressureLimit)
             {
+                DrainStaleQueueEntries();
                 queuedChunks.TryRemove(pos, out _);
                 return;
             }
@@ -419,7 +456,7 @@ namespace GameWorld
             {
                 if (!requestQueue.TryDequeue(out var pos))
                 {
-                    await Task.Delay(10, token);
+                    await Task.Delay(Mathf.Max(1, queueBackoffDelayMs), token);
                     continue;
                 }
 
@@ -429,6 +466,17 @@ namespace GameWorld
                 }
 
                 queuedChunks.TryRemove(pos, out _);
+
+                int pendingPressure = loadedChunks.Count + buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
+                int pendingLimit = Mathf.Clamp(
+                    Mathf.CeilToInt(GetDynamicLoadedChunkBudget() * Mathf.Max(1, queuePressureFactor) * Mathf.Max(1.1f, queueSlackRatio)),
+                    64,
+                    16384);
+                if (pendingPressure > pendingLimit)
+                {
+                    DrainStaleQueueEntries();
+                    await Task.Delay(Mathf.Max(1, queueBackoffDelayMs * Mathf.Max(1, queuePressureFactor)), token);
+                }
 
                 if (loadedChunks.ContainsKey(pos) || !buildingChunks.TryAdd(pos, 0))
                 {
@@ -536,6 +584,34 @@ namespace GameWorld
             return Math.Clamp(baseBudget + pressureBoost, 64, 8192);
         }
 
+        private void DrainStaleQueueEntries()
+        {
+            int drainBudget = Mathf.Clamp(queueOverloadDrainFactor, 1, 16);
+            int drained = 0;
+
+            while (drained < drainBudget && requestQueue.TryDequeue(out var pos))
+            {
+                if (Volatile.Read(ref queuedRequestCount) > 0)
+                {
+                    Interlocked.Decrement(ref queuedRequestCount);
+                }
+
+                if (loadedChunks.ContainsKey(pos) || buildingChunks.ContainsKey(pos))
+                {
+                    queuedChunks.TryRemove(pos, out _);
+                    drained++;
+                    continue;
+                }
+
+                requestQueue.Enqueue(pos);
+                if (Volatile.Read(ref queuedRequestCount) < Math.Max(64, maxQueuedChunkRequests))
+                {
+                    Interlocked.Increment(ref queuedRequestCount);
+                }
+                break;
+            }
+        }
+
         private Vector2Int WorldToChunk(Vector3 position)
         {
             int size = profile != null ? Math.Max(1, profile.ChunkSize) : 16;
@@ -589,6 +665,9 @@ namespace GameWorld
             public int maxConcurrentChunkRequests = 4;
             public int maxQueuedChunkRequests = 1024;
             public int queuePressureFactor = 2;
+            public float queueSlackRatio = 2.0f;
+            public int queueOverloadDrainFactor = 2;
+            public int queueBackoffDelayMs = 4;
         }
 
         [Serializable]
@@ -602,6 +681,9 @@ namespace GameWorld
         {
             public int maxQueuedChunkRequests = 1024;
             public int queuePressureFactor = 2;
+            public float queueSlackRatio = 2.0f;
+            public int queueOverloadDrainFactor = 2;
+            public int queueBackoffDelayMs = 4;
             public int maxLoadedPreviewChunks = 2048;
             public int maxConcurrentChunkRequests = 4;
         }
@@ -658,6 +740,7 @@ namespace GameWorld
             ApplyWatershedRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplySubterraneanHydrologyShield(heightMap, hydrology, flow, erosionRisk);
             ApplyRiparianFlowBridge(heightMap, hydrology, flow, erosionRisk);
+            ApplyFloodplainSlackwaterRetention(heightMap, hydrology, flow, erosionRisk);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
@@ -781,7 +864,8 @@ namespace GameWorld
                 GetDynamicLoadedChunkBudget(),
                 buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount)),
                 Mathf.Max(1, queuePressureFactor),
-                Mathf.Max(64, maxQueuedChunkRequests));
+                Mathf.Max(64, maxQueuedChunkRequests),
+                Mathf.Max(1.1f, queueSlackRatio));
             return WorldMapSignature.Compute(context);
         }
 
@@ -1833,6 +1917,67 @@ namespace GameWorld
 
             StabilizeEdges(hydrology, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.85f), profile.HydrologyEdgeFluxBlend);
             StabilizeEdges(flow, edgeRadius, 1, Mathf.Clamp01(profile.HydrologyEdgeNormalizationBlend * 0.65f), profile.HydrologyEdgeFluxBlend);
+        }
+
+        private void ApplyFloodplainSlackwaterRetention(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            double seamBlend = Math.Clamp(worldConfig.Water.HydrologySeamRelaxBlend, 0.0, 1.0);
+            double continuity = Math.Clamp(worldConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double persistence = Math.Clamp(worldConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double catchmentWeight = Math.Clamp(worldConfig.Water.HydrologyCatchmentWeight, 0.0, 1.0);
+            double pressureBlend = Math.Clamp(worldConfig.Water.HydrologyPressureBlend, 0.0, 1.0);
+            double gradientWeight = Math.Clamp(worldConfig.Water.HydrologyGradientWeight, 0.0, 1.0);
+            double varianceClamp = Math.Max(0.001, worldConfig.Water.HydrologyVarianceClamp);
+            int edgeRadius = Math.Max(1, worldConfig.Water.HydrologyEdgeBlendRadius + 1);
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowValue = flowCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+
+                    double slackwater = Math.Clamp(
+                        (1.0 - slope / 10.0) * 0.45 +
+                        (1.0 - relief / 18.0) * 0.2 +
+                        seamHydro * 0.2 +
+                        seamFlow * 0.08 +
+                        edgeFalloff * 0.07,
+                        0.0,
+                        1.0);
+
+                    double seepRetention = slackwater * (0.35 + continuity * 0.25 + catchmentWeight * 0.2);
+                    seepRetention *= 1.0 - Math.Clamp(erosion * 0.3, 0.0, 0.3);
+
+                    double pressure = (seamHydro + seamFlow * 0.5) * pressureBlend;
+                    double pressureGuard = 1.0 - Math.Clamp(Math.Abs(pressure - hydro) * gradientWeight * 0.35, 0.0, 0.4);
+                    double hydroTarget = hydro * (1.0 - seamBlend * 0.5) + (seamHydro + seepRetention + pressure * 0.2) * seamBlend * 0.5;
+                    hydroTarget *= pressureGuard;
+                    hydroTarget = Math.Clamp(hydroTarget, 0.0, 1.0 + varianceClamp * 0.35);
+
+                    double flowTarget = flowValue * (1.0 - seamBlend * 0.45) + (seamFlow * (0.35 + persistence * 0.25) + seepRetention * 0.45) * seamBlend * 0.55;
+                    flowTarget *= 1.0 - Math.Clamp(slackwater * 0.2, 0.0, 0.2);
+                    flowTarget = Math.Clamp(flowTarget, 0.0, Math.Max(1.3, flowValue + seepRetention * 0.5));
+
+                    hydrology[x, z] = Mathf.Clamp01((float)hydroTarget);
+                    flow[x, z] = Mathf.Clamp((float)flowTarget, 0f, 1.35f);
+                }
+            }
+
+            StabilizeEdges(hydrology, edgeRadius, 1, Mathf.Max(0.05f, (float)(seamBlend * 0.65)), (float)varianceClamp);
+            StabilizeEdges(flow, edgeRadius, 1, Mathf.Max(0.05f, (float)(seamBlend * 0.5)), (float)(varianceClamp * 1.3));
         }
 
         private void ApplyHydrologyMomentum(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)

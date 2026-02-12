@@ -432,7 +432,7 @@ namespace GameServerApp
                     worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
                 }
 
-                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 31);
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 32);
 
                 if (section.Defaults != null)
                 {
@@ -503,6 +503,21 @@ namespace GameServerApp
                     {
                         mapSettings.QueuePressureFactor = Math.Clamp(section.TerrainGeneration.QueuePressureFactor.Value, 1, 8);
                     }
+
+                    if (section.TerrainGeneration.QueueSlackRatio is > 0)
+                    {
+                        mapSettings.QueueSlackRatio = Math.Clamp(section.TerrainGeneration.QueueSlackRatio.Value, 1.1, 6.0);
+                    }
+
+                    if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
+                    {
+                        mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
+                    }
+
+                    if (section.TerrainGeneration.QueueBackoffDelayMs > 0)
+                    {
+                        mapSettings.QueueBackoffDelayMs = Math.Clamp(section.TerrainGeneration.QueueBackoffDelayMs.Value, 1, 200);
+                    }
                 }
 
                 if (section.Cache?.MaxCachedChunks > 0)
@@ -523,14 +538,33 @@ namespace GameServerApp
                     mapSettings.QueuePressureFactor = Math.Clamp(section.Cache.QueuePressureFactor.Value, 1, 8);
                 }
 
+                if (section.Cache?.QueueSlackRatio is > 0)
+                {
+                    mapSettings.QueueSlackRatio = Math.Clamp(section.Cache.QueueSlackRatio.Value, 1.1, 6.0);
+                }
+
+                if (section.Cache?.QueueOverloadDrainFactor > 0)
+                {
+                    mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
+                }
+
+                if (section.Cache?.QueueBackoffDelayMs > 0)
+                {
+                    mapSettings.QueueBackoffDelayMs = Math.Clamp(section.Cache.QueueBackoffDelayMs.Value, 1, 200);
+                }
+
                 mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
                     ? Math.Max(3, mapSettings.QueuePressureFactor)
                     : Math.Max(2, mapSettings.QueuePressureFactor);
 
+                mapSettings.QueueSlackRatio = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
+                    ? Math.Max(2.2, mapSettings.QueueSlackRatio)
+                    : Math.Max(1.8, mapSettings.QueueSlackRatio);
+
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -582,9 +616,25 @@ namespace GameServerApp
                     mapSettings.UpdateIntervalMs = Math.Clamp(server.UpdateIntervalMs.Value, 16, 60000);
                 }
 
+                if (server.QueueSlackRatio is > 0)
+                {
+                    mapSettings.QueueSlackRatio = Math.Clamp(server.QueueSlackRatio.Value, 1.1, 6.0);
+                }
+
+                if (server.QueueOverloadDrainFactor > 0)
+                {
+                    mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
+                }
+
+                if (server.QueueBackoffDelayMs > 0)
+                {
+                    mapSettings.QueueBackoffDelayMs = Math.Clamp(server.QueueBackoffDelayMs.Value, 1, 200);
+                }
+
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -703,6 +753,15 @@ namespace GameServerApp
 
             [JsonPropertyName("queuePressureFactor")]
             public int? QueuePressureFactor { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
         }
 
         private sealed class WorldMapRuntimeTerrainGeneration
@@ -721,6 +780,15 @@ namespace GameServerApp
 
             [JsonPropertyName("queuePressureFactor")]
             public int? QueuePressureFactor { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
         }
 
         private sealed class WorldMapQueuePolicyConfig
@@ -748,6 +816,15 @@ namespace GameServerApp
 
             [JsonPropertyName("updateIntervalMs")]
             public int? UpdateIntervalMs { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
         }
     }
 }

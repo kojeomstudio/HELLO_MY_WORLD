@@ -19,6 +19,9 @@
       "maxConcurrentChunkRequests": 8,
       "maxQueuedChunkRequests": 3072,
       "queuePressureFactor": 4,
+      "queueSlackRatio": 2.1,
+      "queueOverloadDrainFactor": 2,
+      "queueBackoffDelayMs": 4,
       "enableChunkPrediction": true
     },
     "defaults": {

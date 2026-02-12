@@ -17,12 +17,16 @@
     "performance": {
       "chunkUpdateThrottleMs": 50,
       "maxConcurrentChunkRequests": 8,
-      "maxQueuedChunkRequests": 2048,
+      "maxQueuedChunkRequests": 3072,
+      "queuePressureFactor": 4,
+      "queueSlackRatio": 2.1,
+      "queueOverloadDrainFactor": 2,
+      "queueBackoffDelayMs": 4,
       "enableChunkPrediction": true
     },
     "defaults": {
       "renderDistance": 12,
-      "maxLoadedPreviewChunks": 3072,
+      "maxLoadedPreviewChunks": 4096,
       "mapScale": 1.0,
       "terrainQuality": 3,
       "waterQuality": 3,

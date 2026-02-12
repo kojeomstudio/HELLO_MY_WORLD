@@ -115,6 +115,21 @@ namespace GameServerApp.World
                 return await inflight.ConfigureAwait(false);
             }
 
+            if (generationTasks.Count >= Math.Max(64, queueLimit))
+            {
+                logger.LogDebug(
+                    "[WorldMapController] Queue pressure gate for {Pos} (inflight={Inflight}, queueLimit={QueueLimit}, pressureFactor={PressureFactor})",
+                    pos,
+                    generationTasks.Count,
+                    queueLimit,
+                    queuePressureFactor);
+                await Task.Delay(Math.Max(1, 2 * queuePressureFactor), cancellationToken).ConfigureAwait(false);
+                if (generationTasks.TryGetValue(pos, out var delayedInflight))
+                {
+                    return await delayedInflight.ConfigureAwait(false);
+                }
+            }
+
             var task = GenerateChunkAsync(pos, cancellationToken);
             if (!generationTasks.TryAdd(pos, task))
             {
@@ -334,6 +349,12 @@ namespace GameServerApp.World
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
             queuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
             queuePressureFactor = Math.Clamp(queuePressureFactor, 1, 6);
+
+            if (worldSettings != null)
+            {
+                int worldQueueHint = Math.Max(1, worldSettings.ChunkLoadRadius) * 2 + 1;
+                queueLimit = Math.Clamp(Math.Max(queueLimit, worldQueueHint * worldQueueHint * 2), 128, 16384);
+            }
         }
 
         private void EnforceLoadedChunkBudget()

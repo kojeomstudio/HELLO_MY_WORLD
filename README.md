@@ -32,6 +32,62 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-12: Session 70 - Hydrology v27 / Map-Control Queue Policy / Proto Consistency
+
+**Status:** COMPLETED
+
+- Terrain generation algorithm improvements (server):
+  - Added confluence-spillway hydrology coupling pass
+  - Added river/lake cave-coupling pass
+  - File: `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map control architecture and queue control hardening:
+  - Server queue pressure gate + runtime policy ingestion from JSON
+  - Client shared queue-policy ingestion from StreamingAssets
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/Program.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+- Protobuf registry/validator consistency improvements:
+  - Added legacy/enhanced type consistency diagnostics + validation
+  - Files:
+    - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
+    - `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`
+    - `SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+- Shared signature/profile/config sync:
+  - Hydrology signature: `2026-02-12-hydrology-riverlake-cave-v27`
+  - Map-control profile version: `31`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Core/Content/Utility feature inventory refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-12-session-70.json`
+
+**Validation:**
+- Build:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj`
+  - `dotnet build GameCommon/GameCommon.csproj`
+  - `dotnet build GameServer/GameServer.csproj`
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj`
+- Protobuf and packet validation:
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+- Tests:
+  - `dotnet test SharedProtocol/SharedProtocol.csproj`
+  - `dotnet test GameServer/GameServer.csproj`
+
+**Documentation:**
+- `docs/2026-02-12-session-70-comprehensive-implementation-report.md`
+- `plans/2026-02-12-session-70-comprehensive-work-plan.md`
+
 ### 2026-02-11: Session 69 - Comprehensive Verification & Testing
 
 **Status:** COMPLETED
@@ -1393,4 +1449,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

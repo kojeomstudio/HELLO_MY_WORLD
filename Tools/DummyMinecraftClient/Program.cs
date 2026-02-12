@@ -83,6 +83,10 @@ public static class Program
             .Select(type => type.ToString())
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
+        var typeDrift = ProtocolRegistry.BuildTypeConsistencyDiagnostics()
+            .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches)
+            .OrderBy(item => item.MessageType.ToString(), StringComparer.Ordinal)
+            .ToArray();
 
         if (missingRequiredBindings.Length > 0)
         {
@@ -97,6 +101,13 @@ public static class Program
         if (missingOptionalBindings.Length > 0)
         {
             Console.WriteLine("[INFO] Optional protocol bindings not registered: " + string.Join(", ", missingOptionalBindings));
+        }
+
+        if (typeDrift.Length > 0)
+        {
+            Console.WriteLine("[INFO] Legacy/Enhanced type drift entries: " +
+                              string.Join(", ", typeDrift.Select(item =>
+                                  $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType}, optional={item.IsOptional})")));
         }
 
         var packetTypes = ResolvePackets(config.Packets);

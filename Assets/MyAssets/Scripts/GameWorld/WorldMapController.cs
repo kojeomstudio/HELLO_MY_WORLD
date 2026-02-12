@@ -31,6 +31,7 @@ namespace GameWorld
         [SerializeField] private int maxLoadedPreviewChunks = 2048;
         [SerializeField] private int queuePressureFactor = 2;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
+        [SerializeField] private string queuePolicyFileName = "world_map_control_queue_policy.json";
 
         private const string PipelineVersion = SharedFeatureCatalog.HydrologySignature;
         private WorldMapControlProfile profile = null!;
@@ -58,6 +59,7 @@ namespace GameWorld
             ProtoDiagnostics.AssertFingerprint();
             LoadProfile();
             ApplyRuntimeStreamingOverrides();
+            ApplySharedQueuePolicyOverrides();
             configPath = Path.Combine(Application.streamingAssetsPath, "world-config.json");
             lastConfigWriteUtc = File.Exists(configPath) ? File.GetLastWriteTimeUtc(configPath) : DateTime.MinValue;
             worldConfig = WorldConfig.Instance;
@@ -130,6 +132,59 @@ namespace GameWorld
                 {
                     Debug.LogWarning($"[WorldMapController] Failed to load runtime streaming config '{runtimePath}': {ex.Message}");
                 }
+            }
+        }
+
+        private void ApplySharedQueuePolicyOverrides()
+        {
+            if (string.IsNullOrWhiteSpace(queuePolicyFileName))
+            {
+                return;
+            }
+
+            var queuePolicyPath = Path.Combine(Application.streamingAssetsPath, queuePolicyFileName);
+            if (!File.Exists(queuePolicyPath))
+            {
+                return;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(queuePolicyPath);
+                var policy = JsonUtility.FromJson<ClientQueuePolicyRoot>(json);
+                if (policy?.client == null)
+                {
+                    return;
+                }
+
+                if (policy.client.maxQueuedChunkRequests > 0)
+                {
+                    maxQueuedChunkRequests = Mathf.Clamp(policy.client.maxQueuedChunkRequests, 64, 16384);
+                }
+
+                if (policy.client.queuePressureFactor > 0)
+                {
+                    queuePressureFactor = Mathf.Clamp(policy.client.queuePressureFactor, 1, 8);
+                }
+
+                if (policy.client.maxLoadedPreviewChunks > 0)
+                {
+                    maxLoadedPreviewChunks = Mathf.Clamp(policy.client.maxLoadedPreviewChunks, 64, 8192);
+                }
+
+                if (policy.client.maxConcurrentChunkRequests > 0)
+                {
+                    maxConcurrentChunkBuilds = Mathf.Clamp(policy.client.maxConcurrentChunkRequests, 1, 64);
+                }
+
+                if (enableDebugLogging)
+                {
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldMapController] Failed to apply queue policy '{queuePolicyPath}': {ex.Message}");
             }
         }
 
@@ -534,6 +589,21 @@ namespace GameWorld
             public int maxConcurrentChunkRequests = 4;
             public int maxQueuedChunkRequests = 1024;
             public int queuePressureFactor = 2;
+        }
+
+        [Serializable]
+        private sealed class ClientQueuePolicyRoot
+        {
+            public ClientQueuePolicySection client = new ClientQueuePolicySection();
+        }
+
+        [Serializable]
+        private sealed class ClientQueuePolicySection
+        {
+            public int maxQueuedChunkRequests = 1024;
+            public int queuePressureFactor = 2;
+            public int maxLoadedPreviewChunks = 2048;
+            public int maxConcurrentChunkRequests = 4;
         }
     }
 

@@ -30,6 +30,8 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
         private readonly int maxCachedChunks;
+        private readonly int configuredQueueLimit;
+        private readonly int configuredQueuePressureFactor;
         private int dynamicQueueLimit;
         private int dynamicQueuePressureFactor;
         private DateTime worldConfigWriteTime;
@@ -59,6 +61,8 @@ namespace GameServerApp.World
             maxCachedChunks = this.settings.MaxCachedChunks > 0
                 ? Math.Max(64, this.settings.MaxCachedChunks)
                 : computedBudget;
+            configuredQueueLimit = Math.Clamp(Math.Max(128, this.settings.MaxQueuedChunkRequests), 128, 16384);
+            configuredQueuePressureFactor = Math.Clamp(Math.Max(1, this.settings.QueuePressureFactor), 1, 8);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
             dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             RefreshGenerationSignature(rebuildPipeline: false);
@@ -275,6 +279,15 @@ namespace GameServerApp.World
                 return await inflight.ConfigureAwait(false);
             }
 
+            if (inflightChunkGenerations.Count >= Math.Max(64, dynamicQueueLimit))
+            {
+                await Task.Delay(Math.Max(1, 2 * dynamicQueuePressureFactor)).ConfigureAwait(false);
+                if (inflightChunkGenerations.TryGetValue(key, out var delayedInflight))
+                {
+                    return await delayedInflight.ConfigureAwait(false);
+                }
+            }
+
             var generationTask = pipeline.GenerateChunkAsync(chunkX, chunkZ);
             if (!inflightChunkGenerations.TryAdd(key, generationTask))
             {
@@ -338,11 +351,11 @@ namespace GameServerApp.World
             int inflightBudget = Math.Max(8, settings.MaxConcurrentChunkGenerations * Math.Max(2, settings.UpdateBatchSize / 8));
             int queueByCache = Math.Max(128, Math.Min(8192, GetEffectiveCacheBudget() * 3));
             int queueByWindow = Math.Max(128, mapWindow * Math.Max(2, settings.UpdateBatchSize / 8));
-            dynamicQueueLimit = Math.Clamp(Math.Max(queueByCache, queueByWindow), 128, 16384);
+            dynamicQueueLimit = Math.Clamp(Math.Max(Math.Max(queueByCache, queueByWindow), configuredQueueLimit), 128, 16384);
 
             double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
             dynamicQueuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
-            dynamicQueuePressureFactor = Math.Clamp(dynamicQueuePressureFactor, 1, 6);
+            dynamicQueuePressureFactor = Math.Clamp(Math.Max(dynamicQueuePressureFactor, configuredQueuePressureFactor), 1, 8);
             _ = inflightBudget;
         }
 

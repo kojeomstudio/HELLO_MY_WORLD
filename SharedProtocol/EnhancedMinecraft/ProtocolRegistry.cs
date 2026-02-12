@@ -17,6 +17,15 @@ public sealed record ProtocolBindingDiagnostic(
     string DescriptorPackage,
     string ClrType);
 
+public sealed record ProtocolTypeConsistencyDiagnostic(
+    MinecraftMessageType MessageType,
+    bool HasLegacyType,
+    bool LegacyTypeMatches,
+    string LegacyClrType,
+    bool HasEnhancedType,
+    string EnhancedClrType,
+    bool IsOptional);
+
 public static class ProtocolRegistry
 {
     private sealed record ProtocolBinding(MinecraftMessageType MessageType, string DescriptorName, Func<IMessage> Factory);
@@ -301,6 +310,52 @@ public static class ProtocolRegistry
     }
 
     /// <summary>
+    /// Validates that shared enum values and EnhancedMinecraft contracts are consistently mapped,
+    /// and reports any legacy DTO type drift for compatibility checks.
+    /// </summary>
+    public static IReadOnlyCollection<ProtocolTypeConsistencyDiagnostic> BuildTypeConsistencyDiagnostics()
+    {
+        var diagnostics = new List<ProtocolTypeConsistencyDiagnostic>();
+
+        foreach (var messageType in Enum.GetValues<MinecraftMessageType>())
+        {
+            bool hasEnhanced = TryResolveContractType(messageType, out var enhancedType);
+            bool hasLegacy = ProtocolStandardization.TryGetType(messageType, out var legacyType);
+            bool isOptional = IsOptionalMessageType(messageType);
+            bool legacyMatches = !hasLegacy || !hasEnhanced ||
+                string.Equals(legacyType?.Name, enhancedType?.Name, StringComparison.Ordinal);
+
+            diagnostics.Add(new ProtocolTypeConsistencyDiagnostic(
+                messageType,
+                hasLegacy,
+                legacyMatches,
+                legacyType?.FullName ?? string.Empty,
+                hasEnhanced,
+                enhancedType?.FullName ?? string.Empty,
+                isOptional));
+        }
+
+        return diagnostics
+            .OrderBy(item => item.MessageType.ToString(), StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static void ValidateTypeConsistency()
+    {
+        var inconsistencies = BuildTypeConsistencyDiagnostics()
+            .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches && !item.IsOptional)
+            .ToArray();
+
+        if (inconsistencies.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft type consistency failed for required messages: " +
+                string.Join(", ", inconsistencies.Select(item =>
+                    $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType})")));
+        }
+    }
+
+    /// <summary>
     /// Returns unregistered message types (required + optional) to help audits.
     /// </summary>
     public static IEnumerable<MinecraftMessageType> GetUnregisteredMessageTypes()
@@ -333,5 +388,7 @@ public static class ProtocolRegistry
                 string.Join(", ", missing) +
                 ". Regenerate protoc DTOs or update ProtocolRegistry.");
         }
+
+        ValidateTypeConsistency();
     }
 }

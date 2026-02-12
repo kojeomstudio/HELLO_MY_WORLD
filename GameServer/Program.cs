@@ -152,6 +152,8 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-12-session-70.json"),
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-11-session-68.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-11-session-67.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-10-session-64.json"),
@@ -389,6 +391,7 @@ namespace GameServerApp
             var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
             var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
             ApplyWorldMapRuntimeOverrides(worldGenConfig, mapSettings);
+            ApplyWorldMapQueuePolicyOverrides(mapSettings);
             var profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
 
             var profile = ServerWorldMapControlProfileUtility.Create(worldGenConfig, config.World);
@@ -428,6 +431,8 @@ namespace GameServerApp
                 {
                     worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
                 }
+
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 31);
 
                 if (section.Defaults != null)
                 {
@@ -488,6 +493,16 @@ namespace GameServerApp
                     {
                         mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.TerrainGeneration.UpdateBatchSize.Value * 32, 128, 16384);
                     }
+
+                    if (section.TerrainGeneration.MaxQueuedChunkRequests > 0)
+                    {
+                        mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.TerrainGeneration.MaxQueuedChunkRequests.Value, 128, 16384);
+                    }
+
+                    if (section.TerrainGeneration.QueuePressureFactor > 0)
+                    {
+                        mapSettings.QueuePressureFactor = Math.Clamp(section.TerrainGeneration.QueuePressureFactor.Value, 1, 8);
+                    }
                 }
 
                 if (section.Cache?.MaxCachedChunks > 0)
@@ -498,9 +513,19 @@ namespace GameServerApp
                     mapSettings.MaxQueuedChunkRequests = Math.Max(mapSettings.MaxQueuedChunkRequests, Math.Clamp(section.Cache.MaxCachedChunks.Value * 3, 128, 16384));
                 }
 
+                if (section.Cache?.MaxQueuedChunkRequests > 0)
+                {
+                    mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.Cache.MaxQueuedChunkRequests.Value, 128, 16384);
+                }
+
+                if (section.Cache?.QueuePressureFactor > 0)
+                {
+                    mapSettings.QueuePressureFactor = Math.Clamp(section.Cache.QueuePressureFactor.Value, 1, 8);
+                }
+
                 mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
-                    ? 3
-                    : 2;
+                    ? Math.Max(3, mapSettings.QueuePressureFactor)
+                    : Math.Max(2, mapSettings.QueuePressureFactor);
 
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
@@ -510,6 +535,61 @@ namespace GameServerApp
             catch (Exception ex)
             {
                 Console.WriteLine($"[WorldMapControlRuntime][WARN] Failed to apply '{runtimePath}': {ex.Message}");
+            }
+        }
+
+        private static void ApplyWorldMapQueuePolicyOverrides(WorldMapControlSettings mapSettings)
+        {
+            string queuePolicyPath = ResolveRepoPath(Path.Combine("config", "world_map_control_queue_policy.json"));
+            if (!File.Exists(queuePolicyPath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(queuePolicyPath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var queuePolicy = JsonSerializer.Deserialize<WorldMapQueuePolicyConfig>(json, options);
+                if (queuePolicy?.Server == null)
+                {
+                    return;
+                }
+
+                var server = queuePolicy.Server;
+                if (server.MaxQueuedChunkRequests > 0)
+                {
+                    mapSettings.MaxQueuedChunkRequests = Math.Clamp(server.MaxQueuedChunkRequests.Value, 128, 16384);
+                }
+
+                if (server.QueuePressureFactor > 0)
+                {
+                    mapSettings.QueuePressureFactor = Math.Clamp(server.QueuePressureFactor.Value, 1, 8);
+                }
+
+                if (server.MaxConcurrentChunkGenerations > 0)
+                {
+                    mapSettings.MaxConcurrentChunkGenerations = Math.Clamp(server.MaxConcurrentChunkGenerations.Value, 1, 64);
+                }
+
+                if (server.UpdateBatchSize > 0)
+                {
+                    mapSettings.UpdateBatchSize = Math.Clamp(server.UpdateBatchSize.Value, 1, 1024);
+                }
+
+                if (server.UpdateIntervalMs > 0)
+                {
+                    mapSettings.UpdateIntervalMs = Math.Clamp(server.UpdateIntervalMs.Value, 16, 60000);
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
+                    $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
+                    $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapQueuePolicy][WARN] Failed to apply '{queuePolicyPath}': {ex.Message}");
             }
         }
 
@@ -617,10 +697,49 @@ namespace GameServerApp
         {
             [JsonPropertyName("maxCachedChunks")]
             public int? MaxCachedChunks { get; set; }
+
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
         }
 
         private sealed class WorldMapRuntimeTerrainGeneration
         {
+            [JsonPropertyName("maxConcurrentChunkGenerations")]
+            public int? MaxConcurrentChunkGenerations { get; set; }
+
+            [JsonPropertyName("updateBatchSize")]
+            public int? UpdateBatchSize { get; set; }
+
+            [JsonPropertyName("updateIntervalMs")]
+            public int? UpdateIntervalMs { get; set; }
+
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
+        }
+
+        private sealed class WorldMapQueuePolicyConfig
+        {
+            [JsonPropertyName("version")]
+            public int Version { get; set; }
+
+            [JsonPropertyName("server")]
+            public WorldMapQueuePolicySection? Server { get; set; }
+        }
+
+        private sealed class WorldMapQueuePolicySection
+        {
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
+
             [JsonPropertyName("maxConcurrentChunkGenerations")]
             public int? MaxConcurrentChunkGenerations { get; set; }
 

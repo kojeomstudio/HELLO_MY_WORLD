@@ -99,6 +99,7 @@ public static class ProtocolValidator
         ValidateOptionalDescriptorVisibility();
         ValidateStreamingContracts();
         ValidateOptionalPrototypes();
+        ValidateTypeConsistencyCoverage();
         LogOptionalBindingCoverage();
         ProtoDiagnostics.LogSummary();
         ProtoDiagnostics.AssertRegistryClean();
@@ -793,6 +794,32 @@ public static class ProtocolValidator
             string joined = string.Join(", ", missing);
             throw new InvalidOperationException(
                 $"EnhancedMinecraft protocol registry is missing bindings for: {joined}. Add ProtocolRegistry entries or mark them optional so generated protobuf classes remain reachable via using directives.");
+        }
+    }
+
+    private static void ValidateTypeConsistencyCoverage()
+    {
+        var diagnostics = ProtocolRegistry.BuildTypeConsistencyDiagnostics();
+        var requiredDrift = diagnostics
+            .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches && !item.IsOptional)
+            .ToArray();
+        if (requiredDrift.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "Protocol type consistency mismatch for required messages: " +
+                string.Join(", ", requiredDrift.Select(item =>
+                    $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType})")));
+        }
+
+        var optionalDrift = diagnostics
+            .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches && item.IsOptional)
+            .ToArray();
+        if (optionalDrift.Length > 0)
+        {
+            Console.WriteLine(
+                "[Proto][INFO] Optional legacy/enhanced type drift detected: " +
+                string.Join(", ", optionalDrift.Select(item =>
+                    $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType})")));
         }
     }
 

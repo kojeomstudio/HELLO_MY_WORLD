@@ -313,6 +313,30 @@ namespace SharedProtocol.EnhancedMinecraft
                 : null;
         }
 
+        public static bool TryGetType(MinecraftMessageType messageType, out Type? type)
+        {
+            type = messageType switch
+            {
+                MinecraftMessageType.PlayerStateUpdate => typeof(Proto.PlayerInfo),
+                MinecraftMessageType.PlayerActionRequest => typeof(Proto.PlayerActionRequest),
+                MinecraftMessageType.PlayerActionResponse => typeof(Proto.PlayerActionResponse),
+                MinecraftMessageType.ChunkDataRequest => typeof(Proto.ChunkLoadRequest),
+                MinecraftMessageType.ChunkDataResponse => typeof(Proto.ChunkLoadResponse),
+                MinecraftMessageType.ChunkUnloadNotification => typeof(Proto.ChunkUnloadNotification),
+                MinecraftMessageType.ChunkUnloadAcknowledge => typeof(Proto.ChunkUnloadAck),
+                MinecraftMessageType.BlockChangeNotification => typeof(Proto.BlockChangeBroadcast),
+                MinecraftMessageType.EntitySpawn => typeof(Proto.EntitySpawnBroadcast),
+                MinecraftMessageType.EntityDespawn => typeof(Proto.EntityDespawnBroadcast),
+                MinecraftMessageType.TimeUpdate => typeof(Proto.TimeUpdateBroadcast),
+                MinecraftMessageType.WeatherChange => typeof(Proto.WeatherUpdateBroadcast),
+                MinecraftMessageType.SoundEffect => typeof(Proto.SoundEffect),
+                MinecraftMessageType.ParticleEffect => typeof(Proto.ParticleEffect),
+                _ => null
+            };
+
+            return type != null;
+        }
+
         public static string GetProtocolError(Exception ex, string operation)
         {
             return $"Protocol error during {operation}: {ex.Message}";

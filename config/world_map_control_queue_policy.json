@@ -1,10 +1,11 @@
 {
-  "version": 3,
+  "version": 4,
   "description": "Server/client shared queue policy knobs for world-map preview/chunk control.",
   "server": {
     "maxQueuedChunkRequests": 3072,
     "queuePressureFactor": 3,
     "queueSlackRatio": 2.6,
+    "queueLoadSheddingThreshold": 0.88,
     "queueOverloadDrainFactor": 3,
     "queueBackoffDelayMs": 7,
     "maxConcurrentChunkGenerations": 10,
@@ -15,6 +16,7 @@
     "maxQueuedChunkRequests": 3072,
     "queuePressureFactor": 4,
     "queueSlackRatio": 2.3,
+    "queueLoadSheddingThreshold": 0.86,
     "queueOverloadDrainFactor": 3,
     "queueBackoffDelayMs": 6,
     "maxLoadedPreviewChunks": 4096,

@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-13-session-75.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-13-session-74.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-12-session-70.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-11-session-68.json"),
@@ -433,7 +434,7 @@ namespace GameServerApp
                     worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
                 }
 
-                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 33);
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 34);
 
                 if (section.Defaults != null)
                 {
@@ -510,6 +511,11 @@ namespace GameServerApp
                         mapSettings.QueueSlackRatio = Math.Clamp(section.TerrainGeneration.QueueSlackRatio.Value, 1.1, 6.0);
                     }
 
+                    if (section.TerrainGeneration.QueueLoadSheddingThreshold is > 0)
+                    {
+                        mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.TerrainGeneration.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                    }
+
                     if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
                     {
                         mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
@@ -544,6 +550,11 @@ namespace GameServerApp
                     mapSettings.QueueSlackRatio = Math.Clamp(section.Cache.QueueSlackRatio.Value, 1.1, 6.0);
                 }
 
+                if (section.Cache?.QueueLoadSheddingThreshold is > 0)
+                {
+                    mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.Cache.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                }
+
                 if (section.Cache?.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
@@ -561,11 +572,12 @@ namespace GameServerApp
                 mapSettings.QueueSlackRatio = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
                     ? Math.Max(2.2, mapSettings.QueueSlackRatio)
                     : Math.Max(1.8, mapSettings.QueueSlackRatio);
+                mapSettings.QueueLoadSheddingThreshold = Math.Clamp(mapSettings.QueueLoadSheddingThreshold, 0.5, 0.98);
 
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -622,6 +634,11 @@ namespace GameServerApp
                     mapSettings.QueueSlackRatio = Math.Clamp(server.QueueSlackRatio.Value, 1.1, 6.0);
                 }
 
+                if (server.QueueLoadSheddingThreshold is > 0)
+                {
+                    mapSettings.QueueLoadSheddingThreshold = Math.Clamp(server.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                }
+
                 if (server.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
@@ -635,7 +652,7 @@ namespace GameServerApp
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -758,6 +775,9 @@ namespace GameServerApp
             [JsonPropertyName("queueSlackRatio")]
             public double? QueueSlackRatio { get; set; }
 
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
+
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
 
@@ -784,6 +804,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueSlackRatio")]
             public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
@@ -820,6 +843,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueSlackRatio")]
             public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }

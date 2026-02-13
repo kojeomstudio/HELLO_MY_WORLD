@@ -81,6 +81,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainSlackwaterRetention(heightMap, hydrology, flow, erosionRisk);
             ApplyHydrologyConfluenceSpillwayField(heightMap, hydrology, flow, erosionRisk);
             ApplyKarstWetlandCoupling(heightMap, hydrology, flow, erosionRisk);
+            ApplyDeltaWaterTableCoupling(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -368,6 +369,74 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.72, varianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.62, varianceClamp * 1.3);
             TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.33, 0.0, 0.9));
+        }
+
+        private void ApplyDeltaWaterTableCoupling(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius + 1);
+            int mouthRadius = Math.Max(2, config.Water.RiverMouthSmoothRadius);
+            double continuityWeight = Math.Clamp(config.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double waterTableClampWeight = Math.Clamp(config.Water.HydrologyWaterTableClampWeight, 0.0, 1.0);
+            double waterTableClampRange = Math.Max(1.0, config.Water.HydrologyWaterTableClampRange);
+            double outflowStability = Math.Clamp(config.Lakes.OutflowStabilityWeight, 0.0, 1.0);
+            double spillwayWeight = Math.Clamp(config.Lakes.SpillwayContinuityWeight, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, config.Water.HydrologyFlowDivergenceClamp);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowNode = flowCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.6),
+                        0.0,
+                        1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double waterTableDistance = seaLevel - heightMap[x, z];
+                    double tableBand = 1.0 - Math.Clamp(Math.Abs(waterTableDistance) / waterTableClampRange, 0.0, 1.0);
+                    double deltaCoupling = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.24 + flowNode * 0.2 + seamFlow * 0.16 + tableBand * 0.1,
+                        0.0,
+                        1.2);
+                    double stabilizer = 1.0 - Math.Clamp(
+                        divergence * 0.4 +
+                        Math.Abs(hydro - seamHydro) * 0.24 +
+                        slope * config.Water.HydrologySlopePenalty * 0.01,
+                        0.0,
+                        0.78);
+                    double couplingWeight = (0.25 + continuityWeight * 0.25 + outflowStability * 0.2 + spillwayWeight * 0.15 + waterTableClampWeight * 0.15);
+                    double coupling = deltaCoupling * couplingWeight * (0.45 + seaBand * 0.35 + edgeBand * 0.2) * stabilizer;
+                    double erosion = erosionCopy[x, z];
+
+                    double hydroTarget = hydro + coupling * (0.22 + continuityWeight * 0.18);
+                    double flowTarget = flowNode * (1.0 - divergence * 0.2) + coupling * (0.28 + continuityWeight * 0.24);
+                    double erosionTarget = erosion * (1.0 - coupling * 0.12) + coupling * (0.1 + spillwayWeight * 0.1);
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.35));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.70, varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, config.Water.HydrologyEdgeNormalizationBlend * 0.60, varianceClamp * 1.3);
+            TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.32, 0.0, 0.9));
         }
 
         private void ApplyRiverLakeCaveCoupling(

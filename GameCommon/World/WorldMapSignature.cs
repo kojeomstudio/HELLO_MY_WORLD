@@ -109,6 +109,7 @@ namespace GameCommon.World
                 .Append(context.PreviewInflightBudget).Append('|')
                 .Append(context.PreviewQueuePressureFactor).Append('|')
                 .Append(context.PreviewQueueLimit).Append('|')
+                .Append(context.PreviewQueueLoadSheddingThreshold).Append('|')
                 .Append(context.PreviewQueueSlackRatio);
 
             using var sha = SHA256.Create();

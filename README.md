@@ -32,6 +32,75 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-13: Session 75 - Hydrology v30 / Map-Control v34 / Queue Load-Shedding
+
+**Status:** COMPLETED
+
+- Terrain generation and world-map control improvements (server + client):
+  - Added cave pass: epikarst recharge seal.
+  - Added river pass: distributary levee stability bridge.
+  - Added lake pass: delta backswamp retention bridge.
+  - Added terrain coordinator pass: delta water-table coupling.
+  - Added client parity implementations for all new cave/river/lake/coordinator passes.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map architecture and queue-control hardening:
+  - Added adaptive queue load-shedding threshold handling on server/client map controllers.
+  - Queue policy JSON version bumped to `4`.
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/Program.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `config/enhanced_world_map_control_client.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature: `2026-02-13-hydrology-riverlake-cave-v30`
+  - Map-control profile version: `34`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy client validation hardening:
+  - Added strict required-generated-descriptor binding checks in server probe and dummy client.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+- Core/Content/Utility categorized feature list refreshed:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-13-session-75.json`
+
+**Validation:**
+- Build:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj -m:1`
+  - `dotnet build GameCommon/GameCommon.csproj -m:1`
+  - `dotnet build GameServer/GameServer.csproj -m:1`
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -m:1`
+- Test/verification:
+  - `dotnet test SharedProtocol/SharedProtocol.csproj -m:1`
+  - `dotnet test GameServer/GameServer.csproj -m:1`
+  - `dotnet test GameServer/TerrainGenerationTest.csproj -m:1` (failed: malformed project file, multiple root elements)
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` (strict mode detected required descriptor binding gaps and exited with failure)
+
+**Documentation:**
+- `plans/2026-02-13-session-75-comprehensive-work-plan.md`
+- `docs/2026-02-13-session-75-worldgen-map-proto-report.md`
+
 ### 2026-02-13: Session 74 - Hydrology v29 / Map-Control v33 / Terrain Karst-River-Lake Stabilization
 
 **Status:** COMPLETED

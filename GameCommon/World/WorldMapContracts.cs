@@ -120,6 +120,7 @@ namespace GameCommon.World
             int previewInflightBudget,
             int previewQueuePressureFactor,
             int previewQueueLimit,
+            double previewQueueLoadSheddingThreshold,
             double previewQueueSlackRatio)
         {
             PipelineVersion = pipelineVersion;
@@ -214,6 +215,7 @@ namespace GameCommon.World
             PreviewInflightBudget = previewInflightBudget;
             PreviewQueuePressureFactor = previewQueuePressureFactor;
             PreviewQueueLimit = previewQueueLimit;
+            PreviewQueueLoadSheddingThreshold = previewQueueLoadSheddingThreshold;
             PreviewQueueSlackRatio = previewQueueSlackRatio;
         }
 
@@ -286,6 +288,7 @@ namespace GameCommon.World
         public int PreviewInflightBudget { get; }
         public int PreviewQueuePressureFactor { get; }
         public int PreviewQueueLimit { get; }
+        public double PreviewQueueLoadSheddingThreshold { get; }
         public double PreviewQueueSlackRatio { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }

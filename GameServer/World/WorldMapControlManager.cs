@@ -33,11 +33,13 @@ namespace GameServerApp.World
         private readonly int configuredQueueLimit;
         private readonly int configuredQueuePressureFactor;
         private readonly double configuredQueueSlackRatio;
+        private readonly double configuredQueueLoadSheddingThreshold;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
         private int dynamicQueueLimit;
         private int dynamicQueuePressureFactor;
         private double dynamicQueueSlackRatio;
+        private double dynamicQueueLoadSheddingThreshold;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
         private DateTime lastInflightPruneUtc;
@@ -68,11 +70,13 @@ namespace GameServerApp.World
             configuredQueueLimit = Math.Clamp(Math.Max(128, this.settings.MaxQueuedChunkRequests), 128, 16384);
             configuredQueuePressureFactor = Math.Clamp(Math.Max(1, this.settings.QueuePressureFactor), 1, 8);
             configuredQueueSlackRatio = Math.Clamp(this.settings.QueueSlackRatio <= 0.0 ? 2.0 : this.settings.QueueSlackRatio, 1.1, 6.0);
+            configuredQueueLoadSheddingThreshold = Math.Clamp(this.settings.QueueLoadSheddingThreshold <= 0.0 ? 0.88 : this.settings.QueueLoadSheddingThreshold, 0.5, 0.98);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
             dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
+            dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
             RefreshGenerationSignature(rebuildPipeline: false);
         }
 
@@ -276,6 +280,7 @@ namespace GameServerApp.World
         {
             PruneInflightGenerations();
             int adaptiveQueueLimit = GetAdaptiveQueueLimit();
+            int loadSheddingLimit = Math.Max(64, (int)Math.Floor(adaptiveQueueLimit * Math.Max(0.5, dynamicQueueLoadSheddingThreshold)));
             var key = (chunkX, chunkZ);
             if (chunkCache.TryGetValue(key, out var cached))
             {
@@ -286,6 +291,16 @@ namespace GameServerApp.World
             if (inflightChunkGenerations.TryGetValue(key, out var inflight))
             {
                 return await inflight.ConfigureAwait(false);
+            }
+
+            if (inflightChunkGenerations.Count >= loadSheddingLimit)
+            {
+                PruneInflightGenerations(Math.Max(configuredQueueOverloadDrainFactor, dynamicQueuePressureFactor));
+                await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
+                if (inflightChunkGenerations.TryGetValue(key, out var shedInflight))
+                {
+                    return await shedInflight.ConfigureAwait(false);
+                }
             }
 
             if (inflightChunkGenerations.Count >= Math.Max(64, adaptiveQueueLimit))
@@ -363,6 +378,7 @@ namespace GameServerApp.World
             int queueByWindow = Math.Max(128, (int)Math.Ceiling(mapWindow * Math.Max(2, settings.UpdateBatchSize / 8) * Math.Min(2.0, configuredQueueSlackRatio * 0.75)));
             dynamicQueueLimit = Math.Clamp(Math.Max(Math.Max(queueByCache, queueByWindow), configuredQueueLimit), 128, 16384);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
+            dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
 
             double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
             dynamicQueuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
@@ -380,6 +396,10 @@ namespace GameServerApp.World
                 Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio)),
                 128,
                 16384);
+            dynamicQueueLoadSheddingThreshold = Math.Clamp(
+                configuredQueueLoadSheddingThreshold - load * 0.08,
+                0.5,
+                configuredQueueLoadSheddingThreshold);
 
             int pressure = load >= 2.0
                 ? 4
@@ -656,6 +676,7 @@ namespace GameServerApp.World
                 inflightChunkGenerations.Count,
                 Math.Max(1, dynamicQueuePressureFactor),
                 Math.Max(64, adaptiveQueueLimit),
+                Math.Clamp(dynamicQueueLoadSheddingThreshold, 0.5, 0.98),
                 Math.Max(1.1, dynamicQueueSlackRatio));
 
             return WorldMapSignature.Compute(context);

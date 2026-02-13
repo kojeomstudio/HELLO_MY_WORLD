@@ -447,6 +447,8 @@ namespace GameServerApp.Testing
             bool networkAttempted = false;
             bool networkOk = false;
             string networkError = string.Empty;
+            var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
+            var unboundRequiredGeneratedDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings();
 
             if (probeNetwork)
             {
@@ -484,6 +486,8 @@ namespace GameServerApp.Testing
                 .Select(type => type.ToString())
                 .ToList();
             requiredMissing.AddRange(requiredProbeMissing);
+            requiredMissing.AddRange(
+                unboundRequiredGeneratedDescriptors.Select(name => $"descriptor:{name}"));
             requiredMissing = requiredMissing
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
@@ -528,8 +532,6 @@ namespace GameServerApp.Testing
             string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
             int profileVersion = sharedProfile?.Version ?? 0;
             var coverage = ProtocolRegistry.GetBindingCoverage();
-            var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
-            var unboundRequiredGeneratedDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings();
             var registryReferenceSummary = new ProtoRegistryReferenceSummary(
                 ProtocolRegistry.GetGeneratedDescriptorNames(),
                 registeredPackets,

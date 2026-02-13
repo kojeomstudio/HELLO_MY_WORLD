@@ -87,6 +87,12 @@ public static class Program
             .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches)
             .OrderBy(item => item.MessageType.ToString(), StringComparer.Ordinal)
             .ToArray();
+        var unboundRequiredDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
         var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
             .ToHashSet(StringComparer.Ordinal);
         string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
@@ -111,6 +117,21 @@ public static class Program
             Console.WriteLine("[INFO] Legacy/Enhanced type drift entries: " +
                               string.Join(", ", typeDrift.Select(item =>
                                   $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType}, optional={item.IsOptional})")));
+        }
+
+        if (unboundGeneratedDescriptors.Length > 0)
+        {
+            Console.WriteLine("[INFO] Generated descriptors without registry bindings: " + string.Join(", ", unboundGeneratedDescriptors));
+        }
+
+        if (unboundRequiredDescriptors.Length > 0)
+        {
+            Console.WriteLine("[WARN] Required generated descriptors missing registry bindings: " + string.Join(", ", unboundRequiredDescriptors));
+            if (config.StrictRequiredBindings)
+            {
+                Console.WriteLine("[ERROR] Strict mode enabled; aborting due to required descriptor binding gaps.");
+                return 1;
+            }
         }
 
         var packetTypes = ResolvePackets(config.Packets);
@@ -208,7 +229,7 @@ public static class Program
             Console.WriteLine("[WARN] Some required packet round-trips failed. Check registry/prototype mappings.");
         }
 
-        return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 ? 0 : 1;
+        return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 && unboundRequiredDescriptors.Length == 0 ? 0 : 1;
     }
 
     private static List<MinecraftMessageType> ResolvePackets(IEnumerable<string> packetNames)

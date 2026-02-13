@@ -295,6 +295,7 @@ namespace GameServerApp.World.Generation
             ApplyAnabranchStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyFloodPulseContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             ApplyAnabranchCutoffDamping(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyDistributaryLeveeStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -428,6 +429,73 @@ namespace GameServerApp.World.Generation
                     double floor = Math.Max(river * (0.82 + config.RiverEdgeContinuityWeight * 0.1), convergence * 0.15);
                     double target = river * (1.0 - blend * 0.2) + convergence * blend * 0.45;
                     target *= 1.0 - Math.Clamp(cutoffRisk * 0.35, 0.0, 0.35);
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyDistributaryLeveeStabilityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double leveeWeight = Math.Clamp(
+                config.RiverEdgeContinuityWeight * 0.38 +
+                config.RiverBankStabilityClamp * 0.34 +
+                config.RiverDeltaWetlandStrength * 0.28,
+                0.0,
+                1.0);
+            if (leveeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(2, config.HydrologyEdgeBlendRadius + 1);
+            int mouthRadius = Math.Max(2, config.RiverMouthSmoothRadius);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double mouthBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.5),
+                        0.0,
+                        1.0);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double leveeSeed = Math.Clamp(
+                        hydro * 0.28 + seamHydro * 0.24 + flowNode * 0.24 + seamFlow * 0.24,
+                        0.0,
+                        1.2);
+                    double leveeContinuity = 1.0 - Math.Clamp(
+                        divergence * 0.44 +
+                        Math.Abs(hydro - seamHydro) * 0.26 +
+                        slope * config.RiverGradientPenalty * 0.02,
+                        0.0,
+                        0.78);
+                    double leveeBridge = leveeSeed * leveeWeight * (0.46 + edgeBand * 0.28 + mouthBand * 0.26) * leveeContinuity;
+                    leveeBridge *= 1.0 - Math.Clamp(relief * config.RiverReliefPenaltyWeight * 0.012, 0.0, 0.4);
+                    double floor = Math.Max(river * (0.82 + config.RiverEdgeContinuityWeight * 0.11), leveeSeed * 0.16);
+                    double target = river * (1.0 - leveeWeight * 0.18) + leveeBridge * 0.5;
                     mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
                 }
             }

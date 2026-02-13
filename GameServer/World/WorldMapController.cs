@@ -53,6 +53,7 @@ namespace GameServerApp.World
         private int queuePressureFactor;
         private int queueLimit;
         private double queueSlackRatio;
+        private double queueLoadSheddingThreshold;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
 
@@ -108,6 +109,7 @@ namespace GameServerApp.World
             var pos = new Vector2Int(chunkX, chunkZ);
             accessTimes[pos] = DateTime.UtcNow;
             var queueState = GetAdaptiveQueueState();
+            int loadSheddingLimit = Math.Max(64, (int)Math.Floor(queueState.QueueLimit * Math.Max(0.5, queueState.LoadSheddingThreshold)));
 
             if (loadedChunks.TryGetValue(pos, out var cached))
             {
@@ -117,6 +119,22 @@ namespace GameServerApp.World
             if (generationTasks.TryGetValue(pos, out var inflight))
             {
                 return await inflight.ConfigureAwait(false);
+            }
+
+            if (generationTasks.Count >= loadSheddingLimit)
+            {
+                TrimCompletedGenerationTasks();
+                logger.LogDebug(
+                    "[WorldMapController] Load-shedding gate for {Pos} (inflight={Inflight}, sheddingLimit={LoadSheddingLimit}, threshold={Threshold:F2})",
+                    pos,
+                    generationTasks.Count,
+                    loadSheddingLimit,
+                    queueState.LoadSheddingThreshold);
+                await Task.Delay(Math.Max(1, queueBackoffDelayMs * queueState.PressureFactor), cancellationToken).ConfigureAwait(false);
+                if (generationTasks.TryGetValue(pos, out var shedInflight))
+                {
+                    return await shedInflight.ConfigureAwait(false);
+                }
             }
 
             if (generationTasks.Count >= Math.Max(64, queueState.QueueLimit))
@@ -349,9 +367,10 @@ namespace GameServerApp.World
             int renderWindow = Math.Max(1, controlProfile.RenderDistance * 2 + 1);
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
-            queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 33 ? 2.6 : 2.2, 1.1, 6.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 33 ? 3 : 2;
-            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 33 ? 7 : 5;
+            queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 2.8 : 2.4, 1.1, 6.0);
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
+            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
+            queueLoadSheddingThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 0.88 : 0.92, 0.5, 0.98);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -365,7 +384,7 @@ namespace GameServerApp.World
             }
         }
 
-        private (int QueueLimit, int PressureFactor, double SlackRatio) GetAdaptiveQueueState()
+        private (int QueueLimit, int PressureFactor, double SlackRatio, double LoadSheddingThreshold) GetAdaptiveQueueState()
         {
             int inflight = generationTasks.Count;
             int budget = Math.Max(128, maxLoadedChunks);
@@ -385,7 +404,8 @@ namespace GameServerApp.World
                         ? 2
                         : 1;
             adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
-            return (adaptiveLimit, adaptivePressure, adaptiveSlack);
+            double adaptiveLoadSheddingThreshold = Math.Clamp(queueLoadSheddingThreshold - load * 0.08, 0.5, queueLoadSheddingThreshold);
+            return (adaptiveLimit, adaptivePressure, adaptiveSlack, adaptiveLoadSheddingThreshold);
         }
 
         private void TrimCompletedGenerationTasks()
@@ -579,6 +599,7 @@ namespace GameServerApp.World
                 generationTasks.Count,
                 Math.Max(1, queueState.PressureFactor),
                 Math.Max(64, queueState.QueueLimit),
+                Math.Clamp(queueState.LoadSheddingThreshold, 0.5, 0.98),
                 Math.Max(1.1, queueState.SlackRatio));
 
             return WorldMapSignature.Compute(context);

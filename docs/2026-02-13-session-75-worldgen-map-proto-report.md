@@ -58,10 +58,12 @@ Files:
 ### 4) Protobuf Probe / Dummy Client Validation Hardening
 - Server proto probe now tracks required generated descriptors without bindings as missing required entries.
 - Dummy client strict mode now fails when required generated descriptors are unbound.
+- Required descriptor filtering was refined to packet-level required bindings to avoid helper/nested descriptor false positives.
 
 Files:
 - `GameServer/Testing/DummyProtocolClient.cs`
 - `Tools/DummyMinecraftClient/Program.cs`
+- `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
 
 ### 5) Core/Content/Utility Feature List Refresh
 - Added session 75 categorized feature manifest and wired it as first candidate in runtime manifest loading.
@@ -84,11 +86,10 @@ Files:
 - `dotnet test GameServer/TerrainGenerationTest.csproj -m:1`: failed (`MSB4025`, malformed project file with multiple root elements)
 - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`: passed, generated protobuf files up-to-date
 - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`: passed, profile regenerated and mirrored
-- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`: passed with warnings (optional prototypes missing; required descriptor binding gaps reported)
-- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`: failed in strict mode by design when required descriptor binding gaps detected
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`: passed with warnings (optional prototypes missing, `Missing=0`, `UnboundRequired=0`)
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`: passed (strict mode, required round-trip `14/14`; optional prototype warnings remain)
 
 ## Findings
-- Required generated descriptor binding gaps remain and are now reported more explicitly by both server probe and dummy client strict mode.
+- Required generated descriptor false positives were removed by packet-level filtering; required binding status reports clean (`UnboundRequired=0`).
 - Optional packet prototypes are still intentionally unbound and reported as warnings.
 - `TerrainGenerationTest.csproj` is currently malformed and blocks dedicated terrain test execution.
-

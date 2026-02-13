@@ -161,10 +161,34 @@ public static class ProtocolRegistry
 
     public static IReadOnlyCollection<string> GetGeneratedRequiredDescriptorsWithoutBindings()
     {
-        return GetGeneratedDescriptorsWithoutBindings()
-            .Where(name => !OptionalDescriptorNames.Contains(name))
+        var unboundGenerated = GetGeneratedDescriptorsWithoutBindings()
+            .ToHashSet(StringComparer.Ordinal);
+        var requiredDescriptorCandidates = Enum.GetValues<MinecraftMessageType>()
+            .Where(type => !OptionalMessageTypes.Contains(type))
+            .Select(GetRequiredDescriptorNameCandidate)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal);
+
+        return requiredDescriptorCandidates
+            .Where(name => !OptionalDescriptorNames.Contains(name) && unboundGenerated.Contains(name))
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static string? GetRequiredDescriptorNameCandidate(MinecraftMessageType messageType)
+    {
+        if (BindingsByType.TryGetValue(messageType, out var binding))
+        {
+            return binding.DescriptorName;
+        }
+
+        if (ProtocolStandardization.TryGetType(messageType, out var legacyContractType) && legacyContractType != null)
+        {
+            return legacyContractType.Name;
+        }
+
+        return null;
     }
 
     /// <summary>

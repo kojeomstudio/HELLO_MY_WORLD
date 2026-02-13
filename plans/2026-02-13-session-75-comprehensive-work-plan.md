@@ -36,6 +36,7 @@
 - [x] world-map queue load-shedding 임계치 추가(서버/클라이언트/공통 시그니처 컨텍스트)
 - [x] JSON 설정 동기화: queue policy v4, profile version 34, hydrology signature v30
 - [x] protobuf probe/dummy client strict required-descriptor 진단 강화
+- [x] protobuf strict required-descriptor 필터 개선(패킷 기준, helper/nested false-positive 제거)
 - [x] feature catalog 갱신: `config/minecraft_feature_client_server_core_content_util_2026-02-13-session-75.json`
 - [x] 검증 실행:
   - `dotnet build SharedProtocol/SharedProtocol.csproj -m:1` 성공
@@ -47,5 +48,5 @@
   - `dotnet test GameServer/TerrainGenerationTest.csproj -m:1` 실패(`MSB4025`, 프로젝트 파일 malformed)
   - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` 성공
   - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` 성공
-  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` 성공(경고 존재)
-  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` strict mode 실패(필수 descriptor binding gap 검출)
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` 성공(`Missing=0`, `UnboundRequired=0`, optional 경고 존재)
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` strict mode 성공(필수 14/14 round-trip, optional prototype 경고만 존재)

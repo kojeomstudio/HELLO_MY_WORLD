@@ -76,9 +76,11 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
     - `Assets/StreamingAssets/world-map-control.json`
 - Protobuf/dummy client validation hardening:
   - Added strict required-generated-descriptor binding checks in server probe and dummy client.
+  - Refined required-descriptor filtering to packet-level required bindings to avoid helper/nested false positives.
   - Files:
     - `GameServer/Testing/DummyProtocolClient.cs`
     - `Tools/DummyMinecraftClient/Program.cs`
+    - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
 - Core/Content/Utility categorized feature list refreshed:
   - `config/minecraft_feature_client_server_core_content_util_2026-02-13-session-75.json`
 
@@ -95,7 +97,7 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
   - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
   - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
   - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
-  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` (strict mode detected required descriptor binding gaps and exited with failure)
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` (success, required round-trip 14/14; optional prototype warnings remain)
 
 **Documentation:**
 - `plans/2026-02-13-session-75-comprehensive-work-plan.md`

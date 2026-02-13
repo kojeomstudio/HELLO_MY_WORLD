@@ -107,6 +107,7 @@ namespace GameServerApp.World
             MaybeReloadProfile();
             var pos = new Vector2Int(chunkX, chunkZ);
             accessTimes[pos] = DateTime.UtcNow;
+            var queueState = GetAdaptiveQueueState();
 
             if (loadedChunks.TryGetValue(pos, out var cached))
             {
@@ -118,16 +119,16 @@ namespace GameServerApp.World
                 return await inflight.ConfigureAwait(false);
             }
 
-            if (generationTasks.Count >= Math.Max(64, queueLimit))
+            if (generationTasks.Count >= Math.Max(64, queueState.QueueLimit))
             {
                 TrimCompletedGenerationTasks();
                 logger.LogDebug(
                     "[WorldMapController] Queue pressure gate for {Pos} (inflight={Inflight}, queueLimit={QueueLimit}, pressureFactor={PressureFactor})",
                     pos,
                     generationTasks.Count,
-                    queueLimit,
-                    queuePressureFactor);
-                await Task.Delay(Math.Max(1, queueBackoffDelayMs * queuePressureFactor), cancellationToken).ConfigureAwait(false);
+                    queueState.QueueLimit,
+                    queueState.PressureFactor);
+                await Task.Delay(Math.Max(1, queueBackoffDelayMs * queueState.PressureFactor), cancellationToken).ConfigureAwait(false);
                 if (generationTasks.TryGetValue(pos, out var delayedInflight))
                 {
                     return await delayedInflight.ConfigureAwait(false);
@@ -348,9 +349,9 @@ namespace GameServerApp.World
             int renderWindow = Math.Max(1, controlProfile.RenderDistance * 2 + 1);
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
-            queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 32 ? 2.4 : 2.0, 1.1, 6.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 32 ? 2 : 1;
-            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 32 ? 6 : 4;
+            queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 33 ? 2.6 : 2.2, 1.1, 6.0);
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 33 ? 3 : 2;
+            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 33 ? 7 : 5;
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -362,6 +363,29 @@ namespace GameServerApp.World
                 int worldQueueHint = Math.Max(1, worldSettings.ChunkLoadRadius) * 2 + 1;
                 queueLimit = Math.Clamp(Math.Max(queueLimit, (int)Math.Ceiling(worldQueueHint * worldQueueHint * queueSlackRatio)), 128, 16384);
             }
+        }
+
+        private (int QueueLimit, int PressureFactor, double SlackRatio) GetAdaptiveQueueState()
+        {
+            int inflight = generationTasks.Count;
+            int budget = Math.Max(128, maxLoadedChunks);
+            double load = inflight / Math.Max(1.0, budget);
+            double adaptiveSlack = Math.Clamp(queueSlackRatio + load * 0.6, queueSlackRatio, 6.0);
+            int adaptiveLimit = Math.Clamp(
+                (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack),
+                128,
+                16384);
+            adaptiveLimit = Math.Max(adaptiveLimit, queueLimit);
+
+            int adaptivePressure = load >= 2.0
+                ? 4
+                : load >= 1.25
+                    ? 3
+                    : load >= 0.75
+                        ? 2
+                        : 1;
+            adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
+            return (adaptiveLimit, adaptivePressure, adaptiveSlack);
         }
 
         private void TrimCompletedGenerationTasks()
@@ -452,6 +476,7 @@ namespace GameServerApp.World
         {
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtocolRegistry.ValidateBindings();
+            var queueState = GetAdaptiveQueueState();
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
             int effectiveChunkSize = controlProfile?.ChunkSize > 0 ? controlProfile.ChunkSize : generationConfig.ChunkSize;
             int effectiveRenderDistance = controlProfile?.RenderDistance > 0 ? controlProfile.RenderDistance : generationConfig.RenderDistance;
@@ -552,9 +577,9 @@ namespace GameServerApp.World
                 generationConfig.Caves.CeilingStabilityWeight,
                 Math.Max(64, maxLoadedChunks),
                 generationTasks.Count,
-                Math.Max(1, queuePressureFactor),
-                Math.Max(64, queueLimit),
-                Math.Max(1.1, queueSlackRatio));
+                Math.Max(1, queueState.PressureFactor),
+                Math.Max(64, queueState.QueueLimit),
+                Math.Max(1.1, queueState.SlackRatio));
 
             return WorldMapSignature.Compute(context);
         }

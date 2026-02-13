@@ -146,6 +146,9 @@ namespace GameServerApp.Testing
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             string descriptorFingerprint = ProtoFingerprint.ComputeFingerprint();
+            var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
+                .ToHashSet(StringComparer.Ordinal);
+            string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
             probeNetwork |= settings.ProbeNetwork;
             var validatedPackets = new List<string>();
             var requiredProbeMissing = new List<string>();
@@ -214,7 +217,84 @@ namespace GameServerApp.Testing
 
                 var descriptorParser = prototype.Descriptor?.Parser;
                 string descriptorName = prototype.Descriptor?.Name ?? string.Empty;
+                string descriptorFullName = prototype.Descriptor?.FullName ?? string.Empty;
                 string descriptorPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(descriptorName))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor metadata missing for '{messageType}'.");
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (isOptional)
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: "Descriptor metadata missing."));
+                    continue;
+                }
+
+                if (!generatedDescriptorNames.Contains(descriptorName))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor '{descriptorName}' for '{messageType}' is not present in generated reflection descriptor set.");
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (isOptional)
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: "Descriptor name not found in generated descriptor set."));
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorPackage) &&
+                    !string.Equals(descriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor package mismatch for '{messageType}': actual='{descriptorPackage}', expected='{expectedDescriptorPackage}'.");
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (isOptional)
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: "Descriptor package mismatch."));
+                    continue;
+                }
+
                 if (descriptorParser == null)
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
@@ -244,7 +324,9 @@ namespace GameServerApp.Testing
                 {
                     var bytes = prototype.ToByteArray();
                     var parsed = descriptorParser.ParseFrom(bytes);
-                    if (parsed != null)
+                    if (parsed != null &&
+                        parsed.Descriptor != null &&
+                        string.Equals(parsed.Descriptor.FullName, descriptorFullName, StringComparison.Ordinal))
                     {
                         validatedPackets.Add(messageType.ToString());
                         if (bytes.Length > 0)
@@ -282,7 +364,9 @@ namespace GameServerApp.Testing
                             RoundTripOk: false,
                             DescriptorName: descriptorName,
                             DescriptorPackage: descriptorPackage,
-                            ErrorMessage: "Descriptor parser returned null payload."));
+                            ErrorMessage: parsed == null
+                                ? "Descriptor parser returned null payload."
+                                : $"Descriptor full-name mismatch ({descriptorFullName} != {parsed.Descriptor?.FullName ?? "<null>"})."));
                     }
                 }
                 catch (Exception ex)

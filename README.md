@@ -32,6 +32,70 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-13: Session 74 - Hydrology v29 / Map-Control v33 / Terrain Karst-River-Lake Stabilization
+
+**Status:** COMPLETED
+
+- Terrain generation and world-map control improvements (server + client):
+  - Added cave pass: karst spring continuity seal.
+  - Added river pass: anabranch cutoff damping.
+  - Added lake pass: terrace backfill bridge.
+  - Added terrain coordinator pass: karst-wetland coupling.
+  - Added client parity implementations for all new cave/river/lake passes.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map architecture and queue-control hardening:
+  - Server/client queue policy upgraded to adaptive tuning profile (slack/drain/backoff).
+  - Queue policy JSON version bumped to `3`.
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `config/enhanced_world_map_control_client.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature: `2026-02-13-hydrology-riverlake-cave-v29`
+  - Map-control profile version: `33`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `GameServer/Program.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy client validation hardening:
+  - Added descriptor generated-set/package/full-name consistency checks in probes.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+- Core/Content/Utility categorized feature list refreshed:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-13-session-74.json`
+
+**Validation:**
+- Build:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj`
+  - `dotnet build GameCommon/GameCommon.csproj`
+  - `dotnet build GameServer/GameServer.csproj`
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj`
+- Test/verification:
+  - `dotnet test SharedProtocol/SharedProtocol.csproj`
+  - `dotnet test GameServer/GameServer.csproj`
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+
+**Documentation:**
+- `plans/2026-02-13-session-74-comprehensive-work-plan.md`
+- `docs/2026-02-13-session-74-worldgen-map-proto-report.md`
+
 ### 2026-02-12: Session 73 - Comprehensive Architecture & Protocol Validation
 
 **Status:** COMPLETED
@@ -1560,4 +1624,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

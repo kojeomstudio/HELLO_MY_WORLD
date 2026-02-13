@@ -249,6 +249,7 @@ namespace GameServerApp.World.Generation
             ApplyBackwaterRetentionBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyFloodplainTerraceBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplySpillbackBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
+            ApplyTerraceBackfillBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
         }
 
@@ -317,6 +318,73 @@ namespace GameServerApp.World.Generation
                     double floor = Math.Max(lake * (0.82 + lakeConfig.OutflowStabilityWeight * 0.1), spillback * 0.15);
                     double target = lake * (1.0 - blend) + spillback * blend;
                     lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.0);
+                }
+            }
+        }
+
+        private void ApplyTerraceBackfillBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double backfillWeight = Math.Clamp(
+                lakeConfig.SpillwayContinuityWeight * 0.36 +
+                lakeConfig.OutflowStabilityWeight * 0.34 +
+                lakeConfig.LakeOutflowTaper * 0.30,
+                0.0,
+                1.0);
+            if (backfillWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int terraceBand = Math.Max(2, Math.Max(lakeConfig.ShelfDepth, waterConfig.HydrologyEdgeBlendRadius));
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, terraceBand * 3.0),
+                        0.0,
+                        1.0);
+                    if (seaBand <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double terraceSeed = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.24 + flowNode * 0.2 + seamFlow * 0.16 + river * 0.1,
+                        0.0,
+                        1.2);
+                    double terraceContinuity = 1.0 - Math.Clamp(
+                        divergence * 0.42 + slope * waterConfig.LakeRimErosionWeight * 0.02,
+                        0.0,
+                        0.75);
+                    double terraceBackfill = terraceSeed * backfillWeight * (0.45 + seaBand * 0.35) * terraceContinuity;
+                    double floor = Math.Max(lake * (0.84 + lakeConfig.OutflowStabilityWeight * 0.08), terraceSeed * 0.14);
+                    double target = lake * (1.0 - backfillWeight * 0.15) + terraceBackfill * 0.45;
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Max(target, floor));
                 }
             }
         }

@@ -87,6 +87,9 @@ public static class Program
             .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches)
             .OrderBy(item => item.MessageType.ToString(), StringComparer.Ordinal)
             .ToArray();
+        var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
+            .ToHashSet(StringComparer.Ordinal);
+        string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
 
         if (missingRequiredBindings.Length > 0)
         {
@@ -134,15 +137,45 @@ public static class Program
 
             try
             {
+                var descriptor = prototype.Descriptor;
+                string descriptorName = descriptor?.Name ?? string.Empty;
+                string descriptorPackage = descriptor?.File?.Package ?? string.Empty;
+                string descriptorFullName = descriptor?.FullName ?? string.Empty;
+                if (descriptor == null || string.IsNullOrWhiteSpace(descriptorName))
+                {
+                    Console.WriteLine($"[WARN] Descriptor missing: {messageType}");
+                    continue;
+                }
+
+                if (!generatedDescriptorNames.Contains(descriptorName))
+                {
+                    Console.WriteLine($"[WARN] Descriptor not found in generated reflection set: {messageType} ({descriptorName})");
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorPackage) &&
+                    !string.Equals(descriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor package mismatch: {messageType} (actual={descriptorPackage}, expected={expectedDescriptorPackage})");
+                    continue;
+                }
+
                 byte[] payload = prototype.ToByteArray();
-                var parser = prototype.Descriptor?.Parser;
+                var parser = descriptor.Parser;
                 if (parser == null)
                 {
                     Console.WriteLine($"[WARN] Parser missing: {messageType}");
                     continue;
                 }
 
-                _ = parser.ParseFrom(payload);
+                var parsed = parser.ParseFrom(payload);
+                if (parsed?.Descriptor == null ||
+                    !string.Equals(parsed.Descriptor.FullName, descriptorFullName, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor full-name mismatch after round-trip: {messageType} ({descriptorFullName} -> {parsed?.Descriptor?.FullName ?? "<null>"})");
+                    continue;
+                }
+
                 roundTripOk++;
                 if (ProtocolRegistry.IsOptionalMessageType(messageType))
                 {

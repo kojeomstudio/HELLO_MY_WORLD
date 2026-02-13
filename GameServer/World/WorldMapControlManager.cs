@@ -275,6 +275,7 @@ namespace GameServerApp.World
         private async Task<ChunkData> GenerateOrGetChunkAsync(int chunkX, int chunkZ)
         {
             PruneInflightGenerations();
+            int adaptiveQueueLimit = GetAdaptiveQueueLimit();
             var key = (chunkX, chunkZ);
             if (chunkCache.TryGetValue(key, out var cached))
             {
@@ -287,7 +288,7 @@ namespace GameServerApp.World
                 return await inflight.ConfigureAwait(false);
             }
 
-            if (inflightChunkGenerations.Count >= Math.Max(64, dynamicQueueLimit))
+            if (inflightChunkGenerations.Count >= Math.Max(64, adaptiveQueueLimit))
             {
                 PruneInflightGenerations(configuredQueueOverloadDrainFactor);
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
@@ -367,6 +368,28 @@ namespace GameServerApp.World
             dynamicQueuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
             dynamicQueuePressureFactor = Math.Clamp(Math.Max(dynamicQueuePressureFactor, configuredQueuePressureFactor), 1, 8);
             _ = inflightBudget;
+        }
+
+        private int GetAdaptiveQueueLimit()
+        {
+            int inflight = inflightChunkGenerations.Count;
+            int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
+            double load = inflight / Math.Max(1.0, cacheBudget);
+            dynamicQueueSlackRatio = Math.Clamp(configuredQueueSlackRatio + load * 0.7, configuredQueueSlackRatio, 6.0);
+            dynamicQueueLimit = Math.Clamp(
+                Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio)),
+                128,
+                16384);
+
+            int pressure = load >= 2.0
+                ? 4
+                : load >= 1.3
+                    ? 3
+                    : load >= 0.8
+                        ? 2
+                        : 1;
+            dynamicQueuePressureFactor = Math.Clamp(Math.Max(configuredQueuePressureFactor, pressure), 1, 8);
+            return dynamicQueueLimit;
         }
 
         private void EnforceCacheBudget()
@@ -531,6 +554,7 @@ namespace GameServerApp.World
         {
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtocolRegistry.ValidateBindings();
+            int adaptiveQueueLimit = GetAdaptiveQueueLimit();
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
             int effectiveChunkSize = controlProfile?.ChunkSize > 0 ? controlProfile.ChunkSize : generationConfig.ChunkSize;
             int effectiveRenderDistance = controlProfile?.RenderDistance > 0 ? controlProfile.RenderDistance : generationConfig.RenderDistance;
@@ -631,7 +655,7 @@ namespace GameServerApp.World
                 GetEffectiveCacheBudget(),
                 inflightChunkGenerations.Count,
                 Math.Max(1, dynamicQueuePressureFactor),
-                Math.Max(64, dynamicQueueLimit),
+                Math.Max(64, adaptiveQueueLimit),
                 Math.Max(1.1, dynamicQueueSlackRatio));
 
             return WorldMapSignature.Compute(context);

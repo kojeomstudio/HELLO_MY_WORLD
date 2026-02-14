@@ -7,7 +7,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 12,
   "MapControlProfilePath": "config/world_map_control_profile.json",
-  "MapControlProfileVersion": 34,
+  "MapControlProfileVersion": 35,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,
@@ -34,7 +34,7 @@
     "HydrologyFlowGain": 0.72,
     "HydrologyFlowShadowWeight": 0.68,
     "HydrologyFlowShadowSlopeWeight": 0.52,
-    "HydrologyContinuityWeight": 0.56,
+    "HydrologyContinuityWeight": 0.58,
     "HydrologyPressureBlend": 0.48,
     "HydrologyPressureGradientClamp": 0.26,
     "HydrologyEdgeFlowBias": 0.5,
@@ -51,11 +51,11 @@
     "HydrologyVarianceClamp": 0.58,
     "HydrologyEdgeNormalizationBlend": 0.61,
     "HydrologyEdgeNormalizationIterations": 4,
-    "HydrologyFlowMemoryWeight": 0.71,
+    "HydrologyFlowMemoryWeight": 0.72,
     "HydrologyWaterTableClampWeight": 0.69,
     "HydrologyWaterTableClampRange": 26,
     "HydrologyWaterTableSlopeWeight": 0.7,
-    "HydrologyFlowPersistence": 0.96,
+    "HydrologyFlowPersistence": 0.97,
     "HydrologyCatchmentWeight": 0.52,
     "HydrologyGradientWeight": 0.38,
     "HydrologyGradientSlopeWeight": 0.5,
@@ -88,7 +88,7 @@
     "RiverEdgeFeather": 0.66,
     "RiverEdgeContinuityWeight": 0.9,
     "RiverMouthSmoothRadius": 10,
-    "RiverDeltaWetlandStrength": 0.78,
+    "RiverDeltaWetlandStrength": 0.82,
     "RiverSeamFillStrength": 0.80,
     "RiverNoiseScale": 0.0145,
     "RiverDepth": 9,
@@ -150,7 +150,7 @@
     "CeilingStabilityWeight": 0.46,
     "CeilingMoistureWeight": 0.46,
     "CeilingMoistureClamp": 0.42,
-    "CaveEntranceFlowDampening": 0.74
+    "CaveEntranceFlowDampening": 0.76
   },
   "Ores": {
     "EnableOreGeneration": true,
@@ -212,10 +212,10 @@
     "WetlandSaturationThreshold": 0.6,
     "OutflowCarveDepth": 5,
     "OutflowSealWeight": 0.6,
-    "OutflowStabilityWeight": 0.9,
+    "OutflowStabilityWeight": 0.92,
     "WetlandBufferRadius": 6,
     "FlowSeepageWeight": 0.74,
     "LakeOutflowTaper": 0.73,
-    "SpillwayContinuityWeight": 0.92
+    "SpillwayContinuityWeight": 0.94
   }
 }

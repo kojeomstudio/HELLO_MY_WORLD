@@ -53,6 +53,7 @@ namespace GameServerApp.World
         private int queuePressureFactor;
         private int queueLimit;
         private double queueSlackRatio;
+        private double queueBurstSlackMultiplier;
         private double queueLoadSheddingThreshold;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
@@ -368,6 +369,7 @@ namespace GameServerApp.World
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
             queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 2.8 : 2.4, 1.1, 6.0);
+            queueBurstSlackMultiplier = Math.Clamp(generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0, 1.0, 3.0);
             queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
             queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
             queueLoadSheddingThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 0.88 : 0.92, 0.5, 0.98);
@@ -390,8 +392,9 @@ namespace GameServerApp.World
             int budget = Math.Max(128, maxLoadedChunks);
             double load = inflight / Math.Max(1.0, budget);
             double adaptiveSlack = Math.Clamp(queueSlackRatio + load * 0.6, queueSlackRatio, 6.0);
+            double burstMultiplier = load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
-                (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack),
+                (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack * burstMultiplier),
                 128,
                 16384);
             adaptiveLimit = Math.Max(adaptiveLimit, queueLimit);
@@ -600,7 +603,8 @@ namespace GameServerApp.World
                 Math.Max(1, queueState.PressureFactor),
                 Math.Max(64, queueState.QueueLimit),
                 Math.Clamp(queueState.LoadSheddingThreshold, 0.5, 0.98),
-                Math.Max(1.1, queueState.SlackRatio));
+                Math.Max(1.1, queueState.SlackRatio),
+                Math.Max(1.0, queueBurstSlackMultiplier));
 
             return WorldMapSignature.Compute(context);
         }

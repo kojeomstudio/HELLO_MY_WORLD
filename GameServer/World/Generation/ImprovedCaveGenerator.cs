@@ -325,6 +325,7 @@ namespace GameServerApp.World.Generation
             ApplyPhreaticSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyKarstSpringContinuitySeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyEpikarstRechargeSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyHyporheicVentSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -611,6 +612,105 @@ namespace GameServerApp.World.Generation
                         sealChance += Math.Clamp((2 - lateralOpen) * 0.07, 0.0, 0.22);
 
                         if (sealChance > 0.54 || (sealChance > 0.39 && recharge > 0.46))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyHyporheicVentSeal(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int edgeRadius = Math.Max(2, Math.Min(sizeX, sizeZ) / 4);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, config.RiparianPlugDepth + 4));
+            int bottom = Math.Max(2, seaLevel - Math.Max(4, config.RiparianPlugDepth + 4));
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+            double sealWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.38 +
+                config.CaveEntranceFlowDampening * 0.34 +
+                config.RiparianCaveGuardWeight * 0.28,
+                0.0,
+                1.0);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius * 2)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double hydroGradient = Math.Abs(seamHydro - hydro);
+                    double flowGradient = Math.Abs(seamFlow - flow);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius * 2 + 1), 0.0, 1.0);
+                    double hyporheicPotential = Math.Clamp(
+                        hydro * 0.32 + seamHydro * 0.24 + flow * 0.2 + seamFlow * 0.14 + river * 0.1,
+                        0.0,
+                        1.2);
+                    if (hyporheicPotential < 0.3)
+                    {
+                        continue;
+                    }
+
+                    double continuity = 1.0 - Math.Clamp(
+                        hydroGradient * config.EdgeSealStrength * 0.32 +
+                        flowGradient * config.EdgeSealStrength * 0.24 +
+                        divergence * config.FlowStabilityWeight * 0.24,
+                        0.0,
+                        0.82);
+                    double ventRisk = hyporheicPotential * sealWeight * (0.56 + edgeBand * 0.32) * continuity;
+                    ventRisk *= 1.0 - Math.Clamp(
+                        slope * config.CeilingStabilityWeight * 0.018 +
+                        relief * config.RiverSuppressionWeight * 0.012,
+                        0.0,
+                        0.55);
+                    if (ventRisk < 0.18)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double sealChance = ventRisk * (0.5 + depthFactor * 0.5);
+                        sealChance += Math.Clamp((2 - lateralOpen) * 0.08, 0.0, 0.24);
+
+                        if (sealChance > 0.55 || (sealChance > 0.4 && hyporheicPotential > 0.46))
                         {
                             mask[x, y, z] = false;
                         }

@@ -296,6 +296,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodPulseContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             ApplyAnabranchCutoffDamping(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyDistributaryLeveeStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyEstuaryConvergenceBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -496,6 +497,84 @@ namespace GameServerApp.World.Generation
                     leveeBridge *= 1.0 - Math.Clamp(relief * config.RiverReliefPenaltyWeight * 0.012, 0.0, 0.4);
                     double floor = Math.Max(river * (0.82 + config.RiverEdgeContinuityWeight * 0.11), leveeSeed * 0.16);
                     double target = river * (1.0 - leveeWeight * 0.18) + leveeBridge * 0.5;
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyEstuaryConvergenceBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel,
+            int chunkX,
+            int chunkZ)
+        {
+            double estuaryWeight = Math.Clamp(
+                config.RiverDeltaWetlandStrength * 0.34 +
+                config.RiverConfluenceBoost * 0.33 +
+                config.RiverEdgeContinuityWeight * 0.33,
+                0.0,
+                1.0);
+            if (estuaryWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int mouthRadius = Math.Max(2, config.RiverMouthSmoothRadius);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.8),
+                        0.0,
+                        1.0);
+                    if (seaBand <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(1, config.HydrologyEdgeBlendRadius));
+                    double edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(Math.Max(1, config.HydrologyEdgeBlendRadius) + 1), 0.0, 1.0);
+                    double pulseNoise = ComputeEdgeNoise(chunkX, chunkZ, x, z);
+
+                    double estuarySeed = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.25 + flowNode * 0.24 + seamFlow * 0.21,
+                        0.0,
+                        1.2);
+                    double continuity = 1.0 - Math.Clamp(
+                        divergence * 0.4 +
+                        Math.Abs(hydro - seamHydro) * 0.2 +
+                        slope * config.RiverGradientPenalty * 0.02,
+                        0.0,
+                        0.78);
+                    double convergence = estuarySeed * estuaryWeight * (0.52 + seaBand * 0.34 + edgeBand * 0.14);
+                    convergence *= continuity;
+                    convergence *= 0.88 + pulseNoise * 0.24;
+                    convergence *= 1.0 - Math.Clamp(relief * config.RiverReliefPenaltyWeight * 0.012, 0.0, 0.35);
+
+                    double floor = Math.Max(river * (0.84 + config.RiverEdgeContinuityWeight * 0.08), estuarySeed * 0.14);
+                    double target = river * (1.0 - estuaryWeight * 0.18) + convergence * 0.5;
                     mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
                 }
             }

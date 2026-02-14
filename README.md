@@ -32,6 +32,75 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-14: Session 77 - Hydrology v31 / Map-Control v35 / Queue Burst Slack
+
+**Status:** COMPLETED
+
+- Terrain generation and world-map control improvements (server + client):
+  - Added cave pass: hyporheic vent seal.
+  - Added river pass: estuary convergence bridge.
+  - Added lake pass: lagoon overflow bridge.
+  - Added terrain coordinator pass: lagoon-karst coupling.
+  - Added client parity implementations in Unity world map preview pipeline.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map architecture and queue-control hardening:
+  - Added data-driven `queueBurstSlackMultiplier` on server/client runtime + queue policy.
+  - Queue policy JSON version bumped to `5`.
+  - Map-control profile version bumped to `35`.
+  - Files:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/Program.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `config/enhanced_world_map_control_client.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature: `2026-02-14-hydrology-riverlake-cave-v31`
+  - Updated world-map profile hash/signature and mirrored client profile.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Core/Content/Utility categorized feature list refreshed:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-14-session-77.json`
+- Build/test/protobuf checks:
+  - Restored malformed `GameServer/TerrainGenerationTest.csproj` and verified tests execute.
+  - `scripts/verify_protobuf.ps1` passed (generated DTOs up-to-date).
+  - `--proto-probe` and dummy client probe passed (`required` packets round-trip: `14/14`).
+
+**Validation:**
+- Build:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj -m:1`
+  - `dotnet build GameCommon/GameCommon.csproj -m:1`
+  - `dotnet build GameServer/GameServer.csproj -m:1`
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -m:1`
+- Test/verification:
+  - `dotnet test SharedProtocol/SharedProtocol.csproj -m:1`
+  - `dotnet test GameServer/GameServer.csproj -m:1`
+  - `dotnet test GameServer/TerrainGenerationTest.csproj -m:1`
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+
+**Documentation:**
+- `plans/2026-02-14-session-77-comprehensive-work-plan.md`
+- `docs/2026-02-14-session-77-worldgen-map-proto-report.md`
+
 ### 2026-02-13: Session 76 - Comprehensive System Verification
 
 **Status:** COMPLETED
@@ -1756,4 +1825,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

@@ -31,6 +31,7 @@ namespace GameWorld
         [SerializeField] private int maxLoadedPreviewChunks = 2048;
         [SerializeField] private int queuePressureFactor = 2;
         [SerializeField] private float queueSlackRatio = 2.0f;
+        [SerializeField] private float queueBurstSlackMultiplier = 1.15f;
         [SerializeField] private float queueLoadSheddingThreshold = 0.88f;
         [SerializeField] private int queueOverloadDrainFactor = 2;
         [SerializeField] private int queueBackoffDelayMs = 4;
@@ -126,6 +127,11 @@ namespace GameWorld
                     queueSlackRatio = Mathf.Clamp(runtime.worldMapControl.performance.queueSlackRatio, 1.1f, 6.0f);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueBurstSlackMultiplier > 0f)
+                {
+                    queueBurstSlackMultiplier = Mathf.Clamp(runtime.worldMapControl.performance.queueBurstSlackMultiplier, 1.0f, 3.0f);
+                }
+
                 if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueLoadSheddingThreshold > 0f)
                 {
                     queueLoadSheddingThreshold = Mathf.Clamp(runtime.worldMapControl.performance.queueLoadSheddingThreshold, 0.5f, 0.98f);
@@ -147,7 +153,7 @@ namespace GameWorld
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
                         $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
-                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs})");
+                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs})");
                 }
             }
             catch (Exception ex)
@@ -196,6 +202,11 @@ namespace GameWorld
                     queueSlackRatio = Mathf.Clamp(policy.client.queueSlackRatio, 1.1f, 6.0f);
                 }
 
+                if (policy.client.queueBurstSlackMultiplier > 0f)
+                {
+                    queueBurstSlackMultiplier = Mathf.Clamp(policy.client.queueBurstSlackMultiplier, 1.0f, 3.0f);
+                }
+
                 if (policy.client.queueLoadSheddingThreshold > 0f)
                 {
                     queueLoadSheddingThreshold = Mathf.Clamp(policy.client.queueLoadSheddingThreshold, 0.5f, 0.98f);
@@ -223,7 +234,7 @@ namespace GameWorld
 
                 if (enableDebugLogging)
                 {
-                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, shed={queueLoadSheddingThreshold:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
                 }
             }
             catch (Exception ex)
@@ -630,8 +641,12 @@ namespace GameWorld
         {
             float adaptiveSlack = GetAdaptiveQueueSlackRatio();
             int adaptivePressure = GetAdaptiveQueuePressureFactor();
+            float dynamicBudget = Mathf.Max(64, GetDynamicLoadedChunkBudget());
+            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
+            float load = inFlight / Mathf.Max(1f, dynamicBudget);
+            float burstMultiplier = load >= 0.9f ? Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) : 1.0f;
             return Mathf.Clamp(
-                Mathf.CeilToInt(GetDynamicLoadedChunkBudget() * Mathf.Max(1, adaptivePressure) * Mathf.Max(1.1f, adaptiveSlack)),
+                Mathf.CeilToInt(dynamicBudget * Mathf.Max(1, adaptivePressure) * Mathf.Max(1.1f, adaptiveSlack) * burstMultiplier),
                 64,
                 16384);
         }
@@ -731,6 +746,7 @@ namespace GameWorld
             public int maxQueuedChunkRequests = 1024;
             public int queuePressureFactor = 2;
             public float queueSlackRatio = 2.0f;
+            public float queueBurstSlackMultiplier = 1.15f;
             public float queueLoadSheddingThreshold = 0.88f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
@@ -748,6 +764,7 @@ namespace GameWorld
             public int maxQueuedChunkRequests = 1024;
             public int queuePressureFactor = 2;
             public float queueSlackRatio = 2.0f;
+            public float queueBurstSlackMultiplier = 1.15f;
             public float queueLoadSheddingThreshold = 0.88f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
@@ -810,6 +827,7 @@ namespace GameWorld
             ApplyFloodplainSlackwaterRetention(heightMap, hydrology, flow, erosionRisk);
             ApplyKarstWetlandCoupling(heightMap, hydrology, flow, erosionRisk);
             ApplyDeltaWaterTableCoupling(heightMap, hydrology, flow, erosionRisk);
+            ApplyLagoonKarstCoupling(heightMap, hydrology, flow, erosionRisk);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
@@ -938,7 +956,8 @@ namespace GameWorld
                 Mathf.Max(1, adaptiveQueuePressure),
                 Mathf.Max(64, adaptiveQueueLimit),
                 Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f),
-                Mathf.Max(1.1f, adaptiveQueueSlack));
+                Mathf.Max(1.1f, adaptiveQueueSlack),
+                Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f));
             return WorldMapSignature.Compute(context);
         }
 
@@ -1104,6 +1123,7 @@ namespace GameWorld
             ApplyCaveVadoseBypassSeal(mask, hydrology, flowMask, riverMask, heightMap);
             ApplyCaveKarstSpringSeal(mask, hydrology, flowMask, riverMask, heightMap);
             ApplyCaveEpikarstRechargeSeal(mask, hydrology, flowMask, riverMask, heightMap);
+            ApplyCaveHyporheicVentSeal(mask, hydrology, flowMask, riverMask, heightMap);
             return mask;
         }
 
@@ -1363,6 +1383,99 @@ namespace GameWorld
             }
         }
 
+        private void ApplyCaveHyporheicVentSeal(bool[,,] mask, float[,] hydrology, float[,] flowMask, float[,] riverMask, int[,] heightMap)
+        {
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int edgeRadius = Math.Max(2, Math.Min(sizeX, sizeZ) / 4);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, worldConfig.Caves.RiparianPlugDepth + 4));
+            int bottom = Math.Max(2, seaLevel - Math.Max(4, worldConfig.Caves.RiparianPlugDepth + 4));
+            double divergenceClamp = Math.Max(0.0001, worldConfig.Caves.MoistureFlowClamp);
+            double sealWeight = Math.Clamp(
+                worldConfig.Caves.AquiferBarrierWeight * 0.38 +
+                worldConfig.Caves.CaveEntranceFlowDampening * 0.34 +
+                worldConfig.Caves.RiparianCaveGuardWeight * 0.28,
+                0.0,
+                1.0);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    if (edgeDistance > edgeRadius * 2)
+                    {
+                        continue;
+                    }
+
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flow = Math.Clamp(flowMask[x, z], 0.0f, 1.0f);
+                    double seamFlow = Math.Clamp(SampleInterior(flowMask, x, z), 0.0f, 1.0f);
+                    double river = Math.Clamp(riverMask[x, z], 0.0f, 1.0f);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double hydroGradient = Math.Abs(seamHydro - hydro);
+                    double flowGradient = Math.Abs(seamFlow - flow);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius * 2 + 1), 0.0, 1.0);
+                    double hyporheicPotential = Math.Clamp(
+                        hydro * 0.32 + seamHydro * 0.24 + flow * 0.2 + seamFlow * 0.14 + river * 0.1,
+                        0.0,
+                        1.2);
+                    if (hyporheicPotential < 0.3)
+                    {
+                        continue;
+                    }
+
+                    double continuity = 1.0 - Math.Clamp(
+                        hydroGradient * worldConfig.Caves.EdgeSealStrength * 0.32 +
+                        flowGradient * worldConfig.Caves.EdgeSealStrength * 0.24 +
+                        divergence * worldConfig.Caves.FlowStabilityWeight * 0.24,
+                        0.0,
+                        0.82);
+                    double ventRisk = hyporheicPotential * sealWeight * (0.56 + edgeBand * 0.32) * continuity;
+                    ventRisk *= 1.0 - Math.Clamp(
+                        slope * worldConfig.Caves.CeilingStabilityWeight * 0.018 +
+                        relief * worldConfig.Caves.RiverSuppressionWeight * 0.012,
+                        0.0,
+                        0.55);
+                    if (ventRisk < 0.18)
+                    {
+                        continue;
+                    }
+
+                    for (int y = bottom; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double sealChance = ventRisk * (0.5 + depthFactor * 0.5);
+                        sealChance += Math.Clamp((2 - lateralOpen) * 0.08, 0.0, 0.24);
+
+                        if (sealChance > 0.55 || (sealChance > 0.4 && hyporheicPotential > 0.46))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
         private void ApplyRiverAnabranchBridge(float[,] mask, float[,] hydrology, float[,] flow, int[,] heightMap)
         {
             double branchWeight = Math.Clamp(
@@ -1537,6 +1650,75 @@ namespace GameWorld
                     leveeBridge *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight * 0.32, 0.0, 0.4);
                     double floor = Math.Max(river * (0.82 + profile.RiverEdgeContinuityWeight * 0.11), leveeSeed * 0.16);
                     double target = river * (1.0 - leveeWeight * 0.18) + leveeBridge * 0.5;
+                    mask[x, z] = Mathf.Clamp((float)Math.Max(target, floor), 0f, 1.35f);
+                }
+            }
+        }
+
+        private void ApplyRiverEstuaryConvergenceBridge(float[,] mask, float[,] hydrology, float[,] flow, int[,] heightMap)
+        {
+            double estuaryWeight = Math.Clamp(
+                profile.RiverDeltaWetlandStrength * 0.34 +
+                profile.RiverConfluenceBoost * 0.33 +
+                profile.RiverEdgeContinuityWeight * 0.33,
+                0.0,
+                1.0);
+            if (estuaryWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int mouthRadius = Math.Max(2, profile.RiverMouthSmoothRadius);
+            double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.8),
+                        0.0,
+                        1.0);
+                    if (seaBand <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, profile.HydrologyEdgeBlendRadius));
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(Math.Max(1, profile.HydrologyEdgeBlendRadius) + 1), 0.0, 1.0);
+
+                    double estuarySeed = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.25 + flowNode * 0.24 + seamFlow * 0.21,
+                        0.0,
+                        1.2);
+                    double continuity = 1.0 - Math.Clamp(
+                        divergence * 0.4 +
+                        Math.Abs(hydro - seamHydro) * 0.2 +
+                        slope * profile.RiverGradientPenalty * 0.02,
+                        0.0,
+                        0.78);
+                    double convergence = estuarySeed * estuaryWeight * (0.52 + seaBand * 0.34 + edgeBand * 0.14);
+                    convergence *= continuity;
+                    convergence *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight * 0.012, 0.0, 0.35);
+
+                    double floor = Math.Max(river * (0.84 + profile.RiverEdgeContinuityWeight * 0.08), estuarySeed * 0.14);
+                    double target = river * (1.0 - estuaryWeight * 0.18) + convergence * 0.5;
                     mask[x, z] = Mathf.Clamp((float)Math.Max(target, floor), 0f, 1.35f);
                 }
             }
@@ -1723,6 +1905,72 @@ namespace GameWorld
             }
         }
 
+        private void ApplyLakeLagoonOverflowBridge(float[,] lakes, float[,] hydrology, float[,] flow, float[,] riverMask, int[,] heightMap)
+        {
+            double overflowWeight = Math.Clamp(
+                profile.LakeOutflowStabilityWeight * 0.36 +
+                worldConfig.Lakes.SpillwayContinuityWeight * 0.34 +
+                profile.RiverDeltaWetlandStrength * 0.30,
+                0.0,
+                1.0);
+            if (overflowWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int mouthRadius = Math.Max(2, profile.RiverMouthSmoothRadius);
+            double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.1)
+                    {
+                        continue;
+                    }
+
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.9),
+                        0.0,
+                        1.0);
+                    if (seaBand <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = Math.Clamp(hydrology[x, z], 0.0f, 1.0f);
+                    double seamHydro = Math.Clamp(SampleInterior(hydrology, x, z), 0.0f, 1.0f);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = Math.Clamp(riverMask[x, z], 0.0f, 1.0f);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, profile.HydrologyEdgeBlendRadius));
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double lagoonSeed = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.24 + flowNode * 0.2 + seamFlow * 0.16 + river * 0.1,
+                        0.0,
+                        1.2);
+                    double continuity = 1.0 - Math.Clamp(
+                        divergence * 0.42 +
+                        Math.Abs(hydro - seamHydro) * 0.22 +
+                        slope * profile.LakeRimErosionWeight * 0.02,
+                        0.0,
+                        0.75);
+                    double overflow = lagoonSeed * overflowWeight * (0.5 + seaBand * 0.36) * continuity;
+                    overflow *= 1.0 - Math.Clamp(relief * profile.RiverReliefPenaltyWeight * 0.012, 0.0, 0.35);
+
+                    double floor = Math.Max(lake * (0.83 + profile.LakeOutflowStabilityWeight * 0.1), lagoonSeed * 0.15);
+                    double target = lake * (1.0 - overflowWeight * 0.2) + overflow * 0.52;
+                    lakes[x, z] = Mathf.Clamp01((float)Math.Max(target, floor));
+                }
+            }
+        }
+
         private float[,] BuildRiverMask(Vector2Int chunkPos, int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
         {
             var mask = new float[chunkSize, chunkSize];
@@ -1854,6 +2102,7 @@ namespace GameWorld
             ApplyRiverAnabranchBridge(mask, hydrology, flow, heightMap);
             ApplyRiverCutoffDamping(mask, hydrology, flow, heightMap);
             ApplyRiverDistributaryLeveeBridge(mask, hydrology, flow, heightMap);
+            ApplyRiverEstuaryConvergenceBridge(mask, hydrology, flow, heightMap);
             return mask;
         }
 
@@ -1997,6 +2246,7 @@ namespace GameWorld
             ApplyLakeFloodplainTerraceBridge(lakes, hydrology, flow, riverMask, heightMap);
             ApplyLakeTerraceBackfillBridge(lakes, hydrology, flow, riverMask, heightMap);
             ApplyLakeDeltaBackswampBridge(lakes, hydrology, flow, riverMask, heightMap);
+            ApplyLakeLagoonOverflowBridge(lakes, hydrology, flow, riverMask, heightMap);
             return lakes;
         }
 
@@ -2807,6 +3057,71 @@ namespace GameWorld
             NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.70)), (float)varianceClamp);
             NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.60)), (float)(varianceClamp * 1.3));
             Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(worldConfig.Water.HydrologySmoothBlend * 0.32)));
+        }
+
+        private void ApplyLagoonKarstCoupling(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, worldConfig.Water.HydrologyEdgeBlendRadius + 2);
+            int mouthRadius = Math.Max(2, worldConfig.Water.RiverMouthSmoothRadius);
+            double continuityWeight = Math.Clamp(worldConfig.Water.HydrologyContinuityWeight, 0.0, 1.0);
+            double flowPersistence = Math.Clamp(worldConfig.Water.HydrologyFlowPersistence, 0.0, 1.0);
+            double spillwayWeight = Math.Clamp(worldConfig.Lakes.SpillwayContinuityWeight, 0.0, 1.0);
+            double caveBarrier = Math.Clamp(worldConfig.Caves.AquiferBarrierWeight, 0.0, 1.0);
+            double caveEntrance = Math.Clamp(worldConfig.Caves.CaveEntranceFlowDampening, 0.0, 1.0);
+            double divergenceClamp = Math.Max(0.0001, worldConfig.Water.HydrologyFlowDivergenceClamp);
+            double varianceClamp = Math.Max(0.001, worldConfig.Water.HydrologyVarianceClamp);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double flowNode = flowCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double erosion = erosionCopy[x, z];
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double seaBand = 1.0 - Math.Clamp(
+                        Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, mouthRadius * 2.8),
+                        0.0,
+                        1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double karstBand = 1.0 - Math.Clamp(slope / 12.0 + relief / 26.0, 0.0, 1.0);
+                    double lagoonMemory = Math.Clamp(
+                        hydro * 0.26 + seamHydro * 0.22 + flowNode * 0.2 + seamFlow * 0.16 + seaBand * 0.1 + karstBand * 0.06,
+                        0.0,
+                        1.2);
+                    double stabilizer = 1.0 - Math.Clamp(
+                        divergence * 0.38 +
+                        Math.Abs(hydro - seamHydro) * 0.22 +
+                        erosion * 0.22 +
+                        slope * worldConfig.Water.HydrologySlopePenalty * 0.01,
+                        0.0,
+                        0.78);
+                    double couplingWeight = 0.24 + continuityWeight * 0.22 + flowPersistence * 0.18 + spillwayWeight * 0.2 + caveBarrier * 0.16;
+                    double coupling = lagoonMemory * couplingWeight * (0.5 + seaBand * 0.32 + edgeBand * 0.18 + karstBand * 0.12) * stabilizer;
+
+                    double hydroTarget = hydro + coupling * (0.2 + caveBarrier * 0.2);
+                    double flowTarget = flowNode * (1.0 - divergence * 0.18) + coupling * (0.26 + continuityWeight * 0.2 + caveEntrance * 0.12);
+                    double erosionTarget = erosion * (1.0 - coupling * 0.1) + coupling * (0.1 + spillwayWeight * 0.12);
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.35));
+                    erosionRisk[x, z] = Mathf.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.68)), (float)varianceClamp);
+            NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.58)), (float)(varianceClamp * 1.3));
+            Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(worldConfig.Water.HydrologySmoothBlend * 0.30)));
         }
 
         private void ApplyRiverLakeHydrologyFeedback(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask, float[,] lakeMask, float[,] erosionRisk)

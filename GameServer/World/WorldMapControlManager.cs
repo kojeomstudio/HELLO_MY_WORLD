@@ -33,6 +33,7 @@ namespace GameServerApp.World
         private readonly int configuredQueueLimit;
         private readonly int configuredQueuePressureFactor;
         private readonly double configuredQueueSlackRatio;
+        private readonly double configuredQueueBurstSlackMultiplier;
         private readonly double configuredQueueLoadSheddingThreshold;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
@@ -70,6 +71,7 @@ namespace GameServerApp.World
             configuredQueueLimit = Math.Clamp(Math.Max(128, this.settings.MaxQueuedChunkRequests), 128, 16384);
             configuredQueuePressureFactor = Math.Clamp(Math.Max(1, this.settings.QueuePressureFactor), 1, 8);
             configuredQueueSlackRatio = Math.Clamp(this.settings.QueueSlackRatio <= 0.0 ? 2.0 : this.settings.QueueSlackRatio, 1.1, 6.0);
+            configuredQueueBurstSlackMultiplier = Math.Clamp(this.settings.QueueBurstSlackMultiplier <= 0.0 ? 1.15 : this.settings.QueueBurstSlackMultiplier, 1.0, 3.0);
             configuredQueueLoadSheddingThreshold = Math.Clamp(this.settings.QueueLoadSheddingThreshold <= 0.0 ? 0.88 : this.settings.QueueLoadSheddingThreshold, 0.5, 0.98);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
@@ -392,8 +394,9 @@ namespace GameServerApp.World
             int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
             double load = inflight / Math.Max(1.0, cacheBudget);
             dynamicQueueSlackRatio = Math.Clamp(configuredQueueSlackRatio + load * 0.7, configuredQueueSlackRatio, 6.0);
+            double burstMultiplier = load >= 0.9 ? configuredQueueBurstSlackMultiplier : 1.0;
             dynamicQueueLimit = Math.Clamp(
-                Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio)),
+                Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier)),
                 128,
                 16384);
             dynamicQueueLoadSheddingThreshold = Math.Clamp(
@@ -677,7 +680,8 @@ namespace GameServerApp.World
                 Math.Max(1, dynamicQueuePressureFactor),
                 Math.Max(64, adaptiveQueueLimit),
                 Math.Clamp(dynamicQueueLoadSheddingThreshold, 0.5, 0.98),
-                Math.Max(1.1, dynamicQueueSlackRatio));
+                Math.Max(1.1, dynamicQueueSlackRatio),
+                Math.Max(1.0, configuredQueueBurstSlackMultiplier));
 
             return WorldMapSignature.Compute(context);
         }

@@ -55,6 +55,7 @@ namespace GameServerApp.World
         private double queueSlackRatio;
         private double queueBurstSlackMultiplier;
         private double queueLoadSheddingThreshold;
+        private double queueEmergencyBrakeThreshold;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
 
@@ -135,6 +136,17 @@ namespace GameServerApp.World
                 if (generationTasks.TryGetValue(pos, out var shedInflight))
                 {
                     return await shedInflight.ConfigureAwait(false);
+                }
+            }
+
+            if (queueState.EmergencyBrake)
+            {
+                TrimCompletedGenerationTasks();
+                TrimCompletedGenerationTasks();
+                await Task.Delay(Math.Max(1, queueBackoffDelayMs * (queueState.PressureFactor + 1)), cancellationToken).ConfigureAwait(false);
+                if (generationTasks.TryGetValue(pos, out var emergencyInflight))
+                {
+                    return await emergencyInflight.ConfigureAwait(false);
                 }
             }
 
@@ -373,6 +385,7 @@ namespace GameServerApp.World
             queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
             queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
             queueLoadSheddingThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 0.88 : 0.92, 0.5, 0.98);
+            queueEmergencyBrakeThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 36 ? 1.08 : 1.2, 0.75, 4.0);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -386,13 +399,14 @@ namespace GameServerApp.World
             }
         }
 
-        private (int QueueLimit, int PressureFactor, double SlackRatio, double LoadSheddingThreshold) GetAdaptiveQueueState()
+        private (int QueueLimit, int PressureFactor, double SlackRatio, double LoadSheddingThreshold, bool EmergencyBrake) GetAdaptiveQueueState()
         {
             int inflight = generationTasks.Count;
             int budget = Math.Max(128, maxLoadedChunks);
             double load = inflight / Math.Max(1.0, budget);
             double adaptiveSlack = Math.Clamp(queueSlackRatio + load * 0.6, queueSlackRatio, 6.0);
-            double burstMultiplier = load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
+            bool emergencyBrake = load >= queueEmergencyBrakeThreshold;
+            double burstMultiplier = !emergencyBrake && load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
                 (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack * burstMultiplier),
                 128,
@@ -408,7 +422,13 @@ namespace GameServerApp.World
                         : 1;
             adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
             double adaptiveLoadSheddingThreshold = Math.Clamp(queueLoadSheddingThreshold - load * 0.08, 0.5, queueLoadSheddingThreshold);
-            return (adaptiveLimit, adaptivePressure, adaptiveSlack, adaptiveLoadSheddingThreshold);
+            if (emergencyBrake)
+            {
+                adaptiveLoadSheddingThreshold = Math.Clamp(adaptiveLoadSheddingThreshold - 0.06, 0.5, queueLoadSheddingThreshold);
+                adaptivePressure = Math.Clamp(Math.Max(adaptivePressure, queuePressureFactor + 1), 1, 8);
+            }
+
+            return (adaptiveLimit, adaptivePressure, adaptiveSlack, adaptiveLoadSheddingThreshold, emergencyBrake);
         }
 
         private void TrimCompletedGenerationTasks()

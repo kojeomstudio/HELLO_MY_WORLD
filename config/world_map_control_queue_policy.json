@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "description": "Server/client shared queue policy knobs for world-map preview/chunk control.",
   "server": {
     "maxQueuedChunkRequests": 3072,
@@ -7,6 +7,7 @@
     "queueSlackRatio": 2.6,
     "queueBurstSlackMultiplier": 1.15,
     "queueLoadSheddingThreshold": 0.88,
+    "queueEmergencyBrakeThreshold": 1.12,
     "queueOverloadDrainFactor": 3,
     "queueBackoffDelayMs": 7,
     "maxConcurrentChunkGenerations": 10,
@@ -19,6 +20,7 @@
     "queueSlackRatio": 2.3,
     "queueBurstSlackMultiplier": 1.15,
     "queueLoadSheddingThreshold": 0.86,
+    "queueEmergencyBrakeThreshold": 1.08,
     "queueOverloadDrainFactor": 3,
     "queueBackoffDelayMs": 6,
     "maxLoadedPreviewChunks": 4096,

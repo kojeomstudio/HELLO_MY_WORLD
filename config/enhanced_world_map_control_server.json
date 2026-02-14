@@ -2,7 +2,7 @@
   "worldMapControl": {
     "enabled": true,
     "profilePath": "config/world_map_control_profile.json",
-    "profileVersion": 35,
+    "profileVersion": 36,
     "defaults": {
       "renderDistance": 12,
       "mapScale": 1.0,
@@ -19,6 +19,7 @@
       "queueSlackRatio": 2.6,
       "queueBurstSlackMultiplier": 1.15,
       "queueLoadSheddingThreshold": 0.88,
+      "queueEmergencyBrakeThreshold": 1.12,
       "queueOverloadDrainFactor": 3,
       "queueBackoffDelayMs": 7,
       "cleanupIntervalSeconds": 60,
@@ -40,6 +41,7 @@
       "queueSlackRatio": 2.6,
       "queueBurstSlackMultiplier": 1.15,
       "queueLoadSheddingThreshold": 0.88,
+      "queueEmergencyBrakeThreshold": 1.12,
       "queueOverloadDrainFactor": 3,
       "queueBackoffDelayMs": 7
     }

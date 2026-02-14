@@ -522,6 +522,11 @@ namespace GameServerApp
                         mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.TerrainGeneration.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
                     }
 
+                    if (section.TerrainGeneration.QueueEmergencyBrakeThreshold is > 0)
+                    {
+                        mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.TerrainGeneration.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                    }
+
                     if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
                     {
                         mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
@@ -566,6 +571,11 @@ namespace GameServerApp
                     mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.Cache.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
                 }
 
+                if (section.Cache?.QueueEmergencyBrakeThreshold is > 0)
+                {
+                    mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.Cache.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                }
+
                 if (section.Cache?.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
@@ -584,11 +594,12 @@ namespace GameServerApp
                     ? Math.Max(2.2, mapSettings.QueueSlackRatio)
                     : Math.Max(1.8, mapSettings.QueueSlackRatio);
                 mapSettings.QueueLoadSheddingThreshold = Math.Clamp(mapSettings.QueueLoadSheddingThreshold, 0.5, 0.98);
+                mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(mapSettings.QueueEmergencyBrakeThreshold, 0.75, 4.0);
 
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -655,6 +666,11 @@ namespace GameServerApp
                     mapSettings.QueueLoadSheddingThreshold = Math.Clamp(server.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
                 }
 
+                if (server.QueueEmergencyBrakeThreshold is > 0)
+                {
+                    mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(server.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                }
+
                 if (server.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
@@ -668,7 +684,7 @@ namespace GameServerApp
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -797,6 +813,9 @@ namespace GameServerApp
             [JsonPropertyName("queueLoadSheddingThreshold")]
             public double? QueueLoadSheddingThreshold { get; set; }
 
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
+
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
 
@@ -829,6 +848,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueLoadSheddingThreshold")]
             public double? QueueLoadSheddingThreshold { get; set; }
+
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
@@ -871,6 +893,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueLoadSheddingThreshold")]
             public double? QueueLoadSheddingThreshold { get; set; }
+
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }

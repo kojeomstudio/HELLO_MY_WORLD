@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-14
-        /// (hyporheic vent seal + estuary convergence bridge + lagoon overflow bridge + lagoon-karst coupling + map-control v35).
+        /// (hyporheic vent seal + estuary convergence bridge + lagoon overflow bridge + lagoon-karst coupling + floodplain leakage stability + map-control v36).
         /// </summary>
-        public const string HydrologySignature = "2026-02-14-hydrology-riverlake-cave-v31";
+        public const string HydrologySignature = "2026-02-14-hydrology-riverlake-cave-v32";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

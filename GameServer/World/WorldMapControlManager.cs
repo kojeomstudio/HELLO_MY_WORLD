@@ -35,6 +35,7 @@ namespace GameServerApp.World
         private readonly double configuredQueueSlackRatio;
         private readonly double configuredQueueBurstSlackMultiplier;
         private readonly double configuredQueueLoadSheddingThreshold;
+        private readonly double configuredQueueEmergencyBrakeThreshold;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
         private int dynamicQueueLimit;
@@ -73,6 +74,7 @@ namespace GameServerApp.World
             configuredQueueSlackRatio = Math.Clamp(this.settings.QueueSlackRatio <= 0.0 ? 2.0 : this.settings.QueueSlackRatio, 1.1, 6.0);
             configuredQueueBurstSlackMultiplier = Math.Clamp(this.settings.QueueBurstSlackMultiplier <= 0.0 ? 1.15 : this.settings.QueueBurstSlackMultiplier, 1.0, 3.0);
             configuredQueueLoadSheddingThreshold = Math.Clamp(this.settings.QueueLoadSheddingThreshold <= 0.0 ? 0.88 : this.settings.QueueLoadSheddingThreshold, 0.5, 0.98);
+            configuredQueueEmergencyBrakeThreshold = Math.Clamp(this.settings.QueueEmergencyBrakeThreshold <= 0.0 ? 1.15 : this.settings.QueueEmergencyBrakeThreshold, 0.75, 4.0);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
@@ -305,6 +307,19 @@ namespace GameServerApp.World
                 }
             }
 
+            int effectiveCacheBudget = Math.Max(64, GetEffectiveCacheBudget());
+            double queueLoad = inflightChunkGenerations.Count / Math.Max(1.0, effectiveCacheBudget);
+            if (queueLoad >= configuredQueueEmergencyBrakeThreshold)
+            {
+                int emergencyDrain = Math.Max(configuredQueueOverloadDrainFactor + 1, dynamicQueuePressureFactor + 1);
+                PruneInflightGenerations(Math.Clamp(emergencyDrain, 1, 24));
+                await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * (dynamicQueuePressureFactor + 1))).ConfigureAwait(false);
+                if (inflightChunkGenerations.TryGetValue(key, out var emergencyInflight))
+                {
+                    return await emergencyInflight.ConfigureAwait(false);
+                }
+            }
+
             if (inflightChunkGenerations.Count >= Math.Max(64, adaptiveQueueLimit))
             {
                 PruneInflightGenerations(configuredQueueOverloadDrainFactor);
@@ -394,7 +409,8 @@ namespace GameServerApp.World
             int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
             double load = inflight / Math.Max(1.0, cacheBudget);
             dynamicQueueSlackRatio = Math.Clamp(configuredQueueSlackRatio + load * 0.7, configuredQueueSlackRatio, 6.0);
-            double burstMultiplier = load >= 0.9 ? configuredQueueBurstSlackMultiplier : 1.0;
+            bool emergencyBrake = load >= configuredQueueEmergencyBrakeThreshold;
+            double burstMultiplier = !emergencyBrake && load >= 0.9 ? configuredQueueBurstSlackMultiplier : 1.0;
             dynamicQueueLimit = Math.Clamp(
                 Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier)),
                 128,
@@ -404,6 +420,12 @@ namespace GameServerApp.World
                 0.5,
                 configuredQueueLoadSheddingThreshold);
 
+            if (emergencyBrake)
+            {
+                dynamicQueueSlackRatio = Math.Clamp(Math.Max(configuredQueueSlackRatio, dynamicQueueSlackRatio * 0.92), configuredQueueSlackRatio, 6.0);
+                dynamicQueueLoadSheddingThreshold = Math.Clamp(dynamicQueueLoadSheddingThreshold - 0.06, 0.5, configuredQueueLoadSheddingThreshold);
+            }
+
             int pressure = load >= 2.0
                 ? 4
                 : load >= 1.3
@@ -412,6 +434,10 @@ namespace GameServerApp.World
                         ? 2
                         : 1;
             dynamicQueuePressureFactor = Math.Clamp(Math.Max(configuredQueuePressureFactor, pressure), 1, 8);
+            if (emergencyBrake)
+            {
+                dynamicQueuePressureFactor = Math.Clamp(Math.Max(dynamicQueuePressureFactor, configuredQueuePressureFactor + 1), 1, 8);
+            }
             return dynamicQueueLimit;
         }
 

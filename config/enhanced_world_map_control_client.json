@@ -22,6 +22,7 @@
       "queueSlackRatio": 2.3,
       "queueBurstSlackMultiplier": 1.15,
       "queueLoadSheddingThreshold": 0.86,
+      "queueEmergencyBrakeThreshold": 1.08,
       "queueOverloadDrainFactor": 3,
       "queueBackoffDelayMs": 6,
       "enableChunkPrediction": true

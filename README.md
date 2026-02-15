@@ -32,6 +32,52 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-15: Session 83 - Hydrology v34 / Map-Control v38 / Protobuf Reference Hardening
+
+**Status:** COMPLETED
+
+- Terrain generation improvements (server):
+  - Cave: added `ApplyTalusButtressStability`.
+  - River: added `ApplyFloodplainMeanderStabilityBridge`.
+  - Lake: added `ApplyWetlandLeakageClampBridge`.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map queue architecture hardening (server + client):
+  - Added queue load EMA + emergency brake hysteresis latch to stabilize burst behavior.
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared signature/profile synchronization:
+  - Hydrology signature updated to `2026-02-15-hydrology-riverlake-cave-v34`.
+  - Map-control profile version updated to `38`.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf usage/reference validation hardening:
+  - Added strict assembly/source descriptor checks in registry validation.
+  - File:
+    - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
+- Feature categorization refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-15-session-83.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj`
+- `dotnet build GameCommon/GameCommon.csproj`
+- `dotnet build GameServer/GameServer.csproj`
+- `dotnet run --project Tools/DummyMinecraftClient -- --config config/dummy_minecraft_client.json`
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+
+**Documentation:**
+- `docs/2026-02-15-session-83-worldgen-map-proto-report.md`
+- `plans/2026-02-15-session-83-comprehensive-work-plan.md`
+
 ### 2026-02-15: Session 81 - Hydrology v33 / Map-Control v37 / Queue EMA-Hysteresis
 
 **Status:** COMPLETED

@@ -58,6 +58,8 @@ namespace GameServerApp.World
         private double queueEmergencyBrakeThreshold;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
+        private double queueLoadEma;
+        private bool queueEmergencyBrakeLatched;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, Task<ChunkData>> generationTasks = new();
@@ -93,6 +95,8 @@ namespace GameServerApp.World
             profileFileHash = ComputeFileHash(profilePath);
             maxLoadedChunks = ComputeLoadedChunkBudget();
             RecomputeQueuePolicy();
+            queueLoadEma = 0.0;
+            queueEmergencyBrakeLatched = false;
             generationSignature = ComputeGenerationSignature();
 
             var cleanupInterval = TimeSpan.FromMinutes(Math.Max(5, worldSettings.ChunkUnloadTimeoutMinutes));
@@ -355,6 +359,8 @@ namespace GameServerApp.World
             generationSignature = ComputeGenerationSignature();
             maxLoadedChunks = ComputeLoadedChunkBudget();
             RecomputeQueuePolicy();
+            queueLoadEma = 0.0;
+            queueEmergencyBrakeLatched = false;
             loadedChunks.Clear();
             generationTasks.Clear();
             accessTimes.Clear();
@@ -404,8 +410,24 @@ namespace GameServerApp.World
             int inflight = generationTasks.Count;
             int budget = Math.Max(128, maxLoadedChunks);
             double load = inflight / Math.Max(1.0, budget);
-            double adaptiveSlack = Math.Clamp(queueSlackRatio + load * 0.6, queueSlackRatio, 6.0);
-            bool emergencyBrake = load >= queueEmergencyBrakeThreshold;
+            double emaBlend = 0.18;
+            queueLoadEma = queueLoadEma <= 0.0
+                ? load
+                : queueLoadEma * (1.0 - emaBlend) + load * emaBlend;
+            double effectiveLoad = Math.Max(load, queueLoadEma);
+            double releaseThreshold = Math.Clamp(queueEmergencyBrakeThreshold * 0.84, 0.55, queueEmergencyBrakeThreshold);
+
+            if (effectiveLoad >= queueEmergencyBrakeThreshold)
+            {
+                queueEmergencyBrakeLatched = true;
+            }
+            else if (queueEmergencyBrakeLatched && effectiveLoad <= releaseThreshold)
+            {
+                queueEmergencyBrakeLatched = false;
+            }
+
+            bool emergencyBrake = queueEmergencyBrakeLatched;
+            double adaptiveSlack = Math.Clamp(queueSlackRatio + effectiveLoad * 0.6, queueSlackRatio, 6.0);
             double burstMultiplier = !emergencyBrake && load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
                 (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack * burstMultiplier),
@@ -413,15 +435,15 @@ namespace GameServerApp.World
                 16384);
             adaptiveLimit = Math.Max(adaptiveLimit, queueLimit);
 
-            int adaptivePressure = load >= 2.0
+            int adaptivePressure = effectiveLoad >= 2.0
                 ? 4
-                : load >= 1.25
+                : effectiveLoad >= 1.25
                     ? 3
-                    : load >= 0.75
+                    : effectiveLoad >= 0.75
                         ? 2
                         : 1;
             adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
-            double adaptiveLoadSheddingThreshold = Math.Clamp(queueLoadSheddingThreshold - load * 0.08, 0.5, queueLoadSheddingThreshold);
+            double adaptiveLoadSheddingThreshold = Math.Clamp(queueLoadSheddingThreshold - effectiveLoad * 0.08, 0.5, queueLoadSheddingThreshold);
             if (emergencyBrake)
             {
                 adaptiveLoadSheddingThreshold = Math.Clamp(adaptiveLoadSheddingThreshold - 0.06, 0.5, queueLoadSheddingThreshold);

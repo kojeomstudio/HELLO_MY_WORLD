@@ -298,6 +298,7 @@ namespace GameServerApp.World.Generation
             ApplyDistributaryLeveeStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyEstuaryConvergenceBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             ApplyHeadwaterSpringBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyFloodplainMeanderStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -1164,6 +1165,67 @@ namespace GameServerApp.World.Generation
             double seamFill = Math.Clamp(config.RiverSeamFillStrength, 0.0, 1.0);
             double hydrologyPull = hydrology * seamFill * blend;
             return pressure * (1.0 - hydrologyPull) + hydrologyPull;
+        }
+
+        private void ApplyFloodplainMeanderStabilityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.RiverEdgeContinuityWeight * 0.38 +
+                config.RiverConfluenceBoost * 0.32 +
+                config.RiverBraidingWeight * 0.3,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.2);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.2);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(2, config.HydrologyWatershedStitchRadius + 1));
+                    double floodplainBias = Math.Clamp((seaLevel + 12 - heightMap[x, z]) / 18.0, 0.0, 1.0);
+                    double divergence = Math.Abs(flowNode - seamFlow);
+                    double continuity = Math.Clamp((river + hydro + seamHydro + seamFlow) * 0.25, 0.0, 1.2);
+
+                    double meanderStability = continuity * (0.2 + floodplainBias * 0.24 + bridgeWeight * 0.28);
+                    meanderStability *= 1.0 - Math.Clamp(slope * 0.03 + relief / 36.0 + divergence * 0.32, 0.0, 0.82);
+                    if (meanderStability <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double target = river * (1.0 - bridgeWeight * 0.14) +
+                        (river + meanderStability) * bridgeWeight * 0.14;
+                    if (slope > 10.0)
+                    {
+                        target *= 1.0 - Math.Clamp((slope - 10.0) * 0.02, 0.0, 0.18);
+                    }
+
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private static double ComputeCurvature(int[,] heightMap, int x, int z)

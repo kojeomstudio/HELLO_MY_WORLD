@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-15
-        /// (headwater spring bridge + karst overflow retention + floodplain roof arch stability + aquifer exchange stability + map-control v37).
+        /// (headwater spring bridge + floodplain meander stability bridge + wetland leakage clamp bridge + talus buttress stability + map-control v38).
         /// </summary>
-        public const string HydrologySignature = "2026-02-15-hydrology-riverlake-cave-v33";
+        public const string HydrologySignature = "2026-02-15-hydrology-riverlake-cave-v34";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

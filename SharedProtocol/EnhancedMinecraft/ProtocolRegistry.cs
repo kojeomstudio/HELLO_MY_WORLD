@@ -293,6 +293,19 @@ public static class ProtocolRegistry
                     $"EnhancedMinecraft contract '{binding.MessageType}' has no descriptor file. Ensure Google.Protobuf generated DTOs are referenced via using directives.");
             }
 
+            if (!ReferenceEquals(prototype.GetType().Assembly, typeof(EnhancedMinecraftGameReflection).Assembly))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' resolved from unexpected assembly '{prototype.GetType().Assembly.GetName().Name}'. Ensure ProtocolRegistry binds to the current generated DTO assembly.");
+            }
+
+            string descriptorSourceName = descriptorFile.Name ?? string.Empty;
+            if (!descriptorSourceName.EndsWith("enhanced_minecraft_game.proto", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"EnhancedMinecraft contract '{binding.MessageType}' resolved from proto source '{descriptorSourceName}', expected 'enhanced_minecraft_game.proto'. Regenerate protobuf code and verify using references.");
+            }
+
             var parser = prototype.Descriptor?.Parser;
             if (parser == null)
             {

@@ -52,6 +52,8 @@ namespace GameWorld
         private string lastProfileHash = string.Empty;
         private string lastProfileSignature = string.Empty;
         private string lastProfileFileHash = string.Empty;
+        private float queueLoadEma;
+        private bool queueEmergencyBrakeLatched;
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, byte> queuedChunks = new();
@@ -71,6 +73,8 @@ namespace GameWorld
             worldConfig = WorldConfig.Instance;
             generator = new EnhancedTerrainGenerator(profile, worldConfig);
             lastProfileCheckUtc = DateTime.UtcNow;
+            queueLoadEma = 0f;
+            queueEmergencyBrakeLatched = false;
             cancellation = new CancellationTokenSource();
             buildSemaphore = new SemaphoreSlim(Math.Max(1, maxConcurrentChunkBuilds));
             _ = ProcessQueueAsync(cancellation.Token);
@@ -263,6 +267,8 @@ namespace GameWorld
             loadedChunks.Clear();
             while (requestQueue.TryDequeue(out _)) { }
             Interlocked.Exchange(ref queuedRequestCount, 0);
+            queueLoadEma = 0f;
+            queueEmergencyBrakeLatched = false;
         }
 
         private void Update()
@@ -342,6 +348,8 @@ namespace GameWorld
                     buildingChunks.Clear();
                     while (requestQueue.TryDequeue(out _)) { }
                     Interlocked.Exchange(ref queuedRequestCount, 0);
+                    queueLoadEma = 0f;
+                    queueEmergencyBrakeLatched = false;
                     generatorReloaded = true;
                     if (enableDebugLogging)
                     {
@@ -390,6 +398,8 @@ namespace GameWorld
                     buildingChunks.Clear();
                     while (requestQueue.TryDequeue(out _)) { }
                     Interlocked.Exchange(ref queuedRequestCount, 0);
+                    queueLoadEma = 0f;
+                    queueEmergencyBrakeLatched = false;
                     lastProfileHash = profile.ProfileHash;
                     lastProfileFileHash = fileHash;
                     lastProfileSignature = ComputeGenerationSignature(profile, worldConfig);
@@ -424,6 +434,8 @@ namespace GameWorld
                 buildingChunks.Clear();
                 while (requestQueue.TryDequeue(out _)) { }
                 Interlocked.Exchange(ref queuedRequestCount, 0);
+                queueLoadEma = 0f;
+                queueEmergencyBrakeLatched = false;
                 if (enableDebugLogging)
                 {
                     Debug.Log($"[WorldMapController] Regenerated map preview generator for signature={generationSignature}");
@@ -476,7 +488,7 @@ namespace GameWorld
                 return;
             }
 
-            float pendingLoad = pending / Mathf.Max(1f, GetDynamicLoadedChunkBudget());
+            float pendingLoad = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
             if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos))
             {
                 DrainStaleQueueEntries();
@@ -484,7 +496,7 @@ namespace GameWorld
                 return;
             }
 
-            if (pendingLoad >= Mathf.Clamp(queueEmergencyBrakeThreshold, 0.75f, 4.0f))
+            if (queueEmergencyBrakeLatched)
             {
                 DrainStaleQueueEntries();
                 DrainStaleQueueEntries();
@@ -521,13 +533,13 @@ namespace GameWorld
                     await Task.Delay(Mathf.Max(1, queueBackoffDelayMs * GetAdaptiveQueuePressureFactor()), token);
                 }
 
-                float pendingLoad = pendingPressure / Mathf.Max(1f, GetDynamicLoadedChunkBudget());
+                float pendingLoad = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
                 if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos))
                 {
                     continue;
                 }
 
-                if (pendingLoad >= Mathf.Clamp(queueEmergencyBrakeThreshold, 0.75f, 4.0f))
+                if (queueEmergencyBrakeLatched)
                 {
                     DrainStaleQueueEntries();
                     await Task.Delay(Mathf.Max(1, queueBackoffDelayMs * (GetAdaptiveQueuePressureFactor() + 1)), token);
@@ -643,16 +655,14 @@ namespace GameWorld
         private float GetAdaptiveQueueSlackRatio()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
-            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
-            float load = inFlight / Mathf.Max(1f, dynamicBudget);
+            float load = ComputeEffectiveQueueLoad(dynamicBudget);
             return Mathf.Clamp(queueSlackRatio + load * 0.55f, Mathf.Max(1.1f, queueSlackRatio), 6.0f);
         }
 
         private int GetAdaptiveQueuePressureFactor()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
-            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
-            float load = inFlight / Mathf.Max(1f, dynamicBudget);
+            float load = ComputeEffectiveQueueLoad(dynamicBudget);
             int adaptive = load >= 2.0f
                 ? 4
                 : load >= 1.2f
@@ -668,9 +678,8 @@ namespace GameWorld
             float adaptiveSlack = GetAdaptiveQueueSlackRatio();
             int adaptivePressure = GetAdaptiveQueuePressureFactor();
             float dynamicBudget = Mathf.Max(64, GetDynamicLoadedChunkBudget());
-            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
-            float load = inFlight / Mathf.Max(1f, dynamicBudget);
-            bool emergencyBrake = load >= Mathf.Clamp(queueEmergencyBrakeThreshold, 0.75f, 4.0f);
+            float load = ComputeEffectiveQueueLoad(Mathf.CeilToInt(dynamicBudget));
+            bool emergencyBrake = queueEmergencyBrakeLatched;
             float burstMultiplier = !emergencyBrake && load >= 0.9f ? Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) : 1.0f;
             int limit = Mathf.Clamp(
                 Mathf.CeilToInt(dynamicBudget * Mathf.Max(1, adaptivePressure) * Mathf.Max(1.1f, adaptiveSlack) * burstMultiplier),
@@ -683,6 +692,29 @@ namespace GameWorld
             }
 
             return limit;
+        }
+
+        private float ComputeEffectiveQueueLoad(int dynamicBudget)
+        {
+            int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
+            float instantLoad = inFlight / Mathf.Max(1f, dynamicBudget);
+            queueLoadEma = queueLoadEma <= 0f
+                ? instantLoad
+                : queueLoadEma * 0.82f + instantLoad * 0.18f;
+            float effectiveLoad = Mathf.Max(instantLoad, queueLoadEma);
+            float emergencyThreshold = Mathf.Clamp(queueEmergencyBrakeThreshold, 0.75f, 4.0f);
+            float releaseThreshold = Mathf.Clamp(emergencyThreshold * 0.84f, 0.55f, emergencyThreshold);
+
+            if (effectiveLoad >= emergencyThreshold)
+            {
+                queueEmergencyBrakeLatched = true;
+            }
+            else if (queueEmergencyBrakeLatched && effectiveLoad <= releaseThreshold)
+            {
+                queueEmergencyBrakeLatched = false;
+            }
+
+            return effectiveLoad;
         }
 
         private void DrainStaleQueueEntries()

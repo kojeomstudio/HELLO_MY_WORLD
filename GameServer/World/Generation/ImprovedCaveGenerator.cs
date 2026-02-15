@@ -327,6 +327,7 @@ namespace GameServerApp.World.Generation
             ApplyEpikarstRechargeSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyHyporheicVentSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyFloodplainRoofArchStability(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyTalusButtressStability(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
             return mask;
         }
 
@@ -1507,6 +1508,94 @@ namespace GameServerApp.World.Generation
                         double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
                         double sealChance = seal * (0.55 + depthFactor * 0.45);
                         if (sealChance > 0.58 || (sealChance > 0.36 && wetness > 0.4))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyTalusButtressStability(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            float[,] erosionRisk,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double buttressWeight = Math.Clamp(
+                config.CeilingStabilityWeight * 0.42 +
+                config.SupportDensity * 0.34 +
+                config.RiparianCaveGuardWeight * 0.24,
+                0.0,
+                1.0);
+            if (buttressWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(5, seaLevel + Math.Max(4, config.RiparianPlugDepth + 2)));
+            int maxDepth = Math.Max(3, config.RiparianPlugDepth + 2);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    if (slope < 5.5 && erosion < 0.28)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrologyMask[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = flowMask[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    double seamRiver = riverMask != null ? TerrainMaskUtility.SampleInterior(riverMask, x, z) : river;
+                    double moisture = Math.Clamp(
+                        hydro * 0.28 + seamHydro * 0.2 + flow * 0.2 + seamFlow * 0.14 + river * 0.1 + seamRiver * 0.08,
+                        0.0,
+                        1.2);
+                    double buttressPressure = Math.Clamp(
+                        (slope / 18.0) * 0.42 +
+                        erosion * 0.32 +
+                        moisture * 0.26,
+                        0.0,
+                        1.25);
+                    buttressPressure *= buttressWeight;
+                    if (buttressPressure <= 0.22)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(topClamp, surface - 1);
+                    int bottom = Math.Max(1, top - maxDepth);
+                    int depthSpan = Math.Max(1, top - bottom);
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((top - y) / (double)depthSpan, 0.0, 1.0);
+                        double sealChance = buttressPressure * (0.4 + depthFactor * 0.35 + roofThickness / (double)(maxDepth + 2) * 0.2);
+                        if (sealChance > 0.46 || (sealChance > 0.32 && moisture > 0.42 && slope > 7.0))
                         {
                             mask[x, y, z] = false;
                         }

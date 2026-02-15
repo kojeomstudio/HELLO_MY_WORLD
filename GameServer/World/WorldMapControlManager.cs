@@ -42,6 +42,9 @@ namespace GameServerApp.World
         private int dynamicQueuePressureFactor;
         private double dynamicQueueSlackRatio;
         private double dynamicQueueLoadSheddingThreshold;
+        private double queueLoadEma;
+        private int queueOverloadTicks;
+        private DateTime lastQueuePolicyAdjustUtc;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
         private DateTime lastInflightPruneUtc;
@@ -63,6 +66,9 @@ namespace GameServerApp.World
             lastInflightPruneUtc = DateTime.UtcNow;
             worldConfigHash = ComputeFileHash(this.generationConfig.SourcePath);
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
+            queueLoadEma = 0.0;
+            queueOverloadTicks = 0;
+            lastQueuePolicyAdjustUtc = DateTime.UtcNow;
             int computedBudget = Math.Max(
                 this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance,
                 this.settings.DefaultRenderDistance * this.settings.DefaultRenderDistance * 2);
@@ -396,6 +402,9 @@ namespace GameServerApp.World
             dynamicQueueLimit = Math.Clamp(Math.Max(Math.Max(queueByCache, queueByWindow), configuredQueueLimit), 128, 16384);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
             dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
+            queueLoadEma = 0.0;
+            queueOverloadTicks = 0;
+            lastQueuePolicyAdjustUtc = DateTime.UtcNow;
 
             double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
             dynamicQueuePressureFactor = ratio >= 3.0 ? 3 : (ratio >= 2.0 ? 2 : 1);
@@ -407,16 +416,48 @@ namespace GameServerApp.World
         {
             int inflight = inflightChunkGenerations.Count;
             int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
-            double load = inflight / Math.Max(1.0, cacheBudget);
-            dynamicQueueSlackRatio = Math.Clamp(configuredQueueSlackRatio + load * 0.7, configuredQueueSlackRatio, 6.0);
-            bool emergencyBrake = load >= configuredQueueEmergencyBrakeThreshold;
-            double burstMultiplier = !emergencyBrake && load >= 0.9 ? configuredQueueBurstSlackMultiplier : 1.0;
-            dynamicQueueLimit = Math.Clamp(
-                Math.Max(dynamicQueueLimit, (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier)),
-                128,
-                16384);
+            double instantaneousLoad = inflight / Math.Max(1.0, cacheBudget);
+            queueLoadEma = queueLoadEma <= 0.0
+                ? instantaneousLoad
+                : queueLoadEma * 0.72 + instantaneousLoad * 0.28;
+            double load = Math.Max(instantaneousLoad, queueLoadEma * 0.9);
+            bool overloadTick = load >= configuredQueueLoadSheddingThreshold ||
+                instantaneousLoad >= configuredQueueLoadSheddingThreshold;
+            queueOverloadTicks = overloadTick
+                ? Math.Min(queueOverloadTicks + 1, 128)
+                : Math.Max(0, queueOverloadTicks - 1);
+            double overloadBias = Math.Clamp(queueOverloadTicks / 24.0, 0.0, 0.45);
+
+            dynamicQueueSlackRatio = Math.Clamp(
+                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35,
+                configuredQueueSlackRatio,
+                6.0);
+            bool emergencyBrake = load >= configuredQueueEmergencyBrakeThreshold ||
+                queueLoadEma >= configuredQueueEmergencyBrakeThreshold * 0.92;
+            double burstMultiplier = !emergencyBrake && load >= 0.9
+                ? configuredQueueBurstSlackMultiplier * (1.0 + overloadBias * 0.5)
+                : 1.0;
+            int candidateQueueLimit = (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier);
+            var now = DateTime.UtcNow;
+            if ((now - lastQueuePolicyAdjustUtc).TotalMilliseconds >= Math.Max(15, configuredQueueBackoffDelayMs * 4))
+            {
+                dynamicQueueLimit = Math.Clamp(
+                    Math.Max(dynamicQueueLimit, candidateQueueLimit),
+                    128,
+                    16384);
+                lastQueuePolicyAdjustUtc = now;
+            }
+            else
+            {
+                int gradualIncrease = Math.Max(16, configuredQueueOverloadDrainFactor * 8);
+                dynamicQueueLimit = Math.Clamp(
+                    Math.Max(dynamicQueueLimit, Math.Min(candidateQueueLimit, dynamicQueueLimit + gradualIncrease)),
+                    128,
+                    16384);
+            }
+
             dynamicQueueLoadSheddingThreshold = Math.Clamp(
-                configuredQueueLoadSheddingThreshold - load * 0.08,
+                configuredQueueLoadSheddingThreshold - load * 0.08 - overloadBias * 0.05,
                 0.5,
                 configuredQueueLoadSheddingThreshold);
 
@@ -433,6 +474,15 @@ namespace GameServerApp.World
                     : load >= 0.8
                         ? 2
                         : 1;
+            if (overloadBias >= 0.35)
+            {
+                pressure = Math.Max(pressure, 4);
+            }
+            else if (overloadBias >= 0.15)
+            {
+                pressure = Math.Max(pressure, 3);
+            }
+
             dynamicQueuePressureFactor = Math.Clamp(Math.Max(configuredQueuePressureFactor, pressure), 1, 8);
             if (emergencyBrake)
             {

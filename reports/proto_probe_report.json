@@ -63,8 +63,8 @@
     "WeatherChange"
   ],
   "DescriptorFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
-  "HydrologySignature": "2026-02-14-hydrology-riverlake-cave-v32",
-  "ProfileHydrologySignature": "2026-02-14-hydrology-riverlake-cave-v32",
+  "HydrologySignature": "2026-02-15-hydrology-riverlake-cave-v33",
+  "ProfileHydrologySignature": "2026-02-15-hydrology-riverlake-cave-v33",
   "ProfileHydrologyMatchesShared": true,
   "RegisteredCount": 14,
   "GeneratedDescriptorCount": 54,
@@ -115,8 +115,8 @@
   "UnboundRequiredGeneratedDescriptors": [],
   "ReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\reports\\proto_probe_report.json",
   "ReferenceReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\proto_reference_report.json",
-  "ProfileHash": "2c7cdb35e03b8bcd12335127c0e69d1160263695b88c0d858e7a9730bda55598",
-  "ProfileVersion": 36,
+  "ProfileHash": "cae5c4f09350e6a1b91fab46778695f210060884fc6418cc2072fd0a6a0128c1",
+  "ProfileVersion": 37,
   "ProfilePath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\world_map_control_profile.json",
   "RegistryReferences": {
     "GeneratedDescriptors": [

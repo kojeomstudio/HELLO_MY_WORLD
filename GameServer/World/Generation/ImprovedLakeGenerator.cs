@@ -252,7 +252,75 @@ namespace GameServerApp.World.Generation
             ApplyTerraceBackfillBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyDeltaBackswampRetentionBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyLagoonOverflowBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
+            ApplyKarstOverflowRetentionBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
+        }
+
+        private void ApplyKarstOverflowRetentionBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double couplingWeight = Math.Clamp(
+                lakeConfig.SpillwayContinuityWeight * 0.4 +
+                lakeConfig.OutflowStabilityWeight * 0.35 +
+                waterConfig.HydrologyCatchmentWeight * 0.25,
+                0.0,
+                1.0);
+            if (couplingWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int edgeRadius = Math.Max(2, waterConfig.HydrologyEdgeBlendRadius);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    if (lake <= 0.03 && river <= 0.05)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = flow[x, z] / 6.0;
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, edgeRadius);
+                    double depthBias = Math.Clamp((seaLevel - heightMap[x, z]) / Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange), -0.6, 1.0);
+                    double wetPocket = Math.Clamp(
+                        hydro * 0.35 +
+                        seamHydro * 0.25 +
+                        flowNode * 0.2 +
+                        seamFlow * 0.1 +
+                        river * 0.1,
+                        0.0,
+                        1.2);
+
+                    double retention = wetPocket * (0.18 + couplingWeight * 0.35);
+                    retention *= 1.0 - Math.Clamp(slope * 0.03 + relief / 34.0, 0.0, 0.8);
+                    retention *= 1.0 + Math.Max(0.0, depthBias) * 0.25;
+
+                    double target = lake * (1.0 - couplingWeight * 0.12) +
+                        (lake + retention) * couplingWeight * 0.12;
+                    if (river > 0.4)
+                    {
+                        target *= 1.0 - Math.Clamp(river * 0.12, 0.0, 0.25);
+                    }
+
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
         }
 
         private void ApplySpillbackBridge(

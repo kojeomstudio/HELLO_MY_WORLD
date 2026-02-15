@@ -326,7 +326,93 @@ namespace GameServerApp.World.Generation
             ApplyKarstSpringContinuitySeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyEpikarstRechargeSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyHyporheicVentSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyFloodplainRoofArchStability(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
+        }
+
+        private void ApplyFloodplainRoofArchStability(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double archWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.38 +
+                config.CaveEntranceFlowDampening * 0.34 +
+                config.RiparianCaveGuardWeight * 0.28,
+                0.0,
+                1.0);
+            if (archWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int topClamp = Math.Min(sizeY - 2, seaLevel + Math.Max(6, config.RiparianPlugDepth + 4));
+            int bottomClamp = Math.Max(2, seaLevel - Math.Max(4, config.RiparianPlugDepth + 2));
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = hydrologyMask[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = flowMask[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double coupling = Math.Clamp(
+                        hydro * 0.35 +
+                        seamHydro * 0.2 +
+                        flow * 0.2 +
+                        seamFlow * 0.1 +
+                        river * 0.15,
+                        0.0,
+                        1.35);
+                    if (coupling <= 0.35)
+                    {
+                        continue;
+                    }
+
+                    int localSurface = Math.Clamp(heightMap[x, z], bottomClamp + 2, sizeY - 2);
+                    int top = Math.Min(topClamp, localSurface - 1);
+                    int bottom = Math.Max(bottomClamp, top - Math.Max(4, config.RiparianPlugDepth + 2));
+                    int depthSpan = Math.Max(1, top - bottom);
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = localSurface - y;
+                        if (roofThickness <= 2)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((top - y) / (double)depthSpan, 0.0, 1.0);
+                        double archPressure = coupling * (0.25 + archWeight * 0.4 + depthFactor * 0.2);
+                        archPressure *= 1.0 - Math.Clamp(slope * 0.04 + divergence * 0.45, 0.0, 0.85);
+                        if (roofThickness <= config.RiparianPlugDepth + 1)
+                        {
+                            archPressure *= 1.1;
+                        }
+
+                        if (archPressure > 0.42)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyPhreaticSeal(

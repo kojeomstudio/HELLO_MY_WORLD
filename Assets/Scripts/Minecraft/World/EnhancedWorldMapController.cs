@@ -33,6 +33,7 @@ namespace Minecraft.World
         private WorldMapControlProfile _mapControlProfile;
         private readonly Dictionary<Vector2Int, ChunkData> _loadedChunks = new();
         private readonly Dictionary<string, PlayerMapMarker> _playerMarkers = new();
+        private readonly HashSet<Vector2Int> _queuedChunkUpdates = new();
         private string _profileHash = string.Empty;
         private bool _showPlayers = true;
         private bool _showCaves = true;
@@ -40,6 +41,7 @@ namespace Minecraft.World
         private bool _showLakes = true;
         private string _profilePath = string.Empty;
         private string _worldConfigPath = string.Empty;
+        private string _clientRuntimeConfigPath = string.Empty;
         private DateTime _profileWriteTime;
         private DateTime _worldConfigWriteTime;
         
@@ -51,6 +53,9 @@ namespace Minecraft.World
         // Performance optimization
         private readonly Queue<Vector2Int> _chunksToUpdate = new();
         private float _lastMapUpdate = 0f;
+        private float _lastChunkQueueProcessTime = 0f;
+        private int _maxChunkUpdatesPerFrame = 12;
+        private int _chunkUpdateThrottleMs = 16;
         private const float MAP_UPDATE_INTERVAL = 0.5f;
         
         // Events
@@ -82,6 +87,7 @@ namespace Minecraft.World
             }
 
             _profilePath = ResolveProfilePath();
+            _clientRuntimeConfigPath = Path.Combine(Application.streamingAssetsPath, "enhanced_world_map_control_client.json");
             _mapControlProfile = WorldMapControlProfile.LoadFromFile(_profilePath, _worldConfig);
             if (_mapControlProfile.Version < _worldConfig.MapControlProfileVersion)
             {
@@ -101,6 +107,7 @@ namespace Minecraft.World
             _showRivers = _mapControlProfile.EnableRivers;
             _showLakes = _mapControlProfile.EnableLakes;
             ApplyToggleDefaults();
+            LoadClientRuntimeConfig();
             ValidateProfileHash();
         }
 
@@ -146,7 +153,9 @@ namespace Minecraft.World
         {
             _loadedChunks.Clear();
             _chunksToUpdate.Clear();
+            _queuedChunkUpdates.Clear();
             _lastMapUpdate = 0f;
+            _lastChunkQueueProcessTime = 0f;
         }
         
         private void InitializeBiomeColors()
@@ -228,13 +237,8 @@ namespace Minecraft.World
                 UpdateMap();
                 _lastMapUpdate = Time.time;
             }
-            
-            // Process chunk updates
-            while (_chunksToUpdate.Count > 0)
-            {
-                var chunkPos = _chunksToUpdate.Dequeue();
-                UpdateChunkOnMap(chunkPos);
-            }
+
+            ProcessChunkUpdateQueue();
         }
         
         /// <summary>
@@ -265,7 +269,10 @@ namespace Minecraft.World
         public void UpdateChunkData(Vector2Int chunkPos, ChunkData chunkData)
         {
             _loadedChunks[chunkPos] = chunkData;
-            _chunksToUpdate.Enqueue(chunkPos);
+            if (_queuedChunkUpdates.Add(chunkPos))
+            {
+                _chunksToUpdate.Enqueue(chunkPos);
+            }
             
             ChunkDataUpdated?.Invoke(chunkPos);
         }
@@ -470,6 +477,7 @@ namespace Minecraft.World
             _showRivers = profile.EnableRivers;
             _showLakes = profile.EnableLakes;
             ApplyToggleDefaults();
+            LoadClientRuntimeConfig();
             ResetMapCache();
             InitializeMapRendering();
             if (!string.IsNullOrWhiteSpace(_profilePath))
@@ -514,6 +522,7 @@ namespace Minecraft.World
                         WorldConfig.ForceReload();
                         _worldConfig = WorldConfig.Instance;
                         _profilePath = ResolveProfilePath();
+                        LoadClientRuntimeConfig();
                         configReloaded = true;
                     }
                 }
@@ -553,6 +562,77 @@ namespace Minecraft.World
             catch (Exception ex)
             {
                 Debug.LogWarning($"[WorldMap] Failed to reload map-control profile: {ex.Message}");
+            }
+        }
+
+        private void ProcessChunkUpdateQueue()
+        {
+            if (_chunksToUpdate.Count == 0)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            float throttleSeconds = Mathf.Max(0f, _chunkUpdateThrottleMs / 1000f);
+            if (now - _lastChunkQueueProcessTime < throttleSeconds)
+            {
+                return;
+            }
+
+            int budget = ComputeChunkUpdateBudget();
+            int processed = 0;
+            while (processed < budget && _chunksToUpdate.Count > 0)
+            {
+                var chunkPos = _chunksToUpdate.Dequeue();
+                _queuedChunkUpdates.Remove(chunkPos);
+                UpdateChunkOnMap(chunkPos);
+                processed++;
+            }
+
+            _lastChunkQueueProcessTime = now;
+        }
+
+        private int ComputeChunkUpdateBudget()
+        {
+            int baseBudget = Mathf.Clamp(_maxChunkUpdatesPerFrame, 1, 512);
+            int queuePressureBonus = Mathf.Clamp(_chunksToUpdate.Count / Mathf.Max(32, baseBudget * 2), 0, 24);
+            int renderDistanceBonus = _mapControlProfile != null
+                ? Mathf.Clamp((_mapControlProfile.RenderDistance - 8) / 2, 0, 12)
+                : 0;
+            return Mathf.Clamp(baseBudget + queuePressureBonus + renderDistanceBonus, 1, 512);
+        }
+
+        private void LoadClientRuntimeConfig()
+        {
+            if (string.IsNullOrWhiteSpace(_clientRuntimeConfigPath) || !File.Exists(_clientRuntimeConfigPath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(_clientRuntimeConfigPath);
+                var runtime = JsonUtility.FromJson<ClientRuntimeConfigRoot>(json);
+                if (runtime?.worldMapControl == null)
+                {
+                    return;
+                }
+
+                var defaults = runtime.worldMapControl.defaults;
+                if (defaults != null && defaults.maxChunkUpdatesPerFrame > 0)
+                {
+                    _maxChunkUpdatesPerFrame = Mathf.Clamp(defaults.maxChunkUpdatesPerFrame, 1, 512);
+                }
+
+                var performance = runtime.worldMapControl.performance;
+                if (performance != null && performance.chunkUpdateThrottleMs >= 0)
+                {
+                    _chunkUpdateThrottleMs = Mathf.Clamp(performance.chunkUpdateThrottleMs, 0, 1000);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldMap] Failed to load client runtime config: {ex.Message}");
             }
         }
         
@@ -641,6 +721,7 @@ namespace Minecraft.World
             
             _playerMarkers.Clear();
             _loadedChunks.Clear();
+            _queuedChunkUpdates.Clear();
         }
         
         private void OnDrawGizmosSelected()
@@ -659,6 +740,31 @@ namespace Minecraft.World
             {
                 Gizmos.DrawSphere(marker.WorldPosition, 2f);
             }
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimeConfigRoot
+        {
+            public ClientRuntimeWorldMapControl worldMapControl;
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimeWorldMapControl
+        {
+            public ClientRuntimePerformance performance;
+            public ClientRuntimeDefaults defaults;
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimePerformance
+        {
+            public int chunkUpdateThrottleMs;
+        }
+
+        [Serializable]
+        private sealed class ClientRuntimeDefaults
+        {
+            public int maxChunkUpdatesPerFrame;
         }
     }
     /// <summary>

@@ -32,6 +32,51 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-15: Session 81 - Hydrology v33 / Map-Control v37 / Queue EMA-Hysteresis
+
+**Status:** COMPLETED
+
+- Terrain generation improvements:
+  - River: added `ApplyHeadwaterSpringBridge` for upstream continuity stabilization.
+  - Lake: added `ApplyKarstOverflowRetentionBridge` for karst-overflow basin retention.
+  - Cave: added `ApplyFloodplainRoofArchStability` to reduce unstable wet floodplain cave openings.
+  - Coordinator: added `ApplyAquiferExchangeStability` for river/lake/cave coupling consistency.
+  - Files:
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map architecture hardening:
+  - Server queue control upgraded with load EMA + overload hysteresis.
+  - Client map queue processing upgraded with dedupe, throttle, and per-frame budget from JSON runtime config.
+  - Files:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Shared profile/signature synchronization:
+  - Hydrology signature: `2026-02-15-hydrology-riverlake-cave-v33`
+  - Map-control profile version: `37`
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Core/Content/Utility feature inventory refreshed:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-15-session-81.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj`
+- `dotnet build GameServer/GameServer.csproj`
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest`
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+
+**Documentation:**
+- `docs/2026-02-15-session-81-worldgen-map-proto-report.md`
+- `plans/2026-02-15-session-81-comprehensive-work-plan.md`
+
 ### 2026-02-14: Session 79 - Hydrology v32 / Map-Control v36 / Queue Emergency Brake
 
 **Status:** COMPLETED

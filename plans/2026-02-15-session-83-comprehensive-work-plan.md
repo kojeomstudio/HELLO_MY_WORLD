@@ -53,9 +53,9 @@
 - [x] `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
 - [x] `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
 - [x] Update `README.md` and `docs/` for Session 83
-- [ ] Commit all changes and push to `origin/master`
+- [x] Commit all changes and push to `origin/master`
 
 ## End Checklist
-- [ ] All changes staged and committed
-- [ ] Pushed to `origin/master`
-- [ ] Plan updated from in-progress to completed
+- [x] All changes staged and committed
+- [x] Pushed to `origin/master`
+- [x] Plan updated from in-progress to completed

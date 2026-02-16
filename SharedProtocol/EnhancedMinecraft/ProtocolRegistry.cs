@@ -254,6 +254,18 @@ public static class ProtocolRegistry
                 ". Update ProtocolRegistry so each MinecraftMessageType maps to a distinct generated DTO.");
         }
 
+        var duplicateMessageTypes = Bindings
+            .GroupBy(binding => binding.MessageType)
+            .Where(group => group.Count() > 1)
+            .ToArray();
+        if (duplicateMessageTypes.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft protocol registry has duplicate MinecraftMessageType bindings: " +
+                string.Join(", ", duplicateMessageTypes.Select(group => group.Key.ToString())) +
+                ". Fix ProtocolRegistry so each required message enum resolves to exactly one generated protobuf contract.");
+        }
+
         var descriptorNames = EnhancedMinecraftGameReflection.Descriptor?.MessageTypes
             .Select(descriptor => descriptor.Name)
             .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);

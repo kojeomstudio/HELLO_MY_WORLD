@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-15
-        /// (headwater spring bridge + floodplain meander stability bridge + wetland leakage clamp bridge + talus buttress stability + map-control v38).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-16
+        /// (alluvial channel anchor bridge + oxbow retention anchor bridge + subsurface shear seal + queue-priority ordering + map-control v39).
         /// </summary>
-        public const string HydrologySignature = "2026-02-15-hydrology-riverlake-cave-v34";
+        public const string HydrologySignature = "2026-02-16-hydrology-riverlake-cave-v35";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

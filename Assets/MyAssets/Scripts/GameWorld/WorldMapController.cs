@@ -446,18 +446,16 @@ namespace GameWorld
         private void EnqueueAroundPlayer()
         {
             var playerChunk = WorldToChunk(playerTransform.position);
-            for (int dx = -viewRadiusChunks; dx <= viewRadiusChunks; dx++)
+            var prioritizedChunks = WorldMapQueuePolicy.EnumerateByDistance(playerChunk.x, playerChunk.y, viewRadiusChunks);
+            foreach (var chunk in prioritizedChunks)
             {
-                for (int dz = -viewRadiusChunks; dz <= viewRadiusChunks; dz++)
+                var pos = new Vector2Int(chunk.X, chunk.Z);
+                if (loadedChunks.ContainsKey(pos))
                 {
-                    var pos = new Vector2Int(playerChunk.x + dx, playerChunk.y + dz);
-                    if (loadedChunks.ContainsKey(pos))
-                    {
-                        continue;
-                    }
-
-                    EnqueueChunk(pos);
+                    continue;
                 }
+
+                EnqueueChunk(pos);
             }
         }
 
@@ -489,7 +487,8 @@ namespace GameWorld
             }
 
             float pendingLoad = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
-            if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos))
+            QueuePressureBand enqueueBand = WorldMapQueuePolicy.ClassifyBand(pendingLoad);
+            if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos, enqueueBand))
             {
                 DrainStaleQueueEntries();
                 queuedChunks.TryRemove(pos, out _);
@@ -534,7 +533,8 @@ namespace GameWorld
                 }
 
                 float pendingLoad = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
-                if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos))
+                QueuePressureBand processingBand = WorldMapQueuePolicy.ClassifyBand(pendingLoad);
+                if (pendingLoad >= Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) && IsFarChunkFromPlayer(pos, processingBand))
                 {
                     continue;
                 }
@@ -663,13 +663,8 @@ namespace GameWorld
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(dynamicBudget);
-            int adaptive = load >= 2.0f
-                ? 4
-                : load >= 1.2f
-                    ? 3
-                    : load >= 0.75f
-                        ? 2
-                        : 1;
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
+            int adaptive = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
             return Mathf.Clamp(Mathf.Max(queuePressureFactor, adaptive), 1, 8);
         }
 
@@ -698,21 +693,14 @@ namespace GameWorld
         {
             int inFlight = buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
             float instantLoad = inFlight / Mathf.Max(1f, dynamicBudget);
-            queueLoadEma = queueLoadEma <= 0f
-                ? instantLoad
-                : queueLoadEma * 0.82f + instantLoad * 0.18f;
+            queueLoadEma = (float)WorldMapQueuePolicy.UpdateEma(queueLoadEma, instantLoad, 0.18);
             float effectiveLoad = Mathf.Max(instantLoad, queueLoadEma);
             float emergencyThreshold = Mathf.Clamp(queueEmergencyBrakeThreshold, 0.75f, 4.0f);
-            float releaseThreshold = Mathf.Clamp(emergencyThreshold * 0.84f, 0.55f, emergencyThreshold);
-
-            if (effectiveLoad >= emergencyThreshold)
-            {
-                queueEmergencyBrakeLatched = true;
-            }
-            else if (queueEmergencyBrakeLatched && effectiveLoad <= releaseThreshold)
-            {
-                queueEmergencyBrakeLatched = false;
-            }
+            queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
+                queueEmergencyBrakeLatched,
+                effectiveLoad,
+                emergencyThreshold,
+                0.84);
 
             return effectiveLoad;
         }
@@ -745,7 +733,7 @@ namespace GameWorld
             }
         }
 
-        private bool IsFarChunkFromPlayer(Vector2Int pos)
+        private bool IsFarChunkFromPlayer(Vector2Int pos, QueuePressureBand pressureBand)
         {
             if (playerTransform == null)
             {
@@ -754,7 +742,14 @@ namespace GameWorld
 
             Vector2Int center = WorldToChunk(playerTransform.position);
             int manhattanDistance = Mathf.Abs(pos.x - center.x) + Mathf.Abs(pos.y - center.y);
-            int threshold = Mathf.Max(2, viewRadiusChunks + 1);
+            int thresholdOffset = pressureBand switch
+            {
+                QueuePressureBand.Critical => -1,
+                QueuePressureBand.High => 0,
+                QueuePressureBand.Elevated => 1,
+                _ => 2
+            };
+            int threshold = Mathf.Max(2, viewRadiusChunks + thresholdOffset);
             return manhattanDistance > threshold;
         }
 

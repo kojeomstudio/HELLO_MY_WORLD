@@ -152,6 +152,8 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json"),
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-84.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-83.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-81.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-14-session-77.json"),

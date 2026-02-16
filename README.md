@@ -32,6 +32,57 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-16: Session 85 - Hydrology v35 / Map-Control v39 / Shared Queue Policy
+
+**Status:** COMPLETED
+
+- Terrain generation improvements (server):
+  - Cave: added `ApplySubsurfaceShearSeal`.
+  - River: added `ApplyAlluvialChannelAnchorBridge`.
+  - Lake: added `ApplyOxbowRetentionAnchorBridge`.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map architecture improvements (server + client):
+  - Added shared queue/load policy utility in `GameCommon.dll` and applied distance-priority chunk ordering.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Hydrology/profile synchronization:
+  - Hydrology signature updated to `2026-02-16-hydrology-riverlake-cave-v35`.
+  - Map-control profile version updated to `39`.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf validation hardening:
+  - Added duplicate `MinecraftMessageType` binding detection in registry validation.
+  - File:
+    - `SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs`
+- Feature categorization refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj`
+- `dotnet build GameCommon/GameCommon.csproj`
+- `dotnet build GameServer/GameServer.csproj`
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj`
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest`
+
+**Documentation:**
+- `docs/2026-02-16-session-85-worldgen-map-proto-report.md`
+- `plans/2026-02-16-session-85-comprehensive-work-plan.md`
+
 ### 2026-02-15: Session 83 - Hydrology v34 / Map-Control v38 / Protobuf Reference Hardening
 
 **Status:** COMPLETED

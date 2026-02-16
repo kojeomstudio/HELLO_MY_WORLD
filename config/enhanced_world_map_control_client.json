@@ -19,10 +19,10 @@
       "maxConcurrentChunkRequests": 8,
       "maxQueuedChunkRequests": 3072,
       "queuePressureFactor": 4,
-      "queueSlackRatio": 2.3,
+      "queueSlackRatio": 2.35,
       "queueBurstSlackMultiplier": 1.15,
-      "queueLoadSheddingThreshold": 0.86,
-      "queueEmergencyBrakeThreshold": 1.08,
+      "queueLoadSheddingThreshold": 0.85,
+      "queueEmergencyBrakeThreshold": 1.06,
       "queueOverloadDrainFactor": 3,
       "queueBackoffDelayMs": 6,
       "enableChunkPrediction": true

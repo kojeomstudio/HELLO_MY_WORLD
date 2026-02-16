@@ -196,12 +196,10 @@ namespace GameServerApp.World
         public async Task PreloadAsync(int centerX, int centerZ, int radius, CancellationToken cancellationToken = default)
         {
             var tasks = new List<Task>();
-            for (int x = centerX - radius; x <= centerX + radius; x++)
+            var prioritizedChunks = WorldMapQueuePolicy.EnumerateByDistance(centerX, centerZ, radius);
+            foreach (var chunk in prioritizedChunks)
             {
-                for (int z = centerZ - radius; z <= centerZ + radius; z++)
-                {
-                    tasks.Add(GetChunkAsync(x, z, cancellationToken));
-                }
+                tasks.Add(GetChunkAsync(chunk.X, chunk.Z, cancellationToken));
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -410,23 +408,16 @@ namespace GameServerApp.World
             int inflight = generationTasks.Count;
             int budget = Math.Max(128, maxLoadedChunks);
             double load = inflight / Math.Max(1.0, budget);
-            double emaBlend = 0.18;
-            queueLoadEma = queueLoadEma <= 0.0
-                ? load
-                : queueLoadEma * (1.0 - emaBlend) + load * emaBlend;
+            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, load, 0.18);
             double effectiveLoad = Math.Max(load, queueLoadEma);
-            double releaseThreshold = Math.Clamp(queueEmergencyBrakeThreshold * 0.84, 0.55, queueEmergencyBrakeThreshold);
-
-            if (effectiveLoad >= queueEmergencyBrakeThreshold)
-            {
-                queueEmergencyBrakeLatched = true;
-            }
-            else if (queueEmergencyBrakeLatched && effectiveLoad <= releaseThreshold)
-            {
-                queueEmergencyBrakeLatched = false;
-            }
+            queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
+                queueEmergencyBrakeLatched,
+                effectiveLoad,
+                queueEmergencyBrakeThreshold,
+                0.84);
 
             bool emergencyBrake = queueEmergencyBrakeLatched;
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);
             double adaptiveSlack = Math.Clamp(queueSlackRatio + effectiveLoad * 0.6, queueSlackRatio, 6.0);
             double burstMultiplier = !emergencyBrake && load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
@@ -435,15 +426,20 @@ namespace GameServerApp.World
                 16384);
             adaptiveLimit = Math.Max(adaptiveLimit, queueLimit);
 
-            int adaptivePressure = effectiveLoad >= 2.0
-                ? 4
-                : effectiveLoad >= 1.25
-                    ? 3
-                    : effectiveLoad >= 0.75
-                        ? 2
-                        : 1;
+            int adaptivePressure = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
             adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
-            double adaptiveLoadSheddingThreshold = Math.Clamp(queueLoadSheddingThreshold - effectiveLoad * 0.08, 0.5, queueLoadSheddingThreshold);
+            double pressurePenalty = pressureBand switch
+            {
+                QueuePressureBand.Critical => 0.07,
+                QueuePressureBand.High => 0.04,
+                QueuePressureBand.Elevated => 0.015,
+                _ => 0.0
+            };
+
+            double adaptiveLoadSheddingThreshold = Math.Clamp(
+                queueLoadSheddingThreshold - effectiveLoad * 0.08 - pressurePenalty,
+                0.5,
+                queueLoadSheddingThreshold);
             if (emergencyBrake)
             {
                 adaptiveLoadSheddingThreshold = Math.Clamp(adaptiveLoadSheddingThreshold - 0.06, 0.5, queueLoadSheddingThreshold);

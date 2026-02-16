@@ -51,6 +51,8 @@ public static class Program
     {
         string configPath = "config/dummy_minecraft_client.json";
         bool forceNetworkProbe = false;
+        bool? includeOptionalOverride = null;
+        bool? strictRequiredOverride = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -66,14 +68,37 @@ public static class Program
                 case "--network":
                     forceNetworkProbe = true;
                     break;
+                case "--include-optional":
+                    includeOptionalOverride = true;
+                    break;
+                case "--required-only":
+                    includeOptionalOverride = false;
+                    break;
+                case "--strict-required-bindings":
+                    strictRequiredOverride = true;
+                    break;
+                case "--no-strict-required-bindings":
+                    strictRequiredOverride = false;
+                    break;
             }
         }
 
         var config = DummyClientConfig.Load(configPath);
+        if (includeOptionalOverride.HasValue)
+        {
+            config.IncludeOptionalMessages = includeOptionalOverride.Value;
+        }
+
+        if (strictRequiredOverride.HasValue)
+        {
+            config.StrictRequiredBindings = strictRequiredOverride.Value;
+        }
+
         bool probeNetwork = forceNetworkProbe || config.ProbeNetwork;
 
         Console.WriteLine("=== Dummy Minecraft Client (Protocol Probe) ===");
         Console.WriteLine($"Config: {Path.GetFullPath(configPath)}");
+        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, ProbeNetwork={probeNetwork}");
 
         ProtoRuntime.EnsureInitialized();
         ProtoFingerprint.AssertDescriptorFingerprint();

@@ -129,13 +129,11 @@ namespace GameServerApp.World
             var renderDistance = Math.Max(1, profile.RenderDistance);
 
             var chunks = new List<ChunkData>();
-            for (int x = -renderDistance; x <= renderDistance; x++)
+            var prioritized = WorldMapQueuePolicy.EnumerateByDistance(playerChunkX, playerChunkZ, renderDistance);
+            foreach (var chunkCoordinate in prioritized)
             {
-                for (int z = -renderDistance; z <= renderDistance; z++)
-                {
-                    var chunk = await GenerateOrGetChunkAsync(playerChunkX + x, playerChunkZ + z);
-                    chunks.Add(chunk);
-                }
+                var chunk = await GenerateOrGetChunkAsync(chunkCoordinate.X, chunkCoordinate.Z);
+                chunks.Add(chunk);
             }
 
             profile.LastPosition = new PlayerPosition { X = request.PlayerX, Y = request.PlayerY, Z = request.PlayerZ };

@@ -328,6 +328,7 @@ namespace GameServerApp.World.Generation
             ApplyHyporheicVentSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyFloodplainRoofArchStability(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyTalusButtressStability(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
+            ApplySubsurfaceShearSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -1596,6 +1597,91 @@ namespace GameServerApp.World.Generation
                         double depthFactor = 1.0 - Math.Clamp((top - y) / (double)depthSpan, 0.0, 1.0);
                         double sealChance = buttressPressure * (0.4 + depthFactor * 0.35 + roofThickness / (double)(maxDepth + 2) * 0.2);
                         if (sealChance > 0.46 || (sealChance > 0.32 && moisture > 0.42 && slope > 7.0))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplySubsurfaceShearSeal(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double shearWeight = Math.Clamp(
+                config.CeilingStabilityWeight * 0.34 +
+                config.AquiferBarrierWeight * 0.34 +
+                config.EdgeSealStrength * 0.32,
+                0.0,
+                1.0);
+            if (shearWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(6, seaLevel + Math.Max(5, config.RiparianPlugDepth + 3)));
+            int maxDepth = Math.Max(4, config.RiparianPlugDepth + 3);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, 2);
+                    if (slope < 4.0 && relief < 4.0)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrologyMask[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = flowMask[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    double shearPressure = Math.Clamp(
+                        (slope / 18.0) * 0.36 +
+                        (relief / 28.0) * 0.26 +
+                        hydro * 0.18 +
+                        seamFlow * 0.12 +
+                        river * 0.08,
+                        0.0,
+                        1.25);
+                    shearPressure *= shearWeight;
+                    if (shearPressure <= 0.2)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(topClamp, surface - 1);
+                    int bottom = Math.Max(1, top - maxDepth);
+                    int depthSpan = Math.Max(1, top - bottom);
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((top - y) / (double)depthSpan, 0.0, 1.0);
+                        double sealChance = shearPressure *
+                            (0.38 + depthFactor * 0.32 + roofThickness / (double)(maxDepth + 2) * 0.2);
+                        if (sealChance > 0.44 || (sealChance > 0.3 && hydro > 0.42 && flow > 0.35))
                         {
                             mask[x, y, z] = false;
                         }

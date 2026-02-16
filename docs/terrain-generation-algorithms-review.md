@@ -1,822 +1,291 @@
 # Terrain Generation Algorithms Review
-**Date:** 2026-01-10  
-**Status:** Complete
 
 ## Overview
-
-This document provides a comprehensive review of the improved terrain generation algorithms implemented for the Minecraft-like game project. All algorithms feature hydrology-aware carving, flow memory across chunk boundaries, and edge normalization for seamless terrain generation.
-
----
-
-## 1. ImprovedCaveGenerator
-
-### File Location
-`GameServer/World/Generation/ImprovedCaveGenerator.cs`
-
-### Status
-✅ **Well-implemented** - All dependencies verified and using statements correct.
-
-### Dependencies
-| Dependency | Location | Status |
-|------------|----------|--------|
-| `CaveConfig` | `GameServer/World/WorldGenerationConfig.cs` | ✅ Exists |
-| `TerrainMaskUtility` | `GameServer/World/Generation/ImprovedTerrainCoordinator.cs` | ✅ Exists |
-| `SimplexNoise` | `GameServer/Utils/SimplexNoise.cs` | ✅ Exists |
-| `PerlinNoise` | `GameServer/Utils/Noise.cs` | ✅ Exists |
-
-### Using Statements
-```csharp
-using System;                    // ✅ Standard library
-using GameServerApp.Utils;       // ✅ Verified
-using GameServerApp.World;       // ✅ Verified
-```
-
-### Key Features
-
-#### Hydrology-Aware Cave Generation
-- **Hydrology Stability Weight**: Suppresses cave generation in wet areas
-- **Flow Stability Weight**: Reduces cave density near water flow
-- **Roughness Stability Weight**: Adjusts cave roughness based on terrain
-- **River Suppression**: Prevents caves from intersecting rivers
-
-#### Flow Memory Across Chunk Boundaries
-- **Seam Sampling**: Samples interior values to ensure continuity
-- **Flow Gradient Calculation**: Measures flow differences across chunk edges
-- **Edge Seal Strength**: Seals chunk edges to prevent visible seams
-
-#### Edge Normalization
-- **Edge Falloff Calculation**: Reduces cave density near chunk edges
-- **Seam Stability**: Computes stability based on hydrology and flow gradients
-- **Edge Seal**: Randomly seals edge blocks based on seal strength
-
-#### Support Pillars
-- **Support Pillar Chance**: Controls pillar density
-- **Support Density**: Multiplies pillar chance
-- **Support Hydration Bias**: Increases pillar chance in wet areas
-- **Support Flow Bias**: Increases pillar chance near water flow
-
-#### Riparian Cave Plugging
-- **Riparian Plug Depth**: Controls how deep below sea level caves are plugged
-- **Wetness Threshold**: Minimum wetness for plugging
-
-#### Ceiling Moisture Clamping
-- **Ceiling Moisture Weight**: Controls ceiling moisture influence
-- **Ceiling Moisture Clamp**: Maximum ceiling moisture clamping
-
-### Configuration Parameters
-
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `HorizontalFrequency` | 0.0026 | 0.0001+ | Horizontal noise frequency |
-| `VerticalFrequency` | 0.018 | 0.0001+ | Vertical noise frequency |
-| `Threshold` | 0.42 | 0.22-0.8 | Cave generation threshold |
-| `HydrologyStabilityWeight` | 0.45 | 0.0-1.0 | Hydrology stability influence |
-| `FlowStabilityWeight` | 0.25 | 0.0-1.0 | Flow stability influence |
-| `RoughnessStabilityWeight` | 0.1 | 0.0-1.0 | Roughness stability influence |
-| `RiverSuppressionWeight` | 0.35 | 0.0-1.0 | River suppression strength |
-| `EdgeSealStrength` | 0.45 | 0.0-1.0 | Edge sealing strength |
-| `SupportPillarChance` | 0.28 | 0.0-1.0 | Support pillar chance |
-| `SupportHydrationBias` | 0.42 | 0.0+ | Hydration bias for pillars |
-| `SupportFlowBias` | 0.20 | 0.0+ | Flow bias for pillars |
-| `RiparianPlugDepth` | 2 | 0+ | Riparian plug depth |
-| `CeilingStabilityWeight` | 0.35 | 0.0-1.0 | Ceiling stability weight |
-| `CeilingMoistureWeight` | 0.28 | 0.0-1.0 | Ceiling moisture weight |
-| `CeilingMoistureClamp` | 0.35 | 0.0-1.0 | Ceiling moisture clamp |
-
-### Algorithm Summary
-
-1. **Initialize** with world seed and configuration
-2. **Build mask** by iterating through each column:
-   - Compute surface height
-   - Calculate hydrology, flow, and edge factors
-   - Compute seam stability and continuity
-   - Apply ceiling moisture clamping
-   - Generate 3D noise with domain warping
-   - Apply threshold with stability penalties
-3. **Post-process**:
-   - Smooth mask
-   - Plug riparian caves
-   - Add support columns
-   - Seal edges
+This document reviews the current terrain generation algorithms (caves, rivers, lakes) and identifies areas for improvement.
 
 ---
 
-## 2. ImprovedRiverGenerator
+## Cave Generation (ImprovedCaveGenerator.cs)
 
-### File Location
-`GameServer/World/Generation/ImprovedRiverGenerator.cs`
+### Current Implementation
+The cave generator is already highly sophisticated with:
+- Hydrology-aware cave suppression
+- Edge sealing for chunk boundaries
+- Support pillars biased toward saturated terrain
+- Multiple stability algorithms (14 different methods)
 
-### Status
-✅ **Well-implemented** - All dependencies verified and using statements correct.
+### Stability Algorithms Implemented
+1. **Floodplain Roof Arch Stability** - Prevents cave collapse in floodplains
+2. **Phreatic Seal** - Seals caves near water table
+3. **Karst Spring Continuity Seal** - Maintains spring continuity
+4. **Epikarst Recharge Seal** - Manages recharge zones
+5. **Hyporheic Vent Seal** - Controls hyporheic zone vents
+6. **Karst Ridge Collapse Guard** - Prevents ridge collapse
+7. **Moisture Channel Dampening** - Reduces moisture channels
+8. **Vadose Bypass Seal** - Seals vadose zone bypasses
+9. **Aquifer Continuity Seal** - Maintains aquifer continuity
+10. **Hydrology Seam Vault** - Manages hydrology seams
+11. **River/Lake Boundary Seal** - Seals boundaries near water bodies
+12. **Flooded Pocket Pruning** - Removes flooded pockets
+13. **Talus Buttress Stability** - Stabilizes talus slopes
+14. **Subsurface Shear Seal** - Seals subsurface shear zones
 
-### Dependencies
-| Dependency | Location | Status |
-|------------|----------|--------|
-| `WaterConfig` | `GameServer/World/WorldGenerationConfig.cs` | ✅ Exists |
-| `TerrainMaskUtility` | `GameServer/World/Generation/ImprovedTerrainCoordinator.cs` | ✅ Exists |
-| `SimplexNoise` | `GameServer/Utils/SimplexNoise.cs` | ✅ Exists |
+### Strengths
+- Comprehensive hydrology awareness
+- Multiple overlapping stability algorithms
+- Edge sealing for chunk boundaries
+- Configurable parameters
 
-### Using Statements
-```csharp
-using System;                    // ✅ Standard library
-using GameServerApp.Utils;       // ✅ Verified
-using GameServerApp.World;       // ✅ Verified
-```
+### Potential Improvements
+1. **Ceiling Guard Algorithm** - Add additional ceiling stability checks
+2. **Karst Collapse Prevention** - Enhance karst collapse detection
+3. **Cave Entrance Flow Dampening** - Improve entrance flow control
+4. **Performance Optimization** - Cache frequently computed values
 
-### Key Features
-
-#### Hydrology-Driven River Generation
-- **River Bank Threshold**: Controls river width
-- **River Noise Scale**: Controls river meander frequency
-- **River Depth**: Controls river channel depth
-
-#### Seam Feathering
-- **Edge Blend Radius**: Controls edge feathering radius
-- **Seam Relax Blend**: Controls seam relaxation strength
-- **Seam Fill Strength**: Controls seam filling strength
-
-#### Flow-Aware Width Modulation
-- **Flow Alignment Weight**: Aligns rivers with flow direction
-- **Flow Shadow Weight**: Reduces river width in flow shadows
-- **Flow Memory Weight**: Remembers flow across chunk boundaries
-
-#### Confluence Boost
-- **River Confluence Boost**: Boosts river width at tributary junctions
-
-#### Headwater Stability
-- **River Headwater Stability Weight**: Broadens shallow channels
-
-#### Delta Wetland Strength
-- **River Delta Wetland Strength**: Creates wetlands near river mouths
-
-### Configuration Parameters
-
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `RiverBankThreshold` | 0.028 | 0.0+ | River bank threshold |
-| `RiverNoiseScale` | 0.015 | 0.0001+ | River noise scale |
-| `RiverDepth` | 6 | 1+ | River depth |
-| `RiverIntensitySmoothIterations` | 3 | 0+ | Smooth iterations |
-| `RiverIntensitySmoothBlend` | 0.58 | 0.0-1.0 | Smooth blend |
-| `HydrologyFlowShadowWeight` | 0.45 | 0.0-1.0 | Flow shadow weight |
-| `HydrologyFlowShadowSlopeWeight` | 0.35 | 0.0-1.0 | Flow shadow slope weight |
-| `HydrologyWatershedStitchWeight` | 0.42 | 0.0-1.0 | Watershed stitch weight |
-| `HydrologyWatershedStitchRadius` | 2 | 1+ | Watershed stitch radius |
-| `HydrologyFlowMemoryWeight` | 0.35 | 0.0-1.0 | Flow memory weight |
-| `HydrologyEdgeNormalizationBlend` | 0.38 | 0.0-1.0 | Edge normalization blend |
-| `HydrologyEdgeBlendRadius` | 3 | 1+ | Edge blend radius |
-| `HydrologyEdgeStabilityWeight` | 0.32 | 0.0-1.0 | Edge stability weight |
-| `HydrologyEdgeFluxBlend` | 0.55 | 0.0-1.0 | Edge flux blend |
-| `RiverFlowAlignmentWeight` | 0.28 | 0.0-1.0 | Flow alignment weight |
-| `RiverGradientPenalty` | 0.42 | 0.0+ | Gradient penalty |
-| `RiverHeadwaterStabilityWeight` | 0.35 | 0.0-1.0 | Headwater stability weight |
-| `RiverAnisotropyWeight` | 0.32 | 0.0-1.0 | Anisotropy weight |
-| `RiverMeanderJitter` | 0.18 | 0.0+ | Meander jitter |
-| `RiverConfluenceBoost` | 0.35 | 0.0-2.0 | Confluence boost |
-| `RiverEdgeFeather` | 0.45 | 0.0-1.0 | Edge feather |
-| `RiverMouthSmoothRadius` | 3 | 0+ | Mouth smooth radius |
-| `RiverDeltaWetlandStrength` | 0.45 | 0.0+ | Delta wetland strength |
-| `RiverSeamFillStrength` | 0.5 | 0.0-1.0 | Seam fill strength |
-
-### Algorithm Summary
-
-1. **Initialize** with world seed and configuration
-2. **Build mask** by iterating through each cell:
-   - Generate base and meander noise
-   - Calculate hydrology and flow values
-   - Compute edge falloff and normalization
-   - Apply flow shadow and seam guard
-   - Calculate river pressure with modifiers
-   - Apply confluence boost if enabled
-   - Apply headwater stability
-   - Apply delta wetland strength
-   - Apply edge repair and normalization
-3. **Post-process**:
-   - Normalize edge bands
-   - Smooth intensity
-   - Apply directional smoothing
-   - Normalize edges
-   - Feather edges
+### Status: **IMPLEMENTED** (Session 85, v35)
 
 ---
 
-## 3. ImprovedLakeGenerator
+## River Generation (ImprovedRiverGenerator.cs)
 
-### File Location
-`GameServer/World/Generation/ImprovedLakeGenerator.cs`
+### Current Implementation
+The river generator is already highly sophisticated with:
+- Hydrology-driven river mask builder
+- Seam feathering for chunk boundaries
+- Flow-aware width modulation
+- Multiple bridge algorithms (12 different methods)
 
-### Status
-✅ **Well-implemented** - All dependencies verified and using statements correct.
+### Bridge Algorithms Implemented
+1. **Headwater Spring Bridge** - Maintains headwater springs
+2. **Flood Pulse Continuity Bridge** - Maintains flood pulse continuity
+3. **Anabranch Cutoff Damping** - Controls anabranch cutoffs
+4. **Distributary Levee Stability Bridge** - Stabilizes distributary levees
+5. **Estuary Convergence Bridge** - Manages estuary convergence
+6. **Avulsion Damping Bridge** - Controls avulsion events
+7. **Cross-Chunk Floodplain Bridge** - Maintains cross-chunk floodplains
+8. **Anabranch Stability Bridge** - Stabilizes anabranches
+9. **Tributary Convergence Lock** - Locks tributary convergence
+10. **Mouth Continuity Bridge** - Maintains river mouth continuity
+11. **Catchment Braiding Bridge** - Manages catchment braiding
+12. **Floodplain Meander Stability Bridge** - Stabilizes floodplain meanders
+13. **Alluvial Channel Anchor Bridge** - Anchors alluvial channels
 
-### Dependencies
-| Dependency | Location | Status |
-|------------|----------|--------|
-| `LakeConfig` | `GameServer/World/WorldGenerationConfig.cs` | ✅ Exists |
-| `WaterConfig` | `GameServer/World/WorldGenerationConfig.cs` | ✅ Exists |
-| `TerrainMaskUtility` | `GameServer/World/Generation/ImprovedTerrainCoordinator.cs` | ✅ Exists |
-| `SimplexNoise` | `GameServer/Utils/SimplexNoise.cs` | ✅ Exists |
+### Strengths
+- Comprehensive flow awareness
+- Multiple bridge algorithms for different river features
+- Seam feathering for smooth chunk boundaries
+- Configurable parameters
 
-### Using Statements
-```csharp
-using System;                    // ✅ Standard library
-using GameServerApp.Utils;       // ✅ Verified
-using GameServerApp.World;       // ✅ Verified
-```
+### Potential Improvements
+1. **Channel Lock Algorithm** - Add channel lock for straight river sections
+2. **Anchor Point System** - Add explicit anchor points for river features
+3. **Performance Optimization** - Cache flow calculations
+4. **River Width Variance** - Add more variance to river widths
 
-### Key Features
-
-#### Hydrology Blending
-- **Basin Noise**: Controls lake basin shape
-- **Rim Noise**: Controls lake rim shape
-- **Wetness Calculation**: Blends hydrology and flow
-
-#### Flow Seepage
-- **Flow Seepage Weight**: Controls water seepage into terrain
-- **Variance Weight**: Controls variance influence
-
-#### Outflow Channel Carving
-- **Outflow Carve Depth**: Controls outflow channel depth
-- **Outflow Stability Weight**: Controls outflow stability
-
-#### Wetland Buffer
-- **Wetland Buffer Radius**: Controls wetland buffer size
-- **Shoreline Blend**: Controls shoreline blending
-
-#### Shoreline Jitter
-- **Shoreline Blend**: Controls shoreline appearance
-
-### Configuration Parameters
-
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `MinDepth` | 3 | 0+ | Minimum lake depth |
-| `MaxDepth` | 9 | 0+ | Maximum lake depth |
-| `MaxRadius` | 9 | 0+ | Maximum lake radius |
-| `LakeBasinSmoothIterations` | 2 | 0+ | Basin smooth iterations |
-| `SpawnWeightBias` | 0.3 | 0.0+ | Spawn weight bias |
-| `ShorelineBlend` | 0.66 | 0.0-1.0 | Shoreline blend |
-| `RiverProximitySuppression` | 0.35 | 0.0+ | River proximity suppression |
-| `WetlandSaturationThreshold` | 0.55 | 0.0+ | Wetland saturation threshold |
-| `OutflowCarveDepth` | 2 | 0+ | Outflow carve depth |
-| `ShelfDepth` | 2 | 0+ | Shelf depth |
-| `WetlandBufferRadius` | 2 | 0+ | Wetland buffer radius |
-| `FlowSeepageWeight` | 0.25 | 0.0-1.0 | Flow seepage weight |
-| `VarianceWeight` | 0.25 | 0.0-1.0 | Variance weight |
-| `OutflowStabilityWeight` | 0.3 | 0.0-1.0 | Outflow stability weight |
-
-### Algorithm Summary
-
-1. **Initialize** with world seed and configuration
-2. **Build mask** by iterating through each cell:
-   - Generate basin and rim noise
-   - Calculate hydrology and flow values
-   - Compute wetness and rim weight
-   - Apply flow seepage and variance
-   - Apply slope and relief penalties
-   - Apply river suppression
-   - Compute outflow anchor
-   - Apply edge repair and normalization
-   - Apply wetland threshold
-3. **Post-process**:
-   - Normalize edge bands
-   - Smooth basin
-   - Stitch edges
-   - Fill basins
-   - Relax edges
-   - Normalize edges
-   - Apply wetland buffer
-   - Apply outflow channels
+### Status: **IMPLEMENTED** (Session 85, v39)
 
 ---
 
-## 4. TerrainMaskUtility
+## Lake Generation (ImprovedLakeGenerator.cs)
 
-### File Location
-`GameServer/World/Generation/ImprovedTerrainCoordinator.cs` (internal static class)
+### Current Implementation
+The lake generator is already highly sophisticated with:
+- Lake basin mask generator
+- Hydrology, flow, and river suppression blending
+- Multiple retention/overflow algorithms (12 different methods)
 
-### Status
-✅ **Well-implemented** - All utility methods verified.
+### Retention/Overflow Algorithms Implemented
+1. **Karst Overflow Retention Bridge** - Manages karst overflow
+2. **Oxbow Retention Anchor Bridge** - Anchors oxbow lakes
+3. **Spillback Bridge** - Controls spillback
+4. **Terrace Backfill Bridge** - Backfills terraces
+5. **Delta Backswamp Retention Bridge** - Manages delta backswamps
+6. **Lagoon Overflow Bridge** - Controls lagoon overflow
+7. **Backwater Retention Bridge** - Manages backwater retention
+8. **Spillway Erosion Damping** - Damps spillway erosion
+9. **Floodplain Terrace Bridge** - Creates floodplain terraces
+10. **Basin Retention Lock** - Locks basin retention
+11. **Lake Mouth Stability** - Stabilizes lake mouths
+12. **Catchment Spillway Stitch** - Stitches catchment spillways
+13. **Spillway Continuity** - Maintains spillway continuity
+14. **Wetland Leakage Clamp Bridge** - Clamps wetland leakage
 
-### Key Methods
+### Strengths
+- Comprehensive hydrology blending
+- Multiple retention/overflow algorithms
+- Lake shelves and wetland buffers
+- Outflow channels
 
-| Method | Description |
-|--------|-------------|
-| `Clamp01` | Clamps value to [0, 1] range |
-| `ComputeSlope` | Computes terrain slope at a position |
-| `Smooth2D` | Applies 2D smoothing to a field |
-| `DirectionalSmooth` | Applies directional smoothing along downhill vectors |
-| `StabilizeEdges` | Stabilizes edges by blending with interior values |
-| `ApplyRiparianBuffer` | Applies riparian buffer to wet areas |
-| `ApplyEdgeFlowLocks` | Locks flow along edge directions |
-| `ClampVariance` | Clamps variance to a maximum value |
-| `RelaxEdges` | Relaxes edge values |
-| `StitchEdges` | Stitches edges with interior values |
-| `FillBasins` | Fills basins to create continuous surfaces |
-| `ApplyFlowShadow` | Applies flow shadow to hydrology and flow |
-| `SampleInterior` | Samples interior values (3x3 average) |
-| `BlendInterior` | Blends field with interior values |
-| `ApplyGradientStability` | Applies gradient-based stability |
-| `BlendWatershedEdges` | Blends watershed edges |
-| `NormalizeEdgeBands` | Normalizes edge bands |
-| `NormalizeEdges` | Normalizes edges through iterations |
-| `SampleVariance` | Samples variance in a radius |
-| `ComputeDownhillVector` | Computes downhill flow vector |
+### Potential Improvements
+1. **Overflow Prevention Algorithm** - Enhance overflow prevention
+2. **Retention Logic Enhancement** - Improve retention calculations
+3. **Performance Optimization** - Cache lake basin calculations
+4. **Lake Depth Variance** - Add more variance to lake depths
 
----
-
-## 5. ImprovedTerrainCoordinator
-
-### File Location
-`GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
-
-### Status
-✅ **Well-implemented** - All dependencies verified and using statements correct.
-
-### Using Statements
-```csharp
-using System;                    // ✅ Standard library
-using GameServerApp;             // ✅ Verified
-using GameServerApp.World;       // ✅ Verified
-using GameServerApp.Utils;       // ✅ Verified
-```
-
-### Key Features
-
-#### Hydrology Mask Generation
-- **Water Table Clamping**: Clamps water table to a range
-- **Slope Penalty**: Reduces hydrology on steep slopes
-- **Gradient Weight**: Controls gradient influence
-- **Curvature Weight**: Controls curvature influence
-- **Edge Normalization**: Normalizes edges for seamless chunks
-
-#### Flow Accumulation Generation
-- **Flow Persistence**: Controls flow persistence
-- **Divergence Clamp**: Clamps flow divergence
-- **Continuity Weight**: Controls flow continuity
-- **Meander Noise**: Adds meander noise to flow
-
-#### Flow Memory Application
-- **Memory Weight**: Controls flow memory strength
-- **Watershed Blend**: Blends watershed edges
-- **Flow Shadow**: Reduces flow in shadow areas
-
-#### Hydrology-Flow Blending
-- **Flow Blend**: Controls hydrology-flow blending
-- **Edge Blend**: Controls edge blending
-- **Confluence Boost**: Boosts at confluence points
-- **Directional Bias**: Adds directional bias
-
-#### Edge Normalization
-- **Normalization Blend**: Controls normalization strength
-- **Memory Weight**: Controls memory influence
-- **Iterations**: Number of normalization iterations
-
-#### Surface Harmonization
-- **Edge Clamp**: Clamps edge variance
-- **Gradient Weight**: Controls gradient influence
-- **Stability Weight**: Controls stability influence
-- **Flow Persistence**: Controls flow persistence
-- **Flow Seepage**: Controls flow seepage
-
-### Algorithm Summary
-
-1. **Initialize** with world seed and configuration
-2. **Generate masks**:
-   - Build hydrology mask
-   - Build flow accumulation
-   - Apply flow memory
-   - Blend hydrology with flow
-   - Normalize hydrology-flow edges
-   - Harmonize hydrology with surface
-3. **Generate terrain features**:
-   - Generate river mask
-   - Generate lake mask
-   - Generate cave mask
-4. **Return** terrain mask result
+### Status: **IMPLEMENTED** (Session 85, v35)
 
 ---
 
-## 6. WorldGenerationConfig
+## Overall Assessment
 
-### File Location
-`GameServer/World/WorldGenerationConfig.cs`
+### Strengths
+1. All three generators are highly sophisticated
+2. Comprehensive hydrology awareness
+3. Multiple overlapping algorithms for stability
+4. Configurable parameters
+5. Edge handling for chunk boundaries
+6. Well-documented code
 
-### Status
-✅ **Well-implemented** - All configuration classes verified.
+### Areas for Improvement
+1. **Performance Optimization** - Cache frequently computed values
+2. **Algorithm Refinement** - Minor refinements to existing algorithms
+3. **Additional Features** - Add ceiling guard, channel lock, overflow prevention
+4. **Testing** - Add comprehensive unit tests
+5. **Documentation** - Enhance algorithm documentation
 
-### Configuration Classes
-
-#### WorldGenerationConfig
-- **SourcePath**: Path to world configuration file
-- **MapControlProfilePath**: Path to map control profile file
-- **MapControlProfileVersion**: Map control profile version
-- **WorldName**: World name
-- **Seed**: World seed
-- **TerrainGeneration**: Terrain generation settings
-- **ChunkSize**: Chunk size
-- **RenderDistance**: Render distance
-- **SimulationDistance**: Simulation distance
-- **WorldHeight**: World height
-- **Water**: Water configuration
-- **Caves**: Cave configuration
-- **Lakes**: Lake configuration
-
-#### TerrainGenerationConfig
-- **SeaLevel**: Sea level
-- **BedrockLevel**: Bedrock level
-- **NoiseScale**: Noise scale
-- **NoiseAmplitude**: Noise amplitude
-- **Octaves**: Number of octaves
-- **Persistence**: Persistence value
-- **Lacunarity**: Lacunarity value
-- **BiomeScale**: Biome scale
-- **TemperatureScale**: Temperature scale
-- **HumidityScale**: Humidity scale
-- **MountainThreshold**: Mountain threshold
-- **MountainMaxHeight**: Maximum mountain height
-- **PlainBaseHeight**: Plain base height
-
-#### WaterConfig
-- **GlobalWaterLevel**: Global water level
-- **RiverCenterThreshold**: River center threshold
-- **RiverBankThreshold**: River bank threshold
-- **RiverNoiseScale**: River noise scale
-- **RiverDepth**: River depth
-- **RiverIntensitySmoothIterations**: River smooth iterations
-- **RiverIntensitySmoothBlend**: River smooth blend
-- **HydrologySmoothIterations**: Hydrology smooth iterations
-- **HydrologySmoothBlend**: Hydrology smooth blend
-- **HydrologyShorePush**: Hydrology shore push
-- **HydrologySlopePenalty**: Hydrology slope penalty
-- **HydrologyFlowGain**: Hydrology flow gain
-- **HydrologyFlowShadowWeight**: Flow shadow weight
-- **HydrologyFlowShadowSlopeWeight**: Flow shadow slope weight
-- **HydrologyContinuityWeight**: Hydrology continuity weight
-- **HydrologyEdgeFlowBias**: Edge flow bias
-- **HydrologyEdgeTangentWeight**: Edge tangent weight
-- **HydrologyEdgeFlowLockWeight**: Edge flow lock weight
-- **HydrologyEdgeBlendRadius**: Edge blend radius
-- **HydrologyWatershedStitchWeight**: Watershed stitch weight
-- **HydrologyWatershedStitchRadius**: Watershed stitch radius
-- **HydrologyEdgeStabilityIterations**: Edge stability iterations
-- **HydrologyEdgeStabilityWeight**: Edge stability weight
-- **HydrologyEdgeVarianceClamp**: Edge variance clamp
-- **HydrologyEdgeFluxBlend**: Edge flux blend
-- **HydrologyVarianceBlend**: Variance blend
-- **HydrologyVarianceClamp**: Variance clamp
-- **HydrologyEdgeNormalizationBlend**: Edge normalization blend
-- **HydrologyEdgeNormalizationIterations**: Edge normalization iterations
-- **HydrologyFlowMemoryWeight**: Flow memory weight
-- **HydrologyWaterTableClampWeight**: Water table clamp weight
-- **HydrologyWaterTableClampRange**: Water table clamp range
-- **HydrologyWaterTableSlopeWeight**: Water table slope weight
-- **HydrologyFlowPersistence**: Flow persistence
-- **HydrologyGradientWeight**: Gradient weight
-- **HydrologyGradientSlopeWeight**: Gradient slope weight
-- **HydrologyGradientClamp**: Gradient clamp
-- **HydrologyGradientStabilityIterations**: Gradient stability iterations
-- **HydrologyGradientStabilityBlend**: Gradient stability blend
-- **HydrologyDirectionalIterations**: Directional iterations
-- **HydrologyDirectionalBlend**: Directional blend
-- **HydrologyFlowDivergenceClamp**: Flow divergence clamp
-- **HydrologyCurvatureWeight**: Curvature weight
-- **HydrologySeamRelaxIterations**: Seam relax iterations
-- **HydrologySeamRelaxBlend**: Seam relax blend
-- **RiverBankErosionWeight**: River bank erosion weight
-- **LakeRimErosionWeight**: Lake rim erosion weight
-- **RiverReliefPenaltyWeight**: River relief penalty weight
-- **HydrologyWarpFrequency**: Hydrology warp frequency
-- **HydrologyWarpAmplitude**: Hydrology warp amplitude
-- **RiparianSmoothIterations**: Riparian smooth iterations
-- **RiparianSmoothBlend**: Riparian smooth blend
-- **RiparianSaturationBoost**: Riparian saturation boost
-- **RiparianBufferRadius**: Riparian buffer radius
-- **RiverFlowAlignmentWeight**: River flow alignment weight
-- **RiverGradientPenalty**: River gradient penalty
-- **RiverHeadwaterStabilityWeight**: River headwater stability weight
-- **RiverAnisotropyWeight**: River anisotropy weight
-- **RiverMeanderJitter**: River meander jitter
-- **LakeInflowBlendWeight**: Lake inflow blend weight
-- **RiverConfluenceBoost**: River confluence boost
-- **RiverEdgeFeather**: River edge feather
-- **RiverMouthSmoothRadius**: River mouth smooth radius
-- **RiverDeltaWetlandStrength**: River delta wetland strength
-- **RiverSeamFillStrength**: River seam fill strength
-- **EnableRivers**: Enable rivers
-- **EnableLakes**: Enable lakes
-- **UseImprovedRivers**: Use improved rivers
-- **UseImprovedLakes**: Use improved lakes
-
-#### CaveConfig
-- **EnableCaves**: Enable caves
-- **UseImprovedCaves**: Use improved caves
-- **UseRegionalMainCaves**: Use regional main caves
-- **RegionalMainCaveRegionSizeChunks**: Regional main cave region size
-- **RegionalMainCaveWormCountMin**: Regional main cave worm count min
-- **RegionalMainCaveWormCountMax**: Regional main cave worm count max
-- **RegionalMainCaveStepsMin**: Regional main cave steps min
-- **RegionalMainCaveStepsMax**: Regional main cave steps max
-- **RegionalMainCaveMinY**: Regional main cave min Y
-- **RegionalMainCaveMaxY**: Regional main cave max Y
-- **RegionalMainCaveRadiusMin**: Regional main cave radius min
-- **RegionalMainCaveRadiusMax**: Regional main cave radius max
-- **HorizontalFrequency**: Horizontal frequency
-- **VerticalFrequency**: Vertical frequency
-- **Threshold**: Cave threshold
-- **NoiseThreshold**: Noise threshold (alias)
-- **CaveThreshold**: Cave threshold (alias)
-- **LavaThreshold**: Lava threshold
-- **WaterThreshold**: Water threshold
-- **FloodedCaveNoiseFrequency**: Flooded cave noise frequency
-- **FloodedCaveProximityToWaterTableWeight**: Flooded cave proximity to water table weight
-- **FloodedCaveThreshold**: Flooded cave threshold
-- **StabilitySmoothIterations**: Stability smooth iterations
-- **StabilitySmoothBlend**: Stability smooth blend
-- **SupportDensity**: Support density
-- **HydrologyStabilityWeight**: Hydrology stability weight
-- **FlowStabilityWeight**: Flow stability weight
-- **RoughnessStabilityWeight**: Roughness stability weight
-- **RiverSuppressionWeight**: River suppression weight
-- **SupportHydrationBias**: Support hydration bias
-- **SupportFlowBias**: Support flow bias
-- **MoistureRetentionWeight**: Moisture retention weight
-- **EdgeSealStrength**: Edge seal strength
-- **SupportPillarChance**: Support pillar chance
-- **RiparianPlugDepth**: Riparian plug depth
-- **CeilingStabilityWeight**: Ceiling stability weight
-- **CeilingMoistureWeight**: Ceiling moisture weight
-- **CeilingMoistureClamp**: Ceiling moisture clamp
-
-#### LakeConfig
-- **MinDepth**: Minimum depth
-- **MaxDepth**: Maximum depth
-- **MaxRadius**: Maximum radius
-- **LakeBasinSmoothIterations**: Lake basin smooth iterations
-- **SpawnWeightBias**: Spawn weight bias
-- **ShorelineBlend**: Shoreline blend
-- **RiverProximitySuppression**: River proximity suppression
-- **WetlandSaturationThreshold**: Wetland saturation threshold
-- **OutflowCarveDepth**: Outflow carve depth
-- **ShelfDepth**: Shelf depth
-- **WetlandBufferRadius**: Wetland buffer radius
-- **FlowSeepageWeight**: Flow seepage weight
-- **VarianceWeight**: Variance weight
-- **OutflowStabilityWeight**: Outflow stability weight
+### Priority Recommendations
+1. **High Priority**: Performance optimization (caching)
+2. **Medium Priority**: Algorithm refinements
+3. **Low Priority**: Additional features
+4. **Ongoing**: Testing and documentation
 
 ---
 
-## Summary
+## Configuration Parameters
 
-### Overall Assessment
-✅ **All terrain generation algorithms are well-implemented** with:
-- Proper hydrology-aware carving
-- Flow memory across chunk boundaries
-- Edge normalization for seamless terrain
-- Comprehensive configuration options
-- Verified dependencies and using statements
+### Cave Configuration (CaveConfig)
+- HorizontalFrequency
+- VerticalFrequency
+- Threshold
+- StabilitySmoothIterations
+- StabilitySmoothBlend
+- EdgeSealStrength
+- HydrologyStabilityWeight
+- FlowStabilityWeight
+- RoughnessStabilityWeight
+- CeilingMoistureWeight
+- CeilingMoistureClamp
+- FloodedCaveNoiseFrequency
+- FloodedCaveThreshold
+- FloodedCaveProximityToWaterTableWeight
+- LavaThreshold
+- WaterThreshold
+- MoistureFlowClamp
+- AquiferBarrierWeight
+- RiparianPlugDepth
+- SupportPillarChance
+- SupportDensity
+- SupportHydrationBias
+- SupportFlowBias
+- CaveEntranceFlowDampening
+- RiparianCaveGuardWeight
+- RiverSuppressionWeight
+- MoistureRetentionWeight
 
-### Key Strengths
-1. **Hydrology-Aware**: All algorithms consider hydrology and flow for realistic terrain
-2. **Edge Normalization**: Comprehensive edge handling for seamless chunks
-3. **Flow Memory**: Flow values persist across chunk boundaries
-4. **Data-Driven**: All parameters configurable via JSON
-5. **Well-Documented**: Clear code comments and structure
+### River Configuration (WaterConfig - River)
+- RiverNoiseScale
+- RiverReliefPenaltyWeight
+- RiverConfluenceBoost
+- RiverDepth
+- RiverBankErosionWeight
+- RiverAnisotropyDamping
+- RiverBankStabilityClamp
+- RiverMeanderJitter
+- RiverAnisotropyWeight
+- RiverGradientPenalty
+- RiverDeltaWetlandStrength
+- RiverEdgeContinuityWeight
+- RiverEdgeFeather
+- RiverSeamFillStrength
+- RiverMouthSmoothRadius
+- RiverFlowAlignmentWeight
+- RiverBraidingWeight
+- LakeInflowBlendWeight
+- LakeRimErosionWeight
 
-### Recommendations
-1. ✅ No changes needed - algorithms are well-implemented
-2. ✅ All dependencies verified and using statements correct
-3. ✅ Configuration parameters are comprehensive and well-tuned
-4. ✅ Edge normalization is properly implemented
-5. ✅ Flow memory is correctly applied
-
-### Next Steps
-- Review world map control architecture
-- Review protobuf packet protocol usage
-- Verify all using statements across the project
-- Run compilation tests
-- Update documentation
-#### Surface Harmonization
-- **Edge Clamp**: Clamps edge variance
-- **Gradient Weight**: Controls gradient influence
-- **Stability Weight**: Controls stability influence
-- **Flow Persistence**: Controls flow persistence
-- **Flow Seepage**: Controls flow seepage
-
-### Algorithm Summary
-
-1. **Initialize** with world seed and configuration
-2. **Generate masks**:
-   - Build hydrology mask
-   - Build flow accumulation
-   - Apply flow memory
-   - Blend hydrology with flow
-   - Normalize hydrology-flow edges
-   - Harmonize hydrology with surface
-3. **Generate terrain features**:
-   - Generate river mask
-   - Generate lake mask
-   - Generate cave mask
-4. **Return** terrain mask result
-
----
-
-## 6. WorldGenerationConfig
-
-### File Location
-`GameServer/World/WorldGenerationConfig.cs`
-
-### Status
-✅ **Well-implemented** - All configuration classes verified.
-
-### Configuration Classes
-
-#### WorldGenerationConfig
-- **SourcePath**: Path to world configuration file
-- **MapControlProfilePath**: Path to map control profile file
-- **MapControlProfileVersion**: Map control profile version
-- **WorldName**: World name
-- **Seed**: World seed
-- **TerrainGeneration**: Terrain generation settings
-- **ChunkSize**: Chunk size
-- **RenderDistance**: Render distance
-- **SimulationDistance**: Simulation distance
-- **WorldHeight**: World height
-- **Water**: Water configuration
-- **Caves**: Cave configuration
-- **Lakes**: Lake configuration
-
-#### TerrainGenerationConfig
-- **SeaLevel**: Sea level
-- **BedrockLevel**: Bedrock level
-- **NoiseScale**: Noise scale
-- **NoiseAmplitude**: Noise amplitude
-- **Octaves**: Number of octaves
-- **Persistence**: Persistence value
-- **Lacunarity**: Lacunarity value
-- **BiomeScale**: Biome scale
-- **TemperatureScale**: Temperature scale
-- **HumidityScale**: Humidity scale
-- **MountainThreshold**: Mountain threshold
-- **MountainMaxHeight**: Maximum mountain height
-- **PlainBaseHeight**: Plain base height
-
-#### WaterConfig
-- **GlobalWaterLevel**: Global water level
-- **RiverCenterThreshold**: River center threshold
-- **RiverBankThreshold**: River bank threshold
-- **RiverNoiseScale**: River noise scale
-- **RiverDepth**: River depth
-- **RiverIntensitySmoothIterations**: River smooth iterations
-- **RiverIntensitySmoothBlend**: River smooth blend
-- **HydrologySmoothIterations**: Hydrology smooth iterations
-- **HydrologySmoothBlend**: Hydrology smooth blend
-- **HydrologyShorePush**: Hydrology shore push
-- **HydrologySlopePenalty**: Hydrology slope penalty
-- **HydrologyFlowGain**: Hydrology flow gain
-- **HydrologyFlowShadowWeight**: Flow shadow weight
-- **HydrologyFlowShadowSlopeWeight**: Flow shadow slope weight
-- **HydrologyContinuityWeight**: Hydrology continuity weight
-- **HydrologyEdgeFlowBias**: Edge flow bias
-- **HydrologyEdgeTangentWeight**: Edge tangent weight
-- **HydrologyEdgeFlowLockWeight**: Edge flow lock weight
-- **HydrologyEdgeBlendRadius**: Edge blend radius
-- **HydrologyWatershedStitchWeight**: Watershed stitch weight
-- **HydrologyWatershedStitchRadius**: Watershed stitch radius
-- **HydrologyEdgeStabilityIterations**: Edge stability iterations
-- **HydrologyEdgeStabilityWeight**: Edge stability weight
-- **HydrologyEdgeVarianceClamp**: Edge variance clamp
-- **HydrologyEdgeFluxBlend**: Edge flux blend
-- **HydrologyVarianceBlend**: Variance blend
-- **HydrologyVarianceClamp**: Variance clamp
-- **HydrologyEdgeNormalizationBlend**: Edge normalization blend
-- **HydrologyEdgeNormalizationIterations**: Edge normalization iterations
-- **HydrologyFlowMemoryWeight**: Flow memory weight
-- **HydrologyWaterTableClampWeight**: Water table clamp weight
-- **HydrologyWaterTableClampRange**: Water table clamp range
-- **HydrologyWaterTableSlopeWeight**: Water table slope weight
-- **HydrologyFlowPersistence**: Flow persistence
-- **HydrologyGradientWeight**: Gradient weight
-- **HydrologyGradientSlopeWeight**: Gradient slope weight
-- **HydrologyGradientClamp**: Gradient clamp
-- **HydrologyGradientStabilityIterations**: Gradient stability iterations
-- **HydrologyGradientStabilityBlend**: Gradient stability blend
-- **HydrologyDirectionalIterations**: Directional iterations
-- **HydrologyDirectionalBlend**: Directional blend
-- **HydrologyFlowDivergenceClamp**: Flow divergence clamp
-- **HydrologyCurvatureWeight**: Curvature weight
-- **HydrologySeamRelaxIterations**: Seam relax iterations
-- **HydrologySeamRelaxBlend**: Seam relax blend
-- **RiverBankErosionWeight**: River bank erosion weight
-- **LakeRimErosionWeight**: Lake rim erosion weight
-- **RiverReliefPenaltyWeight**: River relief penalty weight
-- **HydrologyWarpFrequency**: Hydrology warp frequency
-- **HydrologyWarpAmplitude**: Hydrology warp amplitude
-- **RiparianSmoothIterations**: Riparian smooth iterations
-- **RiparianSmoothBlend**: Riparian smooth blend
-- **RiparianSaturationBoost**: Riparian saturation boost
-- **RiparianBufferRadius**: Riparian buffer radius
-- **RiverFlowAlignmentWeight**: River flow alignment weight
-- **RiverGradientPenalty**: River gradient penalty
-- **RiverHeadwaterStabilityWeight**: River headwater stability weight
-- **RiverAnisotropyWeight**: River anisotropy weight
-- **RiverMeanderJitter**: River meander jitter
-- **LakeInflowBlendWeight**: Lake inflow blend weight
-- **RiverConfluenceBoost**: River confluence boost
-- **RiverEdgeFeather**: River edge feather
-- **RiverMouthSmoothRadius**: River mouth smooth radius
-- **RiverDeltaWetlandStrength**: River delta wetland strength
-- **RiverSeamFillStrength**: River seam fill strength
-- **EnableRivers**: Enable rivers
-- **EnableLakes**: Enable lakes
-- **UseImprovedRivers**: Use improved rivers
-- **UseImprovedLakes**: Use improved lakes
-
-#### CaveConfig
-- **EnableCaves**: Enable caves
-- **UseImprovedCaves**: Use improved caves
-- **UseRegionalMainCaves**: Use regional main caves
-- **RegionalMainCaveRegionSizeChunks**: Regional main cave region size
-- **RegionalMainCaveWormCountMin**: Regional main cave worm count min
-- **RegionalMainCaveWormCountMax**: Regional main cave worm count max
-- **RegionalMainCaveStepsMin**: Regional main cave steps min
-- **RegionalMainCaveStepsMax**: Regional main cave steps max
-- **RegionalMainCaveMinY**: Regional main cave min Y
-- **RegionalMainCaveMaxY**: Regional main cave max Y
-- **RegionalMainCaveRadiusMin**: Regional main cave radius min
-- **RegionalMainCaveRadiusMax**: Regional main cave radius max
-- **HorizontalFrequency**: Horizontal frequency
-- **VerticalFrequency**: Vertical frequency
-- **Threshold**: Cave threshold
-- **NoiseThreshold**: Noise threshold (alias)
-- **CaveThreshold**: Cave threshold (alias)
-- **LavaThreshold**: Lava threshold
-- **WaterThreshold**: Water threshold
-- **FloodedCaveNoiseFrequency**: Flooded cave noise frequency
-- **FloodedCaveProximityToWaterTableWeight**: Flooded cave proximity to water table weight
-- **FloodedCaveThreshold**: Flooded cave threshold
-- **StabilitySmoothIterations**: Stability smooth iterations
-- **StabilitySmoothBlend**: Stability smooth blend
-- **SupportDensity**: Support density
-- **HydrologyStabilityWeight**: Hydrology stability weight
-- **FlowStabilityWeight**: Flow stability weight
-- **RoughnessStabilityWeight**: Roughness stability weight
-- **RiverSuppressionWeight**: River suppression weight
-- **SupportHydrationBias**: Support hydration bias
-- **SupportFlowBias**: Support flow bias
-- **MoistureRetentionWeight**: Moisture retention weight
-- **EdgeSealStrength**: Edge seal strength
-- **SupportPillarChance**: Support pillar chance
-- **RiparianPlugDepth**: Riparian plug depth
-- **CeilingStabilityWeight**: Ceiling stability weight
-- **CeilingMoistureWeight**: Ceiling moisture weight
-- **CeilingMoistureClamp**: Ceiling moisture clamp
-
-#### LakeConfig
-- **MinDepth**: Minimum depth
-- **MaxDepth**: Maximum depth
-- **MaxRadius**: Maximum radius
-- **LakeBasinSmoothIterations**: Lake basin smooth iterations
-- **SpawnWeightBias**: Spawn weight bias
-- **ShorelineBlend**: Shoreline blend
-- **RiverProximitySuppression**: River proximity suppression
-- **WetlandSaturationThreshold**: Wetland saturation threshold
-- **OutflowCarveDepth**: Outflow carve depth
-- **ShelfDepth**: Shelf depth
-- **WetlandBufferRadius**: Wetland buffer radius
-- **FlowSeepageWeight**: Flow seepage weight
-- **VarianceWeight**: Variance weight
-- **OutflowStabilityWeight**: Outflow stability weight
+### Lake Configuration (LakeConfig)
+- MinDepth
+- MaxDepth
+- MaxRadius
+- ShelfDepth
+- SpawnWeightBias
+- VarianceWeight
+- WetlandBufferRadius
+- ShorelineBlend
+- WetlandSaturationThreshold
+- FlowSeepageWeight
+- OutflowSealWeight
+- OutflowStabilityWeight
+- LakeOutflowTaper
+- SpillwayContinuityWeight
+- OutflowCarveDepth
+- RiverProximitySuppression
 
 ---
 
-## Summary
+## Dependencies
 
-### Overall Assessment
-✅ **All terrain generation algorithms are well-implemented** with:
-- Proper hydrology-aware carving
-- Flow memory across chunk boundaries
-- Edge normalization for seamless terrain
-- Comprehensive configuration options
-- Verified dependencies and using statements
+### Cave Generator Depends On
+- SimplexNoise
+- PerlinNoise
+- TerrainMaskUtility
+- CaveConfig
+- WaterConfig
 
-### Key Strengths
-1. **Hydrology-Aware**: All algorithms consider hydrology and flow for realistic terrain
-2. **Edge Normalization**: Comprehensive edge handling for seamless chunks
-3. **Flow Memory**: Flow values persist across chunk boundaries
-4. **Data-Driven**: All parameters configurable via JSON
-5. **Well-Documented**: Clear code comments and structure
+### River Generator Depends On
+- SimplexNoise
+- TerrainMaskUtility
+- WaterConfig
 
-### Recommendations
-1. ✅ No changes needed - algorithms are well-implemented
-2. ✅ All dependencies verified and using statements correct
-3. ✅ Configuration parameters are comprehensive and well-tuned
-4. ✅ Edge normalization is properly implemented
-5. ✅ Flow memory is correctly applied
+### Lake Generator Depends On
+- SimplexNoise
+- TerrainMaskUtility
+- LakeConfig
+- WaterConfig
 
-### Next Steps
-- Review world map control architecture
-- Review protobuf packet protocol usage
-- Verify all using statements across the project
-- Run compilation tests
-- Update documentation
+---
 
+## Integration Points
+
+### Terrain Generation Pipeline
+All three generators are integrated into the EnhancedTerrainGenerationPipeline:
+1. Heightmap generation
+2. Hydrology mask generation
+3. Flow accumulation calculation
+4. River mask generation
+5. Lake mask generation
+6. Cave mask generation
+7. Block population
+
+### World Map Control
+The WorldMapControlManager uses the EnhancedTerrainGenerationPipeline to generate preview chunks for the world map.
+
+---
+
+## Testing Recommendations
+
+### Unit Tests
+1. Test each stability/bridge algorithm independently
+2. Test edge handling
+3. Test parameter sensitivity
+4. Test hydrology awareness
+
+### Integration Tests
+1. Test all three generators together
+2. Test with different world seeds
+3. Test chunk boundary handling
+4. Test performance with large worlds
+
+### Performance Tests
+1. Measure generation time per chunk
+2. Measure memory usage
+3. Test with multiple concurrent generations
+4. Test cache effectiveness
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-02-16 | Initial review document created |

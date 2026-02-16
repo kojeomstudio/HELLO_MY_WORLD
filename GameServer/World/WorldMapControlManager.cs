@@ -160,13 +160,23 @@ namespace GameServerApp.World
             var profile = GetOrCreateProfile(request.PlayerId);
             var updates = request.ChunkUpdates ?? new List<ChunkUpdate>();
             var chunkList = new List<ChunkData>();
+            int chunkSize = Math.Max(1, currentProfile.ChunkSize);
+            int playerChunkX = (int)Math.Floor(request.PlayerX / chunkSize);
+            int playerChunkZ = (int)Math.Floor(request.PlayerZ / chunkSize);
+            int maxUpdateCount = Math.Max(64, settings.UpdateBatchSize * Math.Max(1, settings.QueuePressureFactor));
+            var prioritizedUpdates = WorldMapQueuePolicy.PrioritizeByDistance(
+                playerChunkX,
+                playerChunkZ,
+                updates.Select(update => new ChunkCoordinate(update.ChunkX, update.ChunkZ)),
+                maxUpdateCount);
 
-            foreach (var update in updates)
+            foreach (var update in prioritizedUpdates)
             {
-                var chunk = await GenerateOrGetChunkAsync(update.ChunkX, update.ChunkZ);
+                var chunk = await GenerateOrGetChunkAsync(update.X, update.Z);
                 chunkList.Add(chunk);
             }
 
+            profile.LastPosition = new PlayerPosition { X = request.PlayerX, Y = request.PlayerY, Z = request.PlayerZ };
             profile.LastUpdateTime = DateTime.UtcNow;
 
             return new WorldMapResponse

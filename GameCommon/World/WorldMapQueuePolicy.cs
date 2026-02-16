@@ -130,6 +130,48 @@ namespace GameCommon.World
                 .Select(entry => entry.Coordinate)
                 .ToArray();
         }
+
+        /// <summary>
+        /// Reorders a coordinate set by distance to the supplied center.
+        /// Duplicate coordinates are removed deterministically.
+        /// </summary>
+        public static IReadOnlyList<ChunkCoordinate> PrioritizeByDistance(
+            int centerX,
+            int centerZ,
+            IEnumerable<ChunkCoordinate> coordinates,
+            int maxCount = 0)
+        {
+            if (coordinates == null)
+            {
+                return Array.Empty<ChunkCoordinate>();
+            }
+
+            var deduplicated = coordinates
+                .Distinct()
+                .Select(coordinate =>
+                {
+                    int dx = coordinate.X - centerX;
+                    int dz = coordinate.Z - centerZ;
+                    int manhattan = Math.Abs(dx) + Math.Abs(dz);
+                    int dist2 = dx * dx + dz * dz;
+                    return (Coordinate: coordinate, Manhattan: manhattan, Dist2: dist2);
+                })
+                .OrderBy(entry => entry.Manhattan)
+                .ThenBy(entry => entry.Dist2)
+                .ThenBy(entry => entry.Coordinate.X)
+                .ThenBy(entry => entry.Coordinate.Z);
+
+            if (maxCount > 0)
+            {
+                return deduplicated
+                    .Take(maxCount)
+                    .Select(entry => entry.Coordinate)
+                    .ToArray();
+            }
+
+            return deduplicated
+                .Select(entry => entry.Coordinate)
+                .ToArray();
+        }
     }
 }
-

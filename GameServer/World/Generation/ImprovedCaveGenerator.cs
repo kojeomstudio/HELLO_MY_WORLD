@@ -329,6 +329,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainRoofArchStability(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyTalusButtressStability(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
             ApplySubsurfaceShearSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyLithifiedRoofBridge(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
             return mask;
         }
 
@@ -1682,6 +1683,98 @@ namespace GameServerApp.World.Generation
                         double sealChance = shearPressure *
                             (0.38 + depthFactor * 0.32 + roofThickness / (double)(maxDepth + 2) * 0.2);
                         if (sealChance > 0.44 || (sealChance > 0.3 && hydro > 0.42 && flow > 0.35))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyLithifiedRoofBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            float[,] erosionRisk,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.CeilingStabilityWeight * 0.4 +
+                config.AquiferBarrierWeight * 0.34 +
+                config.RiverSuppressionWeight * 0.26,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(6, seaLevel + Math.Max(4, config.RiparianPlugDepth + 2)));
+            int maxDepth = Math.Max(4, config.RiparianPlugDepth + 4);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = hydrologyMask[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = flowMask[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    double erosion = Math.Clamp(erosionRisk[x, z], 0.0f, 1.0f);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, 2);
+                    double wetness = Math.Clamp(
+                        hydro * 0.3 + seamHydro * 0.22 + flow * 0.2 + seamFlow * 0.16 + river * 0.12,
+                        0.0,
+                        1.25);
+                    if (wetness < 0.28 && erosion < 0.22 && slope < 5.5)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(topClamp, surface - 1);
+                    int bottom = Math.Max(1, top - maxDepth);
+                    int depthSpan = Math.Max(1, top - bottom);
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        int openNeighbours = 0;
+                        if (mask[x - 1, y, z]) openNeighbours++;
+                        if (mask[x + 1, y, z]) openNeighbours++;
+                        if (mask[x, y, z - 1]) openNeighbours++;
+                        if (mask[x, y, z + 1]) openNeighbours++;
+
+                        double continuity = openNeighbours / 4.0;
+                        double thinRoofRisk = roofThickness <= 2
+                            ? 1.0
+                            : roofThickness <= 4
+                                ? 0.55
+                                : 0.2;
+                        double depthFactor = 1.0 - Math.Clamp((top - y) / (double)depthSpan, 0.0, 1.0);
+                        double slopePressure = Math.Clamp(slope / 20.0 + relief / 36.0, 0.0, 1.0);
+                        double sealChance = bridgeWeight *
+                            (wetness * 0.34 + erosion * 0.24 + slopePressure * 0.2 + thinRoofRisk * 0.12 + continuity * 0.1);
+                        sealChance *= 0.68 + depthFactor * 0.32;
+
+                        if (sealChance > 0.5 || (sealChance > 0.36 && thinRoofRisk > 0.5 && wetness > 0.42))
                         {
                             mask[x, y, z] = false;
                         }

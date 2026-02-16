@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-87.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-84.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-83.json"),
@@ -439,7 +440,7 @@ namespace GameServerApp
                     worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
                 }
 
-                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 34);
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 40);
 
                 if (section.Defaults != null)
                 {

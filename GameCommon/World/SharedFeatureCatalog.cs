@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-16
-        /// (alluvial channel anchor bridge + oxbow retention anchor bridge + subsurface shear seal + queue-priority ordering + map-control v39).
+        /// (lithified roof bridge + floodplain retention anchor bridge + spillway retention anchor bridge + shared distance-priority queue rebalance + map-control v40).
         /// </summary>
-        public const string HydrologySignature = "2026-02-16-hydrology-riverlake-cave-v35";
+        public const string HydrologySignature = "2026-02-16-hydrology-riverlake-cave-v36";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology Reservoir WorldGen v30",
+                "Hydrology WorldGen v36",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]

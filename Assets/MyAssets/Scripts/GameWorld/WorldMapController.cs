@@ -708,28 +708,55 @@ namespace GameWorld
         private void DrainStaleQueueEntries()
         {
             int drainBudget = Mathf.Clamp(queueOverloadDrainFactor, 1, 16);
-            int drained = 0;
+            int queueLimit = Math.Max(64, maxQueuedChunkRequests);
+            var queued = new List<Vector2Int>(Mathf.Max(16, drainBudget * 4));
 
-            while (drained < drainBudget && requestQueue.TryDequeue(out var pos))
+            while (requestQueue.TryDequeue(out var pos))
             {
                 if (Volatile.Read(ref queuedRequestCount) > 0)
                 {
                     Interlocked.Decrement(ref queuedRequestCount);
                 }
 
-                if (loadedChunks.ContainsKey(pos) || buildingChunks.ContainsKey(pos))
+                queued.Add(pos);
+            }
+
+            if (queued.Count == 0)
+            {
+                return;
+            }
+
+            Vector2Int center = playerTransform != null ? WorldToChunk(playerTransform.position) : Vector2Int.zero;
+            var coordinates = new List<ChunkCoordinate>(queued.Count);
+            for (int i = 0; i < queued.Count; i++)
+            {
+                coordinates.Add(new ChunkCoordinate(queued[i].x, queued[i].y));
+            }
+
+            var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(center.x, center.y, coordinates, queueLimit);
+            float load = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
+            int drained = 0;
+
+            foreach (var coordinate in prioritized)
+            {
+                var prioritizedPos = new Vector2Int(coordinate.X, coordinate.Z);
+                bool alreadyLoaded = loadedChunks.ContainsKey(prioritizedPos) || buildingChunks.ContainsKey(prioritizedPos);
+                bool farChunk = IsFarChunkFromPlayer(prioritizedPos, pressureBand);
+                bool dropForPressure = drained < drainBudget && farChunk;
+
+                if (alreadyLoaded || dropForPressure)
                 {
-                    queuedChunks.TryRemove(pos, out _);
+                    queuedChunks.TryRemove(prioritizedPos, out _);
                     drained++;
                     continue;
                 }
 
-                requestQueue.Enqueue(pos);
-                if (Volatile.Read(ref queuedRequestCount) < Math.Max(64, maxQueuedChunkRequests))
+                requestQueue.Enqueue(prioritizedPos);
+                if (Volatile.Read(ref queuedRequestCount) < queueLimit)
                 {
                     Interlocked.Increment(ref queuedRequestCount);
                 }
-                break;
             }
         }
 

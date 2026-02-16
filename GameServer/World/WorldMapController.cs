@@ -384,12 +384,30 @@ namespace GameServerApp.World
             int renderWindow = Math.Max(1, controlProfile.RenderDistance * 2 + 1);
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
-            queueSlackRatio = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 2.8 : 2.4, 1.1, 6.0);
-            queueBurstSlackMultiplier = Math.Clamp(generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0, 1.0, 3.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
-            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
-            queueLoadSheddingThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 34 ? 0.88 : 0.92, 0.5, 0.98);
-            queueEmergencyBrakeThreshold = Math.Clamp(generationConfig.MapControlProfileVersion >= 36 ? 1.08 : 1.2, 0.75, 4.0);
+            queueSlackRatio = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 40 ? 3.0 :
+                generationConfig.MapControlProfileVersion >= 34 ? 2.8 : 2.4,
+                1.1,
+                6.0);
+            queueBurstSlackMultiplier = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 40 ? 1.2 :
+                generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0,
+                1.0,
+                3.0);
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 40 ? 5 :
+                generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
+            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 40 ? 6 :
+                generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
+            queueLoadSheddingThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 40 ? 0.86 :
+                generationConfig.MapControlProfileVersion >= 34 ? 0.88 : 0.92,
+                0.5,
+                0.98);
+            queueEmergencyBrakeThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 40 ? 1.04 :
+                generationConfig.MapControlProfileVersion >= 36 ? 1.08 : 1.2,
+                0.75,
+                4.0);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);

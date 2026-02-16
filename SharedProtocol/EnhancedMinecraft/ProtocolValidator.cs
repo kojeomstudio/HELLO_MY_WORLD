@@ -70,6 +70,7 @@ public static class ProtocolValidator
             ProtocolRegistry.EnsureRegistered(message);
         }
 
+        ValidateMessageSetPartitions();
         ValidateUniqueBindings();
         ValidateRegistryDescriptors();
         ValidateRequiredDescriptorBindings();
@@ -104,6 +105,32 @@ public static class ProtocolValidator
         ProtoDiagnostics.LogSummary();
         ProtoDiagnostics.AssertRegistryClean();
         ProtocolRegistry.ValidateBindings();
+    }
+
+    private static void ValidateMessageSetPartitions()
+    {
+        var duplicateRequired = RequiredMessages
+            .GroupBy(message => message)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .OrderBy(message => message.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        if (duplicateRequired.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft RequiredMessages contains duplicates: {string.Join(", ", duplicateRequired)}. Remove duplicated enum entries to keep protobuf routing deterministic.");
+        }
+
+        var overlap = RequiredMessages
+            .Where(OptionalMessages.Contains)
+            .Distinct()
+            .OrderBy(message => message.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        if (overlap.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"EnhancedMinecraft message set overlap detected (required + optional): {string.Join(", ", overlap)}. Fix ProtocolValidator message classification to keep registry checks consistent.");
+        }
     }
 
     public static void ValidateHandlerBindings(MinecraftMessageDispatcher dispatcher)

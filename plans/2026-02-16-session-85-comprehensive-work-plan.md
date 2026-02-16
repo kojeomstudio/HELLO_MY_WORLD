@@ -59,7 +59,7 @@
 - [x] Update `README.md` recent updates section
 - [x] Add session report under `docs/` (markdown)
 - [x] Update this plan `TO DO` -> `Completed`
-- [ ] Stage all changes, local commit, and push to `origin/master`
+- [x] Stage all changes, local commit, and push to `origin/master`
 
 ## Completed (to be updated during session)
 - [x] Initial plan document created and baseline checks recorded
@@ -68,4 +68,8 @@
 - [x] Protobuf review/improvement and dummy client validation
 - [x] Build/verification completed
 - [x] Documentation updated
-- [ ] Commit and push completed
+- [x] Commit and push completed
+
+## Delivery Log
+- [x] Local commit: `9a1bdd1a` (`feat(session-85): upgrade hydrology v35 map-control v39 and proto queue validation`)
+- [x] Remote push: `origin/master` updated (`3fc21ce3` -> `9a1bdd1a`)

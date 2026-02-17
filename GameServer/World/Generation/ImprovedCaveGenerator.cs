@@ -330,6 +330,7 @@ namespace GameServerApp.World.Generation
             ApplyTalusButtressStability(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
             ApplySubsurfaceShearSeal(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyLithifiedRoofBridge(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
+            ApplyFloodFeedbackSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -1192,6 +1193,83 @@ namespace GameServerApp.World.Generation
             double ceilingBias = 1.0 - Math.Clamp((surface / 128.0) * config.CeilingStabilityWeight, 0.0, 0.35);
             double edgeBias = 1.0 - Math.Clamp(edgeFactor * config.EdgeSealStrength, 0.0, 0.45);
             return Math.Clamp(waterBias * riverBias * flowBias * (1.0 - ceilingBias * 0.35) * edgeBias, 0.05, 1.25);
+        }
+
+        private void ApplyFloodFeedbackSealBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double feedbackWeight = Math.Clamp(
+                config.CaveEntranceFlowDampening * 0.4 +
+                config.MoistureRetentionWeight * 0.35 +
+                config.AquiferBarrierWeight * 0.25,
+                0.0,
+                1.0);
+            if (feedbackWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int lowerBand = Math.Max(1, seaLevel - Math.Max(10, config.RiparianPlugDepth + 4));
+            int upperBand = Math.Min(sizeY - 2, seaLevel + 1);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double seamRiver = riverMask != null ? TerrainMaskUtility.SampleInterior(riverMask, x, z) : river;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+
+                    double feedback = Math.Clamp(
+                        hydro * 0.32 +
+                        seamHydro * 0.24 +
+                        flow * 0.2 +
+                        seamFlow * 0.12 +
+                        river * 0.08 +
+                        seamRiver * 0.04,
+                        0.0,
+                        1.2);
+                    if (feedback <= 0.28)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 2, sizeY - 2);
+                    int top = Math.Min(upperBand, surface - 1);
+                    if (top <= lowerBand)
+                    {
+                        continue;
+                    }
+
+                    for (int y = lowerBand; y <= top; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthRatio = 1.0 - Math.Clamp((double)(y - lowerBand) / Math.Max(1.0, top - lowerBand), 0.0, 1.0);
+                        double slopeDamping = 1.0 - Math.Clamp(slope * 0.022, 0.0, 0.35);
+                        double sealChance = feedback * feedbackWeight * (0.3 + depthRatio * 0.45) * slopeDamping;
+                        if (sealChance > 0.58 || (sealChance > 0.44 && y >= seaLevel - 2))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private static double ComputeEdgeFalloff(int x, int z, int chunkSize)

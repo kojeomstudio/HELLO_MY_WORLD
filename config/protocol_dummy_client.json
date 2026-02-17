@@ -8,6 +8,8 @@
   "probeNetwork": false,
   "validateAllKnownPackets": true,
   "includeOptionalMessages": true,
+  "failOnHydrologySignatureMismatch": true,
+  "failOnRequiredTypeDrift": true,
   "outputReportPath": "reports/proto_probe_report.json",
   "referenceReportPath": "config/proto_reference_report.json",
   "worldMapControlProfilePath": "config/world_map_control_profile.json",

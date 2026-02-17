@@ -301,6 +301,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainMeanderStabilityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyAlluvialChannelAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyFloodplainRetentionAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyThalwegContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -1365,6 +1366,62 @@ namespace GameServerApp.World.Generation
             int back = heightMap[x, Math.Max(0, z - 1)];
             double laplacian = (left + right + forward + back - 4 * center) / 4.0;
             return laplacian;
+        }
+
+        private void ApplyThalwegContinuityBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap)
+        {
+            double continuityWeight = Math.Clamp(
+                config.RiverFlowAlignmentWeight * 0.38 +
+                config.RiverConfluenceBoost * 0.32 +
+                config.HydrologyFlowMemoryWeight * 0.30,
+                0.0,
+                1.0);
+            if (continuityWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.05)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double curvature = Math.Abs(ComputeCurvature(heightMap, x, z));
+                    double meanderPenalty = Math.Clamp(config.RiverMeanderJitter * 0.25 + curvature / 18.0, 0.0, 0.32);
+                    double channelSignal = Math.Clamp(
+                        flowNode * 0.34 +
+                        seamFlow * 0.3 +
+                        hydro * 0.2 +
+                        seamHydro * 0.16,
+                        0.0,
+                        1.25);
+                    double stability = 1.0 - Math.Clamp(slope * 0.024 + meanderPenalty, 0.0, 0.82);
+                    double memoryFloor = Math.Max(river * 0.84, channelSignal * 0.18);
+                    double target = river * (1.0 - continuityWeight * 0.14) +
+                        (river + channelSignal * stability) * continuityWeight * 0.14;
+                    target = Math.Max(target, memoryFloor);
+
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private static void FeatherEdges(float[,] mask, double feather, double seamFill)

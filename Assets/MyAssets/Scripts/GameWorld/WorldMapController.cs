@@ -446,7 +446,16 @@ namespace GameWorld
         private void EnqueueAroundPlayer()
         {
             var playerChunk = WorldToChunk(playerTransform.position);
-            var prioritizedChunks = WorldMapQueuePolicy.EnumerateByDistance(playerChunk.x, playerChunk.y, viewRadiusChunks);
+            float load = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
+            var candidates = WorldMapQueuePolicy.EnumerateByDistance(playerChunk.x, playerChunk.y, viewRadiusChunks);
+            var prioritizedChunks = WorldMapQueuePolicy.PrioritizeByDistance(
+                playerChunk.x,
+                playerChunk.y,
+                candidates,
+                0,
+                pressureBand,
+                queueEmergencyBrakeLatched);
             foreach (var chunk in prioritizedChunks)
             {
                 var pos = new Vector2Int(chunk.X, chunk.Z);
@@ -733,9 +742,15 @@ namespace GameWorld
                 coordinates.Add(new ChunkCoordinate(queued[i].x, queued[i].y));
             }
 
-            var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(center.x, center.y, coordinates, queueLimit);
             float load = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
+            var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(
+                center.x,
+                center.y,
+                coordinates,
+                queueLimit,
+                pressureBand,
+                queueEmergencyBrakeLatched);
             int drained = 0;
 
             foreach (var coordinate in prioritized)

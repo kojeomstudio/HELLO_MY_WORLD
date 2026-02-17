@@ -32,6 +32,58 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-17: Session 91 - Hydrology v38 / Map-Control v42 / Pressure-Aware Queue Prioritization
+
+**Status:** COMPLETED
+
+- Terrain generation refinements (server):
+  - Cave: added `ApplyFloodFeedbackSealBridge`.
+  - River: added `ApplyThalwegContinuityBridge`.
+  - Lake: added `ApplyFloodplainRetentionShelfBridge`.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map architecture improvements (server + client):
+  - Applied pressure-band + emergency-brake aware queue prioritization to initial enqueue/drain/update paths.
+  - Files:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Protobuf validation hardening:
+  - Dummy protocol probe now supports strict hydrology-signature mismatch/type-drift failure toggles.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature updated to `2026-02-17-hydrology-riverlake-cave-v38`.
+  - Map-control profile version updated to `42`.
+  - Queue policy updated to version `11`.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Core/Content/Utility feature catalog refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-17-session-91.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj -m:1`
+- `dotnet build GameCommon/GameCommon.csproj -m:1`
+- `dotnet build GameServer/GameServer.csproj -m:1`
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -m:1`
+- `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+
+**Documentation:**
+- `docs/2026-02-17-session-91-worldgen-map-proto-report.md`
+- `docs/2026-02-17-session-91-using-reference-validation.md`
+- `plans/2026-02-17-session-91-comprehensive-work-plan.md`
+
 ### 2026-02-17: Session 89 - Hydrology v37 / Map-Control v41 / Shared Distance-Threshold Queue Policy
 
 **Status:** COMPLETED

@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 40;
+        public int MapControlProfileVersion { get; set; } = 42;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -167,7 +167,7 @@ namespace GameServerApp.World
         public double RiverConfluenceBoost { get; set; } = 0.78;
         public double RiverBraidingWeight { get; set; } = 0.53;
         public double RiverEdgeFeather { get; set; } = 0.66;
-        public double RiverEdgeContinuityWeight { get; set; } = 0.84;
+        public double RiverEdgeContinuityWeight { get; set; } = 0.94;
         public int RiverMouthSmoothRadius { get; set; } = 10;
         public double RiverDeltaWetlandStrength { get; set; } = 0.70;
         public double RiverSeamFillStrength { get; set; } = 0.80;
@@ -232,7 +232,7 @@ namespace GameServerApp.World
         public double CeilingStabilityWeight { get; set; } = 0.46;
         public double CeilingMoistureWeight { get; set; } = 0.46;
         public double CeilingMoistureClamp { get; set; } = 0.42;
-        public double CaveEntranceFlowDampening { get; set; } = 0.58;
+        public double CaveEntranceFlowDampening { get; set; } = 0.80;
     }
 
     public sealed class LakeConfig
@@ -251,8 +251,8 @@ namespace GameServerApp.World
         public int WetlandBufferRadius { get; set; } = 6;
         public double FlowSeepageWeight { get; set; } = 0.70;
         public double VarianceWeight { get; set; } = 0.46;
-        public double OutflowStabilityWeight { get; set; } = 0.85;
-        public double LakeOutflowTaper { get; set; } = 0.68;
+        public double OutflowStabilityWeight { get; set; } = 0.95;
+        public double LakeOutflowTaper { get; set; } = 0.74;
         public double SpillwayContinuityWeight { get; set; } = 0.88;
     }
 }

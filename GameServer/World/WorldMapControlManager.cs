@@ -134,7 +134,14 @@ namespace GameServerApp.World
             QueuePressureBand pressureBand = GetCurrentQueuePressureBand();
             int minNearKeepCount = Math.Max(24, settings.UpdateBatchSize / 2);
             var chunks = new List<ChunkData>();
-            var prioritized = WorldMapQueuePolicy.EnumerateByDistance(playerChunkX, playerChunkZ, renderDistance);
+            var candidates = WorldMapQueuePolicy.EnumerateByDistance(playerChunkX, playerChunkZ, renderDistance);
+            var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(
+                playerChunkX,
+                playerChunkZ,
+                candidates,
+                0,
+                pressureBand,
+                queueEmergencyBrakeLatched);
             foreach (var chunkCoordinate in prioritized)
             {
                 if (ShouldDeferChunkByDistance(

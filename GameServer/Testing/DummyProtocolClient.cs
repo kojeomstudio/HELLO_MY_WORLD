@@ -72,11 +72,25 @@ namespace GameServerApp.Testing
         public bool ProbeNetwork { get; set; } = false;
         public bool ValidateAllKnownPackets { get; set; } = true;
         public bool IncludeOptionalMessages { get; set; } = false;
+        public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+        public bool FailOnRequiredTypeDrift { get; set; } = true;
         public int MaxNetworkProbePackets { get; set; } = 4;
         public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
         public string? ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
         public string? WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public string[] Packets { get; set; } = new[] { "ChunkDataRequest", "ChunkUnloadNotification", "TimeUpdate" };
+        public string[] Packets { get; set; } = new[]
+        {
+            "PlayerStateUpdate",
+            "PlayerActionRequest",
+            "PlayerActionResponse",
+            "ChunkDataRequest",
+            "ChunkDataResponse",
+            "ChunkUnloadNotification",
+            "ChunkUnloadAcknowledge",
+            "BlockChangeNotification",
+            "TimeUpdate",
+            "WeatherChange"
+        };
 
         public static DummyProtocolClientSettings Load(string path)
         {
@@ -118,6 +132,7 @@ namespace GameServerApp.Testing
             ProtocolValidator.ValidateEnhancedContracts();
             ProtoDiagnostics.AssertFingerprint();
             ProtoDiagnostics.AssertRegistryClean();
+            bool profileHydrologyMatchesShared = true;
             WorldMapControlProfile? sharedProfile = null;
             string profilePath = string.IsNullOrWhiteSpace(settings.WorldMapControlProfilePath)
                 ? string.Empty
@@ -133,6 +148,7 @@ namespace GameServerApp.Testing
                 if (sharedProfile != null &&
                     !string.Equals(sharedProfile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
                 {
+                    profileHydrologyMatchesShared = false;
                     Console.WriteLine($"[ProtoProbe][WARN] Hydrology signature mismatch between profile ({sharedProfile.HydrologySignature}) and shared catalog ({SharedFeatureCatalog.HydrologySignature}).");
                 }
 
@@ -505,11 +521,6 @@ namespace GameServerApp.Testing
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (requiredMissing.Count > 0)
-            {
-                Console.WriteLine($"[ProtoProbe][WARN] Required protocol bindings missing: {string.Join(", ", requiredMissing)}");
-            }
-
             if (optionalMissing.Count > 0)
             {
                 Console.WriteLine($"[ProtoProbe][INFO] Optional protocol bindings not registered: {string.Join(", ", optionalMissing)}");
@@ -527,7 +538,7 @@ namespace GameServerApp.Testing
             int registeredCount = registeredPackets.Length;
             string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
             string profileHydrologySignature = sharedProfile?.HydrologySignature ?? string.Empty;
-            bool profileHydrologyMatchesShared =
+            profileHydrologyMatchesShared =
                 string.IsNullOrWhiteSpace(profileHydrologySignature) ||
                 string.Equals(profileHydrologySignature, hydrologySignature, StringComparison.OrdinalIgnoreCase);
             string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
@@ -542,6 +553,24 @@ namespace GameServerApp.Testing
             if (requiredTypeDrift.Length > 0)
             {
                 Console.WriteLine("[ProtoProbe][WARN] Required legacy/enhanced type drift detected: " + string.Join(", ", requiredTypeDrift));
+                if (settings.FailOnRequiredTypeDrift)
+                {
+                    requiredMissing.AddRange(requiredTypeDrift.Select(name => $"type-drift:{name}"));
+                }
+            }
+
+            if (!profileHydrologyMatchesShared && settings.FailOnHydrologySignatureMismatch)
+            {
+                requiredMissing.Add("profile:HydrologySignatureMismatch");
+            }
+
+            requiredMissing = requiredMissing
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (requiredMissing.Count > 0)
+            {
+                Console.WriteLine($"[ProtoProbe][WARN] Required protocol bindings missing: {string.Join(", ", requiredMissing)}");
             }
 
             var registryReferenceSummary = new ProtoRegistryReferenceSummary(

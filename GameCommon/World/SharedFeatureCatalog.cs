@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-16
-        /// (lithified roof bridge + floodplain retention anchor bridge + spillway retention anchor bridge + shared distance-priority queue rebalance + map-control v40).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-17
+        /// (cave aquifer pocket refinement + floodplain erosion pass + spillway ramp widening + shared queue distance-threshold policy + map-control v41).
         /// </summary>
-        public const string HydrologySignature = "2026-02-16-hydrology-riverlake-cave-v36";
+        public const string HydrologySignature = "2026-02-17-hydrology-riverlake-cave-v37";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology WorldGen v36",
+                "Hydrology WorldGen v37",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]

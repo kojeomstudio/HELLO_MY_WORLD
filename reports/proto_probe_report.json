@@ -63,8 +63,8 @@
     "WeatherChange"
   ],
   "DescriptorFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
-  "HydrologySignature": "2026-02-16-hydrology-riverlake-cave-v36",
-  "ProfileHydrologySignature": "2026-02-16-hydrology-riverlake-cave-v36",
+  "HydrologySignature": "2026-02-17-hydrology-riverlake-cave-v37",
+  "ProfileHydrologySignature": "2026-02-17-hydrology-riverlake-cave-v37",
   "ProfileHydrologyMatchesShared": true,
   "RegisteredCount": 14,
   "GeneratedDescriptorCount": 54,
@@ -115,8 +115,8 @@
   "UnboundRequiredGeneratedDescriptors": [],
   "ReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\reports\\proto_probe_report.json",
   "ReferenceReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\proto_reference_report.json",
-  "ProfileHash": "963c72f74b271f73ca4e9f96241b3baf6b7b7e4526659435663ed91276ee8735",
-  "ProfileVersion": 40,
+  "ProfileHash": "ebccf64f5ba2a1d8e0920568684504c1f87e695340310f8e8b27837e1676e228",
+  "ProfileVersion": 41,
   "ProfilePath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\config\\world_map_control_profile.json",
   "RegistryReferences": {
     "GeneratedDescriptors": [
@@ -318,6 +318,224 @@
         "DescriptorName": "WeatherUpdateBroadcast",
         "DescriptorPackage": "EnhancedMinecraftProtocol",
         "ClrType": "EnhancedMinecraftProtocol.WeatherUpdateBroadcast"
+      }
+    ],
+    "TypeConsistencyDiagnostics": [
+      {
+        "MessageType": 112,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.BlockChangeBroadcast",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.BlockChangeBroadcast",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 110,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.ChunkLoadRequest",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.ChunkLoadRequest",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 111,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.ChunkLoadResponse",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.ChunkLoadResponse",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 115,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.ChunkUnloadAck",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.ChunkUnloadAck",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 114,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.ChunkUnloadNotification",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.ChunkUnloadNotification",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 151,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 150,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 152,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 131,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.EntityDespawnBroadcast",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.EntityDespawnBroadcast",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 133,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 130,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.EntitySpawnBroadcast",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.EntitySpawnBroadcast",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 132,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 120,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 122,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 123,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 121,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 113,
+        "HasLegacyType": false,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "",
+        "HasEnhancedType": false,
+        "EnhancedClrType": "",
+        "IsOptional": true
+      },
+      {
+        "MessageType": 143,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.ParticleEffect",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.ParticleEffect",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 101,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.PlayerActionRequest",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.PlayerActionRequest",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 102,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.PlayerActionResponse",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.PlayerActionResponse",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 100,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.PlayerInfo",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.PlayerInfo",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 142,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.SoundEffect",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.SoundEffect",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 140,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.TimeUpdateBroadcast",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.TimeUpdateBroadcast",
+        "IsOptional": false
+      },
+      {
+        "MessageType": 141,
+        "HasLegacyType": true,
+        "LegacyTypeMatches": true,
+        "LegacyClrType": "EnhancedMinecraftProtocol.WeatherUpdateBroadcast",
+        "HasEnhancedType": true,
+        "EnhancedClrType": "EnhancedMinecraftProtocol.WeatherUpdateBroadcast",
+        "IsOptional": false
       }
     ]
   },

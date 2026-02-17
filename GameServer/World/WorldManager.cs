@@ -76,6 +76,8 @@ namespace GameServerApp.World
         private readonly double _riverEdgeFeather;
         private readonly int _riverMouthSmoothRadius;
         private readonly double _riverDeltaWetlandStrength;
+        private readonly double _riverFloodplainCarveBias;
+        private readonly int _riverHydraulicErosionPasses;
         private readonly int _caveStabilitySmoothIterations;
         private readonly double _caveStabilitySmoothBlend;
         private readonly double _caveSupportDensity;
@@ -108,6 +110,11 @@ namespace GameServerApp.World
         private readonly double _caveEdgeSealStrength;
         private readonly double _caveCeilingStabilityWeight;
         private readonly double _caveCeilingMoistureClamp;
+        private readonly double _caveAquiferPocketChance;
+        private readonly int _caveAquiferPocketRadius;
+        private readonly int _caveEntranceSealDepth;
+        private readonly int _lakeSpillwayRampWidth;
+        private readonly double _lakeSpillwayDepthBias;
 
         private static int GlobalWaterLevel = 62;
         private static double RiverCenterThreshold = 0.0125;
@@ -275,6 +282,8 @@ namespace GameServerApp.World
             _riverEdgeFeather = Math.Clamp(_worldGenConfig.Water.RiverEdgeFeather, 0.0, 1.0);
             _riverMouthSmoothRadius = Math.Clamp(_worldGenConfig.Water.RiverMouthSmoothRadius, 1, 8);
             _riverDeltaWetlandStrength = Math.Clamp(_worldGenConfig.Water.RiverDeltaWetlandStrength, 0.0, 1.0);
+            _riverFloodplainCarveBias = Math.Clamp(_riverBankErosionWeight * 0.7 + _riverDeltaWetlandStrength * 0.3, 0.05, 1.25);
+            _riverHydraulicErosionPasses = Math.Clamp((int)Math.Round(Math.Max(1.0, _worldGenConfig.Water.RiverEdgeContinuityWeight * 3.0)), 1, 4);
             _caveStabilitySmoothIterations = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothIterations, 0, 6);
             _caveStabilitySmoothBlend = Math.Clamp(_worldGenConfig.Caves.StabilitySmoothBlend, 0.0, 1.0);
             _caveSupportDensity = Math.Clamp(_worldGenConfig.Caves.SupportDensity, 0.0, 1.0);
@@ -308,6 +317,11 @@ namespace GameServerApp.World
             _caveEdgeSealStrength = Math.Clamp(_worldGenConfig.Caves.EdgeSealStrength, 0.0, 1.0);
             _caveCeilingStabilityWeight = Math.Clamp(_worldGenConfig.Caves.CeilingStabilityWeight, 0.0, 1.0);
             _caveCeilingMoistureClamp = Math.Clamp(_worldGenConfig.Caves.CeilingMoistureClamp, 0.0, 1.0);
+            _caveAquiferPocketChance = Math.Clamp(_worldGenConfig.Caves.AquiferBarrierWeight * 0.16 + _worldGenConfig.Caves.CaveEntranceFlowDampening * 0.14, 0.03, 0.35);
+            _caveAquiferPocketRadius = Math.Clamp(1 + (int)Math.Round(_worldGenConfig.Caves.AquiferBarrierWeight * 2.0), 1, 4);
+            _caveEntranceSealDepth = Math.Clamp(2 + (int)Math.Round(_worldGenConfig.Caves.CaveEntranceFlowDampening * 3.0), 2, 6);
+            _lakeSpillwayRampWidth = Math.Clamp(1 + _worldGenConfig.Lakes.WetlandBufferRadius / 4, 1, 4);
+            _lakeSpillwayDepthBias = Math.Clamp(_worldGenConfig.Lakes.SpillwayContinuityWeight * 0.6 + _worldGenConfig.Lakes.LakeOutflowTaper * 0.4, 0.2, 1.0);
 
             _mapControlProfile = ServerWorldMapControlProfileUtility.Create(_worldGenConfig, _worldSettings);
             ServerWorldMapControlProfileUtility.Save(_mapControlProfile, _worldGenConfig.MapControlProfilePath);
@@ -319,6 +333,7 @@ namespace GameServerApp.World
             Console.WriteLine($"[WorldManager] hydrology: smooth={_hydrologySmoothIterations}/{_hydrologySmoothBlend:0.##}, shorePush={_hydrologyShorePush:0.##}, slopePenalty={_hydrologySlopePenalty:0.##}, flowGain={_hydrologyFlowGain:0.##}, flowMem={_hydrologyFlowMemoryWeight:0.##}, continuity={_hydrologyContinuityWeight:0.##}, edgeFlowBias={_hydrologyEdgeFlowBias:0.##}, edgeTangent={_hydrologyEdgeTangentWeight:0.##}, edgeFlowLock={_hydrologyEdgeFlowLockWeight:0.##}, edgeStability={_hydrologyEdgeStabilityIterations}/{_hydrologyEdgeStabilityWeight:0.##}, variance={_hydrologyVarianceBlend:0.##}/{_hydrologyVarianceClamp:0.##}, waterTableClamp={_hydrologyWaterTableClampWeight:0.##}/{_hydrologyWaterTableClampRange} slope={_hydrologyWaterTableSlopeWeight:0.##}, seamRelax={_hydrologySeamRelaxIterations}/{_hydrologySeamRelaxBlend:0.##}, riparian={_riparianSmoothIterations}/{_riparianSmoothBlend:0.##}/boost={_riparianSaturationBoost:0.##}, grad={_hydrologyGradientWeight:0.##}/slope={_hydrologyGradientSlopeWeight:0.##}/clamp={_hydrologyGradientClamp:0.##}/stab={_hydrologyGradientStabilityIterations}/{_hydrologyGradientStabilityBlend:0.##}/dir={_hydrologyDirectionalIterations}/{_hydrologyDirectionalBlend:0.##}/divClamp={_hydrologyFlowDivergenceClamp:0.##}/curv={_hydrologyCurvatureWeight:0.##}, riverNoiseScale={_riverNoiseScale:0.#####}, riverDepth={_riverDepth}, riverSmooth={_riverIntensitySmoothIterations}/{_riverIntensitySmoothBlend:0.##}, riverAniso={_riverFlowAlignmentWeight:0.##}/{_riverGradientPenalty:0.##}, headwater={_riverHeadwaterStabilityWeight:0.##}, confluence={_riverConfluenceBoost:0.##}, lakeInflow={_lakeInflowBlendWeight:0.##}, lakeBasinSmooth={_lakeBasinSmoothIterations}/shelf={_lakeShelfDepth}, caveSupport={_caveSupportDensity:0.##}, supportBias=H{_caveSupportHydrationBias:0.##}/F{_caveSupportFlowBias:0.##}/plug={_caveRiparianPlugDepth}, hydroWarp={_hydrologyWarpFrequency:0.#####}/{_hydrologyWarpAmplitude:0.##}, caveWeights=H{_caveHydrologyWeight:0.##}/F{_caveFlowWeight:0.##}/R{_caveRoughnessWeight:0.##}, caveMoistureRet={_caveMoistureRetentionWeight:0.##}");
             Console.WriteLine($"[WorldManager] map control: chunk={_mapControlProfile.ChunkSize}, render={_mapControlProfile.RenderDistance}, sim={_mapControlProfile.SimulationDistance}, water={_mapControlProfile.GlobalWaterLevel}, curv={_mapControlProfile.HydrologyCurvatureWeight:0.##}, hash={_mapControlProfile.ProfileHash[..Math.Min(12, _mapControlProfile.ProfileHash.Length)]}");
             Console.WriteLine($"[WorldManager] riparianBuffer={_riparianBufferRadius}, riverSeamFill={_riverSeamFillStrength:0.##}, lakeWetlandBuffer={_lakeWetlandBufferRadius}, caveCeilingStability={_caveCeilingStabilityWeight:0.##}, ceilingClamp={_caveCeilingMoistureClamp:0.##}, riparianCaveGuard={_riparianCaveGuardWeight:0.##}");
+            Console.WriteLine($"[WorldManager] terrainRefine: floodplainBias={_riverFloodplainCarveBias:0.##}, hydraulicPasses={_riverHydraulicErosionPasses}, caveAquiferChance={_caveAquiferPocketChance:0.##}, caveAquiferRadius={_caveAquiferPocketRadius}, caveSealDepth={_caveEntranceSealDepth}, spillwayRampWidth={_lakeSpillwayRampWidth}, spillwayDepthBias={_lakeSpillwayDepthBias:0.##}");
             Console.WriteLine($"[WorldManager] map control profile written to '{_worldGenConfig.MapControlProfilePath}' (v{_mapControlProfile.Version})");
 
             var pipeline = new TerrainGenerationPipeline()
@@ -8979,6 +8994,7 @@ namespace GameServerApp.World
             if (masks?.Caves != null)
             {
                 ApplyImprovedCaveMask(context.Chunk, surfaceCache, masks);
+                ApplyCaveAquiferPockets(context, context.Chunk, surfaceCache, masks);
             }
         }
 
@@ -9102,7 +9118,8 @@ namespace GameServerApp.World
                         continue;
                     }
 
-                    int ceilingStart = Math.Max(bedrockLevel + 1, surface - 3);
+                    int reinforcementDepth = Math.Max(2, _caveEntranceSealDepth);
+                    int ceilingStart = Math.Max(bedrockLevel + 1, surface - reinforcementDepth);
                     int ceilingEnd = Math.Max(bedrockLevel + 1, surface - 1);
                     for (int y = ceilingStart; y <= ceilingEnd && y < surface; y++)
                     {
@@ -9111,6 +9128,124 @@ namespace GameServerApp.World
                         {
                             chunk.SetBlock(x, y, z, BlockType.Stone);
                         }
+                    }
+                }
+            }
+        }
+
+        private void ApplyCaveAquiferPockets(TerrainGenerationContext context, ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Caves == null || masks.Hydrology == null || _caveAquiferPocketChance <= 0.0)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float hydrology = masks.Hydrology[x, z];
+                    if (hydrology < 0.58f)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    if (surface <= bedrockLevel + _caveEntranceSealDepth + 4)
+                    {
+                        continue;
+                    }
+
+                    int minY = Math.Max(bedrockLevel + 4, GlobalWaterLevel - 36);
+                    int maxY = Math.Min(surface - _caveEntranceSealDepth - 2, GlobalWaterLevel - 3);
+                    if (maxY <= minY)
+                    {
+                        continue;
+                    }
+
+                    bool hasCavity = false;
+                    int cavityY = maxY;
+                    for (int y = maxY; y >= minY; y--)
+                    {
+                        if (masks.Caves[x, y, z])
+                        {
+                            hasCavity = true;
+                            cavityY = y;
+                            break;
+                        }
+                    }
+
+                    if (!hasCavity)
+                    {
+                        continue;
+                    }
+
+                    int worldX = context.ChunkX * 16 + x;
+                    int worldZ = context.ChunkZ * 16 + z;
+                    double noise = NormalizeNoise(SimplexNoise.Generate(worldX + 19.7, worldZ - 11.3, 0.065, 2, 1.0, 0.55, SaltCaveHydro ^ 0x1357));
+                    double chance = Math.Clamp(_caveAquiferPocketChance + hydrology * 0.2, 0.03, 0.7);
+                    if (noise > chance)
+                    {
+                        continue;
+                    }
+
+                    CarveAquiferPocket(
+                        chunk,
+                        surfaceCache,
+                        x,
+                        cavityY,
+                        z,
+                        _caveAquiferPocketRadius,
+                        bedrockLevel);
+                }
+            }
+        }
+
+        private void CarveAquiferPocket(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            int centerX,
+            int centerY,
+            int centerZ,
+            int radius,
+            int bedrockLevel)
+        {
+            radius = Math.Clamp(radius, 1, 4);
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (x < 0 || x >= 16 || z < 0 || z >= 16)
+                    {
+                        continue;
+                    }
+
+                    int surface = surfaceCache[x, z];
+                    int maxSealY = Math.Max(bedrockLevel + 2, surface - _caveEntranceSealDepth);
+                    for (int dy = -radius; dy <= radius; dy++)
+                    {
+                        int y = centerY + dy;
+                        if (y <= bedrockLevel + 1 || y >= maxSealY || y >= 255)
+                        {
+                            continue;
+                        }
+
+                        double dist2 = dx * dx + dy * dy + dz * dz;
+                        if (dist2 > radius * radius + 0.75)
+                        {
+                            continue;
+                        }
+
+                        var current = chunk.GetBlock(x, y, z);
+                        if (current == BlockType.Bedrock || current == BlockType.Lava)
+                        {
+                            continue;
+                        }
+
+                        chunk.SetBlock(x, y, z, BlockType.Water);
                     }
                 }
             }
@@ -9153,6 +9288,108 @@ namespace GameServerApp.World
                     double channelPressure = Math.Clamp(intensity + hydrology[x, z] * 0.25 + flow[x, z] * 0.15, 0.0, 1.6);
                     var flowDir = EstimateFlowDirection(surfaceCache, x, z);
                     CarveRiverColumn(chunk, surfaceCache, x, z, riverSurface, normalized, channelPressure, flowDir);
+                }
+            }
+
+            ApplyRiverFloodplainCarve(chunk, surfaceCache, masks);
+        }
+
+        private void ApplyRiverFloodplainCarve(ChunkData chunk, int[,] surfaceCache, TerrainMaskResult masks)
+        {
+            if (masks.Rivers == null || masks.Hydrology == null || masks.FlowAccumulation == null || _riverFloodplainCarveBias <= 0.0)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, _worldGenConfig.TerrainGeneration.BedrockLevel);
+            int passes = Math.Max(1, _riverHydraulicErosionPasses);
+
+            for (int x = 0; x < 16; x++)
+            {
+                for (int z = 0; z < 16; z++)
+                {
+                    float river = masks.Rivers[x, z];
+                    if (river <= RiverCenterThreshold * 1.02f)
+                    {
+                        continue;
+                    }
+
+                    double hydrology = masks.Hydrology[x, z];
+                    double flow = masks.FlowAccumulation[x, z];
+                    double intensity = Math.Clamp(river / Math.Max(0.0001, RiverBankThreshold), 0.0, 2.0);
+                    double erosionStrength = Math.Clamp(
+                        intensity * _riverFloodplainCarveBias +
+                        hydrology * (_riverBankErosionWeight * 0.55 + 0.15) +
+                        flow * 0.12,
+                        0.0,
+                        2.5);
+
+                    if (erosionStrength < 0.12)
+                    {
+                        continue;
+                    }
+
+                    for (int radius = 1; radius <= passes; radius++)
+                    {
+                        for (int dx = -radius; dx <= radius; dx++)
+                        {
+                            for (int dz = -radius; dz <= radius; dz++)
+                            {
+                                int nx = x + dx;
+                                int nz = z + dz;
+                                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16)
+                                {
+                                    continue;
+                                }
+
+                                double distance = Math.Sqrt(dx * dx + dz * dz);
+                                if (distance > radius + 0.2)
+                                {
+                                    continue;
+                                }
+
+                                int surface = surfaceCache[nx, nz];
+                                if (surface <= bedrockLevel + 1)
+                                {
+                                    continue;
+                                }
+
+                                double falloff = 1.0 - Math.Clamp(distance / (radius + 0.5), 0.0, 1.0);
+                                int erosionDepth = Math.Clamp((int)Math.Round(erosionStrength * falloff), 0, passes + 1);
+                                if (erosionDepth <= 0)
+                                {
+                                    continue;
+                                }
+
+                                int targetSurface = Math.Max(bedrockLevel + 1, surface - erosionDepth);
+                                for (int y = surface; y > targetSurface; y--)
+                                {
+                                    var block = chunk.GetBlock(nx, y, nz);
+                                    if (block == BlockType.Bedrock || block == BlockType.Water)
+                                    {
+                                        continue;
+                                    }
+
+                                    chunk.SetBlock(nx, y, nz, BlockType.Air);
+                                }
+
+                                if (targetSurface <= GlobalWaterLevel && targetSurface + 1 < 256)
+                                {
+                                    chunk.SetBlock(nx, targetSurface, nz, BlockType.Sand);
+                                    if (chunk.GetBlock(nx, targetSurface + 1, nz) == BlockType.Air)
+                                    {
+                                        chunk.SetBlock(nx, targetSurface + 1, nz, BlockType.Water);
+                                    }
+                                }
+                                else
+                                {
+                                    chunk.SetBlock(nx, targetSurface, nz, BlockType.Dirt);
+                                }
+
+                                surfaceCache[nx, nz] = Math.Min(surfaceCache[nx, nz], targetSurface);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -9312,7 +9549,8 @@ namespace GameServerApp.World
                         }
 
                         int targetY = Math.Max(bedrockLevel + 1, Math.Min(surface, GlobalWaterLevel));
-                        int carveDepth = Math.Clamp((int)Math.Round(lakeStrength * steps + flowInfluence * 0.5f), 1, steps + 1);
+                        double depthScale = Math.Clamp(_lakeSpillwayDepthBias + lakeStrength * 0.35 + flowInfluence * 0.2, 0.35, 1.75);
+                        int carveDepth = Math.Clamp((int)Math.Round((lakeStrength * steps + flowInfluence * 0.5f) * depthScale), 1, steps + 2);
                         for (int depth = 0; depth < carveDepth && targetY - depth >= bedrockLevel + 1; depth++)
                         {
                             chunk.SetBlock(currentX, targetY - depth, currentZ, BlockType.Water);
@@ -9325,8 +9563,65 @@ namespace GameServerApp.World
                             chunk.SetBlock(currentX, bankY, currentZ, BlockType.Sand);
                         }
 
+                        CarveLakeSpillwayRamp(chunk, surfaceCache, flowDir, currentX, currentZ, targetY, carveDepth, bedrockLevel);
                         surfaceCache[currentX, currentZ] = Math.Max(surfaceCache[currentX, currentZ], targetY);
                     }
+                }
+            }
+        }
+
+        private void CarveLakeSpillwayRamp(
+            ChunkData chunk,
+            int[,] surfaceCache,
+            Vector2 flowDir,
+            int centerX,
+            int centerZ,
+            int targetY,
+            int carveDepth,
+            int bedrockLevel)
+        {
+            int width = Math.Max(0, _lakeSpillwayRampWidth);
+            if (width <= 0)
+            {
+                return;
+            }
+
+            Vector2 tangent = flowDir == Vector2.Zero
+                ? Vector2.UnitX
+                : Vector2.Normalize(new Vector2(-flowDir.Y, flowDir.X));
+
+            for (int lateral = -width; lateral <= width; lateral++)
+            {
+                if (lateral == 0)
+                {
+                    continue;
+                }
+
+                int x = Math.Clamp(centerX + (int)Math.Round(tangent.X * lateral), 0, 15);
+                int z = Math.Clamp(centerZ + (int)Math.Round(tangent.Y * lateral), 0, 15);
+                int surface = surfaceCache[x, z];
+                if (surface <= bedrockLevel + 1)
+                {
+                    continue;
+                }
+
+                double lateralFalloff = 1.0 - Math.Clamp(Math.Abs(lateral) / (double)(width + 0.5), 0.0, 1.0);
+                if (lateralFalloff <= 0.0)
+                {
+                    continue;
+                }
+
+                int lateralDepth = Math.Clamp((int)Math.Round(carveDepth * lateralFalloff * _lakeSpillwayDepthBias), 1, carveDepth);
+                int startY = Math.Min(surface, targetY);
+                for (int depth = 0; depth < lateralDepth && startY - depth >= bedrockLevel + 1; depth++)
+                {
+                    chunk.SetBlock(x, startY - depth, z, BlockType.Water);
+                }
+
+                int bankY = Math.Max(bedrockLevel + 1, startY - lateralDepth);
+                if (chunk.GetBlock(x, bankY, z) != BlockType.Bedrock)
+                {
+                    chunk.SetBlock(x, bankY, z, BlockType.Sand);
                 }
             }
         }

@@ -30,7 +30,8 @@ namespace GameServerApp.Testing
         IReadOnlyCollection<string> RegisteredMessageTypes,
         IReadOnlyCollection<string> UnboundRequiredGeneratedDescriptors,
         IReadOnlyCollection<string> UnboundGeneratedDescriptors,
-        IReadOnlyCollection<ProtocolBindingDiagnostic> BindingDiagnostics);
+        IReadOnlyCollection<ProtocolBindingDiagnostic> BindingDiagnostics,
+        IReadOnlyCollection<ProtocolTypeConsistencyDiagnostic> TypeConsistencyDiagnostics);
 
     public sealed record ProtoProbeResult(
         bool RoundTripOk,
@@ -532,12 +533,24 @@ namespace GameServerApp.Testing
             string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
             int profileVersion = sharedProfile?.Version ?? 0;
             var coverage = ProtocolRegistry.GetBindingCoverage();
+            var typeConsistencyDiagnostics = ProtocolRegistry.BuildTypeConsistencyDiagnostics();
+            var requiredTypeDrift = typeConsistencyDiagnostics
+                .Where(diagnostic => diagnostic.HasEnhancedType && diagnostic.HasLegacyType && !diagnostic.LegacyTypeMatches && !diagnostic.IsOptional)
+                .Select(diagnostic => diagnostic.MessageType.ToString())
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (requiredTypeDrift.Length > 0)
+            {
+                Console.WriteLine("[ProtoProbe][WARN] Required legacy/enhanced type drift detected: " + string.Join(", ", requiredTypeDrift));
+            }
+
             var registryReferenceSummary = new ProtoRegistryReferenceSummary(
                 ProtocolRegistry.GetGeneratedDescriptorNames(),
                 registeredPackets,
                 unboundRequiredGeneratedDescriptors,
                 unboundGeneratedDescriptors,
-                ProtocolRegistry.GetBindingDiagnostics());
+                ProtocolRegistry.GetBindingDiagnostics(),
+                typeConsistencyDiagnostics);
 
             var result = new ProtoProbeResult(
                 roundTripOk,

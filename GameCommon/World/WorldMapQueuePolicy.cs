@@ -100,6 +100,74 @@ namespace GameCommon.World
         }
 
         /// <summary>
+        /// Computes a Manhattan distance threshold for queue shedding based on pressure band.
+        /// </summary>
+        public static int GetDistanceThreshold(int baseRadius, QueuePressureBand band, bool emergencyBrake = false)
+        {
+            baseRadius = Math.Max(1, baseRadius);
+            int offset = band switch
+            {
+                QueuePressureBand.Critical => -1,
+                QueuePressureBand.High => 0,
+                QueuePressureBand.Elevated => 1,
+                _ => 2
+            };
+
+            int emergencyPenalty = emergencyBrake ? 1 : 0;
+            return Math.Max(1, baseRadius + offset - emergencyPenalty);
+        }
+
+        /// <summary>
+        /// Returns true when the chunk lies outside the pressure-aware distance threshold.
+        /// </summary>
+        public static bool IsOutsideDistanceThreshold(
+            int centerX,
+            int centerZ,
+            int chunkX,
+            int chunkZ,
+            int baseRadius,
+            QueuePressureBand band,
+            bool emergencyBrake = false)
+        {
+            int threshold = GetDistanceThreshold(baseRadius, band, emergencyBrake);
+            int manhattan = Math.Abs(chunkX - centerX) + Math.Abs(chunkZ - centerZ);
+            return manhattan > threshold;
+        }
+
+        /// <summary>
+        /// Shared distance score used to prioritize nearby chunks consistently between server/client.
+        /// Lower score means higher priority.
+        /// </summary>
+        public static double ComputeDistancePriority(
+            int centerX,
+            int centerZ,
+            ChunkCoordinate coordinate,
+            QueuePressureBand band = QueuePressureBand.Low,
+            bool emergencyBrake = false)
+        {
+            int dx = coordinate.X - centerX;
+            int dz = coordinate.Z - centerZ;
+            int manhattan = Math.Abs(dx) + Math.Abs(dz);
+            int dist2 = dx * dx + dz * dz;
+            int axisSkew = Math.Abs(Math.Abs(dx) - Math.Abs(dz));
+
+            double pressureWeight = band switch
+            {
+                QueuePressureBand.Critical => 0.16,
+                QueuePressureBand.High => 0.12,
+                QueuePressureBand.Elevated => 0.08,
+                _ => 0.04
+            };
+
+            double emergencyWeight = emergencyBrake ? 0.11 : 0.0;
+            return manhattan
+                + dist2 * 0.01
+                + axisSkew * 0.025
+                + manhattan * pressureWeight
+                + manhattan * emergencyWeight;
+        }
+
+        /// <summary>
         /// Enumerates chunks from nearest to farthest (Manhattan first, then squared distance)
         /// so map controllers can prioritize nearby chunk generation deterministically.
         /// </summary>
@@ -139,7 +207,9 @@ namespace GameCommon.World
             int centerX,
             int centerZ,
             IEnumerable<ChunkCoordinate> coordinates,
-            int maxCount = 0)
+            int maxCount = 0,
+            QueuePressureBand band = QueuePressureBand.Low,
+            bool emergencyBrake = false)
         {
             if (coordinates == null)
             {
@@ -154,9 +224,11 @@ namespace GameCommon.World
                     int dz = coordinate.Z - centerZ;
                     int manhattan = Math.Abs(dx) + Math.Abs(dz);
                     int dist2 = dx * dx + dz * dz;
-                    return (Coordinate: coordinate, Manhattan: manhattan, Dist2: dist2);
+                    double priority = ComputeDistancePriority(centerX, centerZ, coordinate, band, emergencyBrake);
+                    return (Coordinate: coordinate, Manhattan: manhattan, Dist2: dist2, Priority: priority);
                 })
-                .OrderBy(entry => entry.Manhattan)
+                .OrderBy(entry => entry.Priority)
+                .ThenBy(entry => entry.Manhattan)
                 .ThenBy(entry => entry.Dist2)
                 .ThenBy(entry => entry.Coordinate.X)
                 .ThenBy(entry => entry.Coordinate.Z);

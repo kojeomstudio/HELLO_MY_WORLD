@@ -32,6 +32,54 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-17: Session 89 - Hydrology v37 / Map-Control v41 / Shared Distance-Threshold Queue Policy
+
+**Status:** COMPLETED
+
+- Terrain generation refinements (server):
+  - Cave: added aquifer pocket refinement and cave entrance seal-depth reinforcement.
+  - River: added floodplain hydraulic erosion refinement pass.
+  - Lake: added spillway ramp widening/depth-bias refinement pass.
+  - File:
+    - `GameServer/World/WorldManager.cs`
+- World-map architecture improvements (server + client):
+  - Added shared pressure-aware distance threshold and distance priority scoring APIs.
+  - Applied server/client queue defer logic using the same `GameCommon` policy.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Protobuf reference validation improvement:
+  - Added registry type-consistency diagnostics into dummy probe report summary.
+  - File:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature updated to `2026-02-17-hydrology-riverlake-cave-v37`.
+  - Map-control profile version updated to `41`.
+  - Queue policy updated to version `10`.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Core/Content/Utility feature catalog refresh:
+  - `config/minecraft_feature_core_content_util_2026-02-17.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj -m:1`
+- `dotnet build GameCommon/GameCommon.csproj -m:1`
+- `dotnet build GameServer/GameServer.csproj -m:1`
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -m:1`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest`
+
+**Documentation:**
+- `docs/2026-02-17-session-89-worldgen-map-proto-report.md`
+- `plans/2026-02-17-session-89-comprehensive-work-plan.md`
+
 ### 2026-02-16: Session 88 - Comprehensive Implementation & Validation
 
 **Status:** COMPLETED
@@ -2254,4 +2302,3 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-

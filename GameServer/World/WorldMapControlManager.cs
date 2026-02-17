@@ -44,6 +44,7 @@ namespace GameServerApp.World
         private double dynamicQueueLoadSheddingThreshold;
         private double queueLoadEma;
         private int queueOverloadTicks;
+        private bool queueEmergencyBrakeLatched;
         private DateTime lastQueuePolicyAdjustUtc;
         private DateTime worldConfigWriteTime;
         private DateTime profileWriteTime;
@@ -68,6 +69,7 @@ namespace GameServerApp.World
             profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
             queueLoadEma = 0.0;
             queueOverloadTicks = 0;
+            queueEmergencyBrakeLatched = false;
             lastQueuePolicyAdjustUtc = DateTime.UtcNow;
             int computedBudget = Math.Max(
                 this.settings.DefaultUnloadDistance * this.settings.DefaultUnloadDistance,
@@ -128,10 +130,26 @@ namespace GameServerApp.World
             var playerChunkZ = (int)(request.PlayerZ / 16);
             var renderDistance = Math.Max(1, profile.RenderDistance);
 
+            _ = GetAdaptiveQueueLimit();
+            QueuePressureBand pressureBand = GetCurrentQueuePressureBand();
+            int minNearKeepCount = Math.Max(24, settings.UpdateBatchSize / 2);
             var chunks = new List<ChunkData>();
             var prioritized = WorldMapQueuePolicy.EnumerateByDistance(playerChunkX, playerChunkZ, renderDistance);
             foreach (var chunkCoordinate in prioritized)
             {
+                if (ShouldDeferChunkByDistance(
+                    playerChunkX,
+                    playerChunkZ,
+                    chunkCoordinate.X,
+                    chunkCoordinate.Z,
+                    renderDistance,
+                    pressureBand,
+                    chunks.Count,
+                    minNearKeepCount))
+                {
+                    continue;
+                }
+
                 var chunk = await GenerateOrGetChunkAsync(chunkCoordinate.X, chunkCoordinate.Z);
                 chunks.Add(chunk);
             }
@@ -163,15 +181,38 @@ namespace GameServerApp.World
             int chunkSize = Math.Max(1, currentProfile.ChunkSize);
             int playerChunkX = (int)Math.Floor(request.PlayerX / chunkSize);
             int playerChunkZ = (int)Math.Floor(request.PlayerZ / chunkSize);
-            int maxUpdateCount = Math.Max(64, settings.UpdateBatchSize * Math.Max(1, settings.QueuePressureFactor));
+            int adaptiveQueueLimit = GetAdaptiveQueueLimit();
+            QueuePressureBand pressureBand = GetCurrentQueuePressureBand();
+            int maxUpdateCount = Math.Max(
+                64,
+                Math.Min(
+                    adaptiveQueueLimit,
+                    settings.UpdateBatchSize * Math.Max(1, dynamicQueuePressureFactor) * 2));
             var prioritizedUpdates = WorldMapQueuePolicy.PrioritizeByDistance(
                 playerChunkX,
                 playerChunkZ,
                 updates.Select(update => new ChunkCoordinate(update.ChunkX, update.ChunkZ)),
-                maxUpdateCount);
+                maxUpdateCount,
+                pressureBand,
+                queueEmergencyBrakeLatched);
+
+            int minNearKeepCount = Math.Max(16, settings.UpdateBatchSize / 2);
 
             foreach (var update in prioritizedUpdates)
             {
+                if (ShouldDeferChunkByDistance(
+                    playerChunkX,
+                    playerChunkZ,
+                    update.X,
+                    update.Z,
+                    Math.Max(1, profile.RenderDistance),
+                    pressureBand,
+                    chunkList.Count,
+                    minNearKeepCount))
+                {
+                    continue;
+                }
+
                 var chunk = await GenerateOrGetChunkAsync(update.X, update.Z);
                 chunkList.Add(chunk);
             }
@@ -323,7 +364,7 @@ namespace GameServerApp.World
 
             int effectiveCacheBudget = Math.Max(64, GetEffectiveCacheBudget());
             double queueLoad = inflightChunkGenerations.Count / Math.Max(1.0, effectiveCacheBudget);
-            if (queueLoad >= configuredQueueEmergencyBrakeThreshold)
+            if (queueEmergencyBrakeLatched || queueLoad >= configuredQueueEmergencyBrakeThreshold)
             {
                 int emergencyDrain = Math.Max(configuredQueueOverloadDrainFactor + 1, dynamicQueuePressureFactor + 1);
                 PruneInflightGenerations(Math.Clamp(emergencyDrain, 1, 24));
@@ -412,6 +453,7 @@ namespace GameServerApp.World
             dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
             queueLoadEma = 0.0;
             queueOverloadTicks = 0;
+            queueEmergencyBrakeLatched = false;
             lastQueuePolicyAdjustUtc = DateTime.UtcNow;
 
             double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
@@ -425,10 +467,13 @@ namespace GameServerApp.World
             int inflight = inflightChunkGenerations.Count;
             int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
             double instantaneousLoad = inflight / Math.Max(1.0, cacheBudget);
-            queueLoadEma = queueLoadEma <= 0.0
-                ? instantaneousLoad
-                : queueLoadEma * 0.72 + instantaneousLoad * 0.28;
+            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, instantaneousLoad, 0.28);
             double load = Math.Max(instantaneousLoad, queueLoadEma * 0.9);
+            queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
+                queueEmergencyBrakeLatched,
+                load,
+                configuredQueueEmergencyBrakeThreshold,
+                0.84);
             bool overloadTick = load >= configuredQueueLoadSheddingThreshold ||
                 instantaneousLoad >= configuredQueueLoadSheddingThreshold;
             queueOverloadTicks = overloadTick
@@ -440,9 +485,8 @@ namespace GameServerApp.World
                 configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35,
                 configuredQueueSlackRatio,
                 6.0);
-            bool emergencyBrake = load >= configuredQueueEmergencyBrakeThreshold ||
-                queueLoadEma >= configuredQueueEmergencyBrakeThreshold * 0.92;
-            double burstMultiplier = !emergencyBrake && load >= 0.9
+            bool emergencyBrake = queueEmergencyBrakeLatched;
+            double burstMultiplier = !queueEmergencyBrakeLatched && load >= 0.9
                 ? configuredQueueBurstSlackMultiplier * (1.0 + overloadBias * 0.5)
                 : 1.0;
             int candidateQueueLimit = (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier);
@@ -475,13 +519,8 @@ namespace GameServerApp.World
                 dynamicQueueLoadSheddingThreshold = Math.Clamp(dynamicQueueLoadSheddingThreshold - 0.06, 0.5, configuredQueueLoadSheddingThreshold);
             }
 
-            int pressure = load >= 2.0
-                ? 4
-                : load >= 1.3
-                    ? 3
-                    : load >= 0.8
-                        ? 2
-                        : 1;
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load + overloadBias * 0.25);
+            int pressure = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
             if (overloadBias >= 0.35)
             {
                 pressure = Math.Max(pressure, 4);
@@ -497,6 +536,39 @@ namespace GameServerApp.World
                 dynamicQueuePressureFactor = Math.Clamp(Math.Max(dynamicQueuePressureFactor, configuredQueuePressureFactor + 1), 1, 8);
             }
             return dynamicQueueLimit;
+        }
+
+        private QueuePressureBand GetCurrentQueuePressureBand()
+        {
+            int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
+            double instantaneousLoad = inflightChunkGenerations.Count / Math.Max(1.0, cacheBudget);
+            double effectiveLoad = Math.Max(instantaneousLoad, queueLoadEma);
+            return WorldMapQueuePolicy.ClassifyBand(effectiveLoad);
+        }
+
+        private bool ShouldDeferChunkByDistance(
+            int centerChunkX,
+            int centerChunkZ,
+            int chunkX,
+            int chunkZ,
+            int baseRadius,
+            QueuePressureBand pressureBand,
+            int acceptedCount,
+            int minNearKeepCount)
+        {
+            if (acceptedCount < minNearKeepCount)
+            {
+                return false;
+            }
+
+            return WorldMapQueuePolicy.IsOutsideDistanceThreshold(
+                centerChunkX,
+                centerChunkZ,
+                chunkX,
+                chunkZ,
+                baseRadius,
+                pressureBand,
+                queueEmergencyBrakeLatched);
         }
 
         private void EnforceCacheBudget()

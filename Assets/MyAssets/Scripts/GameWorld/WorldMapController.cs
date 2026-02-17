@@ -768,16 +768,14 @@ namespace GameWorld
             }
 
             Vector2Int center = WorldToChunk(playerTransform.position);
-            int manhattanDistance = Mathf.Abs(pos.x - center.x) + Mathf.Abs(pos.y - center.y);
-            int thresholdOffset = pressureBand switch
-            {
-                QueuePressureBand.Critical => -1,
-                QueuePressureBand.High => 0,
-                QueuePressureBand.Elevated => 1,
-                _ => 2
-            };
-            int threshold = Mathf.Max(2, viewRadiusChunks + thresholdOffset);
-            return manhattanDistance > threshold;
+            return WorldMapQueuePolicy.IsOutsideDistanceThreshold(
+                center.x,
+                center.y,
+                pos.x,
+                pos.y,
+                Mathf.Max(1, viewRadiusChunks),
+                pressureBand,
+                queueEmergencyBrakeLatched);
         }
 
         private Vector2Int WorldToChunk(Vector3 position)

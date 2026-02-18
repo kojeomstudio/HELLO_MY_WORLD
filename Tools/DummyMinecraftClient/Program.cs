@@ -1,10 +1,10 @@
 using System.Net.Sockets;
 using System.Text.Json;
-using EnhancedMinecraftProtocol;
 using GameCommon.World;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
+using EnhancedMinecraftProtocol;
 
 namespace DummyMinecraftClient;
 

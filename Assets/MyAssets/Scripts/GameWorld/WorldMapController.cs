@@ -36,6 +36,7 @@ namespace GameWorld
         [SerializeField] private float queueEmergencyBrakeThreshold = 1.15f;
         [SerializeField] private float queueLoadEmaBlend = 0.18f;
         [SerializeField] private float queueEmergencyReleaseRatio = 0.84f;
+        [SerializeField] private float queueTrendBoostWeight = 0.22f;
         [SerializeField] private int queueOverloadDrainFactor = 2;
         [SerializeField] private int queueBackoffDelayMs = 4;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
@@ -159,6 +160,11 @@ namespace GameWorld
                     queueEmergencyReleaseRatio = Mathf.Clamp(runtime.worldMapControl.performance.queueEmergencyReleaseRatio, 0.5f, 0.99f);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueTrendBoostWeight > 0f)
+                {
+                    queueTrendBoostWeight = Mathf.Clamp(runtime.worldMapControl.performance.queueTrendBoostWeight, 0.0f, 1.5f);
+                }
+
                 if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueOverloadDrainFactor > 0)
                 {
                     queueOverloadDrainFactor = Mathf.Clamp(runtime.worldMapControl.performance.queueOverloadDrainFactor, 1, 16);
@@ -175,7 +181,7 @@ namespace GameWorld
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
                         $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
-                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs})");
+                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs})");
                 }
             }
             catch (Exception ex)
@@ -249,6 +255,11 @@ namespace GameWorld
                     queueEmergencyReleaseRatio = Mathf.Clamp(policy.client.queueEmergencyReleaseRatio, 0.5f, 0.99f);
                 }
 
+                if (policy.client.queueTrendBoostWeight > 0f)
+                {
+                    queueTrendBoostWeight = Mathf.Clamp(policy.client.queueTrendBoostWeight, 0.0f, 1.5f);
+                }
+
                 if (policy.client.queueOverloadDrainFactor > 0)
                 {
                     queueOverloadDrainFactor = Mathf.Clamp(policy.client.queueOverloadDrainFactor, 1, 16);
@@ -271,7 +282,7 @@ namespace GameWorld
 
                 if (enableDebugLogging)
                 {
-                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
                 }
             }
             catch (Exception ex)
@@ -687,16 +698,28 @@ namespace GameWorld
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(dynamicBudget);
-            return Mathf.Clamp(queueSlackRatio + load * 0.55f, Mathf.Max(1.1f, queueSlackRatio), 6.0f);
+            float loadTrend = (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
+            return Mathf.Clamp(
+                queueSlackRatio + load * 0.55f + Mathf.Max(0f, loadTrend) * queueTrendBoostWeight * 0.75f,
+                Mathf.Max(1.1f, queueSlackRatio),
+                6.0f);
         }
 
         private int GetAdaptiveQueuePressureFactor()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(dynamicBudget);
+            float loadTrend = (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
-            int adaptive = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
-            return Mathf.Clamp(Mathf.Max(queuePressureFactor, adaptive), 1, 8);
+            int adaptive = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
+                Mathf.Clamp(queuePressureFactor, 1, 8),
+                pressureBand,
+                loadTrend,
+                queueEmergencyBrakeLatched,
+                Mathf.Clamp(queueTrendBoostWeight, 0.0f, 1.5f),
+                1,
+                8);
+            return Mathf.Clamp(adaptive, 1, 8);
         }
 
         private int GetAdaptiveQueueLimit()
@@ -879,6 +902,7 @@ namespace GameWorld
             public float queueEmergencyBrakeThreshold = 1.15f;
             public float queueLoadEmaBlend = 0.18f;
             public float queueEmergencyReleaseRatio = 0.84f;
+            public float queueTrendBoostWeight = 0.22f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
         }
@@ -900,6 +924,7 @@ namespace GameWorld
             public float queueEmergencyBrakeThreshold = 1.15f;
             public float queueLoadEmaBlend = 0.18f;
             public float queueEmergencyReleaseRatio = 0.84f;
+            public float queueTrendBoostWeight = 0.22f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
             public int maxLoadedPreviewChunks = 2048;

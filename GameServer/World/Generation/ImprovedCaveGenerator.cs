@@ -48,6 +48,8 @@ namespace GameServerApp.World.Generation
             double waterThreshold = Math.Clamp(config.WaterThreshold, 0.0, 1.0);
             double moistureFlowClamp = Math.Max(0.0, config.MoistureFlowClamp);
             double aquiferBarrierWeight = Math.Clamp(config.AquiferBarrierWeight, 0.0, 1.0);
+            double groundwaterConnectivityWeight = Math.Clamp(config.GroundwaterConnectivityWeight, 0.0, 1.0);
+            double caveVentilationBias = Math.Clamp(config.CaveVentilationBias, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -163,6 +165,14 @@ namespace GameServerApp.World.Generation
                         1.0);
                     stability *= 1.0 - aquiferPenalty * 0.3;
                     double hydrologyEnvelope = (hydrology + seamHydro + flowMemory) * 0.333;
+                    double groundwaterConnectivity = Math.Clamp(
+                        (hydrologyEnvelope + seamMemory + flowMemory) * 0.333,
+                        0.0,
+                        1.0);
+                    double ventilationPotential = Math.Clamp(
+                        (1.0 - hydrology) * (1.0 - flow) * (1.0 - Math.Clamp(slope * 0.04, 0.0, 0.75)),
+                        0.0,
+                        1.0);
                     double aquiferBarrier = Math.Clamp(
                         (hydrologyEnvelope + seamMemory + riverPressure) * aquiferBarrierWeight * 0.5,
                         0.0,
@@ -187,6 +197,9 @@ namespace GameServerApp.World.Generation
                     double roofKarstGuard = Math.Clamp(karstPotential * config.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
                     stability *= 1.0 - roofKarstGuard;
                     stability *= 1.0 - aquiferBarrier * 0.28;
+                    stability *= 1.0 - groundwaterConnectivity * groundwaterConnectivityWeight * 0.2;
+                    stability = stability * (1.0 - caveVentilationBias * 0.1) +
+                        stability * (1.0 + ventilationPotential * 0.14) * caveVentilationBias * 0.1;
                     double seamVaultStability = Math.Clamp(
                         (1.0 - hydrologyGradient) * 0.35 +
                         (1.0 - flowGradient) * 0.25 +
@@ -255,7 +268,11 @@ namespace GameServerApp.World.Generation
                         double roofGuard = Math.Clamp(1.0 / Math.Max(1.0, roofThickness), 0.0, 1.0);
                         double ceilingHydration = Math.Clamp(hydrologyEnvelope * config.CeilingMoistureWeight * 0.35, 0.0, 0.35);
                         double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / Math.Max(0.0001, moistureFlowClamp));
+                        double groundwaterThreshold = groundwaterConnectivity * groundwaterConnectivityWeight * 0.12;
+                        double ventilationThreshold = ventilationPotential * caveVentilationBias * depthFactor * 0.11;
                         double threshold = config.Threshold + moisturePenalty * 0.35 + flowPenalty * 0.35 + roughnessBias * 0.25;
+                        threshold += groundwaterThreshold;
+                        threshold -= ventilationThreshold;
                         threshold -= depthFactor * depthWeight * 0.6;
                         threshold -= Math.Clamp(detail * depthFactor * 0.2, 0.0, 0.2);
                         threshold += wetnessRetention * 0.15;

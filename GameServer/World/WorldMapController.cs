@@ -58,6 +58,7 @@ namespace GameServerApp.World
         private double queueEmergencyBrakeThreshold;
         private double queueLoadEmaBlend;
         private double queueEmergencyReleaseRatio;
+        private double queueTrendBoostWeight;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
         private double queueLoadEma;
@@ -416,6 +417,10 @@ namespace GameServerApp.World
             queueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(
                 generationConfig.MapControlProfileVersion >= 43 ? 0.82 : 0.84,
                 0.84);
+            queueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(
+                generationConfig.MapControlProfileVersion >= 44 ? 0.26 :
+                generationConfig.MapControlProfileVersion >= 43 ? 0.22 : 0.18,
+                0.2);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -450,7 +455,10 @@ namespace GameServerApp.World
 
             bool emergencyBrake = queueEmergencyBrakeLatched;
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);
-            double adaptiveSlack = Math.Clamp(queueSlackRatio + effectiveLoad * 0.6 + Math.Max(0.0, loadTrend) * 0.15, queueSlackRatio, 6.0);
+            double adaptiveSlack = Math.Clamp(
+                queueSlackRatio + effectiveLoad * 0.6 + Math.Max(0.0, loadTrend) * queueTrendBoostWeight * 0.75,
+                queueSlackRatio,
+                6.0);
             double burstMultiplier = !emergencyBrake && load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
                 (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack * burstMultiplier),
@@ -458,8 +466,12 @@ namespace GameServerApp.World
                 16384);
             adaptiveLimit = Math.Max(adaptiveLimit, queueLimit);
 
-            int adaptivePressure = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
-            adaptivePressure = Math.Clamp(Math.Max(queuePressureFactor, adaptivePressure), 1, 8);
+            int adaptivePressure = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
+                queuePressureFactor,
+                pressureBand,
+                loadTrend,
+                emergencyBrake,
+                queueTrendBoostWeight);
             double pressurePenalty = pressureBand switch
             {
                 QueuePressureBand.Critical => 0.07,

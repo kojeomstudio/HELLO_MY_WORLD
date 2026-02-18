@@ -59,6 +59,8 @@ namespace GameServerApp.World.Generation
                 config.RiverConfluenceBoost * 0.45,
                 0.0,
                 1.0);
+            double tributaryCaptureWeight = Math.Clamp(config.RiverTributaryCaptureWeight, 0.0, 1.0);
+            double avulsionResistance = Math.Clamp(config.RiverAvulsionResistance, 0.0, 1.0);
             double floodPulseWeight = Math.Clamp(
                 config.RiverDeltaWetlandStrength * 0.5 +
                 config.HydrologyFlowPersistence * 0.5,
@@ -233,11 +235,22 @@ namespace GameServerApp.World.Generation
                         (hydrologyVariance + flowVariance + erosion) * config.RiverConfluenceBoost * 0.2,
                         0.0,
                         0.65);
+                    double tributaryCapture = Math.Clamp(
+                        (flowMemoryContinuity + seamHydro + catchmentAssist) * 0.333,
+                        0.0,
+                        1.0);
+                    double avulsionRisk = Math.Clamp(
+                        (avulsionPotential + divergencePenalty + flowGradient) * 0.333,
+                        0.0,
+                        1.0);
                     double bankCohesion = 1.0 - Math.Clamp(
                         (gradient + erosion) * config.RiverBankStabilityClamp * 0.1,
                         0.0,
                         0.55);
                     pressure = pressure * (1.0 - avulsionPotential * 0.18) + floodplainAnchor * avulsionPotential * 0.12;
+                    pressure *= 1.0 + tributaryCapture * tributaryCaptureWeight * 0.18;
+                    pressure *= 1.0 - avulsionRisk * avulsionResistance * 0.22;
+                    pressure += tributaryCapture * tributaryCaptureWeight * 0.03 * (1.0 - avulsionRisk);
                     pressure *= bankCohesion;
 
                     double flowBridge = (hydrology + seamHydro + flowMemory) * config.HydrologyEdgeFlowBias * 0.15;

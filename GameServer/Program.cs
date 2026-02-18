@@ -152,6 +152,8 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-18-session-95.json"),
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-18-session-93.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-87.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-84.json"),
@@ -542,6 +544,11 @@ namespace GameServerApp
                         mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.TerrainGeneration.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
                     }
 
+                    if (section.TerrainGeneration.QueueTrendBoostWeight is > 0)
+                    {
+                        mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(section.TerrainGeneration.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                    }
+
                     if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
                     {
                         mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
@@ -601,6 +608,11 @@ namespace GameServerApp
                     mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.Cache.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
                 }
 
+                if (section.Cache?.QueueTrendBoostWeight is > 0)
+                {
+                    mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(section.Cache.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                }
+
                 if (section.Cache?.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
@@ -624,7 +636,7 @@ namespace GameServerApp
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -706,6 +718,11 @@ namespace GameServerApp
                     mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(server.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
                 }
 
+                if (server.QueueTrendBoostWeight is > 0)
+                {
+                    mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(server.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                }
+
                 if (server.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
@@ -719,7 +736,7 @@ namespace GameServerApp
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -857,6 +874,9 @@ namespace GameServerApp
             [JsonPropertyName("queueEmergencyReleaseRatio")]
             public double? QueueEmergencyReleaseRatio { get; set; }
 
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
+
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
 
@@ -898,6 +918,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueEmergencyReleaseRatio")]
             public double? QueueEmergencyReleaseRatio { get; set; }
+
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
@@ -949,6 +972,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueEmergencyReleaseRatio")]
             public double? QueueEmergencyReleaseRatio { get; set; }
+
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }

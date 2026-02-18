@@ -64,6 +64,8 @@ namespace GameServerApp.World.Generation
                 waterConfig.HydrologyFlowPersistence * 0.5,
                 0.0,
                 1.0);
+            double terraceBiasWeight = Math.Clamp(lakeConfig.TerraceBiasWeight, 0.0, 1.0);
+            double spillRetentionWeight = Math.Clamp(lakeConfig.SpillRetentionWeight, 0.0, 1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -91,6 +93,10 @@ namespace GameServerApp.World.Generation
                     double hydrologyGradient = Math.Abs(seamHydro - hydrology);
                     double hydrologyVariance = TerrainMaskUtility.SampleVariance(hydrologyMask, x, z);
                     double curvature = ComputeCurvature(heightMap, x, z);
+                    double terracePotential = Math.Clamp(
+                        (Math.Max(0.0, -curvature) + (1.0 - Math.Clamp(slope * 0.08, 0.0, 0.95))) * 0.5,
+                        0.0,
+                        1.0);
                     double flowVariance = TerrainMaskUtility.SampleVariance(flowAccumulation, x, z);
                     double edgeNormalization = edgeNormalizationStrength * (1.0 - Math.Clamp(edgeDistance / (double)(watershedRadius + 1), 0.0, 1.0));
                     double flowShadow = Math.Clamp(
@@ -194,11 +200,18 @@ namespace GameServerApp.World.Generation
                         0.25);
                     weight += spillwayErosionGuard;
                     weight *= 1.0 + floodplainRetention * (1.0 - flowShadow * 0.4);
+                    weight += terracePotential * terraceBiasWeight * 0.12 * (1.0 - flowShadow * 0.35);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / divergenceClamp);
                     weight *= 1.0 - Math.Clamp(divergenceBrake * reservoirBlend, 0.0, 0.25);
                     weight = weight * (1.0 - reservoirBlend * 0.2) + (weight + catchmentMemory) * reservoirBlend * 0.2;
+                    double spillRetention = Math.Clamp(
+                        (catchmentConnectivity + seamMemory + (1.0 - erosion)) * 0.333,
+                        0.0,
+                        1.0);
+                    weight *= 1.0 + spillRetention * spillRetentionWeight * 0.08;
+                    weight *= 1.0 - divergencePenalty * spillRetentionWeight * 0.06;
                     weight *= 1.0 - flowShadow * Math.Clamp(0.35 - outflowSealWeight * 0.1, 0.05, 0.35);
                     weight *= 1.0 + riparianCohesion * 0.15;
                     double flowBridge = (hydrology + seamHydro + flowMemory) * waterConfig.HydrologyEdgeFlowBias * 0.1;

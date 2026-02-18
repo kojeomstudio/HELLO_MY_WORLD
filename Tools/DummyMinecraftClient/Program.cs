@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using EnhancedMinecraftProtocol;
+using GameCommon.World;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
@@ -16,6 +17,8 @@ public sealed class DummyClientConfig
     public bool ProbeNetwork { get; set; } = false;
     public int MaxPacketsToSend { get; set; } = 6;
     public bool StrictRequiredBindings { get; set; } = true;
+    public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+    public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
     public bool IncludeOptionalMessages { get; set; } = false;
     public string[] Packets { get; set; } = new[]
     {
@@ -99,6 +102,28 @@ public static class Program
         Console.WriteLine("=== Dummy Minecraft Client (Protocol Probe) ===");
         Console.WriteLine($"Config: {Path.GetFullPath(configPath)}");
         Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, ProbeNetwork={probeNetwork}");
+
+        string resolvedProfilePath = string.IsNullOrWhiteSpace(config.WorldMapControlProfilePath)
+            ? string.Empty
+            : Path.GetFullPath(config.WorldMapControlProfilePath);
+        if (!string.IsNullOrWhiteSpace(resolvedProfilePath))
+        {
+            var profile = WorldMapControlProfileUtility.Load(resolvedProfilePath);
+            if (profile != null)
+            {
+                bool signatureMatch = string.Equals(
+                    profile.HydrologySignature,
+                    SharedFeatureCatalog.HydrologySignature,
+                    StringComparison.OrdinalIgnoreCase);
+                Console.WriteLine(
+                    $"Profile: {resolvedProfilePath} (version={profile.Version}, hash={profile.ProfileHash}, hydrology={profile.HydrologySignature}, shared={SharedFeatureCatalog.HydrologySignature})");
+                if (!signatureMatch && config.FailOnHydrologySignatureMismatch)
+                {
+                    Console.WriteLine("[ERROR] Hydrology signature mismatch detected and fail-fast is enabled.");
+                    return 1;
+                }
+            }
+        }
 
         ProtoRuntime.EnsureInitialized();
         ProtoFingerprint.AssertDescriptorFingerprint();

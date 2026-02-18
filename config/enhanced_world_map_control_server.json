@@ -2,7 +2,7 @@
   "worldMapControl": {
     "enabled": true,
     "profilePath": "config/world_map_control_profile.json",
-    "profileVersion": 40,
+    "profileVersion": 44,
     "defaults": {
       "renderDistance": 12,
       "mapScale": 1.0,
@@ -22,6 +22,7 @@
       "queueEmergencyBrakeThreshold": 1.04,
       "queueLoadEmaBlend": 0.24,
       "queueEmergencyReleaseRatio": 0.82,
+      "queueTrendBoostWeight": 0.26,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 6,
       "cleanupIntervalSeconds": 60,
@@ -46,6 +47,7 @@
       "queueEmergencyBrakeThreshold": 1.04,
       "queueLoadEmaBlend": 0.24,
       "queueEmergencyReleaseRatio": 0.82,
+      "queueTrendBoostWeight": 0.26,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 6
     }

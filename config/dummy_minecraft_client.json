@@ -5,6 +5,8 @@
   "receiveTimeoutMs": 1500,
   "probeNetwork": false,
   "strictRequiredBindings": true,
+  "failOnHydrologySignatureMismatch": true,
+  "worldMapControlProfilePath": "config/world_map_control_profile.json",
   "includeOptionalMessages": true,
   "maxPacketsToSend": 6,
   "packets": [

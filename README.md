@@ -32,6 +32,63 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-18: Session 95 - Hydrology v40 / Map-Control v44 / Trend-Aware Queue Control
+
+**Status:** COMPLETED
+
+- Terrain generation refinements (server):
+  - Cave: groundwater connectivity + ventilation stability bias.
+  - River: tributary capture + avulsion resistance.
+  - Lake: terrace bias + spill retention stability.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+- World-map architecture improvements (server + client):
+  - Added shared queue trend helper and runtime `queueTrendBoostWeight` wiring.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `GameServer/Program.cs`
+    - `GameServer/Configuration/ConfigurationModels.cs`
+- Shared signature/profile/config synchronization:
+  - Hydrology signature updated to `2026-02-18-hydrology-riverlake-cave-v40`.
+  - Map-control profile version updated to `44`.
+  - Queue policy updated to version `13`.
+  - Files:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Protobuf validation hardening:
+  - Standalone dummy client now validates world-map profile hydrology signature.
+  - Files:
+    - `Tools/DummyMinecraftClient/Program.cs`
+    - `config/dummy_minecraft_client.json`
+- Core/Content/Utility feature catalog refresh:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-18-session-95.json`
+
+**Validation:**
+- `dotnet build SharedProtocol/SharedProtocol.csproj -m:1`
+- `dotnet build GameCommon/GameCommon.csproj -m:1`
+- `dotnet build GameServer/GameServer.csproj -m:1`
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -m:1`
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+
+**Documentation:**
+- `docs/2026-02-18-session-95-worldgen-map-proto-report.md`
+- `docs/2026-02-18-session-95-feature-catalog.md`
+- `docs/2026-02-18-session-95-using-reference-validation.md`
+- `plans/2026-02-18-session-95-comprehensive-work-plan.md`
+
 ### 2026-02-18: Session 93 - Hydrology v39 / Map-Control v43 / Adaptive Queue EMA-Release Control
 
 **Status:** COMPLETED

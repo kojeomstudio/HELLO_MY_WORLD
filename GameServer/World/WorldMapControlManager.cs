@@ -38,6 +38,7 @@ namespace GameServerApp.World
         private readonly double configuredQueueEmergencyBrakeThreshold;
         private readonly double configuredQueueLoadEmaBlend;
         private readonly double configuredQueueEmergencyReleaseRatio;
+        private readonly double configuredQueueTrendBoostWeight;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
         private int dynamicQueueLimit;
@@ -87,6 +88,7 @@ namespace GameServerApp.World
             configuredQueueEmergencyBrakeThreshold = Math.Clamp(this.settings.QueueEmergencyBrakeThreshold <= 0.0 ? 1.15 : this.settings.QueueEmergencyBrakeThreshold, 0.75, 4.0);
             configuredQueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(this.settings.QueueLoadEmaBlend, 0.28);
             configuredQueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(this.settings.QueueEmergencyReleaseRatio, 0.84);
+            configuredQueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(this.settings.QueueTrendBoostWeight, 0.22);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
@@ -499,7 +501,7 @@ namespace GameServerApp.World
             double overloadBias = Math.Clamp(queueOverloadTicks / 24.0, 0.0, 0.45);
 
             dynamicQueueSlackRatio = Math.Clamp(
-                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35 + Math.Max(0.0, loadTrend) * 0.15,
+                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35 + Math.Max(0.0, loadTrend) * configuredQueueTrendBoostWeight * 0.75,
                 configuredQueueSlackRatio,
                 6.0);
             bool emergencyBrake = queueEmergencyBrakeLatched;
@@ -537,7 +539,12 @@ namespace GameServerApp.World
             }
 
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load + overloadBias * 0.25);
-            int pressure = WorldMapQueuePolicy.GetPressureFactorHint(pressureBand);
+            int pressure = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
+                configuredQueuePressureFactor,
+                pressureBand,
+                loadTrend + overloadBias * configuredQueueTrendBoostWeight,
+                emergencyBrake,
+                configuredQueueTrendBoostWeight);
             if (overloadBias >= 0.35)
             {
                 pressure = Math.Max(pressure, 4);

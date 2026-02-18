@@ -46,6 +46,12 @@ namespace GameCommon.World
             return Math.Clamp(resolved, 0.5, 0.99);
         }
 
+        public static double ClampTrendBoostWeight(double weight, double fallback = 0.2)
+        {
+            double resolved = weight <= 0.0 ? fallback : weight;
+            return Math.Clamp(resolved, 0.0, 1.5);
+        }
+
         public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
         {
             return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);
@@ -127,6 +133,28 @@ namespace GameCommon.World
                 QueuePressureBand.Elevated => 2,
                 _ => 1
             };
+        }
+
+        public static int ComputeAdaptivePressureFactor(
+            int basePressureFactor,
+            QueuePressureBand band,
+            double loadTrend,
+            bool emergencyBrake,
+            double trendBoostWeight,
+            int min = 1,
+            int max = 8)
+        {
+            int clampedBase = Math.Clamp(basePressureFactor, min, max);
+            int pressure = Math.Max(clampedBase, GetPressureFactorHint(band));
+            double trendBoost = Math.Max(0.0, loadTrend) * ClampTrendBoostWeight(trendBoostWeight) * 4.0;
+            pressure += (int)Math.Ceiling(trendBoost);
+
+            if (emergencyBrake)
+            {
+                pressure = Math.Max(pressure, clampedBase + 1);
+            }
+
+            return Math.Clamp(pressure, min, max);
         }
 
         /// <summary>

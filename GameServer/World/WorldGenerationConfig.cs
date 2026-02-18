@@ -13,7 +13,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 43;
+        public int MapControlProfileVersion { get; set; } = 44;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();
@@ -165,6 +165,8 @@ namespace GameServerApp.World
         public double RiverBankStabilityClamp { get; set; } = 0.52;
         public double LakeInflowBlendWeight { get; set; } = 0.64;
         public double RiverConfluenceBoost { get; set; } = 0.78;
+        public double RiverTributaryCaptureWeight { get; set; } = 0.46;
+        public double RiverAvulsionResistance { get; set; } = 0.52;
         public double RiverBraidingWeight { get; set; } = 0.53;
         public double RiverEdgeFeather { get; set; } = 0.66;
         public double RiverEdgeContinuityWeight { get; set; } = 0.94;
@@ -233,6 +235,8 @@ namespace GameServerApp.World
         public double CeilingMoistureWeight { get; set; } = 0.46;
         public double CeilingMoistureClamp { get; set; } = 0.42;
         public double CaveEntranceFlowDampening { get; set; } = 0.80;
+        public double GroundwaterConnectivityWeight { get; set; } = 0.58;
+        public double CaveVentilationBias { get; set; } = 0.42;
     }
 
     public sealed class LakeConfig
@@ -254,5 +258,7 @@ namespace GameServerApp.World
         public double OutflowStabilityWeight { get; set; } = 0.95;
         public double LakeOutflowTaper { get; set; } = 0.74;
         public double SpillwayContinuityWeight { get; set; } = 0.88;
+        public double TerraceBiasWeight { get; set; } = 0.4;
+        public double SpillRetentionWeight { get; set; } = 0.58;
     }
 }

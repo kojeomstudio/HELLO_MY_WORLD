@@ -60,7 +60,7 @@
 ### 8) Documentation and close-out
 - [x] Update `README.md` and add/update docs in `docs/` as markdown.
 - [x] Record validation/compile/protobuf checks with concrete outputs.
-- [ ] Commit all changes and push to `origin/master`.
+- [x] Commit all changes and push to `origin/master`.
 
 ## Completion Tracking
 - [x] Plan created before implementation start
@@ -69,4 +69,4 @@
 - [x] Protobuf and dummy client checks completed
 - [x] Build/reference validation completed
 - [x] Docs/README updated
-- [ ] Commit and push completed
+- [x] Commit and push completed

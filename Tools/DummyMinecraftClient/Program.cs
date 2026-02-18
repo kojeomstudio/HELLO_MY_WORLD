@@ -121,6 +121,7 @@ public static class Program
         var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
             .ToHashSet(StringComparer.Ordinal);
         string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
+        string expectedDescriptorFileName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty;
 
         if (missingRequiredBindings.Length > 0)
         {
@@ -187,6 +188,7 @@ public static class Program
                 string descriptorName = descriptor?.Name ?? string.Empty;
                 string descriptorPackage = descriptor?.File?.Package ?? string.Empty;
                 string descriptorFullName = descriptor?.FullName ?? string.Empty;
+                string descriptorSourceName = descriptor?.File?.Name ?? string.Empty;
                 if (descriptor == null || string.IsNullOrWhiteSpace(descriptorName))
                 {
                     Console.WriteLine($"[WARN] Descriptor missing: {messageType}");
@@ -199,10 +201,26 @@ public static class Program
                     continue;
                 }
 
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorFileName) &&
+                    !string.IsNullOrWhiteSpace(descriptorSourceName) &&
+                    !string.Equals(descriptorSourceName, expectedDescriptorFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[WARN] Descriptor source mismatch: {messageType} (actual={descriptorSourceName}, expected={expectedDescriptorFileName})");
+                    continue;
+                }
+
                 if (!string.IsNullOrWhiteSpace(expectedDescriptorPackage) &&
                     !string.Equals(descriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal))
                 {
                     Console.WriteLine($"[WARN] Descriptor package mismatch: {messageType} (actual={descriptorPackage}, expected={expectedDescriptorPackage})");
+                    continue;
+                }
+
+                string actualAssembly = prototype.GetType().Assembly.GetName().Name ?? string.Empty;
+                string expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name ?? string.Empty;
+                if (!string.Equals(actualAssembly, expectedAssembly, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor assembly mismatch: {messageType} (actual={actualAssembly}, expected={expectedAssembly})");
                     continue;
                 }
 

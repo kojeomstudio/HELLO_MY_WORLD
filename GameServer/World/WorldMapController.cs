@@ -56,6 +56,8 @@ namespace GameServerApp.World
         private double queueBurstSlackMultiplier;
         private double queueLoadSheddingThreshold;
         private double queueEmergencyBrakeThreshold;
+        private double queueLoadEmaBlend;
+        private double queueEmergencyReleaseRatio;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
         private double queueLoadEma;
@@ -408,6 +410,12 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 36 ? 1.08 : 1.2,
                 0.75,
                 4.0);
+            queueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(
+                generationConfig.MapControlProfileVersion >= 43 ? 0.24 : 0.18,
+                0.18);
+            queueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(
+                generationConfig.MapControlProfileVersion >= 43 ? 0.82 : 0.84,
+                0.84);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -426,17 +434,23 @@ namespace GameServerApp.World
             int inflight = generationTasks.Count;
             int budget = Math.Max(128, maxLoadedChunks);
             double load = inflight / Math.Max(1.0, budget);
-            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, load, 0.18);
+            double adaptiveEmaBlend = WorldMapQueuePolicy.ComputeAdaptiveEmaBlend(
+                queueLoadEmaBlend,
+                load,
+                queueLoadEma,
+                queueEmergencyBrakeLatched);
+            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, load, adaptiveEmaBlend);
             double effectiveLoad = Math.Max(load, queueLoadEma);
+            double loadTrend = WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
             queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
                 queueEmergencyBrakeLatched,
                 effectiveLoad,
                 queueEmergencyBrakeThreshold,
-                0.84);
+                queueEmergencyReleaseRatio);
 
             bool emergencyBrake = queueEmergencyBrakeLatched;
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);
-            double adaptiveSlack = Math.Clamp(queueSlackRatio + effectiveLoad * 0.6, queueSlackRatio, 6.0);
+            double adaptiveSlack = Math.Clamp(queueSlackRatio + effectiveLoad * 0.6 + Math.Max(0.0, loadTrend) * 0.15, queueSlackRatio, 6.0);
             double burstMultiplier = !emergencyBrake && load >= 0.9 ? queueBurstSlackMultiplier : 1.0;
             int adaptiveLimit = Math.Clamp(
                 (int)Math.Ceiling(Math.Max(128, budget) * adaptiveSlack * burstMultiplier),

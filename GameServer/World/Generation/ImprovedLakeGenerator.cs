@@ -54,6 +54,16 @@ namespace GameServerApp.World.Generation
             double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
             double edgeTangentWeight = Math.Clamp(waterConfig.HydrologyEdgeTangentWeight, 0.0, 1.0);
             double reservoirBlend = Math.Clamp(waterConfig.HydrologyReservoirBlend, 0.0, 1.0);
+            double spillwayErosionGuardWeight = Math.Clamp(
+                lakeConfig.SpillwayContinuityWeight * 0.55 +
+                lakeConfig.OutflowStabilityWeight * 0.45,
+                0.0,
+                1.0);
+            double floodplainRetentionWeight = Math.Clamp(
+                lakeConfig.FlowSeepageWeight * 0.5 +
+                waterConfig.HydrologyFlowPersistence * 0.5,
+                0.0,
+                1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -171,6 +181,19 @@ namespace GameServerApp.World.Generation
                     weight *= 1.0 - Math.Clamp(Math.Abs(catchmentConnectivity - wetness) * 0.15, 0.0, 0.25);
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
                     weight *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + hydrologyGradient * 0.1 + flowMemoryGradient * 0.15, 0.0, 0.35);
+                    double spillwayErosionGuard = Math.Clamp(
+                        (1.0 - erosion) *
+                        (seamHydro * 0.4 + flowMemory * 0.35 + catchmentConnectivity * 0.25) *
+                        spillwayErosionGuardWeight * 0.25,
+                        0.0,
+                        0.3);
+                    double floodplainRetention = Math.Clamp(
+                        (hydrology + seamHydro + flow + flowMemory) * 0.25 *
+                        floodplainRetentionWeight * 0.22,
+                        0.0,
+                        0.25);
+                    weight += spillwayErosionGuard;
+                    weight *= 1.0 + floodplainRetention * (1.0 - flowShadow * 0.4);
                     double seamCushion = 1.0 + Math.Clamp((seamHydro - hydrology) * waterConfig.HydrologyEdgeFluxBlend, -0.2, 0.3);
                     weight *= seamCushion * seamGuard * seamContinuityBias * flowSeepageContinuity;
                     double divergenceBrake = Math.Min(1.0, Math.Abs(flowMemory - seamHydro) / divergenceClamp);

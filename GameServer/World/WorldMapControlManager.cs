@@ -36,6 +36,8 @@ namespace GameServerApp.World
         private readonly double configuredQueueBurstSlackMultiplier;
         private readonly double configuredQueueLoadSheddingThreshold;
         private readonly double configuredQueueEmergencyBrakeThreshold;
+        private readonly double configuredQueueLoadEmaBlend;
+        private readonly double configuredQueueEmergencyReleaseRatio;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
         private int dynamicQueueLimit;
@@ -83,6 +85,8 @@ namespace GameServerApp.World
             configuredQueueBurstSlackMultiplier = Math.Clamp(this.settings.QueueBurstSlackMultiplier <= 0.0 ? 1.15 : this.settings.QueueBurstSlackMultiplier, 1.0, 3.0);
             configuredQueueLoadSheddingThreshold = Math.Clamp(this.settings.QueueLoadSheddingThreshold <= 0.0 ? 0.88 : this.settings.QueueLoadSheddingThreshold, 0.5, 0.98);
             configuredQueueEmergencyBrakeThreshold = Math.Clamp(this.settings.QueueEmergencyBrakeThreshold <= 0.0 ? 1.15 : this.settings.QueueEmergencyBrakeThreshold, 0.75, 4.0);
+            configuredQueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(this.settings.QueueLoadEmaBlend, 0.28);
+            configuredQueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(this.settings.QueueEmergencyReleaseRatio, 0.84);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
@@ -474,13 +478,19 @@ namespace GameServerApp.World
             int inflight = inflightChunkGenerations.Count;
             int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
             double instantaneousLoad = inflight / Math.Max(1.0, cacheBudget);
-            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, instantaneousLoad, 0.28);
+            double adaptiveEmaBlend = WorldMapQueuePolicy.ComputeAdaptiveEmaBlend(
+                configuredQueueLoadEmaBlend,
+                instantaneousLoad,
+                queueLoadEma,
+                queueEmergencyBrakeLatched);
+            queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, instantaneousLoad, adaptiveEmaBlend);
             double load = Math.Max(instantaneousLoad, queueLoadEma * 0.9);
+            double loadTrend = WorldMapQueuePolicy.ComputeLoadTrend(instantaneousLoad, queueLoadEma);
             queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
                 queueEmergencyBrakeLatched,
                 load,
                 configuredQueueEmergencyBrakeThreshold,
-                0.84);
+                configuredQueueEmergencyReleaseRatio);
             bool overloadTick = load >= configuredQueueLoadSheddingThreshold ||
                 instantaneousLoad >= configuredQueueLoadSheddingThreshold;
             queueOverloadTicks = overloadTick
@@ -489,7 +499,7 @@ namespace GameServerApp.World
             double overloadBias = Math.Clamp(queueOverloadTicks / 24.0, 0.0, 0.45);
 
             dynamicQueueSlackRatio = Math.Clamp(
-                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35,
+                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35 + Math.Max(0.0, loadTrend) * 0.15,
                 configuredQueueSlackRatio,
                 6.0);
             bool emergencyBrake = queueEmergencyBrakeLatched;

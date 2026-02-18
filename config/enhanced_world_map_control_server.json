@@ -20,6 +20,8 @@
       "queueBurstSlackMultiplier": 1.2,
       "queueLoadSheddingThreshold": 0.86,
       "queueEmergencyBrakeThreshold": 1.04,
+      "queueLoadEmaBlend": 0.24,
+      "queueEmergencyReleaseRatio": 0.82,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 6,
       "cleanupIntervalSeconds": 60,
@@ -42,6 +44,8 @@
       "queueBurstSlackMultiplier": 1.2,
       "queueLoadSheddingThreshold": 0.86,
       "queueEmergencyBrakeThreshold": 1.04,
+      "queueLoadEmaBlend": 0.24,
+      "queueEmergencyReleaseRatio": 0.82,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 6
     }

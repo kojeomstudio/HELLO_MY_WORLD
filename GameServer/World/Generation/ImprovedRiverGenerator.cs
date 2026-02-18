@@ -54,6 +54,16 @@ namespace GameServerApp.World.Generation
             double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
             double continuityMemory = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
             double edgeGuardWeight = Math.Clamp(config.HydrologyEdgeStabilityWeight, 0.0, 1.0);
+            double confluenceMemoryWeight = Math.Clamp(
+                config.HydrologyFlowMemoryWeight * 0.55 +
+                config.RiverConfluenceBoost * 0.45,
+                0.0,
+                1.0);
+            double floodPulseWeight = Math.Clamp(
+                config.RiverDeltaWetlandStrength * 0.5 +
+                config.HydrologyFlowPersistence * 0.5,
+                0.0,
+                1.0);
 
             for (int x = 0; x < chunkSize; x++)
             {
@@ -172,6 +182,13 @@ namespace GameServerApp.World.Generation
                     pressure = pressure * (1.0 - hydrologyShadow * 0.25) + (hydrology + seamHydro) * hydrologyShadow * 0.15;
                     double flowMemoryContinuity = (flowMemory + seamHydro + hydrology) * 0.333;
                     double flowMemoryGradient = Math.Abs(flowMemory - flow);
+                    double floodPulse = Math.Clamp(
+                        flowMemory * 0.4 +
+                        flow * 0.25 +
+                        seamHydro * 0.2 +
+                        Math.Max(0.0, flow - interiorFlow) * 0.15,
+                        0.0,
+                        1.2);
                     pressure *= seamGuard;
                     double reservoir = Math.Clamp((flowMemory + seamHydro + hydrology) * reservoirBlend * 0.5, 0.0, 0.45);
                     double pressureStabilizer = 1.0 - Math.Clamp(
@@ -190,12 +207,16 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 + Math.Max(0.0, basinAssist) * 0.4;
                     pressure *= 1.0 - Math.Clamp(ridgePenalty * 0.75, 0.0, 0.45);
                     pressure = pressure * (1.0 - catchmentWeight * 0.15) + catchmentAssist * catchmentWeight * 0.35;
+                    pressure = pressure * (1.0 - floodPulseWeight * 0.14) + (pressure + floodPulse * 0.12) * floodPulseWeight * 0.14;
                     if (confluenceBoost > 0.0)
                     {
                         double neighbourFlow = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
                         double tributaryPressure = Math.Clamp((flow + neighbourFlow) * 0.5, 0.0, 1.0);
                         double hydrologyAssist = hydrology * 0.5 + hydrologyGradient * 0.15;
+                        double confluenceMemory = Math.Clamp((flowMemory + seamHydro + neighbourFlow) / 3.0, 0.0, 1.1);
                         pressure *= 1.0 + (tributaryPressure + hydrologyAssist) * confluenceBoost * 0.35;
+                        pressure *= 1.0 + confluenceMemory * confluenceMemoryWeight * 0.22;
+                        pressure = pressure * (1.0 - confluenceMemoryWeight * 0.08) + (pressure + confluenceMemory * 0.06) * confluenceMemoryWeight * 0.08;
                     }
 
                     double floodplain = Math.Clamp((hydrology + seamHydro + flowMemory) * config.RiverDeltaWetlandStrength * 0.25, 0.0, 0.6);

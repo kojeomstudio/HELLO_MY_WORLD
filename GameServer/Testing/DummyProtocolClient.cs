@@ -166,6 +166,7 @@ namespace GameServerApp.Testing
             var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
                 .ToHashSet(StringComparer.Ordinal);
             string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
+            string expectedDescriptorFileName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty;
             probeNetwork |= settings.ProbeNetwork;
             var validatedPackets = new List<string>();
             var requiredProbeMissing = new List<string>();
@@ -236,6 +237,7 @@ namespace GameServerApp.Testing
                 string descriptorName = prototype.Descriptor?.Name ?? string.Empty;
                 string descriptorFullName = prototype.Descriptor?.FullName ?? string.Empty;
                 string descriptorPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
+                string descriptorSourceName = prototype.Descriptor?.File?.Name ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(descriptorName))
                 {
                     Console.WriteLine($"[ProtoProbe][WARN] Descriptor metadata missing for '{messageType}'.");
@@ -283,6 +285,60 @@ namespace GameServerApp.Testing
                         DescriptorName: descriptorName,
                         DescriptorPackage: descriptorPackage,
                         ErrorMessage: "Descriptor name not found in generated descriptor set."));
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorFileName) &&
+                    !string.IsNullOrWhiteSpace(descriptorSourceName) &&
+                    !string.Equals(descriptorSourceName, expectedDescriptorFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor source mismatch for '{messageType}': actual='{descriptorSourceName}', expected='{expectedDescriptorFileName}'.");
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (isOptional)
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: $"Descriptor source mismatch ({descriptorSourceName} != {expectedDescriptorFileName})."));
+                    continue;
+                }
+
+                if (!ReferenceEquals(prototype.GetType().Assembly, typeof(EnhancedMinecraftGameReflection).Assembly))
+                {
+                    string actualAssembly = prototype.GetType().Assembly.GetName().Name ?? string.Empty;
+                    string expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name ?? string.Empty;
+                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor assembly mismatch for '{messageType}': actual='{actualAssembly}', expected='{expectedAssembly}'.");
+                    missingPrototypePackets.Add(messageType.ToString());
+                    if (isOptional)
+                    {
+                        optionalProbeMissing.Add(messageType.ToString());
+                    }
+                    else
+                    {
+                        requiredProbeMissing.Add(messageType.ToString());
+                    }
+
+                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
+                        messageType.ToString(),
+                        isOptional,
+                        IsRegistered: true,
+                        PrototypeResolved: true,
+                        RoundTripOk: false,
+                        DescriptorName: descriptorName,
+                        DescriptorPackage: descriptorPackage,
+                        ErrorMessage: $"Descriptor assembly mismatch ({actualAssembly} != {expectedAssembly})."));
                     continue;
                 }
 

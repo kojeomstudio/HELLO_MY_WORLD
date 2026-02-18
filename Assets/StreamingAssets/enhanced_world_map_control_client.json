@@ -23,6 +23,8 @@
       "queueBurstSlackMultiplier": 1.2,
       "queueLoadSheddingThreshold": 0.84,
       "queueEmergencyBrakeThreshold": 1.02,
+      "queueLoadEmaBlend": 0.2,
+      "queueEmergencyReleaseRatio": 0.84,
       "queueOverloadDrainFactor": 4,
       "queueBackoffDelayMs": 6,
       "enableChunkPrediction": true

@@ -34,6 +34,36 @@ namespace GameCommon.World
 
     public static class WorldMapQueuePolicy
     {
+        public static double ClampEmaBlend(double blend, double fallback = 0.18)
+        {
+            double resolved = blend <= 0.0 ? fallback : blend;
+            return Math.Clamp(resolved, 0.05, 0.65);
+        }
+
+        public static double ClampEmergencyReleaseRatio(double ratio, double fallback = 0.84)
+        {
+            double resolved = ratio <= 0.0 ? fallback : ratio;
+            return Math.Clamp(resolved, 0.5, 0.99);
+        }
+
+        public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
+        {
+            return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);
+        }
+
+        public static double ComputeAdaptiveEmaBlend(
+            double baseBlend,
+            double instantaneousLoad,
+            double emaLoad,
+            bool emergencyBrake)
+        {
+            double clampedBase = ClampEmaBlend(baseBlend);
+            double trend = ComputeLoadTrend(instantaneousLoad, emaLoad);
+            double upwardTrendBoost = Math.Max(0.0, trend) * 0.12;
+            double emergencyBoost = emergencyBrake ? 0.08 : 0.0;
+            return Math.Clamp(clampedBase + upwardTrendBoost + emergencyBoost, 0.05, 0.75);
+        }
+
         public static double UpdateEma(double previousEma, double sample, double blend)
         {
             blend = Math.Clamp(blend, 0.0, 1.0);

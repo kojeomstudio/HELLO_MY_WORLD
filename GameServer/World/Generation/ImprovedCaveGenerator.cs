@@ -187,6 +187,21 @@ namespace GameServerApp.World.Generation
                     double roofKarstGuard = Math.Clamp(karstPotential * config.CaveEntranceFlowDampening * 0.35, 0.0, 0.4);
                     stability *= 1.0 - roofKarstGuard;
                     stability *= 1.0 - aquiferBarrier * 0.28;
+                    double seamVaultStability = Math.Clamp(
+                        (1.0 - hydrologyGradient) * 0.35 +
+                        (1.0 - flowGradient) * 0.25 +
+                        seamMemory * 0.2 +
+                        (1.0 - erosionGradient) * 0.2,
+                        0.0,
+                        1.0);
+                    double seamVaultWeight = Math.Clamp(
+                        config.EdgeSealStrength * 0.32 +
+                        config.CaveEntranceFlowDampening * 0.28 +
+                        config.AquiferBarrierWeight * 0.2 +
+                        config.MoistureRetentionWeight * 0.2,
+                        0.0,
+                        1.0);
+                    stability *= 1.0 - (1.0 - seamVaultStability) * seamVaultWeight * 0.22;
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {
@@ -276,6 +291,9 @@ namespace GameServerApp.World.Generation
                         threshold += divergenceBrake * config.FlowStabilityWeight * 0.2;
                         threshold += karstPotential * config.CaveEntranceFlowDampening * 0.12;
                         threshold += Math.Clamp((1.0 - depthFactor) * karstPotential * 0.08, 0.0, 0.15);
+                        double seamVaultDrift = (1.0 - seamVaultStability) * (1.0 - depthFactor);
+                        threshold += Math.Clamp(seamVaultDrift * seamVaultWeight * 0.14, 0.0, 0.16);
+                        threshold -= Math.Clamp(seamVaultStability * seamVaultWeight * depthFactor * 0.05, 0.0, 0.08);
                         if (y >= surface - Math.Max(2, config.RiparianPlugDepth) && riparianSuppression > 0.2)
                         {
                             continue;

@@ -532,6 +532,16 @@ namespace GameServerApp
                         mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.TerrainGeneration.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
                     }
 
+                    if (section.TerrainGeneration.QueueLoadEmaBlend is > 0)
+                    {
+                        mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(section.TerrainGeneration.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                    }
+
+                    if (section.TerrainGeneration.QueueEmergencyReleaseRatio is > 0)
+                    {
+                        mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.TerrainGeneration.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                    }
+
                     if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
                     {
                         mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
@@ -581,6 +591,16 @@ namespace GameServerApp
                     mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.Cache.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
                 }
 
+                if (section.Cache?.QueueLoadEmaBlend is > 0)
+                {
+                    mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(section.Cache.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                }
+
+                if (section.Cache?.QueueEmergencyReleaseRatio is > 0)
+                {
+                    mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.Cache.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                }
+
                 if (section.Cache?.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
@@ -604,7 +624,7 @@ namespace GameServerApp
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -676,6 +696,16 @@ namespace GameServerApp
                     mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(server.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
                 }
 
+                if (server.QueueLoadEmaBlend is > 0)
+                {
+                    mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(server.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                }
+
+                if (server.QueueEmergencyReleaseRatio is > 0)
+                {
+                    mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(server.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                }
+
                 if (server.QueueOverloadDrainFactor > 0)
                 {
                     mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
@@ -689,7 +719,7 @@ namespace GameServerApp
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -821,6 +851,12 @@ namespace GameServerApp
             [JsonPropertyName("queueEmergencyBrakeThreshold")]
             public double? QueueEmergencyBrakeThreshold { get; set; }
 
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
+
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
 
@@ -856,6 +892,12 @@ namespace GameServerApp
 
             [JsonPropertyName("queueEmergencyBrakeThreshold")]
             public double? QueueEmergencyBrakeThreshold { get; set; }
+
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }
@@ -901,6 +943,12 @@ namespace GameServerApp
 
             [JsonPropertyName("queueEmergencyBrakeThreshold")]
             public double? QueueEmergencyBrakeThreshold { get; set; }
+
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
 
             [JsonPropertyName("queueOverloadDrainFactor")]
             public int? QueueOverloadDrainFactor { get; set; }

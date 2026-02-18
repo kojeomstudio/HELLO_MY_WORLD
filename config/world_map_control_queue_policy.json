@@ -1,6 +1,6 @@
 {
-  "version": 11,
-  "description": "Server/client shared queue policy knobs for world-map preview/chunk control (pressure-aware priority ordering + v42 queue tuning).",
+  "version": 12,
+  "description": "Server/client shared queue policy knobs for world-map preview/chunk control (pressure-aware priority ordering + v43 adaptive EMA/release tuning).",
   "server": {
     "maxQueuedChunkRequests": 3648,
     "queuePressureFactor": 4,
@@ -8,6 +8,8 @@
     "queueBurstSlackMultiplier": 1.18,
     "queueLoadSheddingThreshold": 0.83,
     "queueEmergencyBrakeThreshold": 0.99,
+    "queueLoadEmaBlend": 0.24,
+    "queueEmergencyReleaseRatio": 0.82,
     "queueOverloadDrainFactor": 6,
     "queueBackoffDelayMs": 6,
     "maxConcurrentChunkGenerations": 10,
@@ -21,6 +23,8 @@
     "queueBurstSlackMultiplier": 1.18,
     "queueLoadSheddingThreshold": 0.82,
     "queueEmergencyBrakeThreshold": 1.0,
+    "queueLoadEmaBlend": 0.20,
+    "queueEmergencyReleaseRatio": 0.84,
     "queueOverloadDrainFactor": 5,
     "queueBackoffDelayMs": 6,
     "maxLoadedPreviewChunks": 4096,

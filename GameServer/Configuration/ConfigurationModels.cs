@@ -201,6 +201,8 @@ namespace GameServerApp.Configuration
         public double QueueBurstSlackMultiplier { get; set; } = 1.15;
         public double QueueLoadSheddingThreshold { get; set; } = 0.88;
         public double QueueEmergencyBrakeThreshold { get; set; } = 1.15;
+        public double QueueLoadEmaBlend { get; set; } = 0.28;
+        public double QueueEmergencyReleaseRatio { get; set; } = 0.84;
         public int QueueOverloadDrainFactor { get; set; } = 2;
         public int QueueBackoffDelayMs { get; set; } = 4;
     }

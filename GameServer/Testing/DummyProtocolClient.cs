@@ -73,6 +73,8 @@ namespace GameServerApp.Testing
         public bool ValidateAllKnownPackets { get; set; } = true;
         public bool IncludeOptionalMessages { get; set; } = false;
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+        public int MinMapControlProfileVersion { get; set; } = 46;
+        public bool FailOnMapControlVersionRegression { get; set; } = true;
         public bool FailOnRequiredTypeDrift { get; set; } = true;
         public int MaxNetworkProbePackets { get; set; } = 4;
         public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
@@ -155,6 +157,19 @@ namespace GameServerApp.Testing
                 if (sharedProfile != null && sharedProfile.Version <= 0)
                 {
                     Console.WriteLine("[ProtoProbe][WARN] World-map control profile version is missing or invalid.");
+                }
+
+                if (sharedProfile != null &&
+                    sharedProfile.Version < Math.Max(1, settings.MinMapControlProfileVersion))
+                {
+                    string message =
+                        $"[ProtoProbe][WARN] World-map control profile version regression detected (profile={sharedProfile.Version}, required={settings.MinMapControlProfileVersion}).";
+                    if (settings.FailOnMapControlVersionRegression)
+                    {
+                        throw new InvalidOperationException(message);
+                    }
+
+                    Console.WriteLine(message);
                 }
             }
 

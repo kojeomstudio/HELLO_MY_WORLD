@@ -853,12 +853,21 @@ public static class ProtocolValidator
     private static void ValidateGeneratedDescriptorCoverage()
     {
         var registered = new HashSet<MinecraftMessageType>(ProtocolRegistry.RegisteredMessageTypes);
+        var boundDescriptorNames = new HashSet<string>(
+            ProtocolRegistry.RegisteredDescriptors.Select(binding => binding.DescriptorName),
+            StringComparer.Ordinal);
+        var unmappedGeneratedDescriptors = new List<string>();
 
         foreach (var descriptor in EnhancedMinecraftGameReflection.Descriptor.MessageTypes)
         {
+            if (boundDescriptorNames.Contains(descriptor.Name))
+            {
+                continue;
+            }
+
             if (!Enum.TryParse(descriptor.Name, out MinecraftMessageType messageType))
             {
-                Console.WriteLine($"[Proto][WARN] Generated EnhancedMinecraft descriptor '{descriptor.Name}' is not mapped to MinecraftMessageType. Add the enum constant and registry binding or remove the stale proto message.");
+                unmappedGeneratedDescriptors.Add(descriptor.Name);
                 continue;
             }
 
@@ -875,6 +884,17 @@ public static class ProtocolValidator
 
             throw new InvalidOperationException(
                 $"EnhancedMinecraft descriptor '{messageType}' is generated but missing a ProtocolRegistry binding. Register it in ProtocolRegistry or mark it optional so generated DTOs remain reachable.");
+        }
+
+        if (unmappedGeneratedDescriptors.Count > 0)
+        {
+            string[] preview = unmappedGeneratedDescriptors
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .Take(12)
+                .ToArray();
+            string suffix = unmappedGeneratedDescriptors.Count > preview.Length ? ", ..." : string.Empty;
+            Console.WriteLine(
+                $"[Proto][INFO] Generated descriptors without direct MinecraftMessageType mapping: {string.Join(", ", preview)}{suffix} (total={unmappedGeneratedDescriptors.Count}).");
         }
     }
 

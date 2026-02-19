@@ -6,7 +6,7 @@
   "probeNetwork": false,
   "strictRequiredBindings": true,
   "failOnHydrologySignatureMismatch": true,
-  "minMapControlProfileVersion": 45,
+  "minMapControlProfileVersion": 46,
   "failOnMapControlVersionRegression": true,
   "worldMapControlProfilePath": "config/world_map_control_profile.json",
   "includeOptionalMessages": true,

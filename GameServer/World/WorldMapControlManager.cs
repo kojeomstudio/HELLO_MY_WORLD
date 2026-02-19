@@ -39,6 +39,7 @@ namespace GameServerApp.World
         private readonly double configuredQueueLoadEmaBlend;
         private readonly double configuredQueueEmergencyReleaseRatio;
         private readonly double configuredQueueTrendBoostWeight;
+        private readonly double configuredQueueShockAbsorberWeight;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
         private int dynamicQueueLimit;
@@ -89,6 +90,7 @@ namespace GameServerApp.World
             configuredQueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(this.settings.QueueLoadEmaBlend, 0.28);
             configuredQueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(this.settings.QueueEmergencyReleaseRatio, 0.84);
             configuredQueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(this.settings.QueueTrendBoostWeight, 0.22);
+            configuredQueueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(this.settings.QueueShockAbsorberWeight, 0.24);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
@@ -499,14 +501,23 @@ namespace GameServerApp.World
                 ? Math.Min(queueOverloadTicks + 1, 128)
                 : Math.Max(0, queueOverloadTicks - 1);
             double overloadBias = Math.Clamp(queueOverloadTicks / 24.0, 0.0, 0.45);
+            double shockScale = WorldMapQueuePolicy.ComputeShockAbsorberScale(
+                load,
+                loadTrend + overloadBias * 0.5,
+                queueEmergencyBrakeLatched,
+                configuredQueueShockAbsorberWeight);
 
             dynamicQueueSlackRatio = Math.Clamp(
-                configuredQueueSlackRatio + load * 0.6 + overloadBias * 0.35 + Math.Max(0.0, loadTrend) * configuredQueueTrendBoostWeight * 0.75,
+                configuredQueueSlackRatio +
+                load * 0.6 * shockScale +
+                overloadBias * 0.35 +
+                Math.Max(0.0, loadTrend) * configuredQueueTrendBoostWeight * 0.75 * shockScale,
                 configuredQueueSlackRatio,
                 6.0);
             bool emergencyBrake = queueEmergencyBrakeLatched;
+            double stabilizedBurstMultiplier = 1.0 + (configuredQueueBurstSlackMultiplier - 1.0) * shockScale;
             double burstMultiplier = !queueEmergencyBrakeLatched && load >= 0.9
-                ? configuredQueueBurstSlackMultiplier * (1.0 + overloadBias * 0.5)
+                ? stabilizedBurstMultiplier * (1.0 + overloadBias * 0.5 * shockScale)
                 : 1.0;
             int candidateQueueLimit = (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier);
             var now = DateTime.UtcNow;
@@ -528,7 +539,7 @@ namespace GameServerApp.World
             }
 
             dynamicQueueLoadSheddingThreshold = Math.Clamp(
-                configuredQueueLoadSheddingThreshold - load * 0.08 - overloadBias * 0.05,
+                configuredQueueLoadSheddingThreshold - load * 0.08 * shockScale - overloadBias * 0.05,
                 0.5,
                 configuredQueueLoadSheddingThreshold);
 
@@ -542,7 +553,7 @@ namespace GameServerApp.World
             int pressure = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
                 configuredQueuePressureFactor,
                 pressureBand,
-                loadTrend + overloadBias * configuredQueueTrendBoostWeight,
+                loadTrend * shockScale + overloadBias * configuredQueueTrendBoostWeight * shockScale,
                 emergencyBrake,
                 configuredQueueTrendBoostWeight);
             if (overloadBias >= 0.35)
@@ -861,7 +872,8 @@ namespace GameServerApp.World
                 Math.Max(64, adaptiveQueueLimit),
                 Math.Clamp(dynamicQueueLoadSheddingThreshold, 0.5, 0.98),
                 Math.Max(1.1, dynamicQueueSlackRatio),
-                Math.Max(1.0, configuredQueueBurstSlackMultiplier));
+                Math.Max(1.0, configuredQueueBurstSlackMultiplier),
+                Math.Max(0.0, configuredQueueShockAbsorberWeight));
 
             return WorldMapSignature.Compute(context);
         }

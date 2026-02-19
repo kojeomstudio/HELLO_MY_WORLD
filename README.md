@@ -32,6 +32,43 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-19: Session 99 - Hydrology v42 / Map-Control v46 / Queue Shock-Absorber + Karst Confluence Retention
+
+**Status:** COMPLETED
+
+- Terrain convergence upgrade (server + Unity mirror):
+  - Added `ApplyKarstConfluenceRetentionField` to stabilize cave/river/lake coupling near confluences and karst sink transitions.
+  - Files:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map queue architecture upgrade:
+  - Added JSON-driven `queueShockAbsorberWeight` and adaptive scaling to shared/server/client queue logic.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/Program.cs`
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-19-hydrology-riverlake-cave-v42`
+  - Map-control profile version: `46`
+  - Regenerated:
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy-client validation improvements:
+  - Improved descriptor diagnostics logging to summarize helper/domain contracts.
+  - Kept required packet bindings green (`14/14`) and optional packet warnings explicit (`0/10` unbound by design).
+  - Files:
+    - `SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs`
+    - `SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs`
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+- Session docs:
+  - `docs/2026-02-19-session-99-worldgen-map-proto-report.md`
+  - `plans/2026-02-19-session-99-comprehensive-work-plan.md`
+  - `plans/2026-02-19-session-99-minecraft-features-core-content-util.md`
+
 ### 2026-02-19: Session 98 - Comprehensive Implementation & Validation
 
 **Status:** COMPLETED
@@ -2753,5 +2790,4 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-
 

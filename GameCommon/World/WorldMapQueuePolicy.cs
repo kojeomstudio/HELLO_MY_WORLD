@@ -52,9 +52,34 @@ namespace GameCommon.World
             return Math.Clamp(resolved, 0.0, 1.5);
         }
 
+        public static double ClampShockAbsorberWeight(double weight, double fallback = 0.24)
+        {
+            double resolved = weight <= 0.0 ? fallback : weight;
+            return Math.Clamp(resolved, 0.0, 1.5);
+        }
+
         public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
         {
             return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);
+        }
+
+        public static double ComputeShockAbsorberScale(
+            double effectiveLoad,
+            double loadTrend,
+            bool emergencyBrake,
+            double shockAbsorberWeight)
+        {
+            double weight = ClampShockAbsorberWeight(shockAbsorberWeight);
+            if (weight <= 0.0)
+            {
+                return 1.0;
+            }
+
+            double trendPenalty = Math.Max(0.0, loadTrend) * weight * 0.55;
+            double overloadPenalty = Math.Max(0.0, effectiveLoad - 0.9) * weight * 0.45;
+            double emergencyPenalty = emergencyBrake ? weight * 0.3 : 0.0;
+            double scale = 1.0 - trendPenalty - overloadPenalty - emergencyPenalty;
+            return Math.Clamp(scale, 0.55, 1.0);
         }
 
         public static double ComputeAdaptiveEmaBlend(

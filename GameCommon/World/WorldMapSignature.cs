@@ -111,7 +111,8 @@ namespace GameCommon.World
                 .Append(context.PreviewQueueLimit).Append('|')
                 .Append(context.PreviewQueueLoadSheddingThreshold).Append('|')
                 .Append(context.PreviewQueueSlackRatio).Append('|')
-                .Append(context.PreviewQueueBurstSlackMultiplier);
+                .Append(context.PreviewQueueBurstSlackMultiplier).Append('|')
+                .Append(context.PreviewQueueShockAbsorberWeight);
 
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));

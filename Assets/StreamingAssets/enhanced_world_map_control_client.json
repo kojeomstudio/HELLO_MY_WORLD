@@ -26,6 +26,7 @@
       "queueLoadEmaBlend": 0.22,
       "queueEmergencyReleaseRatio": 0.82,
       "queueTrendBoostWeight": 0.28,
+      "queueShockAbsorberWeight": 0.26,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 5,
       "enableChunkPrediction": true

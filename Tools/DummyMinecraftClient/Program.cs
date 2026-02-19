@@ -18,7 +18,7 @@ public sealed class DummyClientConfig
     public int MaxPacketsToSend { get; set; } = 6;
     public bool StrictRequiredBindings { get; set; } = true;
     public bool FailOnHydrologySignatureMismatch { get; set; } = true;
-    public int MinMapControlProfileVersion { get; set; } = 45;
+    public int MinMapControlProfileVersion { get; set; } = 46;
     public bool FailOnMapControlVersionRegression { get; set; } = true;
     public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
     public bool IncludeOptionalMessages { get; set; } = false;

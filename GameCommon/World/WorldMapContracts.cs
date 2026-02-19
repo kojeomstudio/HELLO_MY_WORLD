@@ -122,7 +122,8 @@ namespace GameCommon.World
             int previewQueueLimit,
             double previewQueueLoadSheddingThreshold,
             double previewQueueSlackRatio,
-            double previewQueueBurstSlackMultiplier)
+            double previewQueueBurstSlackMultiplier,
+            double previewQueueShockAbsorberWeight)
         {
             PipelineVersion = pipelineVersion;
             WorldName = worldName;
@@ -219,6 +220,7 @@ namespace GameCommon.World
             PreviewQueueLoadSheddingThreshold = previewQueueLoadSheddingThreshold;
             PreviewQueueSlackRatio = previewQueueSlackRatio;
             PreviewQueueBurstSlackMultiplier = previewQueueBurstSlackMultiplier;
+            PreviewQueueShockAbsorberWeight = previewQueueShockAbsorberWeight;
         }
 
         public string PipelineVersion { get; }
@@ -293,6 +295,7 @@ namespace GameCommon.World
         public double PreviewQueueLoadSheddingThreshold { get; }
         public double PreviewQueueSlackRatio { get; }
         public double PreviewQueueBurstSlackMultiplier { get; }
+        public double PreviewQueueShockAbsorberWeight { get; }
         public double RiverMeanderJitter { get; }
         public double RiverReliefPenaltyWeight { get; }
         public double RiverAnisotropyDamping { get; }

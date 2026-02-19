@@ -16,6 +16,7 @@ namespace SharedProtocol.EnhancedMinecraft;
 /// </summary>
 public static class ProtoDiagnostics
 {
+    private const int LogPreviewLimit = 12;
 
     public sealed record ProtoReferenceReport(
         string FileName,
@@ -126,14 +127,14 @@ public static class ProtoDiagnostics
         if (report.OptionalUnregistered.Count > 0)
         {
             Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
-                              string.Join(", ", report.OptionalUnregistered));
+                              FormatListForLog(report.OptionalUnregistered.Select(item => item.ToString())));
         }
 
         if (report.UnboundDescriptors.Count > 0)
         {
             Console.WriteLine(
                 "[Proto][WARN] Generated EnhancedMinecraft messages are not bound in ProtocolRegistry (this is expected for nested/helper contracts): " +
-                string.Join(", ", report.UnboundDescriptors));
+                FormatListForLog(report.UnboundDescriptors));
         }
 
         if (report.OrphanedDescriptors.Count > 0)
@@ -202,13 +203,13 @@ public static class ProtoDiagnostics
         if (report.OrphanedDescriptors.Count > 0)
         {
             Console.WriteLine("[Proto][WARN] Generated messages not wired into the registry: " +
-                              string.Join(", ", report.OrphanedDescriptors));
+                              FormatListForLog(report.OrphanedDescriptors));
         }
 
         if (report.UnboundDescriptors.Count > 0)
         {
             Console.WriteLine("[Proto][WARN] Generated descriptors missing ProtocolRegistry bindings: " +
-                              string.Join(", ", report.UnboundDescriptors));
+                              FormatListForLog(report.UnboundDescriptors));
         }
 
         if (report.UnregisteredMessageTypes.Count > 0)
@@ -220,7 +221,7 @@ public static class ProtoDiagnostics
         if (report.OptionalUnregistered.Count > 0)
         {
             Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
-                              string.Join(", ", report.OptionalUnregistered));
+                              FormatListForLog(report.OptionalUnregistered.Select(item => item.ToString())));
         }
     }
 
@@ -246,5 +247,22 @@ public static class ProtoDiagnostics
     {
         Console.WriteLine($"[Proto][WARN] ProtocolRegistry is missing a binding for {messageType}. " +
                           "Regenerate EnhancedMinecraft DTOs or update ProtocolRegistry to wire the generated message.");
+    }
+
+    private static string FormatListForLog(IEnumerable<string> values)
+    {
+        string[] filtered = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        if (filtered.Length <= LogPreviewLimit)
+        {
+            return string.Join(", ", filtered);
+        }
+
+        string preview = string.Join(", ", filtered.Take(LogPreviewLimit));
+        return $"{preview}, ... (total={filtered.Length})";
     }
 }

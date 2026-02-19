@@ -204,6 +204,7 @@ namespace GameServerApp.Configuration
         public double QueueLoadEmaBlend { get; set; } = 0.28;
         public double QueueEmergencyReleaseRatio { get; set; } = 0.84;
         public double QueueTrendBoostWeight { get; set; } = 0.22;
+        public double QueueShockAbsorberWeight { get; set; } = 0.24;
         public int QueueOverloadDrainFactor { get; set; } = 2;
         public int QueueBackoffDelayMs { get; set; } = 4;
     }

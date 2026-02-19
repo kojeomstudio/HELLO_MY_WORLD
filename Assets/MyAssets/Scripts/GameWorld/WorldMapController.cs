@@ -988,6 +988,7 @@ namespace GameWorld
             ApplyDeltaWaterTableCoupling(heightMap, hydrology, flow, erosionRisk);
             ApplyLagoonKarstCoupling(heightMap, hydrology, flow, erosionRisk);
             ApplyFloodplainLeakageStability(heightMap, hydrology, flow, erosionRisk);
+            ApplyHydrologySinkStabilityField(heightMap, hydrology, flow, erosionRisk);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
@@ -3356,6 +3357,97 @@ namespace GameWorld
             NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.73)), (float)varianceClamp);
             NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.61)), (float)(varianceClamp * 1.3));
             Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(worldConfig.Water.HydrologySmoothBlend * 0.34)));
+        }
+
+        private void ApplyHydrologySinkStabilityField(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, worldConfig.Water.HydrologyEdgeBlendRadius + 1);
+            double sinkRepairWeight = Math.Clamp(
+                worldConfig.Water.HydrologyContinuityWeight * 0.32 +
+                worldConfig.Water.RiverConfluenceBoost * 0.14 +
+                worldConfig.Water.LakeInflowBlendWeight * 0.2 +
+                worldConfig.Lakes.SpillRetentionWeight * 0.18 +
+                worldConfig.Caves.AquiferBarrierWeight * 0.16,
+                0.0,
+                1.35);
+            double sinkDepthThreshold = Math.Max(0.5, 1.0 + worldConfig.Lakes.ShelfDepth * 0.18 - worldConfig.Lakes.TerraceBiasWeight * 0.12);
+            double varianceClamp = Math.Max(0.001, worldConfig.Water.HydrologyVarianceClamp);
+
+            if (sinkRepairWeight <= 0.01)
+            {
+                return;
+            }
+
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double neighbourHeight =
+                        heightMap[x - 1, z] +
+                        heightMap[x + 1, z] +
+                        heightMap[x, z - 1] +
+                        heightMap[x, z + 1] +
+                        heightMap[x - 1, z - 1] +
+                        heightMap[x + 1, z - 1] +
+                        heightMap[x - 1, z + 1] +
+                        heightMap[x + 1, z + 1];
+                    double sinkDepth = neighbourHeight / 8.0 - heightMap[x, z];
+                    if (sinkDepth <= sinkDepthThreshold)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double flowValue = flowCopy[x, z];
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double erosion = erosionCopy[x, z];
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, Math.Max(1, edgeRadius));
+                    double depressionFactor = Math.Clamp(
+                        (sinkDepth - sinkDepthThreshold) / Math.Max(1.0, sinkDepthThreshold + worldConfig.Lakes.MaxDepth * 0.35),
+                        0.0,
+                        1.0);
+
+                    double leakBrake = 1.0 - Math.Clamp(erosion * 0.35 + slope * 0.025 + relief / 64.0, 0.0, 0.8);
+                    if (leakBrake <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double infiltration = Math.Clamp(
+                        (seamHydro * 0.45 + seamFlow * 0.35 + hydro * 0.2) * (0.45 + sinkRepairWeight * 0.35),
+                        0.0,
+                        1.35);
+                    double repairBlend = sinkRepairWeight * depressionFactor * leakBrake;
+
+                    double hydroTarget =
+                        hydro * (1.0 - repairBlend * 0.28) +
+                        (seamHydro * 0.35 + infiltration * 0.4) * repairBlend;
+
+                    double flowTarget =
+                        flowValue * (1.0 - repairBlend * 0.24) +
+                        (seamFlow * 0.4 + infiltration * 0.3 + seamHydro * 0.2) * repairBlend;
+
+                    double erosionTarget =
+                        erosion * (1.0 - depressionFactor * 0.1) +
+                        (1.0 - leakBrake) * 0.08 * depressionFactor;
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.35));
+                    erosionRisk[x, z] = Mathf.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.68)), (float)varianceClamp);
+            NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.57)), (float)(varianceClamp * 1.3));
+            Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(worldConfig.Water.HydrologySmoothBlend * 0.28)));
         }
 
         private void ApplyRiverLakeHydrologyFeedback(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask, float[,] lakeMask, float[,] erosionRisk)

@@ -2,7 +2,7 @@
   "worldMapControl": {
     "enabled": true,
     "profilePath": "config/world_map_control_profile.json",
-    "profileVersion": 44,
+    "profileVersion": 45,
     "defaults": {
       "renderDistance": 12,
       "mapScale": 1.0,
@@ -16,15 +16,15 @@
       "maxCachedChunks": 768,
       "maxQueuedChunkRequests": 3584,
       "queuePressureFactor": 3,
-      "queueSlackRatio": 2.95,
-      "queueBurstSlackMultiplier": 1.2,
-      "queueLoadSheddingThreshold": 0.86,
-      "queueEmergencyBrakeThreshold": 1.04,
-      "queueLoadEmaBlend": 0.24,
-      "queueEmergencyReleaseRatio": 0.82,
-      "queueTrendBoostWeight": 0.26,
-      "queueOverloadDrainFactor": 5,
-      "queueBackoffDelayMs": 6,
+      "queueSlackRatio": 3.2,
+      "queueBurstSlackMultiplier": 1.24,
+      "queueLoadSheddingThreshold": 0.84,
+      "queueEmergencyBrakeThreshold": 1.02,
+      "queueLoadEmaBlend": 0.26,
+      "queueEmergencyReleaseRatio": 0.8,
+      "queueTrendBoostWeight": 0.3,
+      "queueOverloadDrainFactor": 6,
+      "queueBackoffDelayMs": 5,
       "cleanupIntervalSeconds": 60,
       "enableChunkCache": true
     },
@@ -41,15 +41,15 @@
       "updateIntervalMs": 100,
       "maxQueuedChunkRequests": 3584,
       "queuePressureFactor": 3,
-      "queueSlackRatio": 2.95,
-      "queueBurstSlackMultiplier": 1.2,
-      "queueLoadSheddingThreshold": 0.86,
-      "queueEmergencyBrakeThreshold": 1.04,
-      "queueLoadEmaBlend": 0.24,
-      "queueEmergencyReleaseRatio": 0.82,
-      "queueTrendBoostWeight": 0.26,
-      "queueOverloadDrainFactor": 5,
-      "queueBackoffDelayMs": 6
+      "queueSlackRatio": 3.2,
+      "queueBurstSlackMultiplier": 1.24,
+      "queueLoadSheddingThreshold": 0.84,
+      "queueEmergencyBrakeThreshold": 1.02,
+      "queueLoadEmaBlend": 0.26,
+      "queueEmergencyReleaseRatio": 0.8,
+      "queueTrendBoostWeight": 0.3,
+      "queueOverloadDrainFactor": 6,
+      "queueBackoffDelayMs": 5
     }
   }
 }

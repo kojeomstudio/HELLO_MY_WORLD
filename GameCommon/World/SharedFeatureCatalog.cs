@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-18
-        /// (groundwater cave continuity + tributary/avulsion river routing + lake terrace/spill retention + adaptive EMA/release/trend queue control + map-control v44).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-19
+        /// (sink-stability hydrology coupling + groundwater cave continuity + tributary/avulsion routing + lake terrace/spill retention + adaptive EMA/release/trend queue control + map-control v45).
         /// </summary>
-        public const string HydrologySignature = "2026-02-18-hydrology-riverlake-cave-v40";
+        public const string HydrologySignature = "2026-02-19-hydrology-riverlake-cave-v41";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S19-CORE-01",
-                "Hydrology WorldGen v40",
+                "Hydrology WorldGen v41",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-18-session-95.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-19-session-97.json"
                 },
                 new[]
                 {

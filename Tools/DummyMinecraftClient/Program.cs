@@ -18,6 +18,8 @@ public sealed class DummyClientConfig
     public int MaxPacketsToSend { get; set; } = 6;
     public bool StrictRequiredBindings { get; set; } = true;
     public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+    public int MinMapControlProfileVersion { get; set; } = 45;
+    public bool FailOnMapControlVersionRegression { get; set; } = true;
     public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
     public bool IncludeOptionalMessages { get; set; } = false;
     public string[] Packets { get; set; } = new[]
@@ -120,6 +122,12 @@ public static class Program
                 if (!signatureMatch && config.FailOnHydrologySignatureMismatch)
                 {
                     Console.WriteLine("[ERROR] Hydrology signature mismatch detected and fail-fast is enabled.");
+                    return 1;
+                }
+
+                if (profile.Version < Math.Max(1, config.MinMapControlProfileVersion) && config.FailOnMapControlVersionRegression)
+                {
+                    Console.WriteLine($"[ERROR] Map control profile version regression detected (profile={profile.Version}, required={config.MinMapControlProfileVersion}).");
                     return 1;
                 }
             }

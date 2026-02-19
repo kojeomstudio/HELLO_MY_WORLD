@@ -127,6 +127,15 @@ public class WorldAreaManager : MonoBehaviour
         WorldGenAlgorithms.LakeVarianceWeight = Mathf.Clamp01(MapControlProfile.LakeVarianceWeight);
         WorldGenAlgorithms.LakeOutflowSealWeight = Mathf.Clamp01(MapControlProfile.LakeOutflowSealWeight);
         WorldGenAlgorithms.LakeOutflowStabilityWeight = Mathf.Clamp01(MapControlProfile.LakeOutflowStabilityWeight);
+        WorldGenAlgorithms.HydrologySinkRepairWeight = Mathf.Clamp01(
+            MapControlProfile.HydrologyContinuityWeight * 0.38f +
+            MapControlProfile.RiverConfluenceBoost * 0.14f +
+            MapControlProfile.LakeInflowBlendWeight * 0.24f +
+            MapControlProfile.CaveEdgeSealStrength * 0.24f);
+        WorldGenAlgorithms.HydrologySinkDepthThreshold = Mathf.Clamp(
+            1f + MapControlProfile.LakeShelfDepth * 0.18f - MapControlProfile.LakeSpawnWeightBias * 0.08f,
+            0.5f,
+            4f);
         WorldGenAlgorithms.WetlandSaturationThreshold = Mathf.Clamp01(MapControlProfile.LakeWetlandSaturationThreshold);
         WorldGenAlgorithms.OutflowCarveDepth = Mathf.Max(1, MapControlProfile.LakeOutflowCarveDepth);
         WorldGenAlgorithms.LakeWetlandBufferRadius = Mathf.Max(0, MapControlProfile.LakeWetlandBufferRadius);

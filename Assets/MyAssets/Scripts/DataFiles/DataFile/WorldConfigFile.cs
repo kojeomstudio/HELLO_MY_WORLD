@@ -90,6 +90,7 @@ public struct WorldConfig
     public float WetlandSaturationThreshold;
     public int OutflowCarveDepth;
     public float OutflowStabilityWeight;
+    public float LakeSpillRetentionWeight;
     public int LakeShelfDepth;
     public int LakeWetlandBufferRadius;
     public float RiverProximitySuppression;
@@ -99,6 +100,8 @@ public struct WorldConfig
     public int RiverIntensitySmoothIterations;
     public float RiverIntensitySmoothBlend;
     public float RiverConfluenceBoost;
+    public float RiverTributaryCaptureWeight;
+    public float RiverAvulsionResistance;
     public float RiverEdgeFeather;
     public int RiverMouthSmoothRadius;
     public float RiverDeltaWetlandStrength;
@@ -115,6 +118,8 @@ public struct WorldConfig
     public float RoughnessStabilityWeight;
     public float RiverSuppressionWeight;
     public float MoistureRetentionWeight;
+    public float GroundwaterConnectivityWeight;
+    public float CaveVentilationBias;
     public float EdgeSealStrength;
     public float RiparianCaveGuardWeight;
     public float CaveCeilingStabilityWeight;
@@ -233,6 +238,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.RiverIntensitySmoothIterations = ParseInt(data, "RiverIntensitySmoothIterations", 3);
                 Config.RiverIntensitySmoothBlend = ParseFloat(data, "RiverIntensitySmoothBlend", 0.6f);
                 Config.RiverConfluenceBoost = ParseFloat(data, "RiverConfluenceBoost", 0.5f);
+                Config.RiverTributaryCaptureWeight = ParseFloat(data, "RiverTributaryCaptureWeight", 0.46f);
+                Config.RiverAvulsionResistance = ParseFloat(data, "RiverAvulsionResistance", 0.52f);
                 Config.RiverFlowAlignmentWeight = ParseFloat(data, "RiverFlowAlignmentWeight", 0.32f);
                 Config.RiverGradientPenalty = ParseFloat(data, "RiverGradientPenalty", 0.42f);
                 Config.RiverHeadwaterStabilityWeight = ParseFloat(data, "RiverHeadwaterStabilityWeight", 0.35f);
@@ -252,6 +259,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.WetlandSaturationThreshold = ParseFloat(data, "WetlandSaturationThreshold", 0.55f);
                 Config.OutflowCarveDepth = ParseInt(data, "OutflowCarveDepth", 2);
                 Config.OutflowStabilityWeight = ParseFloat(data, "OutflowStabilityWeight", 0.42f);
+                Config.LakeSpillRetentionWeight = ParseFloat(data, "LakeSpillRetentionWeight", 0.58f);
                 Config.LakeWetlandBufferRadius = ParseInt(data, "LakeWetlandBufferRadius", 2);
                 Config.FlowSeepageWeight = ParseFloat(data, "FlowSeepageWeight", 0.48f);
                 Config.RiverProximitySuppression = ParseFloat(data, "RiverProximitySuppression", 0.35f);
@@ -267,6 +275,8 @@ public class WorldConfigFile : BaseDataFile
                 Config.RoughnessStabilityWeight = ParseFloat(data, "RoughnessStabilityWeight", 0.1f);
                 Config.RiverSuppressionWeight = ParseFloat(data, "RiverSuppressionWeight", 0.38f);
                 Config.MoistureRetentionWeight = ParseFloat(data, "MoistureRetentionWeight", 0.4f);
+                Config.GroundwaterConnectivityWeight = ParseFloat(data, "GroundwaterConnectivityWeight", 0.58f);
+                Config.CaveVentilationBias = ParseFloat(data, "CaveVentilationBias", 0.42f);
                 Config.RiparianCaveGuardWeight = ParseFloat(data, "RiparianCaveGuardWeight", 0.42f);
                 Config.EdgeSealStrength = ParseFloat(data, "EdgeSealStrength", 0.52f);
                 Config.CaveCeilingStabilityWeight = ParseFloat(data, "CaveCeilingStabilityWeight", 0.35f);
@@ -350,6 +360,7 @@ public class WorldConfigFile : BaseDataFile
         Config.WetlandSaturationThreshold = profile.LakeWetlandSaturationThreshold;
         Config.OutflowCarveDepth = profile.LakeOutflowCarveDepth;
         Config.OutflowStabilityWeight = profile.LakeOutflowStabilityWeight;
+        Config.LakeSpillRetentionWeight = profile.LakeSpillRetentionWeight;
         Config.LakeBasinSmoothIterations = profile.LakeBasinSmoothIterations;
         Config.LakeShelfDepth = profile.LakeShelfDepth;
         Config.LakeWetlandBufferRadius = profile.LakeWetlandBufferRadius;
@@ -360,6 +371,8 @@ public class WorldConfigFile : BaseDataFile
         Config.RiverIntensitySmoothIterations = profile.RiverIntensitySmoothIterations;
         Config.RiverIntensitySmoothBlend = profile.RiverIntensitySmoothBlend;
         Config.RiverConfluenceBoost = profile.RiverConfluenceBoost;
+        Config.RiverTributaryCaptureWeight = profile.RiverTributaryCaptureWeight;
+        Config.RiverAvulsionResistance = profile.RiverAvulsionResistance;
         Config.RiverEdgeFeather = profile.RiverEdgeFeather;
         Config.RiverMouthSmoothRadius = profile.RiverMouthSmoothRadius;
         Config.RiverDeltaWetlandStrength = profile.RiverDeltaWetlandStrength;
@@ -376,6 +389,8 @@ public class WorldConfigFile : BaseDataFile
         Config.RoughnessStabilityWeight = profile.CaveRoughnessWeight;
         Config.RiverSuppressionWeight = profile.CaveRiverSuppressionWeight;
         Config.MoistureRetentionWeight = profile.CaveMoistureRetentionWeight;
+        Config.GroundwaterConnectivityWeight = profile.CaveGroundwaterConnectivityWeight;
+        Config.CaveVentilationBias = profile.CaveVentilationBias;
         Config.RiparianCaveGuardWeight = profile.RiparianCaveGuardWeight;
         Config.EdgeSealStrength = profile.CaveEdgeSealStrength;
         Config.CaveCeilingStabilityWeight = (float)profile.CaveCeilingStabilityWeight;

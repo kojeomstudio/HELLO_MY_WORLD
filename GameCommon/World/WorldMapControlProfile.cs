@@ -133,6 +133,10 @@ namespace GameCommon.World
 
         public double RiverConfluenceBoost { get; set; }
 
+        public double RiverTributaryCaptureWeight { get; set; }
+
+        public double RiverAvulsionResistance { get; set; }
+
         public double RiverFlowAlignmentWeight { get; set; }
 
         public double RiverGradientPenalty { get; set; }
@@ -193,6 +197,8 @@ namespace GameCommon.World
 
         public double LakeOutflowTaper { get; set; }
 
+        public double LakeSpillRetentionWeight { get; set; }
+
         public double CaveEdgeSealStrength { get; set; }
 
         public double SupportPillarChance { get; set; }
@@ -230,6 +236,10 @@ namespace GameCommon.World
         public double CaveCeilingMoistureClamp { get; set; }
 
         public double CaveEntranceFlowDampening { get; set; }
+
+        public double CaveGroundwaterConnectivityWeight { get; set; }
+
+        public double CaveVentilationBias { get; set; }
 
         public bool EnableRivers { get; set; }
 

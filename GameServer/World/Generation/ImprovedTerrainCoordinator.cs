@@ -86,6 +86,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainLeakageStability(heightMap, hydrology, flow, erosionRisk);
             ApplyHydrologySinkStabilityField(heightMap, hydrology, flow, erosionRisk);
             ApplyKarstConfluenceRetentionField(heightMap, hydrology, flow, erosionRisk);
+            ApplySubsurfaceVentilationRetentionField(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -917,6 +918,97 @@ namespace GameServerApp.World.Generation
             TerrainMaskUtility.NormalizeEdgeBands(hydrology, edgeRadius, Math.Max(0.05, config.Water.HydrologyEdgeNormalizationBlend * 0.66), varianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(flow, edgeRadius, Math.Max(0.05, config.Water.HydrologyEdgeNormalizationBlend * 0.56), varianceClamp * 1.3);
             TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.26, 0.0, 0.9));
+        }
+
+        private void ApplySubsurfaceVentilationRetentionField(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+
+            double groundwaterConnectivity = Math.Clamp(config.Caves.GroundwaterConnectivityWeight, 0.0, 1.0);
+            double ventilationBias = Math.Clamp(config.Caves.CaveVentilationBias, 0.0, 1.0);
+            double spillRetention = Math.Clamp(config.Lakes.SpillRetentionWeight, 0.0, 1.0);
+            double tributaryCapture = Math.Clamp(config.Water.RiverTributaryCaptureWeight, 0.0, 1.0);
+            double avulsionResistance = Math.Clamp(config.Water.RiverAvulsionResistance, 0.0, 1.0);
+            double influence = Math.Clamp(
+                groundwaterConnectivity * 0.32 +
+                ventilationBias * 0.21 +
+                spillRetention * 0.19 +
+                tributaryCapture * 0.17 +
+                avulsionResistance * 0.11,
+                0.0,
+                1.0);
+            if (influence <= 0.01)
+            {
+                return;
+            }
+
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius + 1);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowValue = flowCopy[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double erosion = erosionCopy[x, z];
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, edgeRadius);
+                    double curvature = SampleCurvature(heightMap, x, z);
+                    double sinkPotential = Math.Clamp(
+                        Math.Max(0.0, -curvature) * 0.34 +
+                        (1.0 - Math.Clamp(slope / 13.0, 0.0, 1.0)) * 0.36 +
+                        Math.Max(0.0, seaLevel - heightMap[x, z]) / Math.Max(8.0, seaLevel * 0.55) * 0.30,
+                        0.0,
+                        1.2);
+                    if (sinkPotential <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeFalloff = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+
+                    double seamConvergence = Math.Max(0.0, seamHydro - hydro) * 0.6 + Math.Max(0.0, seamFlow - flowValue) * 0.4;
+                    double ventilationAssist = (0.45 + ventilationBias * 0.55) * (1.0 - Math.Clamp(relief / 44.0, 0.0, 1.0));
+                    double retention = sinkPotential * influence * (0.20 + seamConvergence * 0.24 + edgeFalloff * 0.14);
+                    retention *= 1.0 + ventilationAssist * 0.22;
+                    retention *= 1.0 - Math.Clamp(erosion * 0.30, 0.0, 0.35);
+
+                    double hydroTarget = hydro * (1.0 - retention * 0.19) + (seamHydro + retention * 0.45) * retention * 0.19;
+                    double flowTarget = flowValue * (1.0 - retention * 0.18) + (seamFlow + retention * 0.30) * retention * 0.18;
+                    double erosionTarget = erosion * (1.0 - retention * 0.10) + Math.Max(0.0, relief - 10.0) / 80.0 * (1.0 - influence * 0.38);
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.0 + varianceClamp * 0.32));
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.35));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdgeBands(
+                hydrology,
+                edgeRadius,
+                Math.Max(0.05, config.Water.HydrologyEdgeNormalizationBlend * (0.57 + influence * 0.07)),
+                varianceClamp);
+            TerrainMaskUtility.NormalizeEdgeBands(
+                flow,
+                edgeRadius,
+                Math.Max(0.05, config.Water.HydrologyEdgeNormalizationBlend * (0.48 + influence * 0.05)),
+                varianceClamp * 1.25);
+            TerrainMaskUtility.Smooth2D(
+                erosionRisk,
+                1,
+                Math.Clamp(config.Water.HydrologySmoothBlend * (0.24 + influence * 0.08), 0.0, 0.92));
         }
 
         private void ApplyFloodplainSlackwaterRetention(

@@ -32,6 +32,48 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-20: Session 101 - Hydrology v43 / Map-Control v47 / Subsurface Ventilation Retention
+
+**Status:** COMPLETED
+
+- Terrain generation upgrade (server):
+  - Added `ApplySubsurfaceVentilationRetentionField` to improve cave/river/lake coupling stability.
+  - File:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map control architecture/profile expansion (server + client + shared DLL):
+  - Added shared profile/signature fields for tributary/avulsion/spill-retention/groundwater/ventilation controls.
+  - Files:
+    - `GameCommon/World/WorldMapControlProfile.cs`
+    - `GameCommon/World/WorldMapControlProfileUtility.cs`
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+    - `GameServer/World/WorldMapControlProfile.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-20-hydrology-riverlake-cave-v43`
+  - Map-control profile version: `47`
+  - Regenerated:
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy-client validation:
+  - Updated manifest priority and dummy client profile-version guards.
+  - Ran `--proto-probe` and `--selftest` (required packet path PASS; optional packets remain warning-only by design).
+  - Files:
+    - `GameServer/Program.cs`
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `reports/proto_probe_report.json`
+- Session docs/manifests:
+  - `docs/2026-02-20-session-101-core-content-util-feature-list.md`
+  - `docs/2026-02-20-session-101-worldgen-map-proto-report.md`
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-20-session-101.json`
+  - `plans/2026-02-20-session-101-comprehensive-work-plan.md`
+
 ### 2026-02-19: Session 99 - Hydrology v42 / Map-Control v46 / Queue Shock-Absorber + Karst Confluence Retention
 
 **Status:** COMPLETED

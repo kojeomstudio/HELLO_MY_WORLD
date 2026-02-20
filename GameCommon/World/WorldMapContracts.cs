@@ -93,6 +93,8 @@ namespace GameCommon.World
             double hydrologyEdgeTangentWeight,
             double riverFlowAlignmentWeight,
             double riverConfluenceBoost,
+            double riverTributaryCaptureWeight,
+            double riverAvulsionResistance,
             double riverBraidingWeight,
             double lakeRimErosionWeight,
             double lakeVarianceWeight,
@@ -105,8 +107,11 @@ namespace GameCommon.World
             double hydrologyReservoirBlend,
             double riverEdgeContinuityWeight,
             double lakeOutflowTaper,
+            double lakeSpillRetentionWeight,
             double lakeSpillwayContinuityWeight,
             double caveEntranceFlowDampening,
+            double caveGroundwaterConnectivityWeight,
+            double caveVentilationBias,
             double caveAquiferBarrierWeight,
             double riverNoiseScale,
             int riverIntensitySmoothIterations,
@@ -190,6 +195,8 @@ namespace GameCommon.World
             HydrologyEdgeTangentWeight = hydrologyEdgeTangentWeight;
             RiverFlowAlignmentWeight = riverFlowAlignmentWeight;
             RiverConfluenceBoost = riverConfluenceBoost;
+            RiverTributaryCaptureWeight = riverTributaryCaptureWeight;
+            RiverAvulsionResistance = riverAvulsionResistance;
             RiverBraidingWeight = riverBraidingWeight;
             LakeRimErosionWeight = lakeRimErosionWeight;
             LakeVarianceWeight = lakeVarianceWeight;
@@ -202,8 +209,11 @@ namespace GameCommon.World
             HydrologyReservoirBlend = hydrologyReservoirBlend;
             RiverEdgeContinuityWeight = riverEdgeContinuityWeight;
             LakeOutflowTaper = lakeOutflowTaper;
+            LakeSpillRetentionWeight = lakeSpillRetentionWeight;
             LakeSpillwayContinuityWeight = lakeSpillwayContinuityWeight;
             CaveEntranceFlowDampening = caveEntranceFlowDampening;
+            CaveGroundwaterConnectivityWeight = caveGroundwaterConnectivityWeight;
+            CaveVentilationBias = caveVentilationBias;
             CaveAquiferBarrierWeight = caveAquiferBarrierWeight;
             RiverNoiseScale = riverNoiseScale;
             RiverIntensitySmoothIterations = riverIntensitySmoothIterations;
@@ -277,8 +287,11 @@ namespace GameCommon.World
         public double HydrologyReservoirBlend { get; }
         public double RiverEdgeContinuityWeight { get; }
         public double LakeOutflowTaper { get; }
+        public double LakeSpillRetentionWeight { get; }
         public double LakeSpillwayContinuityWeight { get; }
         public double CaveEntranceFlowDampening { get; }
+        public double CaveGroundwaterConnectivityWeight { get; }
+        public double CaveVentilationBias { get; }
         public double CaveAquiferBarrierWeight { get; }
         public double RiverNoiseScale { get; }
         public int RiverIntensitySmoothIterations { get; }
@@ -311,6 +324,8 @@ namespace GameCommon.World
         public double HydrologyEdgeTangentWeight { get; }
         public double RiverFlowAlignmentWeight { get; }
         public double RiverConfluenceBoost { get; }
+        public double RiverTributaryCaptureWeight { get; }
+        public double RiverAvulsionResistance { get; }
         public double RiverBraidingWeight { get; }
         public double LakeRimErosionWeight { get; }
         public double LakeVarianceWeight { get; }

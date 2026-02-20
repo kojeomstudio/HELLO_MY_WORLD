@@ -73,7 +73,7 @@ namespace GameServerApp.Testing
         public bool ValidateAllKnownPackets { get; set; } = true;
         public bool IncludeOptionalMessages { get; set; } = false;
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
-        public int MinMapControlProfileVersion { get; set; } = 46;
+        public int MinMapControlProfileVersion { get; set; } = 47;
         public bool FailOnMapControlVersionRegression { get; set; } = true;
         public bool FailOnRequiredTypeDrift { get; set; } = true;
         public int MaxNetworkProbePackets { get; set; } = 4;

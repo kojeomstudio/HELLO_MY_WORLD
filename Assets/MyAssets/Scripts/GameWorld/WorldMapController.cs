@@ -765,6 +765,15 @@ namespace GameWorld
             {
                 limit = Mathf.Clamp(Mathf.CeilToInt(limit * 0.9f), 64, 16384);
             }
+            else if (load < Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) * 0.65f)
+            {
+                int floorLimit = Mathf.Clamp(
+                    Mathf.CeilToInt(dynamicBudget * Mathf.Max(1.1f, queueSlackRatio)),
+                    64,
+                    16384);
+                int recoveryStep = Mathf.Max(8, Mathf.Clamp(queueOverloadDrainFactor, 1, 16) * 6);
+                limit = Mathf.Max(floorLimit, limit - recoveryStep);
+            }
 
             return limit;
         }

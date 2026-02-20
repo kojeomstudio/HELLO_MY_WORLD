@@ -519,6 +519,7 @@ namespace GameServerApp.World
             double burstMultiplier = !queueEmergencyBrakeLatched && load >= 0.9
                 ? stabilizedBurstMultiplier * (1.0 + overloadBias * 0.5 * shockScale)
                 : 1.0;
+            int minQueueLimit = Math.Clamp((int)Math.Ceiling(cacheBudget * Math.Max(1.1, configuredQueueSlackRatio)), 128, 16384);
             int candidateQueueLimit = (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier);
             var now = DateTime.UtcNow;
             if ((now - lastQueuePolicyAdjustUtc).TotalMilliseconds >= Math.Max(15, configuredQueueBackoffDelayMs * 4))
@@ -536,6 +537,15 @@ namespace GameServerApp.World
                     Math.Max(dynamicQueueLimit, Math.Min(candidateQueueLimit, dynamicQueueLimit + gradualIncrease)),
                     128,
                     16384);
+            }
+
+            if (!emergencyBrake &&
+                queueOverloadTicks == 0 &&
+                load < configuredQueueLoadSheddingThreshold * 0.65 &&
+                dynamicQueueLimit > minQueueLimit)
+            {
+                int decayStep = Math.Max(8, configuredQueueOverloadDrainFactor * 6);
+                dynamicQueueLimit = Math.Max(minQueueLimit, dynamicQueueLimit - decayStep);
             }
 
             dynamicQueueLoadSheddingThreshold = Math.Clamp(

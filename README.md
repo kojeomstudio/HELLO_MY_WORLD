@@ -32,6 +32,51 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-20: Session 103 - Hydrology v44 / Map-Control v48 / Queue Recovery + Proto Probe API Alignment
+
+**Status:** COMPLETED
+
+- Terrain generation refinement (server):
+  - Improved cave-river-lake coupling in `EnhancedTerrainGenerationPipeline` by adding:
+    - basin-guided river tributary/braiding weighting,
+    - spill-retention/tributary-inflow lake harmonization,
+    - cave ventilation + groundwater-coupling stability gating.
+  - File:
+    - `GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs`
+- World-map control architecture update (server + client):
+  - Added adaptive queue recovery decay under low load to avoid over-expanded queue limits after spikes.
+  - Files:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-20-hydrology-riverlake-cave-v44`
+  - Map-control profile version: `48`
+  - Updated defaults and JSON parity:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+    - `Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+- Protobuf/dummy-client validation:
+  - Reworked `GameServer/Testing/DummyProtocolClient.cs` to match `Program.cs` probe API (`CreateFromConfig`, `RunAsync`) and emit data-driven probe reports.
+  - Updated probe guard configs:
+    - `config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+  - Validation execution:
+    - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+    - `dotnet build GameServer/GameServer.csproj` PASS
+    - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (required packet path validated; optional packets are WARN-only)
+    - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS exit code (runtime WARN logs remain for async ordering / optional packet bindings)
+- Session manifests/docs:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-20-session-103.json`
+  - `docs/2026-02-20-session-103-worldgen-map-proto-report.md`
+  - `docs/2026-02-20-session-103-core-content-util-feature-list.md`
+  - `plans/2026-02-20-session-103-comprehensive-work-plan.md`
+
 ### 2026-02-20: Session 101 - Hydrology v43 / Map-Control v47 / Subsurface Ventilation Retention
 
 **Status:** COMPLETED

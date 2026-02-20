@@ -1,647 +1,448 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using EnhancedMinecraftProtocol;
+using GameCommon.World;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
-using GameProtocol;
 
-namespace GameServer.Testing
+namespace GameServerApp.Testing
 {
-    /// <summary>
-    /// Dummy client for testing Minecraft protocol packets
-    /// Supports both protobuf-net and Google.Protobuf message types
-    /// </summary>
-    public class DummyProtocolClient : IDisposable
+    public sealed class DummyProtocolProbeSettings
     {
-        private TcpClient _tcpClient;
-        private NetworkStream _networkStream;
-        private bool _isConnected;
-        private string _sessionId;
-        private CancellationTokenSource _cancellationTokenSource;
-        
-        // Configuration
-        private readonly string _serverAddress;
-        private readonly int _serverPort;
-        private readonly int _connectionTimeoutMs;
-        
-        // Statistics
-        private int _messagesSent;
-        private int _messagesReceived;
-        private int _errors;
-        
-        public bool IsConnected => _isConnected;
-        public string SessionId => _sessionId;
-        public int MessagesSent => _messagesSent;
-        public int MessagesReceived => _messagesReceived;
-        public int Errors => _errors;
-        
-        public event Action<string> OnConnected;
-        public event Action<string> OnDisconnected;
-        public event Action<string> OnError;
-        public event Action<LoginResponse> OnLoginResponse;
-        public event Action<ChunkLoadResponse> OnChunkLoadResponse;
-        public event Action<PlayerInfo> OnPlayerInfoUpdate;
-        public event Action<BlockChangeBroadcast> OnBlockChangeBroadcast;
-        public event Action<EntitySpawnBroadcast> OnEntitySpawnBroadcast;
-        public event Action<EntityDespawnBroadcast> OnEntityDespawnBroadcast;
-        public event Action<TimeUpdateBroadcast> OnTimeUpdateBroadcast;
-        public event Action<WeatherUpdateBroadcast> OnWeatherUpdateBroadcast;
-        public event Action<PingResponse> OnPingResponse;
-        public event Action<ChatMessage> OnChatMessage;
-        
-        public DummyProtocolClient(string serverAddress = "127.0.0.1", int serverPort = 9000, int connectionTimeoutMs = 10000)
+        public string Host { get; set; } = "127.0.0.1";
+
+        public int Port { get; set; } = 9000;
+
+        public int ConnectTimeoutMs { get; set; } = 750;
+
+        public int ReceiveTimeoutMs { get; set; } = 750;
+
+        public int RoundTripCount { get; set; } = 3;
+
+        public int MaxNetworkProbePackets { get; set; } = 4;
+
+        public bool ProbeNetwork { get; set; } = false;
+
+        public bool ValidateAllKnownPackets { get; set; } = true;
+
+        public bool IncludeOptionalMessages { get; set; } = true;
+
+        public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+
+        public int MinMapControlProfileVersion { get; set; } = 48;
+
+        public bool FailOnMapControlVersionRegression { get; set; } = true;
+
+        public bool FailOnRequiredTypeDrift { get; set; } = true;
+
+        public string OutputReportPath { get; set; } = "reports/proto_probe_report.json";
+
+        public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
+
+        public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
+
+        public List<string> Packets { get; set; } = new()
         {
-            _serverAddress = serverAddress;
-            _serverPort = serverPort;
-            _connectionTimeoutMs = connectionTimeoutMs;
-            _cancellationTokenSource = new CancellationTokenSource();
-        }
-        
-        /// <summary>
-        /// Connect to the server
-        /// </summary>
-        public async Task<bool> ConnectAsync()
+            "PlayerStateUpdate",
+            "PlayerActionRequest",
+            "PlayerActionResponse",
+            "ChunkDataRequest",
+            "ChunkDataResponse",
+            "BlockChangeNotification",
+            "ChunkUnloadNotification",
+            "ChunkUnloadAcknowledge",
+            "TimeUpdate",
+            "WeatherChange",
+            "SoundEffect",
+            "ParticleEffect",
+            "EntitySpawn",
+            "EntityDespawn"
+        };
+
+        public static DummyProtocolProbeSettings Load(string path)
         {
             try
             {
-                Console.WriteLine($"[DummyClient] Connecting to {_serverAddress}:{_serverPort}...");
-                
-                _tcpClient = new TcpClient();
-                var connectTask = _tcpClient.ConnectAsync(_serverAddress, _serverPort);
-                var timeoutTask = Task.Delay(_connectionTimeoutMs, _cancellationTokenSource.Token);
-                
-                var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-                
-                if (completedTask == timeoutTask)
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 {
-                    Console.WriteLine("[DummyClient] Connection timed out");
-                    OnError?.Invoke("Connection timeout");
-                    return false;
+                    return new DummyProtocolProbeSettings();
                 }
-                
-                await connectTask;
-                _networkStream = _tcpClient.GetStream();
-                _isConnected = true;
-                
-                Console.WriteLine("[DummyClient] Connected successfully");
-                OnConnected?.Invoke(_sessionId);
-                
-                // Start receiving messages
-                _ = Task.Run(ReceiveMessagesAsync, _cancellationTokenSource.Token);
-                
-                return true;
+
+                var json = File.ReadAllText(path);
+                var loaded = JsonSerializer.Deserialize<DummyProtocolProbeSettings>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                });
+
+                return loaded ?? new DummyProtocolProbeSettings();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[DummyClient] Connection error: {ex.Message}");
-                OnError?.Invoke($"Connection error: {ex.Message}");
-                _errors++;
-                return false;
+                return new DummyProtocolProbeSettings();
             }
         }
-        
-        /// <summary>
-        /// Disconnect from the server
-        /// </summary>
-        public void Disconnect()
+    }
+
+    public sealed class DummyProtocolProbeResult
+    {
+        public bool RoundTripOk { get; set; }
+
+        public string DescriptorName { get; set; } = string.Empty;
+
+        public List<string> ValidatedPackets { get; } = new();
+
+        public List<string> MissingRequiredPackets { get; } = new();
+
+        public List<string> MissingPrototypePackets { get; } = new();
+
+        public List<string> OptionalUnregistered { get; } = new();
+
+        public string ReportPath { get; set; } = string.Empty;
+
+        public string ReferenceReportPath { get; set; } = string.Empty;
+
+        public bool NetworkProbeAttempted { get; set; }
+
+        public bool NetworkProbeOk { get; set; }
+
+        public string NetworkError { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Dummy protocol probe client used by GameServer Program --proto-probe path.
+    /// Performs protobuf round-trip and optional network smoke checks.
+    /// </summary>
+    public sealed class DummyProtocolClient
+    {
+        public DummyProtocolProbeSettings Settings { get; }
+
+        private DummyProtocolClient(DummyProtocolProbeSettings settings)
         {
-            try
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        }
+
+        public static DummyProtocolClient CreateFromConfig(string settingsPath)
+        {
+            return new DummyProtocolClient(DummyProtocolProbeSettings.Load(settingsPath));
+        }
+
+        public async Task<DummyProtocolProbeResult> RunAsync(bool probeNetwork, CancellationToken cancellationToken)
+        {
+            var result = new DummyProtocolProbeResult
             {
-                if (_isConnected)
+                DescriptorName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty
+            };
+
+            ProtoRuntime.EnsureInitialized();
+            ProtoFingerprint.AssertDescriptorFingerprint();
+            ProtocolRegistry.ValidateBindings();
+            ProtocolValidator.ValidateEnhancedContracts();
+            ProtocolStandardization.ValidateProtocolImplementation();
+
+            ValidateProfileGuards();
+
+            var missingRequired = ProtocolRegistry.GetUnregisteredRequiredMessages()
+                .Select(item => item.ToString())
+                .OrderBy(item => item, StringComparer.Ordinal)
+                .ToList();
+            result.MissingRequiredPackets.AddRange(missingRequired);
+
+            result.OptionalUnregistered.AddRange(
+                ProtocolRegistry.GetOptionalMessagesWithoutBindings()
+                    .Select(item => item.ToString())
+                    .OrderBy(item => item, StringComparer.Ordinal));
+
+            if (Settings.FailOnRequiredTypeDrift)
+            {
+                var drift = ProtocolRegistry.BuildTypeConsistencyDiagnostics()
+                    .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches)
+                    .ToArray();
+                if (drift.Length > 0)
                 {
-                    Console.WriteLine("[DummyClient] Disconnecting...");
-                    _cancellationTokenSource.Cancel();
-                    _networkStream?.Close();
-                    _tcpClient?.Close();
-                    _isConnected = false;
-                    OnDisconnected?.Invoke(_sessionId);
-                    Console.WriteLine("[DummyClient] Disconnected");
+                    throw new InvalidOperationException(
+                        "Protocol type drift detected: " +
+                        string.Join(", ", drift.Select(item => $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType})")));
                 }
             }
-            catch (Exception ex)
+
+            var packetTypes = ResolvePacketTypes();
+            int requiredTargets = packetTypes.Count(type => !ProtocolRegistry.IsOptionalMessageType(type));
+            int requiredRoundTripOk = 0;
+            var payloads = new List<(MinecraftMessageType Type, byte[] Payload)>();
+
+            foreach (var packetType in packetTypes)
             {
-                Console.WriteLine($"[DummyClient] Disconnect error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send login request
-        /// </summary>
-        public void SendLogin(string username, string password)
-        {
-            try
-            {
-                var request = new LoginRequest
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!ProtocolRegistry.TryCreatePrototype(packetType, out IMessage prototype) || prototype == null)
                 {
-                    Username = username,
-                    Password = password,
-                    ClientVersion = "1.0.0"
-                };
-                
-                SendMessage(MessageType.LoginRequest, request);
-                Console.WriteLine($"[DummyClient] Sent login request for user: {username}");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Login error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send chunk load request
-        /// </summary>
-        public void SendChunkLoadRequest(int chunkX, int chunkZ, int viewDistance = 8)
-        {
-            try
-            {
-                var request = new ChunkLoadRequest
-                {
-                    ChunkPositions = { new MinecraftGame.Common.Vector3Int { X = chunkX, Y = 0, Z = chunkZ } },
-                    ViewDistance = viewDistance
-                };
-                
-                SendMessage(MinecraftMessageType.ChunkDataRequest, request);
-                Console.WriteLine($"[DummyClient] Sent chunk load request: ({chunkX}, {chunkZ}), view distance: {viewDistance}");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Chunk load request error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send chunk unload acknowledge
-        /// </summary>
-        public void SendChunkUnloadAck(int chunkX, int chunkZ, bool accepted = true, string note = "")
-        {
-            try
-            {
-                var ack = new ChunkUnloadAck
-                {
-                    ChunkX = chunkX,
-                    ChunkZ = chunkZ,
-                    Accepted = accepted,
-                    RemainingChunks = 0,
-                    Note = note
-                };
-                
-                SendMessage(MinecraftMessageType.ChunkUnloadAcknowledge, ack);
-                Console.WriteLine($"[DummyClient] Sent chunk unload ack: ({chunkX}, {chunkZ}), accepted: {accepted}");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Chunk unload ack error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send player action request
-        /// </summary>
-        public void SendPlayerAction(PlayerAction action, int x, int y, int z, int face = 0, string itemId = "")
-        {
-            try
-            {
-                var request = new PlayerActionRequest
-                {
-                    Action = action,
-                    TargetPosition = new MinecraftGame.Common.Vector3Int { X = x, Y = y, Z = z },
-                    Face = face,
-                    CursorPosition = new MinecraftGame.Common.Vector3 { X = 0.5f, Y = 0.5f, Z = 0.5f },
-                    Sequence = 0,
-                    ActionData = new ActionData
-                    {
-                        TargetEntityId = "",
-                        ChargeProgress = 0.0f,
-                        HeldTicks = 0
-                    }
-                };
-                
-                SendMessage(MinecraftMessageType.PlayerActionRequest, request);
-                Console.WriteLine($"[DummyClient] Sent player action: {action} at ({x}, {y}, {z})");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Player action error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send ping request
-        /// </summary>
-        public void SendPing()
-        {
-            try
-            {
-                var request = new PingRequest
-                {
-                    ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                };
-                
-                SendMessage(MinecraftMessageType.PingRequest, request);
-                Console.WriteLine($"[DummyClient] Sent ping request");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Ping error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send chat message
-        /// </summary>
-        public void SendChatMessage(string message, ChatType chatType = ChatType.Global)
-        {
-            try
-            {
-                var chatMessage = new ChatMessage
-                {
-                    SenderId = _sessionId ?? "unknown",
-                    SenderName = "DummyClient",
-                    MessageContent = message,
-                    ChatType = (int)chatType,
-                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    FormattedMessage = message,
-                    Style = new ChatStyle
-                    {
-                        Color = "#FFFFFF",
-                        Bold = false,
-                        Italic = false,
-                        Underlined = false,
-                        Strikethrough = false,
-                        Obfuscated = false
-                    }
-                };
-                
-                SendMessage(MessageType.ChatMessage, chatMessage);
-                Console.WriteLine($"[DummyClient] Sent chat message: {message}");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Chat message error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send server status request
-        /// </summary>
-        public void SendServerStatusRequest()
-        {
-            try
-            {
-                var request = new ServerStatusRequest
-                {
-                    SessionToken = _sessionId ?? ""
-                };
-                
-                SendMessage(MessageType.ServerStatusRequest, request);
-                Console.WriteLine("[DummyClient] Sent server status request");
-                _messagesSent++;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Server status request error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send message using protobuf-net serialization
-        /// </summary>
-        private void SendMessage(MessageType messageType, object message)
-        {
-            if (!_isConnected || _networkStream == null)
-            {
-                Console.WriteLine("[DummyClient] Not connected, cannot send message");
-                _errors++;
-                return;
-            }
-            
-            try
-            {
-                using var memoryStream = new MemoryStream();
-                ProtoBuf.Serializer.Serialize(memoryStream, message);
-                
-                var messageData = memoryStream.ToArray();
-                var packet = BuildPacket(messageType, messageData);
-                
-                _networkStream.Write(packet, 0, packet.Length);
-                _networkStream.Flush();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Send message error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Send message using Google.Protobuf serialization
-        /// </summary>
-        private void SendMessage(MinecraftMessageType messageType, IMessage message)
-        {
-            if (!_isConnected || _networkStream == null)
-            {
-                Console.WriteLine("[DummyClient] Not connected, cannot send message");
-                _errors++;
-                return;
-            }
-            
-            try
-            {
-                using var memoryStream = new MemoryStream();
-                message.WriteTo(memoryStream);
-                
-                var messageData = memoryStream.ToArray();
-                var packet = BuildPacket(messageType, messageData);
-                
-                _networkStream.Write(packet, 0, packet.Length);
-                _networkStream.Flush();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DummyClient] Send message error: {ex.Message}");
-                _errors++;
-            }
-        }
-        
-        /// <summary>
-        /// Build packet with length and type header
-        /// </summary>
-        private byte[] BuildPacket(MessageType messageType, byte[] messageData)
-        {
-            var lengthBytes = BitConverter.GetBytes(messageData.Length + 4); // +4 for message type
-            var typeBytes = BitConverter.GetBytes((int)messageType);
-            
-            var packet = new byte[lengthBytes.Length + typeBytes.Length + messageData.Length];
-            Buffer.BlockCopy(lengthBytes, 0, packet, 0, lengthBytes.Length);
-            Buffer.BlockCopy(typeBytes, 0, packet, lengthBytes.Length, typeBytes.Length);
-            Buffer.BlockCopy(messageData, 0, packet, lengthBytes.Length + typeBytes.Length, messageData.Length);
-            
-            return packet;
-        }
-        
-        /// <summary>
-        /// Receive messages from server
-        /// </summary>
-        private async Task ReceiveMessagesAsync()
-        {
-            var buffer = new byte[65536];
-            
-            while (!_cancellationTokenSource.Token.IsCancellationRequested && _isConnected)
-            {
+                    result.MissingPrototypePackets.Add(packetType.ToString());
+                    continue;
+                }
+
                 try
                 {
-                    var bytesRead = await _networkStream.ReadAsync(buffer, 0, 4, _cancellationTokenSource.Token);
-                    
-                    if (bytesRead < 4)
+                    var descriptor = prototype.Descriptor;
+                    if (descriptor == null)
                     {
-                        Console.WriteLine("[DummyClient] Incomplete packet header");
+                        result.MissingPrototypePackets.Add(packetType.ToString());
                         continue;
                     }
-                    
-                    var messageLength = BitConverter.ToInt32(buffer, 0);
-                    var totalLength = messageLength + 4;
-                    
-                    if (messageLength > buffer.Length)
+
+                    var parser = descriptor.Parser;
+                    if (parser == null)
                     {
-                        Console.WriteLine($"[DummyClient] Message too large: {messageLength}");
+                        result.MissingPrototypePackets.Add(packetType.ToString());
                         continue;
                     }
-                    
-                    var totalRead = 0;
-                    while (totalRead < messageLength)
+
+                    byte[] payload = prototype.ToByteArray();
+                    var parsed = parser.ParseFrom(payload);
+                    if (!string.Equals(parsed?.Descriptor?.FullName, descriptor.FullName, StringComparison.Ordinal))
                     {
-                        var read = await _networkStream.ReadAsync(buffer, 4 + totalRead, messageLength - totalRead, _cancellationTokenSource.Token);
-                        if (read == 0)
-                        {
-                            Console.WriteLine("[DummyClient] Connection closed");
-                            break;
-                        }
-                        totalRead += read;
-                    }
-                    
-                    if (totalRead < messageLength)
-                    {
+                        result.MissingPrototypePackets.Add(packetType.ToString());
                         continue;
                     }
-                    
-                    var messageData = new byte[messageLength];
-                    Buffer.BlockCopy(buffer, 4, messageData, 0, messageLength);
-                    
-                    var messageTypeValue = BitConverter.ToInt32(messageData, 0);
-                    var messageType = (MessageType)messageTypeValue;
-                    
-                    var payload = new byte[messageLength - 4];
-                    Buffer.BlockCopy(messageData, 4, payload, 0, payload.Length);
-                    
-                    await HandleMessageAsync(messageType, payload);
+
+                    result.ValidatedPackets.Add(packetType.ToString());
+                    payloads.Add((packetType, payload));
+                    if (!ProtocolRegistry.IsOptionalMessageType(packetType))
+                    {
+                        requiredRoundTripOk++;
+                    }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"[DummyClient] Receive error: {ex.Message}");
-                    _errors++;
+                    result.MissingPrototypePackets.Add(packetType.ToString());
                 }
             }
+
+            result.RoundTripOk = requiredRoundTripOk >= requiredTargets;
+
+            string reportPath = ResolvePath(Settings.OutputReportPath);
+            WriteProbeReport(reportPath, result, packetTypes, requiredTargets, requiredRoundTripOk);
+            result.ReportPath = reportPath;
+
+            string referencePath = ResolvePath(Settings.ReferenceReportPath);
+            ProtoDiagnostics.WriteReportToFile(referencePath);
+            result.ReferenceReportPath = referencePath;
+
+            bool shouldProbeNetwork = probeNetwork || Settings.ProbeNetwork;
+            result.NetworkProbeAttempted = shouldProbeNetwork;
+            if (shouldProbeNetwork)
+            {
+                var (ok, error) = await ProbeNetworkAsync(payloads, cancellationToken).ConfigureAwait(false);
+                result.NetworkProbeOk = ok;
+                result.NetworkError = error;
+            }
+
+            return result;
         }
-        
-        /// <summary>
-        /// Handle received message
-        /// </summary>
-        private async Task HandleMessageAsync(MessageType messageType, byte[] payload)
+
+        private void ValidateProfileGuards()
+        {
+            if (string.IsNullOrWhiteSpace(Settings.WorldMapControlProfilePath))
+            {
+                return;
+            }
+
+            string resolvedProfilePath = ResolvePath(Settings.WorldMapControlProfilePath);
+            if (!File.Exists(resolvedProfilePath))
+            {
+                return;
+            }
+
+            var profile = WorldMapControlProfileUtility.Load(resolvedProfilePath);
+            if (profile == null)
+            {
+                return;
+            }
+
+            if (Settings.FailOnHydrologySignatureMismatch &&
+                !string.Equals(profile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Hydrology signature mismatch (profile={profile.HydrologySignature}, shared={SharedFeatureCatalog.HydrologySignature}).");
+            }
+
+            if (Settings.FailOnMapControlVersionRegression &&
+                profile.Version < Math.Max(1, Settings.MinMapControlProfileVersion))
+            {
+                throw new InvalidOperationException(
+                    $"Map control profile version regression (profile={profile.Version}, required={Settings.MinMapControlProfileVersion}).");
+            }
+        }
+
+        private List<MinecraftMessageType> ResolvePacketTypes()
+        {
+            var packets = new List<MinecraftMessageType>();
+
+            if (Settings.ValidateAllKnownPackets)
+            {
+                var all = Enum.GetValues(typeof(MinecraftMessageType))
+                    .Cast<MinecraftMessageType>();
+                packets.AddRange(all);
+            }
+            else
+            {
+                foreach (var packetName in Settings.Packets)
+                {
+                    if (Enum.TryParse(packetName, ignoreCase: true, out MinecraftMessageType parsed))
+                    {
+                        packets.Add(parsed);
+                    }
+                }
+            }
+
+            if (!Settings.IncludeOptionalMessages)
+            {
+                packets = packets
+                    .Where(type => !ProtocolRegistry.IsOptionalMessageType(type))
+                    .ToList();
+            }
+
+            if (packets.Count == 0)
+            {
+                packets.AddRange(ProtocolRegistry.RegisteredMessageTypes);
+            }
+
+            return packets
+                .Distinct()
+                .OrderBy(type => (int)type)
+                .ToList();
+        }
+
+        private async Task<(bool Ok, string Error)> ProbeNetworkAsync(
+            IReadOnlyList<(MinecraftMessageType Type, byte[] Payload)> payloads,
+            CancellationToken cancellationToken)
         {
             try
             {
-                switch (messageType)
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(Settings.Host, Settings.Port);
+                var timeoutTask = Task.Delay(Math.Max(100, Settings.ConnectTimeoutMs), cancellationToken);
+                var completed = await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false);
+                if (completed == timeoutTask)
                 {
-                    case MessageType.LoginResponse:
-                        var loginResponse = ProtoBuf.Serializer.Deserialize<LoginResponse>(new MemoryStream(payload));
-                        OnLoginResponse?.Invoke(loginResponse);
-                        Console.WriteLine($"[DummyClient] Received login response: Success={loginResponse.Success}");
-                        break;
-                        
-                    case MessageType.PingResponse:
-                        var pingResponse = ProtoBuf.Serializer.Deserialize<PingResponse>(new MemoryStream(payload));
-                        OnPingResponse?.Invoke(pingResponse);
-                        var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - pingResponse.ClientTimestamp;
-                        Console.WriteLine($"[DummyClient] Received ping response: Latency={latency}ms");
-                        break;
-                        
-                    case MessageType.ChatMessage:
-                        var chatMessage = ProtoBuf.Serializer.Deserialize<ChatMessage>(new MemoryStream(payload));
-                        OnChatMessage?.Invoke(chatMessage);
-                        Console.WriteLine($"[DummyClient] Received chat: {chatMessage.SenderName}: {chatMessage.MessageContent}");
-                        break;
-                        
-                    case MessageType.ServerStatusResponse:
-                        var statusResponse = ProtoBuf.Serializer.Deserialize<ServerStatusResponse>(new MemoryStream(payload));
-                        Console.WriteLine($"[DummyClient] Received server status: Online={statusResponse.OnlinePlayers}");
-                        break;
-                        
-                    case MessageType.PlayerInfoUpdate:
-                        var playerInfoUpdate = ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(new MemoryStream(payload));
-                        OnPlayerInfoUpdate?.Invoke(playerInfoUpdate.PlayerInfo);
-                        Console.WriteLine($"[DummyClient] Received player info update");
-                        break;
-                        
-                    case MessageType.WorldBlockChangeBroadcast:
-                        var blockChange = ProtoBuf.Serializer.Deserialize<WorldBlockChangeBroadcast>(new MemoryStream(payload));
-                        Console.WriteLine($"[DummyClient] Received block change: ({blockChange.BlockPosition.X}, {blockChange.BlockPosition.Y}, {blockChange.BlockPosition.Z}) -> {blockChange.BlockType}");
-                        break;
-                        
-                    case MinecraftMessageType.ChunkDataResponse:
-                        var chunkResponse = ChunkLoadResponse.Parser.ParseFrom(payload);
-                        OnChunkLoadResponse?.Invoke(chunkResponse);
-                        Console.WriteLine($"[DummyClient] Received chunk response: {chunkResponse.Chunks.Count} chunks");
-                        break;
-                        
-                    case MinecraftMessageType.BlockChangeNotification:
-                        var blockBroadcast = BlockChangeBroadcast.Parser.ParseFrom(payload);
-                        OnBlockChangeBroadcast?.Invoke(blockBroadcast);
-                        Console.WriteLine($"[DummyClient] Received block change broadcast");
-                        break;
-                        
-                    case MinecraftMessageType.PlayerStateUpdate:
-                        var playerInfo = PlayerInfo.Parser.ParseFrom(payload);
-                        OnPlayerInfoUpdate?.Invoke(playerInfo);
-                        Console.WriteLine($"[DummyClient] Received player state update");
-                        break;
-                        
-                    case MinecraftMessageType.EntitySpawn:
-                        var entitySpawn = EntitySpawnBroadcast.Parser.ParseFrom(payload);
-                        OnEntitySpawnBroadcast?.Invoke(entitySpawn);
-                        Console.WriteLine($"[DummyClient] Received entity spawn: {entitySpawn.Entity?.EntityId}");
-                        break;
-                        
-                    case MinecraftMessageType.EntityDespawn:
-                        var entityDespawn = EntityDespawnBroadcast.Parser.ParseFrom(payload);
-                        OnEntityDespawnBroadcast?.Invoke(entityDespawn);
-                        Console.WriteLine($"[DummyClient] Received entity despawn: {entityDespawn.EntityId}");
-                        break;
-                        
-                    case MinecraftMessageType.TimeUpdate:
-                        var timeUpdate = TimeUpdateBroadcast.Parser.ParseFrom(payload);
-                        OnTimeUpdateBroadcast?.Invoke(timeUpdate);
-                        Console.WriteLine($"[DummyClient] Received time update: {timeUpdate.WorldTime}");
-                        break;
-                        
-                    case MinecraftMessageType.WeatherChange:
-                        var weatherUpdate = WeatherUpdateBroadcast.Parser.ParseFrom(payload);
-                        OnWeatherUpdateBroadcast?.Invoke(weatherUpdate);
-                        Console.WriteLine($"[DummyClient] Received weather update: {weatherUpdate.Weather.WeatherType}");
-                        break;
-                        
-                    case MinecraftMessageType.ParticleEffect:
-                        var particleEffect = ParticleEffect.Parser.ParseFrom(payload);
-                        Console.WriteLine($"[DummyClient] Received particle effect: {particleEffect.ParticleType}");
-                        break;
-                        
-                    case MinecraftMessageType.SoundEffect:
-                        var soundEffect = SoundEffect.Parser.ParseFrom(payload);
-                        Console.WriteLine($"[DummyClient] Received sound effect: {soundEffect.SoundType}");
-                        break;
-                        
-                    default:
-                        Console.WriteLine($"[DummyClient] Unknown message type: {messageType}");
-                        break;
+                    return (false, "Connect timeout");
                 }
-                
-                _messagesReceived++;
+
+                await connectTask.ConfigureAwait(false);
+                using var stream = client.GetStream();
+                stream.ReadTimeout = Math.Max(100, Settings.ReceiveTimeoutMs);
+                stream.WriteTimeout = Math.Max(100, Settings.ReceiveTimeoutMs);
+
+                int sendCount = Math.Min(Math.Max(1, Settings.MaxNetworkProbePackets), payloads.Count);
+                for (int i = 0; i < sendCount; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var packet = payloads[i];
+                    await WritePacketAsync(stream, packet.Type, packet.Payload, cancellationToken).ConfigureAwait(false);
+                }
+
+                return (true, string.Empty);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DummyClient] Handle message error: {ex.Message}");
-                _errors++;
+                return (false, ex.Message);
             }
         }
-        
-        /// <summary>
-        /// Print statistics
-        /// </summary>
-        public void PrintStatistics()
+
+        private static async Task WritePacketAsync(
+            NetworkStream stream,
+            MinecraftMessageType messageType,
+            byte[] payload,
+            CancellationToken cancellationToken)
         {
-            Console.WriteLine("\n=== Dummy Client Statistics ===");
-            Console.WriteLine($"Connected: {_isConnected}");
-            Console.WriteLine($"Session ID: {_sessionId ?? "N/A"}");
-            Console.WriteLine($"Messages Sent: {_messagesSent}");
-            Console.WriteLine($"Messages Received: {_messagesReceived}");
-            Console.WriteLine($"Errors: {_errors}");
-            Console.WriteLine("===============================\n");
-        }
-        
-        /// <summary>
-        /// Run automated test sequence
-        /// </summary>
-        public async Task RunTestSequenceAsync()
-        {
-            Console.WriteLine("\n=== Starting Test Sequence ===\n");
-            
-            // Test 1: Login
-            Console.WriteLine("Test 1: Login");
-            SendLogin("testuser", "testpass");
-            await Task.Delay(1000);
-            
-            // Test 2: Request chunks
-            Console.WriteLine("\nTest 2: Request chunks");
-            for (int x = -2; x <= 2; x++)
+            int bodyLength = Math.Max(0, payload?.Length ?? 0) + sizeof(int);
+            byte[] lengthBytes = BitConverter.GetBytes(bodyLength);
+            byte[] typeBytes = BitConverter.GetBytes((int)messageType);
+
+            await stream.WriteAsync(lengthBytes.AsMemory(0, lengthBytes.Length), cancellationToken).ConfigureAwait(false);
+            await stream.WriteAsync(typeBytes.AsMemory(0, typeBytes.Length), cancellationToken).ConfigureAwait(false);
+            if (payload != null && payload.Length > 0)
             {
-                for (int z = -2; z <= 2; z++)
-                {
-                    SendChunkLoadRequest(x, z, 8);
-                    await Task.Delay(100);
-                }
+                await stream.WriteAsync(payload.AsMemory(0, payload.Length), cancellationToken).ConfigureAwait(false);
             }
-            await Task.Delay(2000);
-            
-            // Test 3: Player actions
-            Console.WriteLine("\nTest 3: Player actions");
-            SendPlayerAction(PlayerAction.PLACE_BLOCK, 100, 64, 100);
-            await Task.Delay(500);
-            SendPlayerAction(PlayerAction.START_DESTROY_BLOCK, 100, 64, 100);
-            await Task.Delay(500);
-            SendPlayerAction(PlayerAction.FINISH_DESTROY_BLOCK, 100, 64, 100);
-            await Task.Delay(500);
-            
-            // Test 4: Chat
-            Console.WriteLine("\nTest 4: Chat");
-            SendChatMessage("Hello from dummy client!", ChatType.Global);
-            await Task.Delay(1000);
-            
-            // Test 5: Ping
-            Console.WriteLine("\nTest 5: Ping");
-            SendPing();
-            await Task.Delay(1000);
-            
-            // Test 6: Server status
-            Console.WriteLine("\nTest 6: Server status");
-            SendServerStatusRequest();
-            await Task.Delay(1000);
-            
-            Console.WriteLine("\n=== Test Sequence Complete ===\n");
-            PrintStatistics();
+
+            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
-        
-        public void Dispose()
+
+        private void WriteProbeReport(
+            string outputPath,
+            DummyProtocolProbeResult result,
+            IReadOnlyCollection<MinecraftMessageType> packetTypes,
+            int requiredTargets,
+            int requiredRoundTripOk)
         {
-            Disconnect();
-            _cancellationTokenSource?.Dispose();
+            var payload = new
+            {
+                timestampUtc = DateTime.UtcNow.ToString("o"),
+                descriptor = result.DescriptorName,
+                settings = new
+                {
+                    Settings.Host,
+                    Settings.Port,
+                    Settings.RoundTripCount,
+                    Settings.MaxNetworkProbePackets,
+                    Settings.ValidateAllKnownPackets,
+                    Settings.IncludeOptionalMessages,
+                    Settings.MinMapControlProfileVersion,
+                    Settings.ProbeNetwork
+                },
+                totals = new
+                {
+                    packetsRequested = packetTypes.Count,
+                    requiredTargets,
+                    requiredRoundTripOk,
+                    validated = result.ValidatedPackets.Count,
+                    missingRequired = result.MissingRequiredPackets.Count,
+                    missingPrototype = result.MissingPrototypePackets.Count,
+                    optionalUnregistered = result.OptionalUnregistered.Count,
+                    result.RoundTripOk,
+                    result.NetworkProbeAttempted,
+                    result.NetworkProbeOk
+                },
+                validatedPackets = result.ValidatedPackets,
+                missingRequiredPackets = result.MissingRequiredPackets,
+                missingPrototypePackets = result.MissingPrototypePackets,
+                optionalUnregistered = result.OptionalUnregistered,
+                networkError = result.NetworkError
+            };
+
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(outputPath, JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            }));
+        }
+
+        private static string ResolvePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return string.Empty;
+            }
+
+            if (Path.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), path));
         }
     }
 }

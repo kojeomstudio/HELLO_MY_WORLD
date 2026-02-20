@@ -40,6 +40,9 @@
 ### 3) JSON Config / Data-Driven Updates
 - Updated world/profile version controls:
   - `config/world.json` (`MapControlProfileVersion: 47`)
+  - `Assets/StreamingAssets/world-config.json` (`MapControlProfileVersion: 47`)
+  - `Assets/Scripts/Minecraft/Core/WorldConfig.cs` (default `MapControlProfileVersion = 47`)
+  - `config/enhanced_world_map_control_server.json` (`profileVersion: 47`)
   - `GameServer/World/WorldGenerationConfig.cs` default profile version `47`
 - Updated dummy-client version guards:
   - `config/protocol_dummy_client.json`

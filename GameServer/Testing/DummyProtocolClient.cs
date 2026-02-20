@@ -1,732 +1,647 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using GameCommon.World;
-using EnhancedMinecraftProtocol;
 using Google.Protobuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
+using GameProtocol;
 
-namespace GameServerApp.Testing
+namespace GameServer.Testing
 {
-    public sealed record ProtoProbePacketDiagnostic(
-        string MessageType,
-        bool IsOptional,
-        bool IsRegistered,
-        bool PrototypeResolved,
-        bool RoundTripOk,
-        string DescriptorName,
-        string DescriptorPackage,
-        string ErrorMessage);
-
-    public sealed record ProtoRegistryReferenceSummary(
-        IReadOnlyCollection<string> GeneratedDescriptors,
-        IReadOnlyCollection<string> RegisteredMessageTypes,
-        IReadOnlyCollection<string> UnboundRequiredGeneratedDescriptors,
-        IReadOnlyCollection<string> UnboundGeneratedDescriptors,
-        IReadOnlyCollection<ProtocolBindingDiagnostic> BindingDiagnostics,
-        IReadOnlyCollection<ProtocolTypeConsistencyDiagnostic> TypeConsistencyDiagnostics);
-
-    public sealed record ProtoProbeResult(
-        bool RoundTripOk,
-        string DescriptorName,
-        bool NetworkProbeAttempted,
-        bool NetworkProbeOk,
-        string NetworkError,
-        IReadOnlyCollection<string> ValidatedPackets,
-        IReadOnlyCollection<string> MissingRequiredPackets,
-        IReadOnlyCollection<string> MissingPrototypePackets,
-        IReadOnlyCollection<string> OptionalUnregistered,
-        IReadOnlyCollection<string> RegisteredPackets,
-        string DescriptorFingerprint,
-        string HydrologySignature,
-        string ProfileHydrologySignature,
-        bool ProfileHydrologyMatchesShared,
-        int RegisteredCount,
-        int GeneratedDescriptorCount,
-        int BoundDescriptorCount,
-        int UnboundRequiredDescriptorCount,
-        IReadOnlyCollection<string> UnboundGeneratedDescriptors,
-        IReadOnlyCollection<string> UnboundRequiredGeneratedDescriptors,
-        string ReportPath,
-        string ReferenceReportPath,
-        string ProfileHash,
-        int ProfileVersion,
-        string ProfilePath,
-        ProtoRegistryReferenceSummary RegistryReferences,
-        IReadOnlyCollection<ProtoProbePacketDiagnostic> PacketDiagnostics);
-
-    public sealed class DummyProtocolClientSettings
-    {
-        public string Host { get; set; } = "127.0.0.1";
-        public int Port { get; set; } = 9000;
-        public int ConnectTimeoutMs { get; set; } = 750;
-        public int ReceiveTimeoutMs { get; set; } = 750;
-        public int RoundTripCount { get; set; } = 1;
-        public bool ProbeNetwork { get; set; } = false;
-        public bool ValidateAllKnownPackets { get; set; } = true;
-        public bool IncludeOptionalMessages { get; set; } = false;
-        public bool FailOnHydrologySignatureMismatch { get; set; } = true;
-        public int MinMapControlProfileVersion { get; set; } = 47;
-        public bool FailOnMapControlVersionRegression { get; set; } = true;
-        public bool FailOnRequiredTypeDrift { get; set; } = true;
-        public int MaxNetworkProbePackets { get; set; } = 4;
-        public string? OutputReportPath { get; set; } = "reports/proto_probe_report.json";
-        public string? ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
-        public string? WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public string[] Packets { get; set; } = new[]
-        {
-            "PlayerStateUpdate",
-            "PlayerActionRequest",
-            "PlayerActionResponse",
-            "ChunkDataRequest",
-            "ChunkDataResponse",
-            "ChunkUnloadNotification",
-            "ChunkUnloadAcknowledge",
-            "BlockChangeNotification",
-            "TimeUpdate",
-            "WeatherChange"
-        };
-
-        public static DummyProtocolClientSettings Load(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return new DummyProtocolClientSettings();
-            }
-
-            var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<DummyProtocolClientSettings>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                ReadCommentHandling = JsonCommentHandling.Skip
-            }) ?? new DummyProtocolClientSettings();
-        }
-    }
-
     /// <summary>
-    /// Lightweight dummy client for exercising protobuf packet encode/decode and optional TCP probes.
-    /// Does not assume a full login pipeline; it only verifies registry wiring and basic round-trip.
+    /// Dummy client for testing Minecraft protocol packets
+    /// Supports both protobuf-net and Google.Protobuf message types
     /// </summary>
-    public sealed class DummyProtocolClient
+    public class DummyProtocolClient : IDisposable
     {
-        private readonly DummyProtocolClientSettings settings;
-
-        public DummyProtocolClient(DummyProtocolClientSettings settings)
+        private TcpClient _tcpClient;
+        private NetworkStream _networkStream;
+        private bool _isConnected;
+        private string _sessionId;
+        private CancellationTokenSource _cancellationTokenSource;
+        
+        // Configuration
+        private readonly string _serverAddress;
+        private readonly int _serverPort;
+        private readonly int _connectionTimeoutMs;
+        
+        // Statistics
+        private int _messagesSent;
+        private int _messagesReceived;
+        private int _errors;
+        
+        public bool IsConnected => _isConnected;
+        public string SessionId => _sessionId;
+        public int MessagesSent => _messagesSent;
+        public int MessagesReceived => _messagesReceived;
+        public int Errors => _errors;
+        
+        public event Action<string> OnConnected;
+        public event Action<string> OnDisconnected;
+        public event Action<string> OnError;
+        public event Action<LoginResponse> OnLoginResponse;
+        public event Action<ChunkLoadResponse> OnChunkLoadResponse;
+        public event Action<PlayerInfo> OnPlayerInfoUpdate;
+        public event Action<BlockChangeBroadcast> OnBlockChangeBroadcast;
+        public event Action<EntitySpawnBroadcast> OnEntitySpawnBroadcast;
+        public event Action<EntityDespawnBroadcast> OnEntityDespawnBroadcast;
+        public event Action<TimeUpdateBroadcast> OnTimeUpdateBroadcast;
+        public event Action<WeatherUpdateBroadcast> OnWeatherUpdateBroadcast;
+        public event Action<PingResponse> OnPingResponse;
+        public event Action<ChatMessage> OnChatMessage;
+        
+        public DummyProtocolClient(string serverAddress = "127.0.0.1", int serverPort = 9000, int connectionTimeoutMs = 10000)
         {
-            this.settings = settings;
+            _serverAddress = serverAddress;
+            _serverPort = serverPort;
+            _connectionTimeoutMs = connectionTimeoutMs;
+            _cancellationTokenSource = new CancellationTokenSource();
         }
-
-        public DummyProtocolClientSettings Settings => settings;
-
-        public static DummyProtocolClient CreateFromConfig(string path) =>
-            new DummyProtocolClient(DummyProtocolClientSettings.Load(path));
-
-        public async Task<ProtoProbeResult> RunAsync(bool probeNetwork, CancellationToken cancellationToken)
+        
+        /// <summary>
+        /// Connect to the server
+        /// </summary>
+        public async Task<bool> ConnectAsync()
         {
-            ProtocolRegistry.ValidateBindings();
-            ProtocolValidator.ValidateEnhancedContracts();
-            ProtoDiagnostics.AssertFingerprint();
-            ProtoDiagnostics.AssertRegistryClean();
-            bool profileHydrologyMatchesShared = true;
-            WorldMapControlProfile? sharedProfile = null;
-            string profilePath = string.IsNullOrWhiteSpace(settings.WorldMapControlProfilePath)
-                ? string.Empty
-                : Path.GetFullPath(settings.WorldMapControlProfilePath);
-            if (!string.IsNullOrWhiteSpace(profilePath))
+            try
             {
-                sharedProfile = WorldMapControlProfileUtility.Load(profilePath);
-                if (sharedProfile != null && string.IsNullOrWhiteSpace(sharedProfile.ProfileHash))
+                Console.WriteLine($"[DummyClient] Connecting to {_serverAddress}:{_serverPort}...");
+                
+                _tcpClient = new TcpClient();
+                var connectTask = _tcpClient.ConnectAsync(_serverAddress, _serverPort);
+                var timeoutTask = Task.Delay(_connectionTimeoutMs, _cancellationTokenSource.Token);
+                
+                var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+                
+                if (completedTask == timeoutTask)
                 {
-                    sharedProfile.ProfileHash = WorldMapControlProfileUtility.ComputeHash(sharedProfile);
+                    Console.WriteLine("[DummyClient] Connection timed out");
+                    OnError?.Invoke("Connection timeout");
+                    return false;
                 }
-
-                if (sharedProfile != null &&
-                    !string.Equals(sharedProfile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase))
+                
+                await connectTask;
+                _networkStream = _tcpClient.GetStream();
+                _isConnected = true;
+                
+                Console.WriteLine("[DummyClient] Connected successfully");
+                OnConnected?.Invoke(_sessionId);
+                
+                // Start receiving messages
+                _ = Task.Run(ReceiveMessagesAsync, _cancellationTokenSource.Token);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Connection error: {ex.Message}");
+                OnError?.Invoke($"Connection error: {ex.Message}");
+                _errors++;
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// Disconnect from the server
+        /// </summary>
+        public void Disconnect()
+        {
+            try
+            {
+                if (_isConnected)
                 {
-                    profileHydrologyMatchesShared = false;
-                    Console.WriteLine($"[ProtoProbe][WARN] Hydrology signature mismatch between profile ({sharedProfile.HydrologySignature}) and shared catalog ({SharedFeatureCatalog.HydrologySignature}).");
-                }
-
-                if (sharedProfile != null && sharedProfile.Version <= 0)
-                {
-                    Console.WriteLine("[ProtoProbe][WARN] World-map control profile version is missing or invalid.");
-                }
-
-                if (sharedProfile != null &&
-                    sharedProfile.Version < Math.Max(1, settings.MinMapControlProfileVersion))
-                {
-                    string message =
-                        $"[ProtoProbe][WARN] World-map control profile version regression detected (profile={sharedProfile.Version}, required={settings.MinMapControlProfileVersion}).";
-                    if (settings.FailOnMapControlVersionRegression)
-                    {
-                        throw new InvalidOperationException(message);
-                    }
-
-                    Console.WriteLine(message);
+                    Console.WriteLine("[DummyClient] Disconnecting...");
+                    _cancellationTokenSource.Cancel();
+                    _networkStream?.Close();
+                    _tcpClient?.Close();
+                    _isConnected = false;
+                    OnDisconnected?.Invoke(_sessionId);
+                    Console.WriteLine("[DummyClient] Disconnected");
                 }
             }
-
-            var registeredPackets = ProtocolRegistry.RegisteredMessageTypes
-                .Select(type => type.ToString())
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            string descriptorFingerprint = ProtoFingerprint.ComputeFingerprint();
-            var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
-                .ToHashSet(StringComparer.Ordinal);
-            string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
-            string expectedDescriptorFileName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty;
-            probeNetwork |= settings.ProbeNetwork;
-            var validatedPackets = new List<string>();
-            var requiredProbeMissing = new List<string>();
-            var optionalProbeMissing = new List<string>();
-            var missingPrototypePackets = new List<string>();
-            var packetDiagnostics = new List<ProtoProbePacketDiagnostic>();
-            var networkProbePayloads = new List<byte[]>();
-            var packetsToProbe = new HashSet<MinecraftMessageType>();
-
-            if (settings.ValidateAllKnownPackets)
+            catch (Exception ex)
             {
-                packetsToProbe.UnionWith(ProtocolRegistry.RegisteredMessageTypes);
-                if (settings.IncludeOptionalMessages)
-                {
-                    packetsToProbe.UnionWith(ProtocolRegistry.GetOptionalMessagesWithoutBindings());
-                }
+                Console.WriteLine($"[DummyClient] Disconnect error: {ex.Message}");
+                _errors++;
             }
-
-            foreach (var packetName in settings.Packets ?? Array.Empty<string>())
+        }
+        
+        /// <summary>
+        /// Send login request
+        /// </summary>
+        public void SendLogin(string username, string password)
+        {
+            try
             {
-                if (!Enum.TryParse(packetName, ignoreCase: true, out MinecraftMessageType messageType))
+                var request = new LoginRequest
                 {
-                    Console.WriteLine($"[ProtoProbe][WARN] Unknown packet '{packetName}' in config. Skipping.");
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        packetName,
-                        IsOptional: false,
-                        IsRegistered: false,
-                        PrototypeResolved: false,
-                        RoundTripOk: false,
-                        DescriptorName: string.Empty,
-                        DescriptorPackage: string.Empty,
-                        ErrorMessage: "Unknown message type in config."));
-                    continue;
-                }
-
-                packetsToProbe.Add(messageType);
+                    Username = username,
+                    Password = password,
+                    ClientVersion = "1.0.0"
+                };
+                
+                SendMessage(MessageType.LoginRequest, request);
+                Console.WriteLine($"[DummyClient] Sent login request for user: {username}");
+                _messagesSent++;
             }
-
-            foreach (var messageType in packetsToProbe)
+            catch (Exception ex)
             {
-                bool isOptional = ProtocolRegistry.IsOptionalMessageType(messageType);
-                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype) || prototype == null)
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Missing prototype for '{messageType}'. Regenerate protobuf DTOs or update ProtocolRegistry bindings.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: ProtocolRegistry.IsRegistered(messageType),
-                        PrototypeResolved: false,
-                        RoundTripOk: false,
-                        DescriptorName: string.Empty,
-                        DescriptorPackage: string.Empty,
-                        ErrorMessage: "Prototype not resolved from ProtocolRegistry."));
-                    continue;
-                }
-
-                var descriptorParser = prototype.Descriptor?.Parser;
-                string descriptorName = prototype.Descriptor?.Name ?? string.Empty;
-                string descriptorFullName = prototype.Descriptor?.FullName ?? string.Empty;
-                string descriptorPackage = prototype.Descriptor?.File?.Package ?? string.Empty;
-                string descriptorSourceName = prototype.Descriptor?.File?.Name ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(descriptorName))
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor metadata missing for '{messageType}'.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: "Descriptor metadata missing."));
-                    continue;
-                }
-
-                if (!generatedDescriptorNames.Contains(descriptorName))
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor '{descriptorName}' for '{messageType}' is not present in generated reflection descriptor set.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: "Descriptor name not found in generated descriptor set."));
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(expectedDescriptorFileName) &&
-                    !string.IsNullOrWhiteSpace(descriptorSourceName) &&
-                    !string.Equals(descriptorSourceName, expectedDescriptorFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor source mismatch for '{messageType}': actual='{descriptorSourceName}', expected='{expectedDescriptorFileName}'.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: $"Descriptor source mismatch ({descriptorSourceName} != {expectedDescriptorFileName})."));
-                    continue;
-                }
-
-                if (!ReferenceEquals(prototype.GetType().Assembly, typeof(EnhancedMinecraftGameReflection).Assembly))
-                {
-                    string actualAssembly = prototype.GetType().Assembly.GetName().Name ?? string.Empty;
-                    string expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name ?? string.Empty;
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor assembly mismatch for '{messageType}': actual='{actualAssembly}', expected='{expectedAssembly}'.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: $"Descriptor assembly mismatch ({actualAssembly} != {expectedAssembly})."));
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(expectedDescriptorPackage) &&
-                    !string.Equals(descriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal))
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor package mismatch for '{messageType}': actual='{descriptorPackage}', expected='{expectedDescriptorPackage}'.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: "Descriptor package mismatch."));
-                    continue;
-                }
-
-                if (descriptorParser == null)
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Descriptor parser missing for '{messageType}'.");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: "Descriptor parser missing."));
-                    continue;
-                }
-
-                try
-                {
-                    var bytes = prototype.ToByteArray();
-                    var parsed = descriptorParser.ParseFrom(bytes);
-                    if (parsed != null &&
-                        parsed.Descriptor != null &&
-                        string.Equals(parsed.Descriptor.FullName, descriptorFullName, StringComparison.Ordinal))
-                    {
-                        validatedPackets.Add(messageType.ToString());
-                        if (bytes.Length > 0)
-                        {
-                            networkProbePayloads.Add(bytes);
-                        }
-
-                        packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                            messageType.ToString(),
-                            isOptional,
-                            IsRegistered: true,
-                            PrototypeResolved: true,
-                            RoundTripOk: true,
-                            DescriptorName: descriptorName,
-                            DescriptorPackage: descriptorPackage,
-                            ErrorMessage: string.Empty));
-                    }
-                    else
-                    {
-                        missingPrototypePackets.Add(messageType.ToString());
-                        if (isOptional)
-                        {
-                            optionalProbeMissing.Add(messageType.ToString());
-                        }
-                        else
-                        {
-                            requiredProbeMissing.Add(messageType.ToString());
-                        }
-
-                        packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                            messageType.ToString(),
-                            isOptional,
-                            IsRegistered: true,
-                            PrototypeResolved: true,
-                            RoundTripOk: false,
-                            DescriptorName: descriptorName,
-                            DescriptorPackage: descriptorPackage,
-                            ErrorMessage: parsed == null
-                                ? "Descriptor parser returned null payload."
-                                : $"Descriptor full-name mismatch ({descriptorFullName} != {parsed.Descriptor?.FullName ?? "<null>"})."));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[ProtoProbe][WARN] Round-trip failed for '{messageType}': {ex.Message}");
-                    missingPrototypePackets.Add(messageType.ToString());
-                    if (isOptional)
-                    {
-                        optionalProbeMissing.Add(messageType.ToString());
-                    }
-                    else
-                    {
-                        requiredProbeMissing.Add(messageType.ToString());
-                    }
-
-                    packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                        messageType.ToString(),
-                        isOptional,
-                        IsRegistered: true,
-                        PrototypeResolved: true,
-                        RoundTripOk: false,
-                        DescriptorName: descriptorName,
-                        DescriptorPackage: descriptorPackage,
-                        ErrorMessage: ex.Message));
-                }
+                Console.WriteLine($"[DummyClient] Login error: {ex.Message}");
+                _errors++;
             }
-
-            var sampleRequest = new ChunkLoadRequest
+        }
+        
+        /// <summary>
+        /// Send chunk load request
+        /// </summary>
+        public void SendChunkLoadRequest(int chunkX, int chunkZ, int viewDistance = 8)
+        {
+            try
             {
-                ViewDistance = Math.Max(1, settings.RoundTripCount)
-            };
-            sampleRequest.ChunkPositions.Add(new global::MinecraftGame.Common.Vector3Int
-            {
-                X = 0,
-                Y = 0,
-                Z = 0
-            });
-
-            byte[] payload = sampleRequest.ToByteArray();
-            bool roundTripOk = ChunkLoadRequest.Parser.ParseFrom(payload) != null;
-            if (roundTripOk)
-            {
-                validatedPackets.Add(nameof(ChunkLoadRequest));
-                packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                    nameof(ChunkLoadRequest),
-                    IsOptional: false,
-                    IsRegistered: true,
-                    PrototypeResolved: true,
-                    RoundTripOk: true,
-                    DescriptorName: ChunkLoadRequest.Descriptor.Name,
-                    DescriptorPackage: ChunkLoadRequest.Descriptor.File.Package,
-                    ErrorMessage: string.Empty));
-            }
-            else
-            {
-                packetDiagnostics.Add(new ProtoProbePacketDiagnostic(
-                    nameof(ChunkLoadRequest),
-                    IsOptional: false,
-                    IsRegistered: true,
-                    PrototypeResolved: true,
-                    RoundTripOk: false,
-                    DescriptorName: ChunkLoadRequest.Descriptor.Name,
-                    DescriptorPackage: ChunkLoadRequest.Descriptor.File.Package,
-                    ErrorMessage: "Sample chunk request round-trip failed."));
-            }
-
-            networkProbePayloads.Insert(0, payload);
-            int maxProbePackets = Math.Max(1, settings.MaxNetworkProbePackets);
-            var selectedProbePayloads = networkProbePayloads
-                .Where(bytes => bytes.Length > 0)
-                .Take(maxProbePackets)
-                .ToArray();
-            if (selectedProbePayloads.Length == 0)
-            {
-                selectedProbePayloads = new[] { payload };
-            }
-
-            bool networkAttempted = false;
-            bool networkOk = false;
-            string networkError = string.Empty;
-            var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings();
-            var unboundRequiredGeneratedDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings();
-
-            if (probeNetwork)
-            {
-                networkAttempted = true;
-                try
+                var request = new ChunkLoadRequest
                 {
-                    using var client = new TcpClient();
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    cts.CancelAfter(settings.ConnectTimeoutMs);
-
-                    await client.ConnectAsync(settings.Host, settings.Port, cts.Token);
-                    client.ReceiveTimeout = settings.ReceiveTimeoutMs;
-                    client.SendTimeout = settings.ConnectTimeoutMs;
-
-                    await using NetworkStream stream = client.GetStream();
-                    for (int i = 0; i < Math.Max(1, settings.RoundTripCount); i++)
+                    ChunkPositions = { new MinecraftGame.Common.Vector3Int { X = chunkX, Y = 0, Z = chunkZ } },
+                    ViewDistance = viewDistance
+                };
+                
+                SendMessage(MinecraftMessageType.ChunkDataRequest, request);
+                Console.WriteLine($"[DummyClient] Sent chunk load request: ({chunkX}, {chunkZ}), view distance: {viewDistance}");
+                _messagesSent++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Chunk load request error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Send chunk unload acknowledge
+        /// </summary>
+        public void SendChunkUnloadAck(int chunkX, int chunkZ, bool accepted = true, string note = "")
+        {
+            try
+            {
+                var ack = new ChunkUnloadAck
+                {
+                    ChunkX = chunkX,
+                    ChunkZ = chunkZ,
+                    Accepted = accepted,
+                    RemainingChunks = 0,
+                    Note = note
+                };
+                
+                SendMessage(MinecraftMessageType.ChunkUnloadAcknowledge, ack);
+                Console.WriteLine($"[DummyClient] Sent chunk unload ack: ({chunkX}, {chunkZ}), accepted: {accepted}");
+                _messagesSent++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Chunk unload ack error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Send player action request
+        /// </summary>
+        public void SendPlayerAction(PlayerAction action, int x, int y, int z, int face = 0, string itemId = "")
+        {
+            try
+            {
+                var request = new PlayerActionRequest
+                {
+                    Action = action,
+                    TargetPosition = new MinecraftGame.Common.Vector3Int { X = x, Y = y, Z = z },
+                    Face = face,
+                    CursorPosition = new MinecraftGame.Common.Vector3 { X = 0.5f, Y = 0.5f, Z = 0.5f },
+                    Sequence = 0,
+                    ActionData = new ActionData
                     {
-                        foreach (var probePayload in selectedProbePayloads)
-                        {
-                            byte[] lengthPrefix = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(probePayload.Length));
-                            await stream.WriteAsync(lengthPrefix, cancellationToken);
-                            await stream.WriteAsync(probePayload, cancellationToken);
-                        }
+                        TargetEntityId = "",
+                        ChargeProgress = 0.0f,
+                        HeldTicks = 0
                     }
-
-                    networkOk = true;
-                }
-                catch (Exception ex)
+                };
+                
+                SendMessage(MinecraftMessageType.PlayerActionRequest, request);
+                Console.WriteLine($"[DummyClient] Sent player action: {action} at ({x}, {y}, {z})");
+                _messagesSent++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Player action error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Send ping request
+        /// </summary>
+        public void SendPing()
+        {
+            try
+            {
+                var request = new PingRequest
                 {
-                    networkError = ex.Message;
-                }
+                    ClientTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                };
+                
+                SendMessage(MinecraftMessageType.PingRequest, request);
+                Console.WriteLine($"[DummyClient] Sent ping request");
+                _messagesSent++;
             }
-
-            var requiredMissing = ProtocolRegistry.GetUnregisteredRequiredMessages()
-                .Select(type => type.ToString())
-                .ToList();
-            requiredMissing.AddRange(requiredProbeMissing);
-            requiredMissing.AddRange(
-                unboundRequiredGeneratedDescriptors.Select(name => $"descriptor:{name}"));
-            requiredMissing = requiredMissing
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var optionalMissing = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
-                .Select(type => type.ToString())
-                .ToList();
-            optionalMissing.AddRange(optionalProbeMissing);
-            optionalMissing = optionalMissing
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            missingPrototypePackets = missingPrototypePackets
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (optionalMissing.Count > 0)
+            catch (Exception ex)
             {
-                Console.WriteLine($"[ProtoProbe][INFO] Optional protocol bindings not registered: {string.Join(", ", optionalMissing)}");
+                Console.WriteLine($"[DummyClient] Ping error: {ex.Message}");
+                _errors++;
             }
-            if (missingPrototypePackets.Count > 0)
+        }
+        
+        /// <summary>
+        /// Send chat message
+        /// </summary>
+        public void SendChatMessage(string message, ChatType chatType = ChatType.Global)
+        {
+            try
             {
-                Console.WriteLine($"[ProtoProbe][WARN] Prototype resolution failed for: {string.Join(", ", missingPrototypePackets)}");
-            }
-            var reportPath = string.IsNullOrWhiteSpace(settings.OutputReportPath)
-                ? string.Empty
-                : Path.GetFullPath(settings.OutputReportPath);
-            var referenceReportPath = string.IsNullOrWhiteSpace(settings.ReferenceReportPath)
-                ? string.Empty
-                : Path.GetFullPath(settings.ReferenceReportPath);
-            int registeredCount = registeredPackets.Length;
-            string hydrologySignature = SharedFeatureCatalog.HydrologySignature;
-            string profileHydrologySignature = sharedProfile?.HydrologySignature ?? string.Empty;
-            profileHydrologyMatchesShared =
-                string.IsNullOrWhiteSpace(profileHydrologySignature) ||
-                string.Equals(profileHydrologySignature, hydrologySignature, StringComparison.OrdinalIgnoreCase);
-            string profileHash = sharedProfile?.ProfileHash ?? string.Empty;
-            int profileVersion = sharedProfile?.Version ?? 0;
-            var coverage = ProtocolRegistry.GetBindingCoverage();
-            var typeConsistencyDiagnostics = ProtocolRegistry.BuildTypeConsistencyDiagnostics();
-            var requiredTypeDrift = typeConsistencyDiagnostics
-                .Where(diagnostic => diagnostic.HasEnhancedType && diagnostic.HasLegacyType && !diagnostic.LegacyTypeMatches && !diagnostic.IsOptional)
-                .Select(diagnostic => diagnostic.MessageType.ToString())
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (requiredTypeDrift.Length > 0)
-            {
-                Console.WriteLine("[ProtoProbe][WARN] Required legacy/enhanced type drift detected: " + string.Join(", ", requiredTypeDrift));
-                if (settings.FailOnRequiredTypeDrift)
+                var chatMessage = new ChatMessage
                 {
-                    requiredMissing.AddRange(requiredTypeDrift.Select(name => $"type-drift:{name}"));
-                }
+                    SenderId = _sessionId ?? "unknown",
+                    SenderName = "DummyClient",
+                    MessageContent = message,
+                    ChatType = (int)chatType,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    FormattedMessage = message,
+                    Style = new ChatStyle
+                    {
+                        Color = "#FFFFFF",
+                        Bold = false,
+                        Italic = false,
+                        Underlined = false,
+                        Strikethrough = false,
+                        Obfuscated = false
+                    }
+                };
+                
+                SendMessage(MessageType.ChatMessage, chatMessage);
+                Console.WriteLine($"[DummyClient] Sent chat message: {message}");
+                _messagesSent++;
             }
-
-            if (!profileHydrologyMatchesShared && settings.FailOnHydrologySignatureMismatch)
+            catch (Exception ex)
             {
-                requiredMissing.Add("profile:HydrologySignatureMismatch");
+                Console.WriteLine($"[DummyClient] Chat message error: {ex.Message}");
+                _errors++;
             }
-
-            requiredMissing = requiredMissing
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (requiredMissing.Count > 0)
+        }
+        
+        /// <summary>
+        /// Send server status request
+        /// </summary>
+        public void SendServerStatusRequest()
+        {
+            try
             {
-                Console.WriteLine($"[ProtoProbe][WARN] Required protocol bindings missing: {string.Join(", ", requiredMissing)}");
+                var request = new ServerStatusRequest
+                {
+                    SessionToken = _sessionId ?? ""
+                };
+                
+                SendMessage(MessageType.ServerStatusRequest, request);
+                Console.WriteLine("[DummyClient] Sent server status request");
+                _messagesSent++;
             }
-
-            var registryReferenceSummary = new ProtoRegistryReferenceSummary(
-                ProtocolRegistry.GetGeneratedDescriptorNames(),
-                registeredPackets,
-                unboundRequiredGeneratedDescriptors,
-                unboundGeneratedDescriptors,
-                ProtocolRegistry.GetBindingDiagnostics(),
-                typeConsistencyDiagnostics);
-
-            var result = new ProtoProbeResult(
-                roundTripOk,
-                ChunkLoadRequest.Descriptor.FullName,
-                networkAttempted,
-                networkOk,
-                networkError,
-                validatedPackets.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
-                requiredMissing,
-                missingPrototypePackets,
-                optionalMissing,
-                registeredPackets,
-                descriptorFingerprint,
-                hydrologySignature,
-                profileHydrologySignature,
-                profileHydrologyMatchesShared,
-                registeredCount,
-                coverage.GeneratedDescriptors,
-                coverage.BoundDescriptors,
-                unboundRequiredGeneratedDescriptors.Count,
-                unboundGeneratedDescriptors,
-                unboundRequiredGeneratedDescriptors,
-                reportPath,
-                referenceReportPath,
-                profileHash,
-                profileVersion,
-                profilePath,
-                registryReferenceSummary,
-                packetDiagnostics);
-
-            Console.WriteLine(
-                $"[ProtoProbe] Hydrology={hydrologySignature} Registered={registeredCount} " +
-                $"Validated={validatedPackets.Count} Missing={requiredMissing.Count} MissingPrototype={missingPrototypePackets.Count} OptionalMissing={optionalMissing.Count} " +
-                $"Coverage={coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} UnboundGenerated={unboundGeneratedDescriptors.Count} UnboundRequired={unboundRequiredGeneratedDescriptors.Count} PacketDiagnostics={packetDiagnostics.Count} " +
-                $"ProfileHydrologyMatch={profileHydrologyMatchesShared} " +
-                $"ProfileV={profileVersion} ProfileHash={(string.IsNullOrWhiteSpace(profileHash) ? "<none>" : profileHash[..Math.Min(8, profileHash.Length)])} " +
-                $"DescriptorFingerprint={descriptorFingerprint}");
-
-            if (!string.IsNullOrWhiteSpace(reportPath))
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Server status request error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Send message using protobuf-net serialization
+        /// </summary>
+        private void SendMessage(MessageType messageType, object message)
+        {
+            if (!_isConnected || _networkStream == null)
+            {
+                Console.WriteLine("[DummyClient] Not connected, cannot send message");
+                _errors++;
+                return;
+            }
+            
+            try
+            {
+                using var memoryStream = new MemoryStream();
+                ProtoBuf.Serializer.Serialize(memoryStream, message);
+                
+                var messageData = memoryStream.ToArray();
+                var packet = BuildPacket(messageType, messageData);
+                
+                _networkStream.Write(packet, 0, packet.Length);
+                _networkStream.Flush();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Send message error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Send message using Google.Protobuf serialization
+        /// </summary>
+        private void SendMessage(MinecraftMessageType messageType, IMessage message)
+        {
+            if (!_isConnected || _networkStream == null)
+            {
+                Console.WriteLine("[DummyClient] Not connected, cannot send message");
+                _errors++;
+                return;
+            }
+            
+            try
+            {
+                using var memoryStream = new MemoryStream();
+                message.WriteTo(memoryStream);
+                
+                var messageData = memoryStream.ToArray();
+                var packet = BuildPacket(messageType, messageData);
+                
+                _networkStream.Write(packet, 0, packet.Length);
+                _networkStream.Flush();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Send message error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Build packet with length and type header
+        /// </summary>
+        private byte[] BuildPacket(MessageType messageType, byte[] messageData)
+        {
+            var lengthBytes = BitConverter.GetBytes(messageData.Length + 4); // +4 for message type
+            var typeBytes = BitConverter.GetBytes((int)messageType);
+            
+            var packet = new byte[lengthBytes.Length + typeBytes.Length + messageData.Length];
+            Buffer.BlockCopy(lengthBytes, 0, packet, 0, lengthBytes.Length);
+            Buffer.BlockCopy(typeBytes, 0, packet, lengthBytes.Length, typeBytes.Length);
+            Buffer.BlockCopy(messageData, 0, packet, lengthBytes.Length + typeBytes.Length, messageData.Length);
+            
+            return packet;
+        }
+        
+        /// <summary>
+        /// Receive messages from server
+        /// </summary>
+        private async Task ReceiveMessagesAsync()
+        {
+            var buffer = new byte[65536];
+            
+            while (!_cancellationTokenSource.Token.IsCancellationRequested && _isConnected)
             {
                 try
                 {
-                    var directory = Path.GetDirectoryName(reportPath);
-                    if (!string.IsNullOrWhiteSpace(directory))
+                    var bytesRead = await _networkStream.ReadAsync(buffer, 0, 4, _cancellationTokenSource.Token);
+                    
+                    if (bytesRead < 4)
                     {
-                        Directory.CreateDirectory(directory);
+                        Console.WriteLine("[DummyClient] Incomplete packet header");
+                        continue;
                     }
-
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    File.WriteAllText(reportPath, JsonSerializer.Serialize(result, options));
+                    
+                    var messageLength = BitConverter.ToInt32(buffer, 0);
+                    var totalLength = messageLength + 4;
+                    
+                    if (messageLength > buffer.Length)
+                    {
+                        Console.WriteLine($"[DummyClient] Message too large: {messageLength}");
+                        continue;
+                    }
+                    
+                    var totalRead = 0;
+                    while (totalRead < messageLength)
+                    {
+                        var read = await _networkStream.ReadAsync(buffer, 4 + totalRead, messageLength - totalRead, _cancellationTokenSource.Token);
+                        if (read == 0)
+                        {
+                            Console.WriteLine("[DummyClient] Connection closed");
+                            break;
+                        }
+                        totalRead += read;
+                    }
+                    
+                    if (totalRead < messageLength)
+                    {
+                        continue;
+                    }
+                    
+                    var messageData = new byte[messageLength];
+                    Buffer.BlockCopy(buffer, 4, messageData, 0, messageLength);
+                    
+                    var messageTypeValue = BitConverter.ToInt32(messageData, 0);
+                    var messageType = (MessageType)messageTypeValue;
+                    
+                    var payload = new byte[messageLength - 4];
+                    Buffer.BlockCopy(messageData, 4, payload, 0, payload.Length);
+                    
+                    await HandleMessageAsync(messageType, payload);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ProtoProbe][WARN] Failed to write probe report to '{reportPath}': {ex.Message}");
+                    Console.WriteLine($"[DummyClient] Receive error: {ex.Message}");
+                    _errors++;
                 }
             }
-
-            if (!string.IsNullOrWhiteSpace(referenceReportPath))
+        }
+        
+        /// <summary>
+        /// Handle received message
+        /// </summary>
+        private async Task HandleMessageAsync(MessageType messageType, byte[] payload)
+        {
+            try
             {
-                try
+                switch (messageType)
                 {
-                    var directory = Path.GetDirectoryName(referenceReportPath);
-                    if (!string.IsNullOrWhiteSpace(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                    }
-
-                    ProtoDiagnostics.WriteReportToFile(referenceReportPath);
+                    case MessageType.LoginResponse:
+                        var loginResponse = ProtoBuf.Serializer.Deserialize<LoginResponse>(new MemoryStream(payload));
+                        OnLoginResponse?.Invoke(loginResponse);
+                        Console.WriteLine($"[DummyClient] Received login response: Success={loginResponse.Success}");
+                        break;
+                        
+                    case MessageType.PingResponse:
+                        var pingResponse = ProtoBuf.Serializer.Deserialize<PingResponse>(new MemoryStream(payload));
+                        OnPingResponse?.Invoke(pingResponse);
+                        var latency = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - pingResponse.ClientTimestamp;
+                        Console.WriteLine($"[DummyClient] Received ping response: Latency={latency}ms");
+                        break;
+                        
+                    case MessageType.ChatMessage:
+                        var chatMessage = ProtoBuf.Serializer.Deserialize<ChatMessage>(new MemoryStream(payload));
+                        OnChatMessage?.Invoke(chatMessage);
+                        Console.WriteLine($"[DummyClient] Received chat: {chatMessage.SenderName}: {chatMessage.MessageContent}");
+                        break;
+                        
+                    case MessageType.ServerStatusResponse:
+                        var statusResponse = ProtoBuf.Serializer.Deserialize<ServerStatusResponse>(new MemoryStream(payload));
+                        Console.WriteLine($"[DummyClient] Received server status: Online={statusResponse.OnlinePlayers}");
+                        break;
+                        
+                    case MessageType.PlayerInfoUpdate:
+                        var playerInfoUpdate = ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(new MemoryStream(payload));
+                        OnPlayerInfoUpdate?.Invoke(playerInfoUpdate.PlayerInfo);
+                        Console.WriteLine($"[DummyClient] Received player info update");
+                        break;
+                        
+                    case MessageType.WorldBlockChangeBroadcast:
+                        var blockChange = ProtoBuf.Serializer.Deserialize<WorldBlockChangeBroadcast>(new MemoryStream(payload));
+                        Console.WriteLine($"[DummyClient] Received block change: ({blockChange.BlockPosition.X}, {blockChange.BlockPosition.Y}, {blockChange.BlockPosition.Z}) -> {blockChange.BlockType}");
+                        break;
+                        
+                    case MinecraftMessageType.ChunkDataResponse:
+                        var chunkResponse = ChunkLoadResponse.Parser.ParseFrom(payload);
+                        OnChunkLoadResponse?.Invoke(chunkResponse);
+                        Console.WriteLine($"[DummyClient] Received chunk response: {chunkResponse.Chunks.Count} chunks");
+                        break;
+                        
+                    case MinecraftMessageType.BlockChangeNotification:
+                        var blockBroadcast = BlockChangeBroadcast.Parser.ParseFrom(payload);
+                        OnBlockChangeBroadcast?.Invoke(blockBroadcast);
+                        Console.WriteLine($"[DummyClient] Received block change broadcast");
+                        break;
+                        
+                    case MinecraftMessageType.PlayerStateUpdate:
+                        var playerInfo = PlayerInfo.Parser.ParseFrom(payload);
+                        OnPlayerInfoUpdate?.Invoke(playerInfo);
+                        Console.WriteLine($"[DummyClient] Received player state update");
+                        break;
+                        
+                    case MinecraftMessageType.EntitySpawn:
+                        var entitySpawn = EntitySpawnBroadcast.Parser.ParseFrom(payload);
+                        OnEntitySpawnBroadcast?.Invoke(entitySpawn);
+                        Console.WriteLine($"[DummyClient] Received entity spawn: {entitySpawn.Entity?.EntityId}");
+                        break;
+                        
+                    case MinecraftMessageType.EntityDespawn:
+                        var entityDespawn = EntityDespawnBroadcast.Parser.ParseFrom(payload);
+                        OnEntityDespawnBroadcast?.Invoke(entityDespawn);
+                        Console.WriteLine($"[DummyClient] Received entity despawn: {entityDespawn.EntityId}");
+                        break;
+                        
+                    case MinecraftMessageType.TimeUpdate:
+                        var timeUpdate = TimeUpdateBroadcast.Parser.ParseFrom(payload);
+                        OnTimeUpdateBroadcast?.Invoke(timeUpdate);
+                        Console.WriteLine($"[DummyClient] Received time update: {timeUpdate.WorldTime}");
+                        break;
+                        
+                    case MinecraftMessageType.WeatherChange:
+                        var weatherUpdate = WeatherUpdateBroadcast.Parser.ParseFrom(payload);
+                        OnWeatherUpdateBroadcast?.Invoke(weatherUpdate);
+                        Console.WriteLine($"[DummyClient] Received weather update: {weatherUpdate.Weather.WeatherType}");
+                        break;
+                        
+                    case MinecraftMessageType.ParticleEffect:
+                        var particleEffect = ParticleEffect.Parser.ParseFrom(payload);
+                        Console.WriteLine($"[DummyClient] Received particle effect: {particleEffect.ParticleType}");
+                        break;
+                        
+                    case MinecraftMessageType.SoundEffect:
+                        var soundEffect = SoundEffect.Parser.ParseFrom(payload);
+                        Console.WriteLine($"[DummyClient] Received sound effect: {soundEffect.SoundType}");
+                        break;
+                        
+                    default:
+                        Console.WriteLine($"[DummyClient] Unknown message type: {messageType}");
+                        break;
                 }
-                catch (Exception ex)
+                
+                _messagesReceived++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyClient] Handle message error: {ex.Message}");
+                _errors++;
+            }
+        }
+        
+        /// <summary>
+        /// Print statistics
+        /// </summary>
+        public void PrintStatistics()
+        {
+            Console.WriteLine("\n=== Dummy Client Statistics ===");
+            Console.WriteLine($"Connected: {_isConnected}");
+            Console.WriteLine($"Session ID: {_sessionId ?? "N/A"}");
+            Console.WriteLine($"Messages Sent: {_messagesSent}");
+            Console.WriteLine($"Messages Received: {_messagesReceived}");
+            Console.WriteLine($"Errors: {_errors}");
+            Console.WriteLine("===============================\n");
+        }
+        
+        /// <summary>
+        /// Run automated test sequence
+        /// </summary>
+        public async Task RunTestSequenceAsync()
+        {
+            Console.WriteLine("\n=== Starting Test Sequence ===\n");
+            
+            // Test 1: Login
+            Console.WriteLine("Test 1: Login");
+            SendLogin("testuser", "testpass");
+            await Task.Delay(1000);
+            
+            // Test 2: Request chunks
+            Console.WriteLine("\nTest 2: Request chunks");
+            for (int x = -2; x <= 2; x++)
+            {
+                for (int z = -2; z <= 2; z++)
                 {
-                    Console.WriteLine($"[ProtoProbe][WARN] Failed to write proto reference report to '{referenceReportPath}': {ex.Message}");
+                    SendChunkLoadRequest(x, z, 8);
+                    await Task.Delay(100);
                 }
             }
-
-            return result;
+            await Task.Delay(2000);
+            
+            // Test 3: Player actions
+            Console.WriteLine("\nTest 3: Player actions");
+            SendPlayerAction(PlayerAction.PLACE_BLOCK, 100, 64, 100);
+            await Task.Delay(500);
+            SendPlayerAction(PlayerAction.START_DESTROY_BLOCK, 100, 64, 100);
+            await Task.Delay(500);
+            SendPlayerAction(PlayerAction.FINISH_DESTROY_BLOCK, 100, 64, 100);
+            await Task.Delay(500);
+            
+            // Test 4: Chat
+            Console.WriteLine("\nTest 4: Chat");
+            SendChatMessage("Hello from dummy client!", ChatType.Global);
+            await Task.Delay(1000);
+            
+            // Test 5: Ping
+            Console.WriteLine("\nTest 5: Ping");
+            SendPing();
+            await Task.Delay(1000);
+            
+            // Test 6: Server status
+            Console.WriteLine("\nTest 6: Server status");
+            SendServerStatusRequest();
+            await Task.Delay(1000);
+            
+            Console.WriteLine("\n=== Test Sequence Complete ===\n");
+            PrintStatistics();
+        }
+        
+        public void Dispose()
+        {
+            Disconnect();
+            _cancellationTokenSource?.Dispose();
         }
     }
 }

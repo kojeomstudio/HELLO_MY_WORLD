@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="Common\SharedProtocol.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
     <PackageReference Include="Google.Protobuf" Version="3.27.2" />
     <PackageReference Include="protobuf-net" Version="3.2.18" />
@@ -40,4 +43,7 @@
     </Compile>
   </ItemGroup>
 </Project>
+
+</Project>
+
 

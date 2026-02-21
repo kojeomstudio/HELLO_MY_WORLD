@@ -367,6 +367,7 @@ namespace GameServerApp.World.Generation
             ApplyLithifiedRoofBridge(mask, hydrologyMask, flowMask, riverMask, erosionRisk, heightMap, seaLevel);
             ApplyFloodFeedbackSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyFloodBypassVentDampingBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyGroundwaterPressureReliefBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -1289,6 +1290,100 @@ namespace GameServerApp.World.Generation
                         double ventBias = Math.Clamp(config.CaveVentilationBias * (0.35 + depthRatio * 0.3), 0.0, 0.75);
                         double sealChance = bypassSignal * dampingWeight * (0.28 + depthRatio * 0.38 + ventBias * 0.24) * damping;
                         if (sealChance > 0.54 || (sealChance > 0.42 && y >= seaLevel - 3))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyGroundwaterPressureReliefBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double reliefWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.38 +
+                config.RiparianCaveGuardWeight * 0.34 +
+                config.CaveVentilationBias * 0.28,
+                0.0,
+                1.0);
+            if (reliefWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int upperBand = Math.Min(sizeY - 2, seaLevel + Math.Max(4, config.RiparianPlugDepth + 2));
+            int lowerBand = Math.Max(2, seaLevel - Math.Max(12, config.RiparianPlugDepth + 6));
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, Math.Max(2, config.RiparianPlugDepth));
+                    double pressure = Math.Clamp(
+                        hydro * 0.34 +
+                        seamHydro * 0.2 +
+                        flow * 0.22 +
+                        seamFlow * 0.14 +
+                        river * 0.1,
+                        0.0,
+                        1.2);
+                    if (pressure <= 0.24)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(upperBand, surface - 1);
+                    if (top <= lowerBand)
+                    {
+                        continue;
+                    }
+
+                    double terrainDamping = 1.0 - Math.Clamp(slope * 0.024 + relief / 40.0, 0.0, 0.78);
+                    double ventilation = Math.Clamp(
+                        (1.0 - hydro) * 0.4 +
+                        (1.0 - flow) * 0.3 +
+                        (1.0 - river) * 0.3,
+                        0.0,
+                        1.0);
+
+                    for (int y = top; y >= lowerBand; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        double shallowFactor = 1.0 - Math.Clamp((double)(y - lowerBand) / Math.Max(1.0, top - lowerBand), 0.0, 1.0);
+                        double sealChance = pressure * reliefWeight * (0.28 + shallowFactor * 0.42) * terrainDamping;
+                        sealChance *= 1.0 - Math.Clamp(ventilation * 0.28, 0.0, 0.28);
+                        if (roofThickness <= 3)
+                        {
+                            sealChance *= 1.0 + Math.Clamp((3 - roofThickness) * 0.12, 0.0, 0.24);
+                        }
+
+                        if (sealChance > 0.52 || (sealChance > 0.4 && y >= seaLevel - 2))
                         {
                             mask[x, y, z] = false;
                         }

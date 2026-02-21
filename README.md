@@ -32,6 +32,60 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-21: Session 107 - Hydrology v46 / Map-Control v50 / Inflight Timeout + Client Queue Budget
+
+**Status:** COMPLETED
+
+- Terrain generation refinement (server):
+  - Added cave groundwater pressure-relief bridge.
+  - Added river confluence floodplain relay bridge.
+  - Added lake karst outlet stability bridge.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map control architecture (server + client):
+  - Server inflight chunk generation stale-timeout cleanup added.
+  - Client queued chunk update budget cap + runtime JSON override (`maxQueuedChunkUpdates`) added.
+  - Files:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs`
+    - `config/enhanced_world_map_control_client.json`
+    - `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-21-hydrology-riverlake-cave-v46`
+  - Map-control profile version: `50`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+    - `Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs`
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy-client + manifest updates:
+  - Dummy probe minimum profile guard raised to `50`.
+  - Session-107 feature manifest prioritized and loaded.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+    - `GameServer/Program.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (required packets OK, optional packets WARN-only)
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --required-only` PASS (required 14/14)
+
 ### 2026-02-21: Session 105 - Hydrology v45 / Map-Control v49 / Queue Hysteresis (Emergency Hold + Recovery Ramp)
 
 **Status:** COMPLETED

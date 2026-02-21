@@ -55,6 +55,7 @@ namespace Minecraft.World
         private float _lastMapUpdate = 0f;
         private float _lastChunkQueueProcessTime = 0f;
         private int _maxChunkUpdatesPerFrame = 12;
+        private int _maxQueuedChunkUpdates = 4096;
         private int _chunkUpdateThrottleMs = 16;
         private const float MAP_UPDATE_INTERVAL = 0.5f;
         
@@ -269,8 +270,15 @@ namespace Minecraft.World
         public void UpdateChunkData(Vector2Int chunkPos, ChunkData chunkData)
         {
             _loadedChunks[chunkPos] = chunkData;
-            if (_queuedChunkUpdates.Add(chunkPos))
+            if (!_queuedChunkUpdates.Contains(chunkPos))
             {
+                EnforceQueuedChunkBudget();
+                if (_queuedChunkUpdates.Count >= Mathf.Max(64, _maxQueuedChunkUpdates))
+                {
+                    return;
+                }
+
+                _queuedChunkUpdates.Add(chunkPos);
                 _chunksToUpdate.Enqueue(chunkPos);
             }
             
@@ -602,6 +610,16 @@ namespace Minecraft.World
             return Mathf.Clamp(baseBudget + queuePressureBonus + renderDistanceBonus, 1, 512);
         }
 
+        private void EnforceQueuedChunkBudget()
+        {
+            int budget = Mathf.Clamp(_maxQueuedChunkUpdates, 64, 32768);
+            while (_queuedChunkUpdates.Count >= budget && _chunksToUpdate.Count > 0)
+            {
+                var dropped = _chunksToUpdate.Dequeue();
+                _queuedChunkUpdates.Remove(dropped);
+            }
+        }
+
         private void LoadClientRuntimeConfig()
         {
             if (string.IsNullOrWhiteSpace(_clientRuntimeConfigPath) || !File.Exists(_clientRuntimeConfigPath))
@@ -622,6 +640,12 @@ namespace Minecraft.World
                 if (defaults != null && defaults.maxChunkUpdatesPerFrame > 0)
                 {
                     _maxChunkUpdatesPerFrame = Mathf.Clamp(defaults.maxChunkUpdatesPerFrame, 1, 512);
+                }
+
+                if (defaults != null && defaults.maxQueuedChunkUpdates > 0)
+                {
+                    _maxQueuedChunkUpdates = Mathf.Clamp(defaults.maxQueuedChunkUpdates, 64, 32768);
+                    EnforceQueuedChunkBudget();
                 }
 
                 var performance = runtime.worldMapControl.performance;
@@ -765,6 +789,7 @@ namespace Minecraft.World
         private sealed class ClientRuntimeDefaults
         {
             public int maxChunkUpdatesPerFrame;
+            public int maxQueuedChunkUpdates;
         }
     }
     /// <summary>

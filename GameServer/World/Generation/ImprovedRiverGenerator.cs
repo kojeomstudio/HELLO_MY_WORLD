@@ -337,6 +337,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainRetentionAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyThalwegContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap);
             ApplyConfluenceLagStorageBridge(mask, hydrologyMask, flowAccumulation, heightMap);
+            ApplyConfluenceFloodplainRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -1513,6 +1514,69 @@ namespace GameServerApp.World.Generation
                     double target = river * (1.0 - storageWeight * 0.14) +
                         (river + storageSignal * 0.72) * storageWeight * 0.14;
                     target = Math.Max(target, floor);
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyConfluenceFloodplainRelayBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double relayWeight = Math.Clamp(
+                config.RiverConfluenceBoost * 0.36 +
+                config.RiverDeltaWetlandStrength * 0.34 +
+                config.HydrologyFlowPersistence * 0.30,
+                0.0,
+                1.0);
+            if (relayWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int reliefRadius = Math.Max(2, config.HydrologyWatershedStitchRadius + 1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.04)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.35);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.35);
+                    double convergence = Math.Max(0.0, seamFlow - flowNode) + Math.Max(0.0, seamHydro - hydro);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius);
+                    double floodplainBias = Math.Clamp((seaLevel + 10 - heightMap[x, z]) / 18.0, 0.0, 1.0);
+                    double continuity = Math.Clamp((river + hydro + seamHydro + flowNode + seamFlow) * 0.2, 0.0, 1.35);
+                    double relay = continuity * (0.2 + floodplainBias * 0.28 + convergence * 0.18);
+                    relay *= 1.0 - Math.Clamp(slope * 0.028 + relief / 42.0, 0.0, 0.84);
+                    if (relay <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(river * (0.86 + config.RiverEdgeContinuityWeight * 0.08), continuity * 0.18);
+                    double target = river * (1.0 - relayWeight * 0.14) +
+                        (river + relay) * relayWeight * 0.14;
+                    target = Math.Max(target, floor);
+                    if (slope > 10.0)
+                    {
+                        target *= 1.0 - Math.Clamp((slope - 10.0) * 0.016, 0.0, 0.14);
+                    }
+
                     mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
                 }
             }

@@ -43,6 +43,7 @@
       "fogEnabled": true,
       "shadowEnabled": true,
       "maxChunkUpdatesPerFrame": 24,
+      "maxQueuedChunkUpdates": 4096,
       "chunkLOD": 2,
       "unloadDistance": 16
     }

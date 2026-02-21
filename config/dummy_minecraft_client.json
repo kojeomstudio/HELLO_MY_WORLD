@@ -6,7 +6,7 @@
   "probeNetwork": false,
   "strictRequiredBindings": true,
   "failOnHydrologySignatureMismatch": true,
-  "minMapControlProfileVersion": 49,
+  "minMapControlProfileVersion": 50,
   "failOnMapControlVersionRegression": true,
   "worldMapControlProfilePath": "config/world_map_control_profile.json",
   "includeOptionalMessages": true,
@@ -28,3 +28,4 @@
     "EntityDespawn"
   ]
 }
+

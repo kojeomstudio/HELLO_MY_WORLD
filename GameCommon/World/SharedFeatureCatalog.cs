@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-21
-        /// (cave flood-bypass damping + river confluence lag storage + lake spillway backflow damping + queue hold/ramp recovery + map-control v49).
+        /// (groundwater pressure-relief caves + confluence floodplain relay rivers + karst outlet stability lakes + map queue overload timeout + map-control v50).
         /// </summary>
-        public const string HydrologySignature = "2026-02-21-hydrology-riverlake-cave-v45";
+        public const string HydrologySignature = "2026-02-21-hydrology-riverlake-cave-v46";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v45",
+                "Hydrology WorldGen v46",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-21-session-105.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json"
                 },
                 new[]
                 {
@@ -125,6 +125,7 @@ namespace GameCommon.World
                 FeatureLayer.Server,
                 new[]
                 {
+                    "GameServer/World/Generation/ImprovedCaveGenerator.cs",
                     "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
@@ -138,6 +139,7 @@ namespace GameCommon.World
                 FeatureLayer.Shared,
                 new[]
                 {
+                    "GameServer/World/Generation/ImprovedRiverGenerator.cs",
                     "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },
@@ -151,6 +153,7 @@ namespace GameCommon.World
                 FeatureLayer.Shared,
                 new[]
                 {
+                    "GameServer/World/Generation/ImprovedLakeGenerator.cs",
                     "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
                 },

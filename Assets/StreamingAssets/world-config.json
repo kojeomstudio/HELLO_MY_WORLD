@@ -7,7 +7,7 @@
   "RenderDistance": 10,
   "SimulationDistance": 12,
   "MapControlProfilePath": "config/world_map_control_profile.json",
-  "MapControlProfileVersion": 49,
+  "MapControlProfileVersion": 50,
   "TerrainGeneration": {
     "SeaLevel": 62,
     "BedrockLevel": 5,
@@ -225,4 +225,5 @@
     "SpillRetentionWeight": 0.74
   }
 }
+
 

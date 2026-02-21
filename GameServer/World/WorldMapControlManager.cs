@@ -29,6 +29,8 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), ChunkData> chunkCache = new();
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
+        private readonly ConcurrentDictionary<(int X, int Z), DateTime> inflightChunkStartTimes = new();
+        private static readonly TimeSpan InflightChunkTimeout = TimeSpan.FromSeconds(45);
         private readonly int maxCachedChunks;
         private readonly int configuredQueueLimit;
         private readonly int configuredQueuePressureFactor;
@@ -333,6 +335,7 @@ namespace GameServerApp.World
                 chunkCache.Clear();
                 chunkAccessTimes.Clear();
                 inflightChunkGenerations.Clear();
+                inflightChunkStartTimes.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 RefreshGenerationSignature(rebuildPipeline: false);
@@ -348,6 +351,7 @@ namespace GameServerApp.World
                 chunkCache.Clear();
                 chunkAccessTimes.Clear();
                 inflightChunkGenerations.Clear();
+                inflightChunkStartTimes.Clear();
                 pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, worldSettings);
                 profileChanged = true;
                 profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -370,7 +374,7 @@ namespace GameServerApp.World
                 return cached;
             }
 
-            if (inflightChunkGenerations.TryGetValue(key, out var inflight))
+            if (TryGetActiveInflightGeneration(key, out var inflight))
             {
                 return await inflight.ConfigureAwait(false);
             }
@@ -379,7 +383,7 @@ namespace GameServerApp.World
             {
                 PruneInflightGenerations(Math.Max(configuredQueueOverloadDrainFactor, dynamicQueuePressureFactor));
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
-                if (inflightChunkGenerations.TryGetValue(key, out var shedInflight))
+                if (TryGetActiveInflightGeneration(key, out var shedInflight))
                 {
                     return await shedInflight.ConfigureAwait(false);
                 }
@@ -392,7 +396,7 @@ namespace GameServerApp.World
                 int emergencyDrain = Math.Max(configuredQueueOverloadDrainFactor + 1, dynamicQueuePressureFactor + 1);
                 PruneInflightGenerations(Math.Clamp(emergencyDrain, 1, 24));
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * (dynamicQueuePressureFactor + 1))).ConfigureAwait(false);
-                if (inflightChunkGenerations.TryGetValue(key, out var emergencyInflight))
+                if (TryGetActiveInflightGeneration(key, out var emergencyInflight))
                 {
                     return await emergencyInflight.ConfigureAwait(false);
                 }
@@ -402,7 +406,7 @@ namespace GameServerApp.World
             {
                 PruneInflightGenerations(configuredQueueOverloadDrainFactor);
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
-                if (inflightChunkGenerations.TryGetValue(key, out var delayedInflight))
+                if (TryGetActiveInflightGeneration(key, out var delayedInflight))
                 {
                     return await delayedInflight.ConfigureAwait(false);
                 }
@@ -411,10 +415,14 @@ namespace GameServerApp.World
             var generationTask = pipeline.GenerateChunkAsync(chunkX, chunkZ);
             if (!inflightChunkGenerations.TryAdd(key, generationTask))
             {
-                if (inflightChunkGenerations.TryGetValue(key, out var existing))
+                if (TryGetActiveInflightGeneration(key, out var existing))
                 {
                     return await existing.ConfigureAwait(false);
                 }
+            }
+            else
+            {
+                inflightChunkStartTimes[key] = DateTime.UtcNow;
             }
 
             try
@@ -428,7 +436,37 @@ namespace GameServerApp.World
             finally
             {
                 inflightChunkGenerations.TryRemove(key, out _);
+                inflightChunkStartTimes.TryRemove(key, out _);
             }
+        }
+
+        private bool TryGetActiveInflightGeneration((int X, int Z) key, out Task<ChunkData> task)
+        {
+            if (inflightChunkGenerations.TryGetValue(key, out task!))
+            {
+                if (IsInflightGenerationStale(key, DateTime.UtcNow))
+                {
+                    inflightChunkGenerations.TryRemove(key, out _);
+                    inflightChunkStartTimes.TryRemove(key, out _);
+                }
+                else
+                {
+                    return true;
+                }
+            }
+
+            task = null!;
+            return false;
+        }
+
+        private bool IsInflightGenerationStale((int X, int Z) key, DateTime nowUtc)
+        {
+            if (!inflightChunkStartTimes.TryGetValue(key, out DateTime startedUtc))
+            {
+                return false;
+            }
+
+            return nowUtc - startedUtc > InflightChunkTimeout;
         }
 
         private void MaybeReloadGenerationConfig(ref bool profileChanged)
@@ -457,6 +495,7 @@ namespace GameServerApp.World
             chunkCache.Clear();
             chunkAccessTimes.Clear();
             inflightChunkGenerations.Clear();
+            inflightChunkStartTimes.Clear();
             profileChanged = true;
             RefreshGenerationSignature(rebuildPipeline: false);
             profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
@@ -747,12 +786,14 @@ namespace GameServerApp.World
             foreach (var pair in inflightChunkGenerations)
             {
                 var task = pair.Value;
-                if (!task.IsCompleted)
+                bool stale = IsInflightGenerationStale(pair.Key, now);
+                if (!task.IsCompleted && !stale)
                 {
                     continue;
                 }
 
                 inflightChunkGenerations.TryRemove(pair.Key, out _);
+                inflightChunkStartTimes.TryRemove(pair.Key, out _);
                 removed++;
                 if (maxRemove > 0 && removed >= maxRemove)
                 {
@@ -805,6 +846,7 @@ namespace GameServerApp.World
             chunkCache.Clear();
             chunkAccessTimes.Clear();
             inflightChunkGenerations.Clear();
+            inflightChunkStartTimes.Clear();
             lastInflightPruneUtc = DateTime.UtcNow;
 
             if (rebuildPipeline)

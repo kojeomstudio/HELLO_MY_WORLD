@@ -42,12 +42,16 @@ namespace GameServerApp.World
         private readonly double configuredQueueShockAbsorberWeight;
         private readonly int configuredQueueOverloadDrainFactor;
         private readonly int configuredQueueBackoffDelayMs;
+        private readonly int configuredQueueEmergencyHoldTicks;
+        private readonly int configuredQueueRecoveryRampTicks;
         private int dynamicQueueLimit;
         private int dynamicQueuePressureFactor;
         private double dynamicQueueSlackRatio;
         private double dynamicQueueLoadSheddingThreshold;
         private double queueLoadEma;
         private int queueOverloadTicks;
+        private int queueEmergencyHoldTicksRemaining;
+        private int queueRecoveryRampTicksRemaining;
         private bool queueEmergencyBrakeLatched;
         private DateTime lastQueuePolicyAdjustUtc;
         private DateTime worldConfigWriteTime;
@@ -93,10 +97,14 @@ namespace GameServerApp.World
             configuredQueueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(this.settings.QueueShockAbsorberWeight, 0.24);
             configuredQueueOverloadDrainFactor = Math.Clamp(Math.Max(1, this.settings.QueueOverloadDrainFactor), 1, 16);
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
+            configuredQueueEmergencyHoldTicks = Math.Clamp(Math.Max(1, this.settings.QueueEmergencyHoldTicks), 1, 128);
+            configuredQueueRecoveryRampTicks = Math.Clamp(Math.Max(1, this.settings.QueueRecoveryRampTicks), 1, 256);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
             dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
             dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
+            queueEmergencyHoldTicksRemaining = 0;
+            queueRecoveryRampTicksRemaining = 0;
             RefreshGenerationSignature(rebuildPipeline: false);
         }
 
@@ -469,6 +477,8 @@ namespace GameServerApp.World
             queueLoadEma = 0.0;
             queueOverloadTicks = 0;
             queueEmergencyBrakeLatched = false;
+            queueEmergencyHoldTicksRemaining = 0;
+            queueRecoveryRampTicksRemaining = 0;
             lastQueuePolicyAdjustUtc = DateTime.UtcNow;
 
             double ratio = dynamicQueueLimit / Math.Max(1.0, GetEffectiveCacheBudget());
@@ -490,11 +500,34 @@ namespace GameServerApp.World
             queueLoadEma = WorldMapQueuePolicy.UpdateEma(queueLoadEma, instantaneousLoad, adaptiveEmaBlend);
             double load = Math.Max(instantaneousLoad, queueLoadEma * 0.9);
             double loadTrend = WorldMapQueuePolicy.ComputeLoadTrend(instantaneousLoad, queueLoadEma);
-            queueEmergencyBrakeLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
+            bool wasEmergencyLatched = queueEmergencyBrakeLatched;
+            bool emergencyLatched = WorldMapQueuePolicy.UpdateEmergencyLatch(
                 queueEmergencyBrakeLatched,
                 load,
                 configuredQueueEmergencyBrakeThreshold,
                 configuredQueueEmergencyReleaseRatio);
+            if (!wasEmergencyLatched && emergencyLatched)
+            {
+                queueEmergencyHoldTicksRemaining = configuredQueueEmergencyHoldTicks;
+                queueRecoveryRampTicksRemaining = 0;
+            }
+            else if (wasEmergencyLatched && emergencyLatched && queueEmergencyHoldTicksRemaining > 0)
+            {
+                queueEmergencyHoldTicksRemaining--;
+            }
+
+            if (wasEmergencyLatched && !emergencyLatched && queueEmergencyHoldTicksRemaining > 0)
+            {
+                emergencyLatched = true;
+                queueEmergencyHoldTicksRemaining--;
+            }
+
+            queueEmergencyBrakeLatched = emergencyLatched;
+            if (wasEmergencyLatched && !queueEmergencyBrakeLatched)
+            {
+                queueRecoveryRampTicksRemaining = configuredQueueRecoveryRampTicks;
+                queueEmergencyHoldTicksRemaining = 0;
+            }
             bool overloadTick = load >= configuredQueueLoadSheddingThreshold ||
                 instantaneousLoad >= configuredQueueLoadSheddingThreshold;
             queueOverloadTicks = overloadTick
@@ -557,6 +590,26 @@ namespace GameServerApp.World
             {
                 dynamicQueueSlackRatio = Math.Clamp(Math.Max(configuredQueueSlackRatio, dynamicQueueSlackRatio * 0.92), configuredQueueSlackRatio, 6.0);
                 dynamicQueueLoadSheddingThreshold = Math.Clamp(dynamicQueueLoadSheddingThreshold - 0.06, 0.5, configuredQueueLoadSheddingThreshold);
+                queueRecoveryRampTicksRemaining = configuredQueueRecoveryRampTicks;
+            }
+            else if (queueRecoveryRampTicksRemaining > 0)
+            {
+                double recoveryScale = WorldMapQueuePolicy.ComputeRecoveryRamp(
+                    queueRecoveryRampTicksRemaining,
+                    configuredQueueRecoveryRampTicks);
+                int floorLimit = Math.Clamp(
+                    (int)Math.Ceiling(cacheBudget * Math.Max(1.1, configuredQueueSlackRatio)),
+                    128,
+                    16384);
+                dynamicQueueLimit = Math.Clamp(
+                    floorLimit + (int)Math.Round((dynamicQueueLimit - floorLimit) * recoveryScale),
+                    floorLimit,
+                    16384);
+                dynamicQueueSlackRatio = Math.Clamp(
+                    configuredQueueSlackRatio + (dynamicQueueSlackRatio - configuredQueueSlackRatio) * recoveryScale,
+                    configuredQueueSlackRatio,
+                    6.0);
+                queueRecoveryRampTicksRemaining--;
             }
 
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load + overloadBias * 0.25);

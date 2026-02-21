@@ -1,6 +1,6 @@
 {
-  "version": 14,
-  "description": "Server/client shared queue policy knobs for world-map preview/chunk control (pressure-aware ordering + v46 shock-absorber queue damping).",
+  "version": 16,
+  "description": "Server/client shared queue policy knobs for world-map preview/chunk control (pressure-aware ordering + v49 emergency hold/ramp recovery).",
   "server": {
     "maxQueuedChunkRequests": 3648,
     "queuePressureFactor": 4,
@@ -11,9 +11,11 @@
     "queueLoadEmaBlend": 0.24,
     "queueEmergencyReleaseRatio": 0.82,
     "queueTrendBoostWeight": 0.26,
-    "queueShockAbsorberWeight": 0.28,
+    "queueShockAbsorberWeight": 0.32,
     "queueOverloadDrainFactor": 6,
     "queueBackoffDelayMs": 6,
+    "queueEmergencyHoldTicks": 8,
+    "queueRecoveryRampTicks": 12,
     "maxConcurrentChunkGenerations": 10,
     "updateBatchSize": 64,
     "updateIntervalMs": 100
@@ -21,16 +23,18 @@
   "client": {
     "maxQueuedChunkRequests": 3648,
     "queuePressureFactor": 4,
-    "queueSlackRatio": 2.7,
+    "queueSlackRatio": 2.6,
     "queueBurstSlackMultiplier": 1.18,
-    "queueLoadSheddingThreshold": 0.82,
+    "queueLoadSheddingThreshold": 0.81,
     "queueEmergencyBrakeThreshold": 1.0,
     "queueLoadEmaBlend": 0.20,
     "queueEmergencyReleaseRatio": 0.84,
     "queueTrendBoostWeight": 0.24,
-    "queueShockAbsorberWeight": 0.26,
+    "queueShockAbsorberWeight": 0.30,
     "queueOverloadDrainFactor": 5,
     "queueBackoffDelayMs": 6,
+    "queueEmergencyHoldTicks": 6,
+    "queueRecoveryRampTicks": 10,
     "maxLoadedPreviewChunks": 4096,
     "maxConcurrentChunkRequests": 8
   }

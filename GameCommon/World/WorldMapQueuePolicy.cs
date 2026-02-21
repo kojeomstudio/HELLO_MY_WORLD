@@ -129,6 +129,14 @@ namespace GameCommon.World
             return currentlyLatched;
         }
 
+        public static double ComputeRecoveryRamp(int remainingTicks, int totalTicks)
+        {
+            int clampedTotal = Math.Max(1, totalTicks);
+            int clampedRemaining = Math.Clamp(remainingTicks, 0, clampedTotal);
+            double completedRatio = 1.0 - clampedRemaining / (double)clampedTotal;
+            return Math.Clamp(0.15 + completedRatio * 0.85, 0.15, 1.0);
+        }
+
         public static QueuePressureBand ClassifyBand(double effectiveLoad)
         {
             if (effectiveLoad >= 2.0)

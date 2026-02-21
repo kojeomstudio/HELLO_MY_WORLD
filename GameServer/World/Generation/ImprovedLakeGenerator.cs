@@ -292,6 +292,7 @@ namespace GameServerApp.World.Generation
             ApplyOxbowRetentionAnchorBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplySpillwayRetentionAnchorBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyFloodplainRetentionShelfBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplySpillwayBackflowDampingBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyWetlandLeakageClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
         }
@@ -1384,6 +1385,66 @@ namespace GameServerApp.World.Generation
                         target *= 1.0 - Math.Clamp((river - 0.48) * 0.16, 0.0, 0.16);
                     }
 
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
+                }
+            }
+        }
+
+        private void ApplySpillwayBackflowDampingBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double dampingWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.40 +
+                waterConfig.HydrologyFlowPersistence * 0.32 +
+                lakeConfig.FlowSeepageWeight * 0.28,
+                0.0,
+                1.0);
+            if (dampingWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    if (lake <= 0.03 && river <= 0.06)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.3);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.3);
+                    double lateralFlow = Math.Abs(flow[x + 1, z] - flow[x - 1, z]) + Math.Abs(flow[x, z + 1] - flow[x, z - 1]);
+                    double backflow = Math.Clamp(lateralFlow / 14.0, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double depthBias = Math.Clamp((seaLevel - heightMap[x, z]) / Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange), -0.5, 1.0);
+                    double dampingSignal = Math.Clamp(
+                        flowNode * 0.30 +
+                        seamFlow * 0.22 +
+                        hydro * 0.18 +
+                        seamHydro * 0.14 +
+                        river * 0.16,
+                        0.0,
+                        1.2);
+                    double damping = Math.Clamp(dampingSignal * (1.0 - Math.Clamp(slope * 0.02, 0.0, 0.7)) + backflow * 0.24 + depthBias * 0.18, 0.0, 1.3);
+                    double floor = Math.Max(lake * 0.86, damping * 0.36);
+                    double target = lake * (1.0 - dampingWeight * 0.16) +
+                        (lake + damping * 0.7) * dampingWeight * 0.16;
+                    target = Math.Max(target, floor);
                     lakes[x, z] = TerrainMaskUtility.Clamp01((float)target);
                 }
             }

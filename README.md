@@ -32,6 +32,54 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-21: Session 105 - Hydrology v45 / Map-Control v49 / Queue Hysteresis (Emergency Hold + Recovery Ramp)
+
+**Status:** COMPLETED
+
+- Terrain generation refinement (server):
+  - Added cave flood-bypass vent damping bridge.
+  - Added river confluence lag storage bridge.
+  - Added lake spillway backflow damping bridge.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map control architecture (server + client):
+  - Added queue hysteresis controls: `queueEmergencyHoldTicks`, `queueRecoveryRampTicks`.
+  - Applied to runtime + shared policy + server/client queue logic.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-21-hydrology-riverlake-cave-v45`
+  - Map-control profile version: `49`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy-client validation:
+  - Raised dummy probe minimum profile guard to `49`.
+  - Updated feature manifest load priority to session 105.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `GameServer/Program.cs`
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-21-session-105.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (required packets OK, optional packets WARN-only)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS (runtime warnings remain)
+
 ### 2026-02-20: Session 103 - Hydrology v44 / Map-Control v48 / Queue Recovery + Proto Probe API Alignment
 
 **Status:** COMPLETED

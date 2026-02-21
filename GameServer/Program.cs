@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-21-session-105.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-20-session-103.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-20-session-101.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-19-session-99.json"),
@@ -445,7 +446,7 @@ namespace GameServerApp
                     worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
                 }
 
-                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 48);
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, 49);
 
                 if (section.Defaults != null)
                 {
@@ -566,6 +567,16 @@ namespace GameServerApp
                     {
                         mapSettings.QueueBackoffDelayMs = Math.Clamp(section.TerrainGeneration.QueueBackoffDelayMs.Value, 1, 200);
                     }
+
+                    if (section.TerrainGeneration.QueueEmergencyHoldTicks > 0)
+                    {
+                        mapSettings.QueueEmergencyHoldTicks = Math.Clamp(section.TerrainGeneration.QueueEmergencyHoldTicks.Value, 1, 128);
+                    }
+
+                    if (section.TerrainGeneration.QueueRecoveryRampTicks > 0)
+                    {
+                        mapSettings.QueueRecoveryRampTicks = Math.Clamp(section.TerrainGeneration.QueueRecoveryRampTicks.Value, 1, 256);
+                    }
                 }
 
                 if (section.Cache?.MaxCachedChunks > 0)
@@ -636,6 +647,16 @@ namespace GameServerApp
                     mapSettings.QueueBackoffDelayMs = Math.Clamp(section.Cache.QueueBackoffDelayMs.Value, 1, 200);
                 }
 
+                if (section.Cache?.QueueEmergencyHoldTicks > 0)
+                {
+                    mapSettings.QueueEmergencyHoldTicks = Math.Clamp(section.Cache.QueueEmergencyHoldTicks.Value, 1, 128);
+                }
+
+                if (section.Cache?.QueueRecoveryRampTicks > 0)
+                {
+                    mapSettings.QueueRecoveryRampTicks = Math.Clamp(section.Cache.QueueRecoveryRampTicks.Value, 1, 256);
+                }
+
                 mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
                     ? Math.Max(3, mapSettings.QueuePressureFactor)
                     : Math.Max(2, mapSettings.QueuePressureFactor);
@@ -649,7 +670,7 @@ namespace GameServerApp
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -751,10 +772,20 @@ namespace GameServerApp
                     mapSettings.QueueBackoffDelayMs = Math.Clamp(server.QueueBackoffDelayMs.Value, 1, 200);
                 }
 
+                if (server.QueueEmergencyHoldTicks > 0)
+                {
+                    mapSettings.QueueEmergencyHoldTicks = Math.Clamp(server.QueueEmergencyHoldTicks.Value, 1, 128);
+                }
+
+                if (server.QueueRecoveryRampTicks > 0)
+                {
+                    mapSettings.QueueRecoveryRampTicks = Math.Clamp(server.QueueRecoveryRampTicks.Value, 1, 256);
+                }
+
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -903,6 +934,12 @@ namespace GameServerApp
 
             [JsonPropertyName("queueBackoffDelayMs")]
             public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
         }
 
         private sealed class WorldMapRuntimeTerrainGeneration
@@ -951,6 +988,12 @@ namespace GameServerApp
 
             [JsonPropertyName("queueBackoffDelayMs")]
             public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
         }
 
         private sealed class WorldMapQueuePolicyConfig
@@ -1008,6 +1051,12 @@ namespace GameServerApp
 
             [JsonPropertyName("queueBackoffDelayMs")]
             public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
         }
     }
 }

@@ -207,5 +207,7 @@ namespace GameServerApp.Configuration
         public double QueueShockAbsorberWeight { get; set; } = 0.24;
         public int QueueOverloadDrainFactor { get; set; } = 2;
         public int QueueBackoffDelayMs { get; set; } = 4;
+        public int QueueEmergencyHoldTicks { get; set; } = 8;
+        public int QueueRecoveryRampTicks { get; set; } = 10;
     }
 }

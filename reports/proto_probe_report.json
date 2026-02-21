@@ -1,5 +1,5 @@
 {
-  "timestampUtc": "2026-02-20T12:19:04.2500442Z",
+  "timestampUtc": "2026-02-21T06:23:20.0343476Z",
   "descriptor": "enhanced_minecraft_game.proto",
   "settings": {
     "Host": "127.0.0.1",
@@ -8,7 +8,7 @@
     "MaxNetworkProbePackets": 4,
     "ValidateAllKnownPackets": true,
     "IncludeOptionalMessages": true,
-    "MinMapControlProfileVersion": 48,
+    "MinMapControlProfileVersion": 49,
     "ProbeNetwork": false
   },
   "totals": {

@@ -336,6 +336,7 @@ namespace GameServerApp.World.Generation
             ApplyAlluvialChannelAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyFloodplainRetentionAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyThalwegContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap);
+            ApplyConfluenceLagStorageBridge(mask, hydrologyMask, flowAccumulation, heightMap);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -1453,6 +1454,65 @@ namespace GameServerApp.World.Generation
                         (river + channelSignal * stability) * continuityWeight * 0.14;
                     target = Math.Max(target, memoryFloor);
 
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyConfluenceLagStorageBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap)
+        {
+            double storageWeight = Math.Clamp(
+                config.RiverDeltaWetlandStrength * 0.34 +
+                config.HydrologyFlowPersistence * 0.36 +
+                config.RiverTributaryCaptureWeight * 0.30,
+                0.0,
+                1.0);
+            if (storageWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.4);
+                    double neighborFlow = Math.Clamp(
+                        (flow[x - 1, z] + flow[x + 1, z] + flow[x, z - 1] + flow[x, z + 1]) / 24.0,
+                        0.0,
+                        1.4);
+                    double flowGradient = Math.Abs(flow[x + 1, z] - flow[x - 1, z]) + Math.Abs(flow[x, z + 1] - flow[x, z - 1]);
+                    double convergence = Math.Clamp(flowGradient / 12.0, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double reliefPenalty = Math.Clamp(slope * 0.02 + config.RiverReliefPenaltyWeight * 0.25, 0.0, 0.85);
+                    double storageSignal = Math.Clamp(
+                        flowNode * 0.42 +
+                        neighborFlow * 0.28 +
+                        hydro * 0.18 +
+                        convergence * 0.12,
+                        0.0,
+                        1.25);
+                    storageSignal *= 1.0 - reliefPenalty;
+
+                    double floor = Math.Max(river * 0.88, storageSignal * 0.42);
+                    double target = river * (1.0 - storageWeight * 0.14) +
+                        (river + storageSignal * 0.72) * storageWeight * 0.14;
+                    target = Math.Max(target, floor);
                     mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
                 }
             }

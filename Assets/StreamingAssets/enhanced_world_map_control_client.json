@@ -29,6 +29,8 @@
       "queueShockAbsorberWeight": 0.30,
       "queueOverloadDrainFactor": 5,
       "queueBackoffDelayMs": 5,
+      "queueEmergencyHoldTicks": 6,
+      "queueRecoveryRampTicks": 10,
       "enableChunkPrediction": true
     },
     "defaults": {

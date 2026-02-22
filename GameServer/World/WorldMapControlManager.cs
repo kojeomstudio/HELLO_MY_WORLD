@@ -30,7 +30,8 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> inflightChunkStartTimes = new();
-        private static readonly TimeSpan InflightChunkTimeout = TimeSpan.FromSeconds(45);
+        private readonly TimeSpan inflightChunkTimeout;
+        private readonly TimeSpan inflightPruneInterval;
         private readonly int maxCachedChunks;
         private readonly int configuredQueueLimit;
         private readonly int configuredQueuePressureFactor;
@@ -107,6 +108,8 @@ namespace GameServerApp.World
             dynamicQueueLoadSheddingThreshold = configuredQueueLoadSheddingThreshold;
             queueEmergencyHoldTicksRemaining = 0;
             queueRecoveryRampTicksRemaining = 0;
+            inflightChunkTimeout = TimeSpan.FromSeconds(Math.Clamp(this.settings.InflightChunkTimeoutSeconds, 5, 600));
+            inflightPruneInterval = TimeSpan.FromSeconds(Math.Clamp(this.settings.InflightPruneIntervalSeconds, 1, 120));
             RefreshGenerationSignature(rebuildPipeline: false);
         }
 
@@ -466,7 +469,7 @@ namespace GameServerApp.World
                 return false;
             }
 
-            return nowUtc - startedUtc > InflightChunkTimeout;
+            return nowUtc - startedUtc > inflightChunkTimeout;
         }
 
         private void MaybeReloadGenerationConfig(ref bool profileChanged)
@@ -776,7 +779,7 @@ namespace GameServerApp.World
         private void PruneInflightGenerations(int maxRemove = 0)
         {
             var now = DateTime.UtcNow;
-            if ((now - lastInflightPruneUtc).TotalSeconds < 2)
+            if (now - lastInflightPruneUtc < inflightPruneInterval)
             {
                 return;
             }

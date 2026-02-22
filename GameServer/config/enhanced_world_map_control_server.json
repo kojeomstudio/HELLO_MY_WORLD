@@ -1,62 +1,65 @@
 {
-  "worldMapControl": {
-    "enabled": true,
-    "profilePath": "config/world_map_control_profile.json",
-    "profileVersion": 50,
-    "defaults": {
-      "renderDistance": 12,
-      "mapScale": 1.0,
-      "showCoordinates": true,
-      "showBiomeInfo": true,
-      "terrainQuality": 3,
-      "waterQuality": 3,
-      "vegetationQuality": 3
-    },
-    "cache": {
-      "maxCachedChunks": 768,
-      "maxQueuedChunkRequests": 3584,
-      "queuePressureFactor": 3,
-      "queueSlackRatio": 3.0,
-      "queueBurstSlackMultiplier": 1.24,
-      "queueLoadSheddingThreshold": 0.82,
-      "queueEmergencyBrakeThreshold": 1.02,
-      "queueLoadEmaBlend": 0.26,
-      "queueEmergencyReleaseRatio": 0.8,
-      "queueTrendBoostWeight": 0.3,
-      "queueShockAbsorberWeight": 0.32,
-      "queueOverloadDrainFactor": 6,
-      "queueBackoffDelayMs": 5,
-      "queueEmergencyHoldTicks": 8,
-      "queueRecoveryRampTicks": 12,
-      "cleanupIntervalSeconds": 60,
-      "enableChunkCache": true
-    },
-    "realTimeUpdates": {
-      "enabled": true,
-      "updateIntervalMs": 200,
-      "broadcastToChunkOnly": true
-    },
-    "terrainGeneration": {
-      "chunkSize": 16,
-      "seed": 13371337,
-      "maxConcurrentChunkGenerations": 10,
-      "updateBatchSize": 56,
-      "updateIntervalMs": 100,
-      "maxQueuedChunkRequests": 3584,
-      "queuePressureFactor": 3,
-      "queueSlackRatio": 3.0,
-      "queueBurstSlackMultiplier": 1.24,
-      "queueLoadSheddingThreshold": 0.82,
-      "queueEmergencyBrakeThreshold": 1.02,
-      "queueLoadEmaBlend": 0.26,
-      "queueEmergencyReleaseRatio": 0.8,
-      "queueTrendBoostWeight": 0.3,
-      "queueShockAbsorberWeight": 0.32,
-      "queueOverloadDrainFactor": 6,
-      "queueBackoffDelayMs": 5,
-      "queueEmergencyHoldTicks": 8,
-      "queueRecoveryRampTicks": 12
-    }
-  }
+    "worldMapControl":  {
+                            "enabled":  true,
+                            "profilePath":  "config/world_map_control_profile.json",
+                            "profileVersion":  51,
+                            "defaults":  {
+                                             "renderDistance":  12,
+                                             "mapScale":  1.0,
+                                             "showCoordinates":  true,
+                                             "showBiomeInfo":  true,
+                                             "terrainQuality":  3,
+                                             "waterQuality":  3,
+                                             "vegetationQuality":  3
+                                         },
+                            "cache":  {
+                                          "maxCachedChunks":  768,
+                                          "maxQueuedChunkRequests":  3584,
+                                          "queuePressureFactor":  3,
+                                          "queueSlackRatio":  3.0,
+                                          "queueBurstSlackMultiplier":  1.24,
+                                          "queueLoadSheddingThreshold":  0.82,
+                                          "queueEmergencyBrakeThreshold":  1.02,
+                                          "queueLoadEmaBlend":  0.26,
+                                          "queueEmergencyReleaseRatio":  0.8,
+                                          "queueTrendBoostWeight":  0.3,
+                                          "queueShockAbsorberWeight":  0.32,
+                                          "queueOverloadDrainFactor":  6,
+                                          "queueBackoffDelayMs":  5,
+                                          "queueEmergencyHoldTicks":  8,
+                                          "queueRecoveryRampTicks":  12,
+                                          "cleanupIntervalSeconds":  60,
+                                          "enableChunkCache":  true,
+                                          "inflightChunkTimeoutSeconds":  45,
+                                          "inflightPruneIntervalSeconds":  2
+                                      },
+                            "realTimeUpdates":  {
+                                                    "enabled":  true,
+                                                    "updateIntervalMs":  200,
+                                                    "broadcastToChunkOnly":  true
+                                                },
+                            "terrainGeneration":  {
+                                                      "chunkSize":  16,
+                                                      "seed":  13371337,
+                                                      "maxConcurrentChunkGenerations":  10,
+                                                      "updateBatchSize":  56,
+                                                      "updateIntervalMs":  100,
+                                                      "maxQueuedChunkRequests":  3584,
+                                                      "queuePressureFactor":  3,
+                                                      "queueSlackRatio":  3.0,
+                                                      "queueBurstSlackMultiplier":  1.24,
+                                                      "queueLoadSheddingThreshold":  0.82,
+                                                      "queueEmergencyBrakeThreshold":  1.02,
+                                                      "queueLoadEmaBlend":  0.26,
+                                                      "queueEmergencyReleaseRatio":  0.8,
+                                                      "queueTrendBoostWeight":  0.3,
+                                                      "queueShockAbsorberWeight":  0.32,
+                                                      "queueOverloadDrainFactor":  6,
+                                                      "queueBackoffDelayMs":  5,
+                                                      "queueEmergencyHoldTicks":  8,
+                                                      "queueRecoveryRampTicks":  12,
+                                                      "inflightChunkTimeoutSeconds":  45,
+                                                      "inflightPruneIntervalSeconds":  2
+                                                  }
+                        }
 }
-

@@ -368,6 +368,7 @@ namespace GameServerApp.World.Generation
             ApplyFloodFeedbackSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyFloodBypassVentDampingBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyGroundwaterPressureReliefBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyPerchedAquiferBypassBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
         }
 
@@ -1968,6 +1969,101 @@ namespace GameServerApp.World.Generation
                         double sealChance = shearPressure *
                             (0.38 + depthFactor * 0.32 + roofThickness / (double)(maxDepth + 2) * 0.2);
                         if (sealChance > 0.44 || (sealChance > 0.3 && hydro > 0.42 && flow > 0.35))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyPerchedAquiferBypassBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.AquiferBarrierWeight * 0.38 +
+                config.GroundwaterConnectivityWeight * 0.34 +
+                config.CaveEntranceFlowDampening * 0.28,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(6, seaLevel + Math.Max(5, config.RiparianPlugDepth + 3)));
+            int bottomClamp = Math.Max(2, seaLevel - Math.Max(6, config.RiparianPlugDepth + 4));
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 1);
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = hydrologyMask[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = flowMask[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? riverMask[x, z] : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double continuity = Math.Abs(hydro - seamHydro) + Math.Abs(flow - seamFlow);
+                    double perchedRisk = Math.Clamp(
+                        hydro * 0.32 +
+                        seamHydro * 0.22 +
+                        flow * 0.18 +
+                        seamFlow * 0.12 +
+                        river * 0.16,
+                        0.0,
+                        1.4);
+                    perchedRisk *= 1.0 - Math.Clamp(slope * 0.02 + relief / 42.0 + divergence * 0.32 + continuity * 0.16, 0.0, 0.88);
+                    if (perchedRisk <= 0.2)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(topClamp, surface - 1);
+                    int bottom = Math.Max(bottomClamp, top - Math.Max(3, config.RiparianPlugDepth + 3));
+                    if (top <= bottom)
+                    {
+                        continue;
+                    }
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+                        bool underAquiferBand = y >= seaLevel - Math.Max(2, config.RiparianPlugDepth) && y <= seaLevel + 2;
+                        double lateralFactor = lateralOpen / 4.0;
+                        double sealChance = bridgeWeight *
+                            perchedRisk *
+                            (0.42 + lateralFactor * 0.24 + (underAquiferBand ? 0.18 : 0.0) + Math.Clamp(roofThickness / 8.0, 0.0, 0.2));
+
+                        if (sealChance > 0.46 || (sealChance > 0.32 && underAquiferBand && river > 0.28))
                         {
                             mask[x, y, z] = false;
                         }

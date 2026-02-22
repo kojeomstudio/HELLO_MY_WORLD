@@ -1,49 +1,52 @@
 {
-  "worldMapControl": {
-    "ui": {
-      "showMiniMap": true,
-      "miniMapPosition": "bottom-right",
-      "miniMapSize": 256,
-      "miniMapOpacity": 0.9,
-      "showPlayerMarker": true,
-      "showChunkBorders": true
-    },
-    "display": {
-      "showCoordinates": true,
-      "showBiomeInfo": true,
-      "showFps": true,
-      "showPing": true
-    },
-    "performance": {
-      "chunkUpdateThrottleMs": 50,
-      "maxConcurrentChunkRequests": 8,
-      "maxQueuedChunkRequests": 3584,
-      "queuePressureFactor": 4,
-      "queueSlackRatio": 2.7,
-      "queueBurstSlackMultiplier": 1.24,
-      "queueLoadSheddingThreshold": 0.84,
-      "queueEmergencyBrakeThreshold": 1.02,
-      "queueLoadEmaBlend": 0.22,
-      "queueEmergencyReleaseRatio": 0.82,
-      "queueTrendBoostWeight": 0.28,
-      "queueShockAbsorberWeight": 0.26,
-      "queueOverloadDrainFactor": 5,
-      "queueBackoffDelayMs": 5,
-      "enableChunkPrediction": true
-    },
-    "defaults": {
-      "renderDistance": 12,
-      "maxLoadedPreviewChunks": 4096,
-      "mapScale": 1.0,
-      "terrainQuality": 3,
-      "waterQuality": 3,
-      "vegetationQuality": 3,
-      "fogEnabled": true,
-      "shadowEnabled": true,
-      "maxChunkUpdatesPerFrame": 24,
-      "maxQueuedChunkUpdates": 4096,
-      "chunkLOD": 2,
-      "unloadDistance": 16
-    }
-  }
+    "worldMapControl":  {
+                            "ui":  {
+                                       "showMiniMap":  true,
+                                       "miniMapPosition":  "bottom-right",
+                                       "miniMapSize":  256,
+                                       "miniMapOpacity":  0.9,
+                                       "showPlayerMarker":  true,
+                                       "showChunkBorders":  true
+                                   },
+                            "display":  {
+                                            "showCoordinates":  true,
+                                            "showBiomeInfo":  true,
+                                            "showFps":  true,
+                                            "showPing":  true
+                                        },
+                            "performance":  {
+                                                "chunkUpdateThrottleMs":  50,
+                                                "maxConcurrentChunkRequests":  8,
+                                                "maxQueuedChunkRequests":  3584,
+                                                "queuePressureFactor":  4,
+                                                "queueSlackRatio":  2.7,
+                                                "queueBurstSlackMultiplier":  1.24,
+                                                "queueLoadSheddingThreshold":  0.84,
+                                                "queueEmergencyBrakeThreshold":  1.02,
+                                                "queueLoadEmaBlend":  0.22,
+                                                "queueEmergencyReleaseRatio":  0.82,
+                                                "queueTrendBoostWeight":  0.28,
+                                                "queueShockAbsorberWeight":  0.26,
+                                                "queueOverloadDrainFactor":  5,
+                                                "queueBackoffDelayMs":  5,
+                                                "enableChunkPrediction":  true,
+                                                "queueRequestTtlSeconds":  45,
+                                                "queueEmergencyHoldTicks":  6,
+                                                "queueRecoveryRampTicks":  10
+                                            },
+                            "defaults":  {
+                                             "renderDistance":  12,
+                                             "maxLoadedPreviewChunks":  4096,
+                                             "mapScale":  1.0,
+                                             "terrainQuality":  3,
+                                             "waterQuality":  3,
+                                             "vegetationQuality":  3,
+                                             "fogEnabled":  true,
+                                             "shadowEnabled":  true,
+                                             "maxChunkUpdatesPerFrame":  24,
+                                             "maxQueuedChunkUpdates":  4096,
+                                             "chunkLOD":  2,
+                                             "unloadDistance":  16
+                                         }
+                        }
 }

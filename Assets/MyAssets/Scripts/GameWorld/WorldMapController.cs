@@ -42,6 +42,7 @@ namespace GameWorld
         [SerializeField] private int queueBackoffDelayMs = 4;
         [SerializeField] private int queueEmergencyHoldTicks = 8;
         [SerializeField] private int queueRecoveryRampTicks = 10;
+        [SerializeField] private int queueRequestTtlSeconds = 45;
         [SerializeField] private string runtimeControlConfigFileName = "enhanced_world_map_control_client.json";
         [SerializeField] private string queuePolicyFileName = "world_map_control_queue_policy.json";
 
@@ -65,6 +66,7 @@ namespace GameWorld
 
         private readonly ConcurrentDictionary<Vector2Int, ChunkData> loadedChunks = new();
         private readonly ConcurrentDictionary<Vector2Int, byte> queuedChunks = new();
+        private readonly ConcurrentDictionary<Vector2Int, long> queuedChunkEnqueueTicks = new();
         private readonly ConcurrentDictionary<Vector2Int, byte> buildingChunks = new();
         private readonly ConcurrentQueue<Vector2Int> requestQueue = new();
         private int queuedRequestCount;
@@ -197,13 +199,18 @@ namespace GameWorld
                     queueRecoveryRampTicks = Mathf.Clamp(runtime.worldMapControl.performance.queueRecoveryRampTicks, 1, 256);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueRequestTtlSeconds > 0)
+                {
+                    queueRequestTtlSeconds = Mathf.Clamp(runtime.worldMapControl.performance.queueRequestTtlSeconds, 5, 600);
+                }
+
                 if (enableDebugLogging)
                 {
                     Debug.Log(
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
                         $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
-                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks})");
+                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds})");
                 }
             }
             catch (Exception ex)
@@ -317,9 +324,14 @@ namespace GameWorld
                     maxConcurrentChunkBuilds = Mathf.Clamp(policy.client.maxConcurrentChunkRequests, 1, 64);
                 }
 
+                if (policy.client.queueRequestTtlSeconds > 0)
+                {
+                    queueRequestTtlSeconds = Mathf.Clamp(policy.client.queueRequestTtlSeconds, 5, 600);
+                }
+
                 if (enableDebugLogging)
                 {
-                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
                 }
             }
             catch (Exception ex)
@@ -333,6 +345,7 @@ namespace GameWorld
             cancellation?.Cancel();
             buildSemaphore?.Dispose();
             queuedChunks.Clear();
+            queuedChunkEnqueueTicks.Clear();
             buildingChunks.Clear();
             loadedChunks.Clear();
             while (requestQueue.TryDequeue(out _)) { }
@@ -507,6 +520,7 @@ namespace GameWorld
                 generator = new EnhancedTerrainGenerator(profile, worldConfig);
                 loadedChunks.Clear();
                 queuedChunks.Clear();
+                queuedChunkEnqueueTicks.Clear();
                 buildingChunks.Clear();
                 while (requestQueue.TryDequeue(out _)) { }
                 Interlocked.Exchange(ref queuedRequestCount, 0);
@@ -558,9 +572,12 @@ namespace GameWorld
                 return;
             }
 
+            queuedChunkEnqueueTicks[pos] = DateTime.UtcNow.Ticks;
+
             if (Volatile.Read(ref queuedRequestCount) >= Math.Max(64, maxQueuedChunkRequests))
             {
                 queuedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 return;
             }
 
@@ -570,6 +587,7 @@ namespace GameWorld
             {
                 DrainStaleQueueEntries();
                 queuedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 return;
             }
 
@@ -579,6 +597,7 @@ namespace GameWorld
             {
                 DrainStaleQueueEntries();
                 queuedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 return;
             }
 
@@ -587,6 +606,7 @@ namespace GameWorld
                 DrainStaleQueueEntries();
                 DrainStaleQueueEntries();
                 queuedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 return;
             }
 
@@ -610,6 +630,12 @@ namespace GameWorld
                 }
 
                 queuedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
+
+                if (IsQueueEntryExpired(pos, DateTime.UtcNow.Ticks))
+                {
+                    continue;
+                }
 
                 int pendingPressure = loadedChunks.Count + buildingChunks.Count + Mathf.Max(0, Volatile.Read(ref queuedRequestCount));
                 int pendingLimit = GetAdaptiveQueueLimit();
@@ -684,6 +710,7 @@ namespace GameWorld
             foreach (var pos in removal)
             {
                 loadedChunks.TryRemove(pos, out _);
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 if (enableDebugLogging)
                 {
                     Debug.Log($"[WorldMapController] Unloaded preview chunk {pos}");
@@ -928,11 +955,13 @@ namespace GameWorld
                 var prioritizedPos = new Vector2Int(coordinate.X, coordinate.Z);
                 bool alreadyLoaded = loadedChunks.ContainsKey(prioritizedPos) || buildingChunks.ContainsKey(prioritizedPos);
                 bool farChunk = IsFarChunkFromPlayer(prioritizedPos, pressureBand);
+                bool expired = IsQueueEntryExpired(prioritizedPos, DateTime.UtcNow.Ticks);
                 bool dropForPressure = drained < drainBudget && farChunk;
 
-                if (alreadyLoaded || dropForPressure)
+                if (alreadyLoaded || expired || dropForPressure)
                 {
                     queuedChunks.TryRemove(prioritizedPos, out _);
+                    queuedChunkEnqueueTicks.TryRemove(prioritizedPos, out _);
                     drained++;
                     continue;
                 }
@@ -943,6 +972,23 @@ namespace GameWorld
                     Interlocked.Increment(ref queuedRequestCount);
                 }
             }
+        }
+
+        private bool IsQueueEntryExpired(Vector2Int pos, long nowTicks)
+        {
+            if (!queuedChunkEnqueueTicks.TryGetValue(pos, out long queuedAtTicks))
+            {
+                return false;
+            }
+
+            long ttlTicks = TimeSpan.FromSeconds(Mathf.Clamp(queueRequestTtlSeconds, 5, 600)).Ticks;
+            bool expired = nowTicks - queuedAtTicks > ttlTicks;
+            if (expired)
+            {
+                queuedChunkEnqueueTicks.TryRemove(pos, out _);
+            }
+
+            return expired;
         }
 
         private bool IsFarChunkFromPlayer(Vector2Int pos, QueuePressureBand pressureBand)
@@ -1028,6 +1074,7 @@ namespace GameWorld
             public int queueBackoffDelayMs = 4;
             public int queueEmergencyHoldTicks = 8;
             public int queueRecoveryRampTicks = 10;
+            public int queueRequestTtlSeconds = 45;
         }
 
         [Serializable]
@@ -1053,6 +1100,7 @@ namespace GameWorld
             public int queueBackoffDelayMs = 4;
             public int queueEmergencyHoldTicks = 8;
             public int queueRecoveryRampTicks = 10;
+            public int queueRequestTtlSeconds = 45;
             public int maxLoadedPreviewChunks = 2048;
             public int maxConcurrentChunkRequests = 4;
         }

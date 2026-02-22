@@ -295,6 +295,7 @@ namespace GameServerApp.World.Generation
             ApplySpillwayBackflowDampingBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyWetlandLeakageClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyKarstOutletStabilityBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplyAlluvialBackwaterLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
         }
 
@@ -1646,6 +1647,78 @@ namespace GameServerApp.World.Generation
                     double shelfFloor = Math.Max(lake * (0.84 + lakeConfig.ShorelineBlend * 0.08), continuity * 0.15);
                     double target = lake * (1.0 - retentionWeight * 0.12) + (lake + retention) * retentionWeight * 0.12;
                     lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Max(target, shelfFloor));
+                }
+            }
+        }
+
+        private void ApplyAlluvialBackwaterLinkBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.36 +
+                lakeConfig.TerraceBiasWeight * 0.34 +
+                waterConfig.RiverDeltaWetlandStrength * 0.30,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int reliefRadius = Math.Max(2, waterConfig.HydrologyWatershedStitchRadius + 1);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.04)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydrology[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius);
+                    double floodplainBias = Math.Clamp((seaLevel + 10 - heightMap[x, z]) / 16.0, 0.0, 1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double terraceCoupling = Math.Clamp((Math.Max(0.0, -ComputeCurvature(heightMap, x, z)) + floodplainBias) * 0.5, 0.0, 1.0);
+                    double backwaterSignal = Math.Clamp(
+                        hydro * 0.22 +
+                        seamHydro * 0.18 +
+                        flowNode * 0.2 +
+                        seamFlow * 0.18 +
+                        river * 0.14 +
+                        terraceCoupling * 0.08,
+                        0.0,
+                        1.25);
+                    backwaterSignal *= 1.0 - Math.Clamp(slope * 0.026 + relief / 44.0 + divergence * 0.22, 0.0, 0.84);
+                    if (backwaterSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(lake * (0.85 + lakeConfig.ShorelineBlend * 0.08), backwaterSignal * 0.18);
+                    double target = lake * (1.0 - bridgeWeight * 0.12) + (lake + backwaterSignal) * bridgeWeight * 0.12;
+                    if (river > 0.52)
+                    {
+                        target *= 1.0 - Math.Clamp((river - 0.52) * 0.16, 0.0, 0.14);
+                    }
+
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Max(target, floor));
                 }
             }
         }

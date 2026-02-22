@@ -32,6 +32,67 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-22: Session 109 - Hydrology v47 / Map-Control v51 / Queue TTL + Inflight Prune Controls
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session manifest and server load priority.
+  - Files:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-22-session-109.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-22-session-109.json`
+    - `GameServer/Program.cs`
+- Terrain generation refinement (server):
+  - Added perched aquifer bypass cave bridge.
+  - Added oxbow cutoff continuity river bridge.
+  - Added alluvial backwater link lake bridge.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+- World-map control architecture updates (server + client):
+  - Server inflight timeout/prune interval now config-driven.
+  - Client queued request TTL added and applied to runtime/shared queue policy.
+  - Files:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/Program.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-22-hydrology-riverlake-cave-v47`
+  - Map-control profile version: `51`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf and dummy-client validation:
+  - Dummy probe minimum profile guard raised to `51`.
+  - `--proto-probe` and required-only dummy round-trip validated with required packets passing.
+  - Optional packet binding gaps remain WARN-only and documented in probe report.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `reports/proto_probe_report.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet test GameServer/TerrainGenerationTest.csproj -v minimal` PASS (exit code 0)
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --required-only` PASS
+
 ### 2026-02-21: Session 107 - Hydrology v46 / Map-Control v50 / Inflight Timeout + Client Queue Budget
 
 **Status:** COMPLETED

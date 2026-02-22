@@ -36,7 +36,7 @@ namespace GameServerApp.Testing
 
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
 
-        public int MinMapControlProfileVersion { get; set; } = 50;
+        public int MinMapControlProfileVersion { get; set; } = 51;
 
         public bool FailOnMapControlVersionRegression { get; set; } = true;
 

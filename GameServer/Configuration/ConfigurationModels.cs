@@ -209,5 +209,7 @@ namespace GameServerApp.Configuration
         public int QueueBackoffDelayMs { get; set; } = 4;
         public int QueueEmergencyHoldTicks { get; set; } = 8;
         public int QueueRecoveryRampTicks { get; set; } = 10;
+        public int InflightChunkTimeoutSeconds { get; set; } = 45;
+        public int InflightPruneIntervalSeconds { get; set; } = 2;
     }
 }

@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-21
-        /// (groundwater pressure-relief caves + confluence floodplain relay rivers + karst outlet stability lakes + map queue overload timeout + map-control v50).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-22
+        /// (perched aquifer bypass caves + oxbow cutoff continuity rivers + alluvial backwater link lakes + inflight timeout/prune tuning + map-control v51).
         /// </summary>
-        public const string HydrologySignature = "2026-02-21-hydrology-riverlake-cave-v46";
+        public const string HydrologySignature = "2026-02-22-hydrology-riverlake-cave-v47";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v46",
+                "Hydrology WorldGen v47",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-22-session-109.json"
                 },
                 new[]
                 {
@@ -134,7 +134,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S20-CONTENT-02",
-                "River Curvature + Hydrology Warp",
+                "River Curvature + Oxbow Cutoff Continuity",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -148,7 +148,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S20-CONTENT-03",
-                "Lake Shoreline + Outflow Harmonization",
+                "Lake Shoreline + Alluvial Backwater Link",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]

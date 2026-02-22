@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-22
-        /// (perched aquifer bypass caves + oxbow cutoff continuity rivers + alluvial backwater link lakes + inflight timeout/prune tuning + map-control v51).
+        /// (bankfull ventilation caves + anabranch hotspot relay rivers + floodplain retention clamp lakes + hotspot-aware queue admission + map-control v52).
         /// </summary>
-        public const string HydrologySignature = "2026-02-22-hydrology-riverlake-cave-v47";
+        public const string HydrologySignature = "2026-02-22-hydrology-riverlake-cave-v48";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v47",
+                "Hydrology WorldGen v48",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-22-session-109.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json"
                 },
                 new[]
                 {

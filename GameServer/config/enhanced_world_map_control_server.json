@@ -2,7 +2,7 @@
     "worldMapControl":  {
                             "enabled":  true,
                             "profilePath":  "config/world_map_control_profile.json",
-                            "profileVersion":  51,
+                            "profileVersion":  52,
                             "defaults":  {
                                              "renderDistance":  12,
                                              "mapScale":  1.0,
@@ -31,7 +31,9 @@
                                           "cleanupIntervalSeconds":  60,
                                           "enableChunkCache":  true,
                                           "inflightChunkTimeoutSeconds":  45,
-                                          "inflightPruneIntervalSeconds":  2
+                                          "inflightPruneIntervalSeconds":  2,
+                                          "queueHotspotBias":  0.5,
+                                          "queueHotspotEmergencyPenalty":  1.1
                                       },
                             "realTimeUpdates":  {
                                                     "enabled":  true,
@@ -59,7 +61,9 @@
                                                       "queueEmergencyHoldTicks":  8,
                                                       "queueRecoveryRampTicks":  12,
                                                       "inflightChunkTimeoutSeconds":  45,
-                                                      "inflightPruneIntervalSeconds":  2
+                                                      "inflightPruneIntervalSeconds":  2,
+                                                      "queueHotspotBias":  0.5,
+                                                      "queueHotspotEmergencyPenalty":  1.1
                                                   }
                         }
 }

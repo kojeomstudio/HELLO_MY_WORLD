@@ -32,7 +32,9 @@
                                                 "enableChunkPrediction":  true,
                                                 "queueRequestTtlSeconds":  45,
                                                 "queueEmergencyHoldTicks":  6,
-                                                "queueRecoveryRampTicks":  10
+                                                "queueRecoveryRampTicks":  10,
+                                                "queueHotspotBias":  0.44,
+                                                "queueHotspotEmergencyPenalty":  0.9
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

@@ -58,6 +58,18 @@ namespace GameCommon.World
             return Math.Clamp(resolved, 0.0, 1.5);
         }
 
+        public static double ClampHotspotBias(double bias, double fallback = 0.42)
+        {
+            double resolved = bias <= 0.0 ? fallback : bias;
+            return Math.Clamp(resolved, 0.05, 1.5);
+        }
+
+        public static double ClampHotspotEmergencyPenalty(double penalty, double fallback = 1.0)
+        {
+            double resolved = penalty <= 0.0 ? fallback : penalty;
+            return Math.Clamp(resolved, 0.0, 3.0);
+        }
+
         public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
         {
             return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);
@@ -209,6 +221,31 @@ namespace GameCommon.World
         }
 
         /// <summary>
+        /// Computes a pressure/load aware distance threshold with a hotspot-aware near-chunk bias.
+        /// This keeps nearby chunks preferentially admitted while still tightening under overload.
+        /// </summary>
+        public static int ComputeAdaptiveDistanceThreshold(
+            int baseRadius,
+            QueuePressureBand band,
+            bool emergencyBrake,
+            double effectiveLoad,
+            double hotspotBias,
+            double hotspotEmergencyPenalty)
+        {
+            int threshold = GetDistanceThreshold(baseRadius, band, emergencyBrake);
+            double clampedLoad = Math.Clamp(effectiveLoad, 0.0, 4.0);
+            double clampedBias = ClampHotspotBias(hotspotBias);
+            double clampedEmergencyPenalty = ClampHotspotEmergencyPenalty(hotspotEmergencyPenalty);
+
+            // Under low load preserve slightly wider near-chunk admission; under high load tighten quickly.
+            int nearBoost = (int)Math.Round(Math.Clamp((1.0 - clampedLoad) * clampedBias * 2.0, 0.0, 2.0));
+            int loadPenalty = (int)Math.Round(Math.Clamp((clampedLoad - 0.9) * clampedBias * 3.0, 0.0, 3.0));
+            int emergencyPenalty = emergencyBrake ? (int)Math.Round(clampedEmergencyPenalty) : 0;
+
+            return Math.Max(1, threshold + nearBoost - loadPenalty - emergencyPenalty);
+        }
+
+        /// <summary>
         /// Returns true when the chunk lies outside the pressure-aware distance threshold.
         /// </summary>
         public static bool IsOutsideDistanceThreshold(
@@ -221,6 +258,32 @@ namespace GameCommon.World
             bool emergencyBrake = false)
         {
             int threshold = GetDistanceThreshold(baseRadius, band, emergencyBrake);
+            int manhattan = Math.Abs(chunkX - centerX) + Math.Abs(chunkZ - centerZ);
+            return manhattan > threshold;
+        }
+
+        /// <summary>
+        /// Returns true when the chunk lies outside the adaptive hotspot-aware distance threshold.
+        /// </summary>
+        public static bool IsOutsideAdaptiveDistanceThreshold(
+            int centerX,
+            int centerZ,
+            int chunkX,
+            int chunkZ,
+            int baseRadius,
+            QueuePressureBand band,
+            bool emergencyBrake,
+            double effectiveLoad,
+            double hotspotBias,
+            double hotspotEmergencyPenalty)
+        {
+            int threshold = ComputeAdaptiveDistanceThreshold(
+                baseRadius,
+                band,
+                emergencyBrake,
+                effectiveLoad,
+                hotspotBias,
+                hotspotEmergencyPenalty);
             int manhattan = Math.Abs(chunkX - centerX) + Math.Abs(chunkZ - centerZ);
             return manhattan > threshold;
         }

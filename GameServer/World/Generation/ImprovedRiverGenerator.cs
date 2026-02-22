@@ -339,8 +339,74 @@ namespace GameServerApp.World.Generation
             ApplyConfluenceLagStorageBridge(mask, hydrologyMask, flowAccumulation, heightMap);
             ApplyConfluenceFloodplainRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyOxbowCutoffContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyAnabranchHotspotRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyAnabranchHotspotRelayBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double relayWeight = Math.Clamp(
+                config.RiverBraidingWeight * 0.38 +
+                config.RiverEdgeContinuityWeight * 0.34 +
+                config.HydrologyFlowMemoryWeight * 0.28,
+                0.0,
+                1.0);
+            if (relayWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(2, config.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.05)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double seaBand = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.0), 0.0, 1.0);
+
+                    double hotspot = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 +
+                        edgeBand * 0.25 +
+                        Math.Max(0.0, river - 0.25) * 0.35,
+                        0.0,
+                        1.35);
+                    double avulsionRisk = Math.Clamp(
+                        divergence * 0.42 +
+                        Math.Abs(hydro - seamHydro) * 0.25 +
+                        slope * config.RiverGradientPenalty * 0.02,
+                        0.0,
+                        1.0);
+                    double relay = hotspot * relayWeight * (0.12 + edgeBand * 0.12 + seaBand * 0.1);
+                    relay *= 1.0 - Math.Clamp(avulsionRisk * config.RiverAvulsionResistance * 0.45, 0.0, 0.7);
+                    double memoryFloor = Math.Clamp((seamHydro + seamFlow + river) / 3.0, 0.0, 1.2) * 0.1;
+                    double target = river * (1.0 - relayWeight * 0.18) + (river + relay + memoryFloor) * relayWeight * 0.18;
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyHeadwaterSpringBridge(

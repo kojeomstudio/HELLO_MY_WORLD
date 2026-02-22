@@ -369,7 +369,94 @@ namespace GameServerApp.World.Generation
             ApplyFloodBypassVentDampingBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyGroundwaterPressureReliefBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyPerchedAquiferBypassBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplyBankfullVentilationSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             return mask;
+        }
+
+        private void ApplyBankfullVentilationSealBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.CaveVentilationBias * 0.38 +
+                config.GroundwaterConnectivityWeight * 0.34 +
+                config.MoistureRetentionWeight * 0.28,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(6, config.RiparianPlugDepth + 4));
+            int bottom = Math.Max(2, seaLevel - Math.Max(8, config.RiparianPlugDepth + 4));
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceClamp);
+                    double wetCoupling = Math.Clamp(
+                        hydro * 0.36 + seamHydro * 0.24 + flow * 0.22 + seamFlow * 0.12 + river * 0.06,
+                        0.0,
+                        1.2);
+                    if (wetCoupling <= 0.28)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], bottom + 2, sizeY - 2);
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z] || y >= surface)
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 2)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(y - bottom) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double ventilationPotential = Math.Clamp(
+                            (1.0 - hydro) * (1.0 - flow) * (1.0 - Math.Clamp(slope * 0.05, 0.0, 0.75)),
+                            0.0,
+                            1.0);
+                        double bankfullPressure = wetCoupling * (0.42 + depthFactor * 0.25 + river * 0.18);
+                        bankfullPressure *= 1.0 - Math.Clamp(divergence * 0.45 + slope * config.CeilingStabilityWeight * 0.02, 0.0, 0.8);
+                        bankfullPressure *= bridgeWeight;
+                        bankfullPressure -= ventilationPotential * config.CaveVentilationBias * 0.22;
+                        bankfullPressure += Math.Clamp((2 - lateralOpen) * 0.08, 0.0, 0.25);
+
+                        if (bankfullPressure > 0.44 || (bankfullPressure > 0.34 && lateralOpen <= 1))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyFloodplainRoofArchStability(

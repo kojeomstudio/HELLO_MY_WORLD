@@ -9,7 +9,7 @@
     "validateAllKnownPackets":  true,
     "includeOptionalMessages":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  51,
+    "minMapControlProfileVersion":  52,
     "failOnMapControlVersionRegression":  true,
     "failOnRequiredTypeDrift":  true,
     "outputReportPath":  "reports/proto_probe_report.json",

@@ -47,6 +47,8 @@ namespace GameServerApp.World
         private readonly int configuredQueueBackoffDelayMs;
         private readonly int configuredQueueEmergencyHoldTicks;
         private readonly int configuredQueueRecoveryRampTicks;
+        private readonly double configuredQueueHotspotBias;
+        private readonly double configuredQueueHotspotEmergencyPenalty;
         private int dynamicQueueLimit;
         private int dynamicQueuePressureFactor;
         private double dynamicQueueSlackRatio;
@@ -102,6 +104,8 @@ namespace GameServerApp.World
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             configuredQueueEmergencyHoldTicks = Math.Clamp(Math.Max(1, this.settings.QueueEmergencyHoldTicks), 1, 128);
             configuredQueueRecoveryRampTicks = Math.Clamp(Math.Max(1, this.settings.QueueRecoveryRampTicks), 1, 256);
+            configuredQueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(this.settings.QueueHotspotBias, 0.42);
+            configuredQueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(this.settings.QueueHotspotEmergencyPenalty, 1.0);
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
             dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
@@ -701,14 +705,24 @@ namespace GameServerApp.World
                 return false;
             }
 
-            return WorldMapQueuePolicy.IsOutsideDistanceThreshold(
+            return WorldMapQueuePolicy.IsOutsideAdaptiveDistanceThreshold(
                 centerChunkX,
                 centerChunkZ,
                 chunkX,
                 chunkZ,
                 baseRadius,
                 pressureBand,
-                queueEmergencyBrakeLatched);
+                queueEmergencyBrakeLatched,
+                ComputeQueueLoadSnapshot(),
+                configuredQueueHotspotBias,
+                configuredQueueHotspotEmergencyPenalty);
+        }
+
+        private double ComputeQueueLoadSnapshot()
+        {
+            int cacheBudget = Math.Max(64, GetEffectiveCacheBudget());
+            double instantaneousLoad = inflightChunkGenerations.Count / Math.Max(1.0, cacheBudget);
+            return Math.Max(instantaneousLoad, queueLoadEma);
         }
 
         private void EnforceCacheBudget()

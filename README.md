@@ -32,6 +32,73 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-22: Session 111 - Hydrology v48 / Map-Control v52 / Hotspot-Aware Queue Admission
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 111 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json`
+- Terrain generation refinement (server):
+  - Added cave bankfull ventilation seal bridge.
+  - Added river anabranch hotspot relay bridge.
+  - Added lake floodplain retention clamp bridge.
+  - Added terrain coordinator coupled floodplain ventilation pass.
+  - Files:
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map control architecture updates (server + client):
+  - Added hotspot-aware queue admission controls:
+    - `queueHotspotBias`
+    - `queueHotspotEmergencyPenalty`
+  - Shared queue policy API extended and applied in server/client map controllers.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/Program.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-22-hydrology-riverlake-cave-v48`
+  - Map-control profile version: `52`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf and dummy-client validation:
+  - Protobuf generated artifacts freshness check passed (`scripts/verify_protobuf.ps1`).
+  - `--proto-probe` round-trip passed (`RoundTrip=True`).
+  - Dummy client required-packet round-trip passed (`14/14`).
+  - Dummy probe minimum profile guard raised to `52`.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `reports/proto_probe_report.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet test GameServer/TerrainGenerationTest.csproj -v minimal` PASS
+  - `dotnet test KojeomNetWorkSpace/SimpleTestClient/SimpleTestClient.csproj -v minimal` PASS
+  - `dotnet test KojeomNetWorkSpace/SimpleTestServer/SimpleTestServer.csproj -v minimal` PASS
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --required-only` PASS
+
 ### 2026-02-22: Session 109 - Hydrology v47 / Map-Control v51 / Queue TTL + Inflight Prune Controls
 
 **Status:** COMPLETED

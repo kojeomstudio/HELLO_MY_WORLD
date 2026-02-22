@@ -296,7 +296,71 @@ namespace GameServerApp.World.Generation
             ApplyWetlandLeakageClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyKarstOutletStabilityBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyAlluvialBackwaterLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplyFloodplainRetentionClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
+        }
+
+        private void ApplyFloodplainRetentionClampBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double retentionWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.42 +
+                lakeConfig.SpillwayContinuityWeight * 0.33 +
+                waterConfig.HydrologyFlowPersistence * 0.25,
+                0.0,
+                1.0);
+            if (retentionWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int edgeRadius = Math.Max(2, waterConfig.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double floodplainBand = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, waterConfig.RiverMouthSmoothRadius * 2.5), 0.0, 1.0);
+
+                    double retention = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 +
+                        river * 0.2 +
+                        floodplainBand * 0.2,
+                        0.0,
+                        1.35);
+                    retention *= 1.0 - Math.Clamp(divergence * 0.4 + slope * waterConfig.HydrologySlopePenalty * 0.01, 0.0, 0.75);
+                    retention *= 1.0 + edgeBand * 0.12;
+
+                    double clamp = retentionWeight * (0.11 + edgeBand * 0.09 + floodplainBand * 0.08);
+                    double target = lake * (1.0 - clamp) + (lake + retention * 0.12) * clamp;
+                    double floor = Math.Max(lake * (0.82 + lakeConfig.SpillRetentionWeight * 0.08), retention * 0.05);
+                    lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.0);
+                }
+            }
         }
 
         private void ApplyKarstOverflowRetentionBridge(

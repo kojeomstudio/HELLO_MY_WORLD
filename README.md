@@ -32,6 +32,47 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-23: Session 115 - Hydrology v50 / Map-Control v54 / Client Seasonal Parity + Focus-Aware Stale Pruning
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 115 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-23-session-115.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-23-session-115.json`
+  - Server startup manifest priority updated:
+    - `GameServer/Program.cs`
+- Terrain generation refinement (client/server parity):
+  - Added seasonal runoff coupling pass to Unity enhanced terrain preview generator.
+  - Server seasonal cave/river/lake coupling remains aligned under shared signature v50.
+  - Files:
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map control architecture updates:
+  - Added focus-aware stale pruning for server inflight chunk generation.
+  - Updated queue-policy metadata to reflect v54 stale-prune strategy.
+  - Files:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-23-hydrology-riverlake-cave-v50`
+  - Map-control profile version: `54`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf and dummy-client validation guard update:
+  - Dummy probe minimum profile guard raised to `54`.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+
 ### 2026-02-23: Session 113 - Hydrology v49 / Map-Control v53 / Seasonal Runoff Coupling + Stale-Prune Harmonization
 
 **Status:** COMPLETED

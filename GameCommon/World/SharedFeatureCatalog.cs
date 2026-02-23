@@ -55,9 +55,9 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-23
-        /// (seasonal runoff cave/river/lake coupling + stale-prune queue harmonization + map-control v53).
+        /// (seasonal runoff cave/river/lake coupling + client parity pass + focus-aware stale-prune + map-control v54).
         /// </summary>
-        public const string HydrologySignature = "2026-02-23-hydrology-riverlake-cave-v49";
+        public const string HydrologySignature = "2026-02-23-hydrology-riverlake-cave-v50";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v49",
+                "Hydrology WorldGen v50",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]

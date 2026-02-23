@@ -1210,6 +1210,7 @@ namespace GameWorld
             ApplyFloodplainLeakageStability(heightMap, hydrology, flow, erosionRisk);
             ApplyHydrologySinkStabilityField(heightMap, hydrology, flow, erosionRisk);
             ApplyKarstConfluenceRetentionField(heightMap, hydrology, flow, erosionRisk);
+            ApplySeasonalRunoffCouplingField(heightMap, hydrology, flow, erosionRisk, chunkPos);
 
             var riverMask = profile.EnableRivers ? BuildRiverMask(chunkPos, heightMap, hydrology, flow, erosionRisk) : new float[chunkSize, chunkSize];
             var lakeMask = profile.EnableLakes ? BuildLakeMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new float[chunkSize, chunkSize];
@@ -3740,6 +3741,95 @@ namespace GameWorld
             NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.66)), (float)varianceClamp);
             NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(worldConfig.Water.HydrologyEdgeNormalizationBlend * 0.56)), (float)(varianceClamp * 1.3));
             Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(worldConfig.Water.HydrologySmoothBlend * 0.26)));
+        }
+
+        private void ApplySeasonalRunoffCouplingField(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            Vector2Int chunkPos)
+        {
+            double couplingWeight = Math.Clamp(
+                profile.HydrologyFlowPersistence * 0.38 +
+                profile.RiverConfluenceBoost * 0.34 +
+                profile.LakeSpillRetentionWeight * 0.28,
+                0.0,
+                1.0);
+            if (couplingWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Mathf.Max(2, profile.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.05, profile.HydrologyFlowDivergenceClamp);
+            double slopePenalty = Math.Max(0.0, profile.HydrologySlopePenalty);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double flowNode = flowCopy[x, z];
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double erosion = Mathf.Clamp01(erosionCopy[x, z]);
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+
+                    int seasonalSeed = ComputeSeasonalSeed(chunkPos.x, chunkPos.y, x, z);
+                    float worldX = chunkPos.x * chunkSize + x;
+                    float worldZ = chunkPos.y * chunkSize + z;
+                    double seasonalNoise = Mathf.PerlinNoise(
+                        worldX * 0.017f + 29f + (seasonalSeed & 0xFF) * 0.003f,
+                        worldZ * 0.017f - 13f + ((seasonalSeed >> 8) & 0xFF) * 0.003f);
+
+                    double seasonalRunoff = Math.Clamp(
+                        (hydro + seamHydro + flowNode * 0.7 + seamFlow * 0.7) * 0.28 +
+                        seasonalNoise * 0.32 +
+                        edgeBand * 0.16,
+                        0.0,
+                        1.35);
+                    if (seasonalRunoff <= 0.22)
+                    {
+                        continue;
+                    }
+
+                    double runoffClamp = 1.0 - Math.Clamp(divergence * 0.4 + slope * slopePenalty * 0.01, 0.0, 0.72);
+                    double coupling = seasonalRunoff * couplingWeight * runoffClamp * (0.12 + edgeBand * 0.08);
+                    double hydroTarget = hydro * (1.0 - coupling * 0.25) + (hydro + seamHydro) * 0.5 * coupling * 0.25;
+                    double flowTarget = flowNode * (1.0 - coupling * 0.18) + (seamFlow + seasonalRunoff * 0.22) * coupling * 0.18;
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.2));
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.2));
+                    erosionRisk[x, z] = Mathf.Clamp01((float)Math.Clamp(
+                        erosion * (1.0 - coupling * 0.1) +
+                        Mathf.Clamp01(flow[x, z] / 6f) * 0.04 +
+                        edgeBand * 0.02,
+                        0.0,
+                        1.0));
+                }
+            }
+        }
+
+        private static int ComputeSeasonalSeed(int chunkX, int chunkZ, int localX, int localZ)
+        {
+            unchecked
+            {
+                int hash = 0x2D2816FE;
+                hash = (hash * 397) ^ chunkX;
+                hash = (hash * 397) ^ chunkZ;
+                hash = (hash * 397) ^ localX;
+                hash = (hash * 397) ^ localZ;
+                return hash;
+            }
         }
 
         private void ApplyRiverLakeHydrologyFeedback(int[,] heightMap, float[,] hydrology, float[,] flow, float[,] riverMask, float[,] lakeMask, float[,] erosionRisk)

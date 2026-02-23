@@ -30,6 +30,7 @@ namespace GameServerApp.World
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> chunkAccessTimes = new();
         private readonly ConcurrentDictionary<(int X, int Z), Task<ChunkData>> inflightChunkGenerations = new();
         private readonly ConcurrentDictionary<(int X, int Z), DateTime> inflightChunkStartTimes = new();
+        private readonly ConcurrentDictionary<int, ChunkCoordinate> playerChunkFocus = new();
         private readonly TimeSpan inflightChunkTimeout;
         private readonly TimeSpan inflightPruneInterval;
         private readonly int maxCachedChunks;
@@ -151,8 +152,10 @@ namespace GameServerApp.World
         {
             var currentProfile = EnsureProfile(out _);
             var profile = GetOrCreateProfile(request.PlayerId);
-            var playerChunkX = (int)(request.PlayerX / 16);
-            var playerChunkZ = (int)(request.PlayerZ / 16);
+            int chunkSize = Math.Max(1, currentProfile.ChunkSize);
+            int playerChunkX = (int)Math.Floor(request.PlayerX / chunkSize);
+            int playerChunkZ = (int)Math.Floor(request.PlayerZ / chunkSize);
+            playerChunkFocus[request.PlayerId] = new ChunkCoordinate(playerChunkX, playerChunkZ);
             var renderDistance = Math.Max(1, profile.RenderDistance);
 
             _ = GetAdaptiveQueueLimit();
@@ -213,6 +216,7 @@ namespace GameServerApp.World
             int chunkSize = Math.Max(1, currentProfile.ChunkSize);
             int playerChunkX = (int)Math.Floor(request.PlayerX / chunkSize);
             int playerChunkZ = (int)Math.Floor(request.PlayerZ / chunkSize);
+            playerChunkFocus[request.PlayerId] = new ChunkCoordinate(playerChunkX, playerChunkZ);
             int adaptiveQueueLimit = GetAdaptiveQueueLimit();
             QueuePressureBand pressureBand = GetCurrentQueuePressureBand();
             int maxUpdateCount = Math.Max(
@@ -473,7 +477,71 @@ namespace GameServerApp.World
                 return false;
             }
 
-            return nowUtc - startedUtc > inflightChunkTimeout;
+            TimeSpan elapsed = nowUtc - startedUtc;
+            if (elapsed > inflightChunkTimeout)
+            {
+                return true;
+            }
+
+            if (elapsed < TimeSpan.FromTicks((long)(inflightChunkTimeout.Ticks * 0.35)))
+            {
+                return false;
+            }
+
+            if (playerChunkFocus.IsEmpty)
+            {
+                return false;
+            }
+
+            double queueLoadSnapshot = ComputeQueueLoadSnapshot();
+            bool pressureCull = queueEmergencyBrakeLatched ||
+                queueLoadSnapshot >= configuredQueueLoadSheddingThreshold;
+            if (!pressureCull)
+            {
+                return false;
+            }
+
+            if (!TryGetNearestPlayerChunkFocus(key, out ChunkCoordinate focus))
+            {
+                return false;
+            }
+
+            QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(queueLoadSnapshot);
+            int baseRadius = Math.Max(1, controlProfile?.RenderDistance ?? settings.DefaultRenderDistance);
+            return WorldMapQueuePolicy.IsOutsideAdaptiveDistanceThreshold(
+                focus.X,
+                focus.Z,
+                key.X,
+                key.Z,
+                baseRadius,
+                pressureBand,
+                queueEmergencyBrakeLatched,
+                queueLoadSnapshot,
+                configuredQueueHotspotBias,
+                configuredQueueHotspotEmergencyPenalty);
+        }
+
+        private bool TryGetNearestPlayerChunkFocus((int X, int Z) chunk, out ChunkCoordinate nearest)
+        {
+            nearest = default;
+            bool found = false;
+            int bestDistance = int.MaxValue;
+
+            foreach (KeyValuePair<int, ChunkCoordinate> entry in playerChunkFocus)
+            {
+                ChunkCoordinate focus = entry.Value;
+                int distance = Math.Abs(focus.X - chunk.X) + Math.Abs(focus.Z - chunk.Z);
+                if (distance >= bestDistance)
+                {
+                    continue;
+                }
+
+                bestDistance = distance;
+                nearest = focus;
+                found = true;
+            }
+
+            return found;
         }
 
         private void MaybeReloadGenerationConfig(ref bool profileChanged)

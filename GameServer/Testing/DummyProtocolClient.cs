@@ -34,9 +34,11 @@ namespace GameServerApp.Testing
 
         public bool IncludeOptionalMessages { get; set; } = true;
 
+        public bool RequireRequiredPacketCoverage { get; set; } = true;
+
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
 
-        public int MinMapControlProfileVersion { get; set; } = 52;
+        public int MinMapControlProfileVersion { get; set; } = 53;
 
         public bool FailOnMapControlVersionRegression { get; set; } = true;
 
@@ -174,6 +176,20 @@ namespace GameServerApp.Testing
             }
 
             var packetTypes = ResolvePacketTypes();
+            if (Settings.RequireRequiredPacketCoverage)
+            {
+                var missingCoverage = ProtocolRegistry.GetMissingRequiredInSelection(packetTypes)
+                    .Select(item => item.ToString())
+                    .OrderBy(item => item, StringComparer.Ordinal)
+                    .ToArray();
+                if (missingCoverage.Length > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Required packet coverage is incomplete for proto probe: " +
+                        string.Join(", ", missingCoverage));
+                }
+            }
+
             int requiredTargets = packetTypes.Count(type => !ProtocolRegistry.IsOptionalMessageType(type));
             int requiredRoundTripOk = 0;
             var payloads = new List<(MinecraftMessageType Type, byte[] Payload)>();
@@ -395,6 +411,7 @@ namespace GameServerApp.Testing
                     Settings.MaxNetworkProbePackets,
                     Settings.ValidateAllKnownPackets,
                     Settings.IncludeOptionalMessages,
+                    Settings.RequireRequiredPacketCoverage,
                     Settings.MinMapControlProfileVersion,
                     Settings.ProbeNetwork
                 },

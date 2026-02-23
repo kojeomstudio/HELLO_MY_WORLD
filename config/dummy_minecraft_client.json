@@ -5,8 +5,9 @@
     "receiveTimeoutMs":  1500,
     "probeNetwork":  false,
     "strictRequiredBindings":  true,
+    "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  52,
+    "minMapControlProfileVersion":  53,
     "failOnMapControlVersionRegression":  true,
     "worldMapControlProfilePath":  "config/world_map_control_profile.json",
     "includeOptionalMessages":  true,
@@ -28,3 +29,4 @@
                     "EntityDespawn"
                 ]
 }
+

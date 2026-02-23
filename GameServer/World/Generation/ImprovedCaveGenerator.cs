@@ -370,6 +370,7 @@ namespace GameServerApp.World.Generation
             ApplyGroundwaterPressureReliefBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyPerchedAquiferBypassBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplyBankfullVentilationSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplySeasonalRechargeCaveSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
         }
 
@@ -456,6 +457,114 @@ namespace GameServerApp.World.Generation
                         }
                     }
                 }
+            }
+        }
+
+        private void ApplySeasonalRechargeCaveSealBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.MoistureRetentionWeight * 0.4 +
+                config.GroundwaterConnectivityWeight * 0.33 +
+                config.CaveEntranceFlowDampening * 0.27,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int edgeRadius = Math.Max(2, config.RiparianPlugDepth + 1);
+            double divergenceClamp = Math.Max(0.0001, config.MoistureFlowClamp);
+            int topBand = Math.Min(sizeY - 2, seaLevel + Math.Max(6, config.RiparianPlugDepth + 3));
+            int bottomBand = Math.Max(2, seaLevel - Math.Max(8, config.RiparianPlugDepth + 3));
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flowNode = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    int seed = ComputeSeasonalSeed(chunkX, chunkZ, x, z);
+                    double seasonalPulse = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.018 + 41.0,
+                        (chunkZ * sizeZ + z) * 0.018 - 19.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        seed));
+                    double recharge = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 +
+                        river * 0.2 +
+                        seasonalPulse * 0.25,
+                        0.0,
+                        1.4);
+                    if (recharge <= 0.32)
+                    {
+                        continue;
+                    }
+
+                    double rechargeGuard = 1.0 - Math.Clamp(divergence * 0.35 + slope * config.CeilingStabilityWeight * 0.01, 0.0, 0.75);
+                    int surface = Math.Clamp(heightMap[x, z], bottomBand + 2, sizeY - 2);
+                    for (int y = topBand; y >= bottomBand; y--)
+                    {
+                        if (y >= surface || !mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int lateralOpen = 0;
+                        if (mask[x - 1, y, z]) lateralOpen++;
+                        if (mask[x + 1, y, z]) lateralOpen++;
+                        if (mask[x, y, z - 1]) lateralOpen++;
+                        if (mask[x, y, z + 1]) lateralOpen++;
+
+                        if (lateralOpen <= 1)
+                        {
+                            continue;
+                        }
+
+                        double nearSurface = 1.0 - Math.Clamp((surface - y) / 8.0, 0.0, 1.0);
+                        double sealChance = recharge * bridgeWeight * rechargeGuard * (0.16 + nearSurface * 0.1 + edgeBand * 0.08);
+                        if (sealChance <= 0.06)
+                        {
+                            continue;
+                        }
+
+                        mask[x, y, z] = false;
+                    }
+                }
+            }
+        }
+
+        private static int ComputeSeasonalSeed(int chunkX, int chunkZ, int localX, int localZ)
+        {
+            unchecked
+            {
+                int hash = 0x43A9B17C;
+                hash = (hash * 397) ^ chunkX;
+                hash = (hash * 397) ^ chunkZ;
+                hash = (hash * 397) ^ localX;
+                hash = (hash * 397) ^ localZ;
+                return hash;
             }
         }
 

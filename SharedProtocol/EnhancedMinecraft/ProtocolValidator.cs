@@ -71,6 +71,7 @@ public static class ProtocolValidator
         }
 
         ValidateMessageSetPartitions();
+        ValidateOptionalMessageSetParity();
         ValidateUniqueBindings();
         ValidateRegistryDescriptors();
         ValidateRequiredDescriptorBindings();
@@ -131,6 +132,32 @@ public static class ProtocolValidator
             throw new InvalidOperationException(
                 $"EnhancedMinecraft message set overlap detected (required + optional): {string.Join(", ", overlap)}. Fix ProtocolValidator message classification to keep registry checks consistent.");
         }
+    }
+
+    private static void ValidateOptionalMessageSetParity()
+    {
+        var validatorOptional = OptionalMessages
+            .OrderBy(message => (int)message)
+            .ToArray();
+        var registryOptional = ProtocolRegistry.GetOptionalMessageTypes()
+            .OrderBy(message => (int)message)
+            .ToArray();
+
+        var validatorOnly = validatorOptional
+            .Where(message => !registryOptional.Contains(message))
+            .ToArray();
+        var registryOnly = registryOptional
+            .Where(message => !validatorOptional.Contains(message))
+            .ToArray();
+
+        if (validatorOnly.Length == 0 && registryOnly.Length == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Optional message set mismatch between ProtocolValidator and ProtocolRegistry. " +
+            $"ValidatorOnly=[{string.Join(", ", validatorOnly)}], RegistryOnly=[{string.Join(", ", registryOnly)}].");
     }
 
     public static void ValidateHandlerBindings(MinecraftMessageDispatcher dispatcher)

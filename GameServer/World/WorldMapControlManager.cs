@@ -388,7 +388,7 @@ namespace GameServerApp.World
 
             if (inflightChunkGenerations.Count >= loadSheddingLimit)
             {
-                PruneInflightGenerations(Math.Max(configuredQueueOverloadDrainFactor, dynamicQueuePressureFactor));
+                PruneInflightGenerations(ComputeInflightPruneBudget(ComputeQueueLoadSnapshot(), emergencyBoost: false));
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
                 if (TryGetActiveInflightGeneration(key, out var shedInflight))
                 {
@@ -401,7 +401,7 @@ namespace GameServerApp.World
             if (queueEmergencyBrakeLatched || queueLoad >= configuredQueueEmergencyBrakeThreshold)
             {
                 int emergencyDrain = Math.Max(configuredQueueOverloadDrainFactor + 1, dynamicQueuePressureFactor + 1);
-                PruneInflightGenerations(Math.Clamp(emergencyDrain, 1, 24));
+                PruneInflightGenerations(ComputeInflightPruneBudget(queueLoad, emergencyBoost: true, emergencyDrainHint: emergencyDrain));
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * (dynamicQueuePressureFactor + 1))).ConfigureAwait(false);
                 if (TryGetActiveInflightGeneration(key, out var emergencyInflight))
                 {
@@ -411,7 +411,7 @@ namespace GameServerApp.World
 
             if (inflightChunkGenerations.Count >= Math.Max(64, adaptiveQueueLimit))
             {
-                PruneInflightGenerations(configuredQueueOverloadDrainFactor);
+                PruneInflightGenerations(ComputeInflightPruneBudget(ComputeQueueLoadSnapshot(), emergencyBoost: queueEmergencyBrakeLatched));
                 await Task.Delay(Math.Max(1, configuredQueueBackoffDelayMs * dynamicQueuePressureFactor)).ConfigureAwait(false);
                 if (TryGetActiveInflightGeneration(key, out var delayedInflight))
                 {
@@ -725,6 +725,30 @@ namespace GameServerApp.World
             return Math.Max(instantaneousLoad, queueLoadEma);
         }
 
+        private int ComputeInflightPruneBudget(double queueLoadSnapshot, bool emergencyBoost, int emergencyDrainHint = 0)
+        {
+            QueuePressureBand band = WorldMapQueuePolicy.ClassifyBand(queueLoadSnapshot);
+            int baseDrain = Math.Max(configuredQueueOverloadDrainFactor, dynamicQueuePressureFactor);
+            if (emergencyDrainHint > 0)
+            {
+                baseDrain = Math.Max(baseDrain, emergencyDrainHint);
+            }
+
+            if (emergencyBoost)
+            {
+                baseDrain += 2;
+            }
+
+            return WorldMapQueuePolicy.ComputeStalePruneBudget(
+                inflightChunkGenerations.Count,
+                baseDrain,
+                band,
+                queueEmergencyBrakeLatched || emergencyBoost,
+                queueLoadSnapshot,
+                1,
+                48);
+        }
+
         private void EnforceCacheBudget()
         {
             int budget = GetEffectiveCacheBudget();
@@ -799,6 +823,9 @@ namespace GameServerApp.World
             }
 
             lastInflightPruneUtc = now;
+            int effectiveMaxRemove = maxRemove > 0
+                ? Math.Clamp(maxRemove, 1, 48)
+                : ComputeInflightPruneBudget(ComputeQueueLoadSnapshot(), emergencyBoost: queueEmergencyBrakeLatched);
             int removed = 0;
             foreach (var pair in inflightChunkGenerations)
             {
@@ -812,7 +839,7 @@ namespace GameServerApp.World
                 inflightChunkGenerations.TryRemove(pair.Key, out _);
                 inflightChunkStartTimes.TryRemove(pair.Key, out _);
                 removed++;
-                if (maxRemove > 0 && removed >= maxRemove)
+                if (removed >= effectiveMaxRemove)
                 {
                     break;
                 }

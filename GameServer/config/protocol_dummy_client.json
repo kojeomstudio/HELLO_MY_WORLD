@@ -8,8 +8,9 @@
     "probeNetwork":  false,
     "validateAllKnownPackets":  true,
     "includeOptionalMessages":  true,
+    "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  52,
+    "minMapControlProfileVersion":  53,
     "failOnMapControlVersionRegression":  true,
     "failOnRequiredTypeDrift":  true,
     "outputReportPath":  "reports/proto_probe_report.json",
@@ -43,3 +44,4 @@
                 ],
     "comment":  "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }
+

@@ -297,6 +297,7 @@ namespace GameServerApp.World.Generation
             ApplyKarstOutletStabilityBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyAlluvialBackwaterLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyFloodplainRetentionClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplySeasonalFloodplainRechargeBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
             return lakes;
         }
 
@@ -360,6 +361,96 @@ namespace GameServerApp.World.Generation
                     double floor = Math.Max(lake * (0.82 + lakeConfig.SpillRetentionWeight * 0.08), retention * 0.05);
                     lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.0);
                 }
+            }
+        }
+
+        private void ApplySeasonalFloodplainRechargeBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel,
+            int chunkX,
+            int chunkZ)
+        {
+            double bridgeWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.36 +
+                waterConfig.HydrologyFlowPersistence * 0.34 +
+                lakeConfig.OutflowStabilityWeight * 0.3,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int edgeRadius = Math.Max(2, waterConfig.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, waterConfig.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double floodplainBand = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, waterConfig.RiverMouthSmoothRadius * 2.6), 0.0, 1.0);
+                    int seed = ComputeSeasonalSeed(chunkX, chunkZ, x, z);
+                    double seasonalNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0185 + 13.0,
+                        (chunkZ * sizeZ + z) * 0.0185 - 41.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        seed));
+                    double recharge = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 +
+                        river * 0.18 +
+                        floodplainBand * 0.14 +
+                        seasonalNoise * 0.28,
+                        0.0,
+                        1.4);
+                    if (recharge <= 0.22)
+                    {
+                        continue;
+                    }
+
+                    double rechargeGuard = 1.0 - Math.Clamp(divergence * 0.4 + slope * waterConfig.HydrologySlopePenalty * 0.01, 0.0, 0.76);
+                    double pulse = recharge * bridgeWeight * rechargeGuard * (0.1 + edgeBand * 0.08 + floodplainBand * 0.1);
+                    double floor = Math.Max(lake * (0.84 + lakeConfig.SpillRetentionWeight * 0.08), recharge * 0.04);
+                    double target = lake * (1.0 - bridgeWeight * 0.15) + (lake + pulse) * bridgeWeight * 0.15;
+                    lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.0);
+                }
+            }
+        }
+
+        private static int ComputeSeasonalSeed(int chunkX, int chunkZ, int localX, int localZ)
+        {
+            unchecked
+            {
+                int hash = 0x5B2D9157;
+                hash = (hash * 397) ^ chunkX;
+                hash = (hash * 397) ^ chunkZ;
+                hash = (hash * 397) ^ localX;
+                hash = (hash * 397) ^ localZ;
+                return hash;
             }
         }
 

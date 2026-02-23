@@ -1,6 +1,6 @@
 {
-    "version":  18,
-    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v52 hotspot-aware admission + inflight pruning + TTL).",
+    "version":  19,
+    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v53 stale-prune harmonization + hotspot-aware admission + inflight pruning + TTL).",
     "server":  {
                    "maxQueuedChunkRequests":  3648,
                    "queuePressureFactor":  4,
@@ -12,16 +12,16 @@
                    "queueEmergencyReleaseRatio":  0.82,
                    "queueTrendBoostWeight":  0.26,
                    "queueShockAbsorberWeight":  0.32,
-                   "queueOverloadDrainFactor":  6,
+                   "queueOverloadDrainFactor":  7,
                    "queueBackoffDelayMs":  6,
                    "queueEmergencyHoldTicks":  8,
                    "queueRecoveryRampTicks":  12,
                    "maxConcurrentChunkGenerations":  10,
                    "updateBatchSize":  64,
                    "updateIntervalMs":  100,
-                   "inflightChunkTimeoutSeconds":  45,
+                   "inflightChunkTimeoutSeconds":  42,
                    "inflightPruneIntervalSeconds":  2,
-                   "queueHotspotBias":  0.5,
+                   "queueHotspotBias":  0.52,
                    "queueHotspotEmergencyPenalty":  1.1
                },
     "client":  {
@@ -35,14 +35,15 @@
                    "queueEmergencyReleaseRatio":  0.84,
                    "queueTrendBoostWeight":  0.24,
                    "queueShockAbsorberWeight":  0.30,
-                   "queueOverloadDrainFactor":  5,
+                   "queueOverloadDrainFactor":  6,
                    "queueBackoffDelayMs":  6,
                    "queueEmergencyHoldTicks":  6,
                    "queueRecoveryRampTicks":  10,
                    "maxLoadedPreviewChunks":  4096,
                    "maxConcurrentChunkRequests":  8,
-                   "queueRequestTtlSeconds":  45,
-                   "queueHotspotBias":  0.44,
+                   "queueRequestTtlSeconds":  40,
+                   "queueHotspotBias":  0.46,
                    "queueHotspotEmergencyPenalty":  0.9
                }
 }
+

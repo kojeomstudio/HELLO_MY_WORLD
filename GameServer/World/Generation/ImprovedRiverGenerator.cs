@@ -340,6 +340,7 @@ namespace GameServerApp.World.Generation
             ApplyConfluenceFloodplainRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyOxbowCutoffContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyAnabranchHotspotRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplySeasonalRunoffPulseBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -406,6 +407,93 @@ namespace GameServerApp.World.Generation
                     double target = river * (1.0 - relayWeight * 0.18) + (river + relay + memoryFloor) * relayWeight * 0.18;
                     mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
                 }
+            }
+        }
+
+        private void ApplySeasonalRunoffPulseBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel,
+            int chunkX,
+            int chunkZ)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.HydrologyFlowPersistence * 0.36 +
+                config.RiverConfluenceBoost * 0.34 +
+                config.RiverTributaryCaptureWeight * 0.3,
+                0.0,
+                1.0);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int edgeRadius = Math.Max(2, config.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.0);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double floodplainBand = 1.0 - Math.Clamp(Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(1.0, config.RiverMouthSmoothRadius * 2.5), 0.0, 1.0);
+                    int seed = ComputeSeasonalSeed(chunkX, chunkZ, x, z);
+                    double seasonalNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.019 + 23.0,
+                        (chunkZ * sizeZ + z) * 0.019 - 29.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        seed));
+                    double runoffPulse = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 +
+                        seasonalNoise * 0.32 +
+                        floodplainBand * 0.16,
+                        0.0,
+                        1.35);
+                    if (runoffPulse <= 0.24)
+                    {
+                        continue;
+                    }
+
+                    double pulseGuard = 1.0 - Math.Clamp(divergence * 0.42 + slope * config.RiverGradientPenalty * 0.02, 0.0, 0.78);
+                    double pulse = runoffPulse * bridgeWeight * pulseGuard * (0.11 + edgeBand * 0.08 + floodplainBand * 0.1);
+                    double continuityFloor = Math.Clamp((seamHydro + seamFlow + river) / 3.0, 0.0, 1.2) * 0.08;
+                    double target = river * (1.0 - bridgeWeight * 0.16) + (river + pulse + continuityFloor) * bridgeWeight * 0.16;
+                    mask[x, z] = (float)Math.Clamp(target, 0.0, 1.35);
+                }
+            }
+        }
+
+        private static int ComputeSeasonalSeed(int chunkX, int chunkZ, int localX, int localZ)
+        {
+            unchecked
+            {
+                int hash = 0x6B1F5D13;
+                hash = (hash * 397) ^ chunkX;
+                hash = (hash * 397) ^ chunkZ;
+                hash = (hash * 397) ^ localX;
+                hash = (hash * 397) ^ localZ;
+                return hash;
             }
         }
 

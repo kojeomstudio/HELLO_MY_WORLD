@@ -625,8 +625,7 @@ namespace GameWorld
 
             if (queueEmergencyBrakeLatched)
             {
-                DrainStaleQueueEntries();
-                DrainStaleQueueEntries();
+                DrainStaleQueueEntries(forceAggressive: true);
                 queuedChunks.TryRemove(pos, out _);
                 queuedChunkEnqueueTicks.TryRemove(pos, out _);
                 return;
@@ -676,7 +675,7 @@ namespace GameWorld
 
                 if (queueEmergencyBrakeLatched)
                 {
-                    DrainStaleQueueEntries();
+                    DrainStaleQueueEntries(forceAggressive: true);
                     await Task.Delay(Mathf.Max(1, queueBackoffDelayMs * (GetAdaptiveQueuePressureFactor() + 1)), token);
                     continue;
                 }
@@ -933,11 +932,11 @@ namespace GameWorld
             return effectiveLoad;
         }
 
-        private void DrainStaleQueueEntries()
+        private void DrainStaleQueueEntries(bool forceAggressive = false)
         {
-            int drainBudget = Mathf.Clamp(queueOverloadDrainFactor, 1, 16);
             int queueLimit = Math.Max(64, maxQueuedChunkRequests);
-            var queued = new List<Vector2Int>(Mathf.Max(16, drainBudget * 4));
+            int preDrainEstimate = Mathf.Clamp(queueOverloadDrainFactor + (forceAggressive ? 2 : 0), 1, 24);
+            var queued = new List<Vector2Int>(Mathf.Max(16, preDrainEstimate * 4));
 
             while (requestQueue.TryDequeue(out var pos))
             {
@@ -963,6 +962,15 @@ namespace GameWorld
 
             float load = ComputeEffectiveQueueLoad(Mathf.Max(64, GetDynamicLoadedChunkBudget()));
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
+            int baseDrain = Mathf.Clamp(queueOverloadDrainFactor + (forceAggressive ? 2 : 0), 1, 24);
+            int drainBudget = WorldMapQueuePolicy.ComputeStalePruneBudget(
+                queued.Count,
+                baseDrain,
+                pressureBand,
+                queueEmergencyBrakeLatched || forceAggressive,
+                load,
+                1,
+                96);
             var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(
                 center.x,
                 center.y,
@@ -978,7 +986,8 @@ namespace GameWorld
                 bool alreadyLoaded = loadedChunks.ContainsKey(prioritizedPos) || buildingChunks.ContainsKey(prioritizedPos);
                 bool farChunk = IsFarChunkFromPlayer(prioritizedPos, pressureBand);
                 bool expired = IsQueueEntryExpired(prioritizedPos, DateTime.UtcNow.Ticks);
-                bool dropForPressure = drained < drainBudget && farChunk;
+                bool dropForPressure = drained < drainBudget &&
+                    (farChunk || (forceAggressive && drained < drainBudget / 2));
 
                 if (alreadyLoaded || expired || dropForPressure)
                 {

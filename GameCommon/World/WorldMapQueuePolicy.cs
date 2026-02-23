@@ -203,6 +203,37 @@ namespace GameCommon.World
         }
 
         /// <summary>
+        /// Computes a dynamic stale-pruning budget shared by server/client queue managers.
+        /// Budget grows with pressure band, effective load, and emergency latch state.
+        /// </summary>
+        public static int ComputeStalePruneBudget(
+            int queueSize,
+            int baseDrain,
+            QueuePressureBand band,
+            bool emergencyBrake,
+            double effectiveLoad,
+            int min = 1,
+            int max = 128)
+        {
+            min = Math.Max(1, min);
+            max = Math.Max(min, max);
+            baseDrain = Math.Clamp(baseDrain, min, max);
+            int normalizedQueue = Math.Max(0, queueSize);
+            int queueCap = Math.Clamp(Math.Max(baseDrain, normalizedQueue / 3), min, max);
+            int bandBoost = band switch
+            {
+                QueuePressureBand.Critical => 9,
+                QueuePressureBand.High => 6,
+                QueuePressureBand.Elevated => 3,
+                _ => 0
+            };
+            int loadBoost = (int)Math.Ceiling(Math.Clamp((effectiveLoad - 0.7) * 10.0, 0.0, 16.0));
+            int emergencyBoost = emergencyBrake ? Math.Max(2, baseDrain / 2 + 1) : 0;
+            int budget = baseDrain + bandBoost + loadBoost + emergencyBoost;
+            return Math.Clamp(Math.Min(budget, queueCap), min, max);
+        }
+
+        /// <summary>
         /// Computes a Manhattan distance threshold for queue shedding based on pressure band.
         /// </summary>
         public static int GetDistanceThreshold(int baseRadius, QueuePressureBand band, bool emergencyBrake = false)

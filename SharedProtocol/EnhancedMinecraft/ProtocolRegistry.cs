@@ -103,6 +103,35 @@ public static class ProtocolRegistry
     public static bool IsOptionalMessageType(MinecraftMessageType messageType) =>
         OptionalMessageTypes.Contains(messageType);
 
+    public static IReadOnlyCollection<MinecraftMessageType> GetRequiredMessageTypes()
+    {
+        return Enum.GetValues(typeof(MinecraftMessageType))
+            .Cast<MinecraftMessageType>()
+            .Where(type => !OptionalMessageTypes.Contains(type))
+            .OrderBy(type => (int)type)
+            .ToArray();
+    }
+
+    public static IReadOnlyCollection<MinecraftMessageType> GetOptionalMessageTypes()
+    {
+        return OptionalMessageTypes
+            .OrderBy(type => (int)type)
+            .ToArray();
+    }
+
+    public static IReadOnlyCollection<MinecraftMessageType> GetMissingRequiredInSelection(IEnumerable<MinecraftMessageType> selected)
+    {
+        if (selected == null)
+        {
+            return GetRequiredMessageTypes();
+        }
+
+        var selectedSet = selected.ToHashSet();
+        return GetRequiredMessageTypes()
+            .Where(type => !selectedSet.Contains(type))
+            .ToArray();
+    }
+
     /// <summary>
     /// Throws if the provided message type is not registered. This is useful for early validation
     /// during handler registration, ensuring stale IDL changes are caught in development.

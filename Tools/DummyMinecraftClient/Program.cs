@@ -17,8 +17,9 @@ public sealed class DummyClientConfig
     public bool ProbeNetwork { get; set; } = false;
     public int MaxPacketsToSend { get; set; } = 6;
     public bool StrictRequiredBindings { get; set; } = true;
+    public bool RequireRequiredPacketCoverage { get; set; } = true;
     public bool FailOnHydrologySignatureMismatch { get; set; } = true;
-    public int MinMapControlProfileVersion { get; set; } = 51;
+    public int MinMapControlProfileVersion { get; set; } = 53;
     public bool FailOnMapControlVersionRegression { get; set; } = true;
     public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
     public bool IncludeOptionalMessages { get; set; } = false;
@@ -103,7 +104,7 @@ public static class Program
 
         Console.WriteLine("=== Dummy Minecraft Client (Protocol Probe) ===");
         Console.WriteLine($"Config: {Path.GetFullPath(configPath)}");
-        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, ProbeNetwork={probeNetwork}");
+        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, RequireRequiredCoverage={config.RequireRequiredPacketCoverage}, ProbeNetwork={probeNetwork}");
 
         string resolvedProfilePath = string.IsNullOrWhiteSpace(config.WorldMapControlProfilePath)
             ? string.Empty
@@ -198,6 +199,19 @@ public static class Program
         {
             packetTypes.AddRange(ProtocolRegistry.GetOptionalMessagesWithoutBindings());
             packetTypes = packetTypes.Distinct().ToList();
+        }
+
+        if (config.RequireRequiredPacketCoverage)
+        {
+            var missingCoverage = ProtocolRegistry.GetMissingRequiredInSelection(packetTypes)
+                .Select(type => type.ToString())
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            if (missingCoverage.Length > 0)
+            {
+                Console.WriteLine("[ERROR] Required packet coverage is incomplete: " + string.Join(", ", missingCoverage));
+                return 1;
+            }
         }
 
         int requiredTargets = packetTypes.Count(type => !ProtocolRegistry.IsOptionalMessageType(type));

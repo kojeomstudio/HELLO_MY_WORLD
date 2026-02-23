@@ -54,10 +54,10 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-22
-        /// (bankfull ventilation caves + anabranch hotspot relay rivers + floodplain retention clamp lakes + hotspot-aware queue admission + map-control v52).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-23
+        /// (seasonal runoff cave/river/lake coupling + stale-prune queue harmonization + map-control v53).
         /// </summary>
-        public const string HydrologySignature = "2026-02-22-hydrology-riverlake-cave-v48";
+        public const string HydrologySignature = "2026-02-23-hydrology-riverlake-cave-v49";
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +83,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v48",
+                "Hydrology WorldGen v49",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -93,7 +93,7 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-23-session-113.json"
                 },
                 new[]
                 {
@@ -183,7 +183,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-02-20-session-103.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-23-session-113.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

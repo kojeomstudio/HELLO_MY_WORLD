@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  52,
+    "MapControlProfileVersion":  53,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -55,7 +55,7 @@
                   "HydrologyWaterTableClampWeight":  0.69,
                   "HydrologyWaterTableClampRange":  26,
                   "HydrologyWaterTableSlopeWeight":  0.7,
-                  "HydrologyFlowPersistence":  0.97,
+                  "HydrologyFlowPersistence":  0.99,
                   "HydrologyCatchmentWeight":  0.52,
                   "HydrologyGradientWeight":  0.38,
                   "HydrologyGradientSlopeWeight":  0.5,
@@ -84,7 +84,7 @@
                   "RiverBankErosionWeight":  0.22,
                   "RiverBankStabilityClamp":  0.52,
                   "LakeRimErosionWeight":  0.54,
-                  "LakeInflowBlendWeight":  0.74,
+                  "LakeInflowBlendWeight":  0.78,
                   "RiverEdgeFeather":  0.66,
                   "RiverEdgeContinuityWeight":  0.96,
                   "RiverMouthSmoothRadius":  10,
@@ -96,7 +96,7 @@
                   "RiverIntensitySmoothBlend":  0.66,
                   "HydrologyReservoirIterations":  6,
                   "HydrologyReservoirBlend":  0.5,
-                  "RiverConfluenceBoost":  0.94,
+                  "RiverConfluenceBoost":  0.98,
                   "RiverTributaryCaptureWeight":  0.69,
                   "RiverAvulsionResistance":  0.66,
                   "RiverBraidingWeight":  0.61,
@@ -225,3 +225,4 @@
                   "SpillRetentionWeight":  0.78
               }
 }
+

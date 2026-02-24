@@ -16,5 +16,6 @@
   "DefaultMaxChunkUpdatesPerFrame": 12,
   "DefaultChunkLOD": 2,
   "DefaultUnloadDistance": 12,
-  "QueueShockAbsorberWeight": 0.24
+  "QueueShockAbsorberWeight": 0.24,
+  "QueueHotspotRetentionSeconds": 18
 }

@@ -50,6 +50,7 @@ namespace GameServerApp.World
         private readonly int configuredQueueRecoveryRampTicks;
         private readonly double configuredQueueHotspotBias;
         private readonly double configuredQueueHotspotEmergencyPenalty;
+        private readonly TimeSpan queueHotspotRetention;
         private int dynamicQueueLimit;
         private int dynamicQueuePressureFactor;
         private double dynamicQueueSlackRatio;
@@ -107,6 +108,10 @@ namespace GameServerApp.World
             configuredQueueRecoveryRampTicks = Math.Clamp(Math.Max(1, this.settings.QueueRecoveryRampTicks), 1, 256);
             configuredQueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(this.settings.QueueHotspotBias, 0.42);
             configuredQueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(this.settings.QueueHotspotEmergencyPenalty, 1.0);
+            int hotspotRetentionSeconds = Math.Clamp(Math.Max(0, this.settings.QueueHotspotRetentionSeconds), 0, 300);
+            queueHotspotRetention = hotspotRetentionSeconds > 0
+                ? TimeSpan.FromSeconds(Math.Max(5, hotspotRetentionSeconds))
+                : TimeSpan.Zero;
             dynamicQueueLimit = Math.Max(64, this.settings.UpdateBatchSize * 16);
             dynamicQueuePressureFactor = Math.Max(1, this.settings.UpdateIntervalMs <= 75 ? 3 : 2);
             dynamicQueueSlackRatio = configuredQueueSlackRatio;
@@ -508,7 +513,7 @@ namespace GameServerApp.World
 
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(queueLoadSnapshot);
             int baseRadius = Math.Max(1, controlProfile?.RenderDistance ?? settings.DefaultRenderDistance);
-            return WorldMapQueuePolicy.IsOutsideAdaptiveDistanceThreshold(
+            bool outsideHotspotWindow = WorldMapQueuePolicy.IsOutsideAdaptiveDistanceThreshold(
                 focus.X,
                 focus.Z,
                 key.X,
@@ -519,6 +524,13 @@ namespace GameServerApp.World
                 queueLoadSnapshot,
                 configuredQueueHotspotBias,
                 configuredQueueHotspotEmergencyPenalty);
+
+            if (!outsideHotspotWindow && queueHotspotRetention > TimeSpan.Zero && elapsed < queueHotspotRetention)
+            {
+                return false;
+            }
+
+            return outsideHotspotWindow;
         }
 
         private bool TryGetNearestPlayerChunkFocus((int X, int Z) chunk, out ChunkCoordinate nearest)

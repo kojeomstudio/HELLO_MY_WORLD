@@ -211,6 +211,7 @@ namespace GameServerApp.Configuration
         public int QueueRecoveryRampTicks { get; set; } = 10;
         public double QueueHotspotBias { get; set; } = 0.42;
         public double QueueHotspotEmergencyPenalty { get; set; } = 1.0;
+        public int QueueHotspotRetentionSeconds { get; set; } = 18;
         public int InflightChunkTimeoutSeconds { get; set; } = 45;
         public int InflightPruneIntervalSeconds { get; set; } = 2;
     }

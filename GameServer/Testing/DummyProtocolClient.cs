@@ -38,11 +38,13 @@ namespace GameServerApp.Testing
 
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
 
-        public int MinMapControlProfileVersion { get; set; } = 54;
+        public int MinMapControlProfileVersion { get; set; } = 55;
 
         public bool FailOnMapControlVersionRegression { get; set; } = true;
 
         public bool FailOnRequiredTypeDrift { get; set; } = true;
+
+        public bool FailOnReferenceReportDrift { get; set; } = true;
 
         public string OutputReportPath { get; set; } = "reports/proto_probe_report.json";
 
@@ -150,6 +152,7 @@ namespace GameServerApp.Testing
             ProtocolStandardization.ValidateProtocolImplementation();
 
             ValidateProfileGuards();
+            ValidateReferenceReportGuard();
 
             var missingRequired = ProtocolRegistry.GetUnregisteredRequiredMessages()
                 .Select(item => item.ToString())
@@ -413,6 +416,7 @@ namespace GameServerApp.Testing
                     Settings.IncludeOptionalMessages,
                     Settings.RequireRequiredPacketCoverage,
                     Settings.MinMapControlProfileVersion,
+                    Settings.FailOnReferenceReportDrift,
                     Settings.ProbeNetwork
                 },
                 totals = new
@@ -460,6 +464,82 @@ namespace GameServerApp.Testing
             }
 
             return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), path));
+        }
+
+        private void ValidateReferenceReportGuard()
+        {
+            if (!Settings.FailOnReferenceReportDrift || string.IsNullOrWhiteSpace(Settings.ReferenceReportPath))
+            {
+                return;
+            }
+
+            string resolvedReferencePath = ResolvePath(Settings.ReferenceReportPath);
+            if (!File.Exists(resolvedReferencePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+                var json = File.ReadAllText(resolvedReferencePath);
+                var reference = JsonSerializer.Deserialize<ProtoReferenceReportSnapshot>(json, options);
+                if (reference == null)
+                {
+                    return;
+                }
+
+                string baselineFingerprint = ProtoFingerprint.DescriptorFingerprint;
+                string computedFingerprint = ProtoFingerprint.ComputeFingerprint();
+
+                if (!string.IsNullOrWhiteSpace(reference.DescriptorFingerprint) &&
+                    !string.Equals(reference.DescriptorFingerprint, baselineFingerprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Proto reference baseline fingerprint drift detected (reference={reference.DescriptorFingerprint}, runtime={baselineFingerprint}).");
+                }
+
+                if (!string.IsNullOrWhiteSpace(reference.ComputedFingerprint) &&
+                    !string.Equals(reference.ComputedFingerprint, computedFingerprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Proto reference computed fingerprint drift detected (reference={reference.ComputedFingerprint}, runtime={computedFingerprint}).");
+                }
+
+                if (reference.MissingRegistrations != null && reference.MissingRegistrations.Length > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Proto reference report contains missing registrations: " +
+                        string.Join(", ", reference.MissingRegistrations));
+                }
+
+                if (reference.UnregisteredMessageTypes != null && reference.UnregisteredMessageTypes.Length > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Proto reference report contains unregistered enum message types: " +
+                        string.Join(", ", reference.UnregisteredMessageTypes));
+                }
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to parse proto reference report '{resolvedReferencePath}': {ex.Message}", ex);
+            }
+        }
+
+        private sealed class ProtoReferenceReportSnapshot
+        {
+            public string DescriptorFingerprint { get; set; } = string.Empty;
+
+            public string ComputedFingerprint { get; set; } = string.Empty;
+
+            public string[] MissingRegistrations { get; set; } = Array.Empty<string>();
+
+            public string[] UnregisteredMessageTypes { get; set; } = Array.Empty<string>();
         }
     }
 }

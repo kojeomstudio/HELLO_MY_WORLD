@@ -34,7 +34,8 @@
                                                 "queueEmergencyHoldTicks":  6,
                                                 "queueRecoveryRampTicks":  10,
                                                 "queueHotspotBias":  0.44,
-                                                "queueHotspotEmergencyPenalty":  0.9
+                                                "queueHotspotEmergencyPenalty":  0.9,
+                                                "queueHotspotRetentionSeconds":  18
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

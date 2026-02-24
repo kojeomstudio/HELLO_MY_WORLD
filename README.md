@@ -32,6 +32,60 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-24: Session 117 - Hydrology v51 / Map-Control v55 / Hotspot Retention + Floodplain Cave Shield
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 117 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-24-session-117.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-24-session-117.json`
+  - Server startup manifest priority updated:
+    - `GameServer/Program.cs`
+- Terrain generation refinement (server + client parity):
+  - Strengthened river/lake hydrology feedback with confluence-coupled floodplain weighting.
+  - Strengthened riparian cave buffering with subsurface pressure and aquifer barrier seal terms.
+  - Files:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture updates:
+  - Added hotspot retention control (`queueHotspotRetentionSeconds`) to server/client queue policy.
+  - Prevented aggressive queue pressure pruning from dropping hotspot chunks within retention window.
+  - Files:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/Program.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Protobuf + dummy-client validation hardening:
+  - Added reference report drift guard (`failOnReferenceReportDrift`) in dummy proto probe.
+  - Raised dummy probe minimum profile guard to `55`.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+- Profile/signature synchronization:
+  - Hydrology signature: `2026-02-24-hydrology-riverlake-cave-v51`
+  - Map-control profile version target: `55`
+  - Updated:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+- Build stability:
+  - Excluded legacy `GameServer/DummyMinecraftClient.cs` from server compile items to remove duplicate protocol symbol collisions in current build pipeline.
+  - Active protocol dummy path remains `GameServer/Testing/DummyProtocolClient.cs` (`--proto-probe`).
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, required packets `14/14`)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS (smoke run complete; warning-level response mismatches logged)
+
 ### 2026-02-23: Session 115 - Hydrology v50 / Map-Control v54 / Client Seasonal Parity + Focus-Aware Stale Pruning
 
 **Status:** COMPLETED

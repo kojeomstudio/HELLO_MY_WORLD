@@ -1,6 +1,6 @@
 {
     "version":  19,
-    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v54 focus-aware stale-prune + hotspot-aware admission + inflight pruning + TTL).",
+    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v55 hotspot retention + focus-aware stale-prune + inflight pruning + TTL).",
     "server":  {
                    "maxQueuedChunkRequests":  3648,
                    "queuePressureFactor":  4,
@@ -22,7 +22,8 @@
                    "inflightChunkTimeoutSeconds":  42,
                    "inflightPruneIntervalSeconds":  2,
                    "queueHotspotBias":  0.52,
-                   "queueHotspotEmergencyPenalty":  1.1
+                   "queueHotspotEmergencyPenalty":  1.1,
+                   "queueHotspotRetentionSeconds":  18
                },
     "client":  {
                    "maxQueuedChunkRequests":  3648,
@@ -43,7 +44,8 @@
                    "maxConcurrentChunkRequests":  8,
                    "queueRequestTtlSeconds":  40,
                    "queueHotspotBias":  0.46,
-                   "queueHotspotEmergencyPenalty":  0.9
+                   "queueHotspotEmergencyPenalty":  0.9,
+                   "queueHotspotRetentionSeconds":  18
                }
 }
 

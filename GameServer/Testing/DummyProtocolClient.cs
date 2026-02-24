@@ -38,7 +38,7 @@ namespace GameServerApp.Testing
 
         public bool FailOnHydrologySignatureMismatch { get; set; } = true;
 
-        public int MinMapControlProfileVersion { get; set; } = 55;
+        public int MinMapControlProfileVersion { get; set; } = SharedFeatureCatalog.MapControlProfileVersion;
 
         public bool FailOnMapControlVersionRegression { get; set; } = true;
 
@@ -223,9 +223,25 @@ namespace GameServerApp.Testing
                         continue;
                     }
 
+                    int roundTripCount = Math.Max(1, Settings.RoundTripCount);
                     byte[] payload = prototype.ToByteArray();
-                    var parsed = parser.ParseFrom(payload);
-                    if (!string.Equals(parsed?.Descriptor?.FullName, descriptor.FullName, StringComparison.Ordinal))
+                    IMessage? parsed = null;
+                    byte[] currentPayload = payload;
+                    bool roundTripValid = true;
+
+                    for (int round = 0; round < roundTripCount; round++)
+                    {
+                        parsed = parser.ParseFrom(currentPayload);
+                        if (!string.Equals(parsed?.Descriptor?.FullName, descriptor.FullName, StringComparison.Ordinal))
+                        {
+                            roundTripValid = false;
+                            break;
+                        }
+
+                        currentPayload = parsed.ToByteArray();
+                    }
+
+                    if (!roundTripValid || parsed == null)
                     {
                         result.MissingPrototypePackets.Add(packetType.ToString());
                         continue;

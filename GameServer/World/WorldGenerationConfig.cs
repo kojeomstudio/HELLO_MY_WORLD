@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GameCommon.World;
 
 namespace GameServerApp.World
 {
@@ -13,7 +14,7 @@ namespace GameServerApp.World
     {
         public string SourcePath { get; set; } = "config/world.json";
         public string MapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
-        public int MapControlProfileVersion { get; set; } = 55;
+        public int MapControlProfileVersion { get; set; } = SharedFeatureCatalog.MapControlProfileVersion;
         public string WorldName { get; set; } = "HELLO_MY_WORLD";
         public long Seed { get; set; } = 0;
         public TerrainGenerationConfig TerrainGeneration { get; set; } = new();

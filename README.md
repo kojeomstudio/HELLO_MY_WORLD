@@ -32,6 +32,44 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-24: Session 119 - Hydrology v52 / Map-Control v56 / Floodplain Basin Coupling + Queue Tuning
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 119 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-24-session-119.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-24-session-119.json`
+  - Server startup manifest priority updated:
+    - `GameServer/Program.cs`
+- Terrain generation refinement (server + client parity):
+  - Added floodplain-basin pressure coupling pass to river/lake/cave interaction pipeline.
+  - Applied same stage to Unity enhanced terrain path for parity.
+  - Files:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture updates:
+  - Raised map-control baseline to profile `v56`.
+  - Tuned queue/runtime data-driven settings (`queueHotspotRetentionSeconds=22`, tighter emergency thresholds).
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `GameServer/config/enhanced_world_map_control_server.json`
+- Protobuf and dummy-client validation hardening:
+  - Dummy probe now performs repeated serialization round-trips based on `roundTripCount`.
+  - Minimum map-control profile guard raised to `56`.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+- Shared DLL alignment:
+  - Added shared profile version constant and updated hydrology signature:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+
 ### 2026-02-24: Session 117 - Hydrology v51 / Map-Control v55 / Hotspot Retention + Floodplain Cave Shield
 
 **Status:** COMPLETED

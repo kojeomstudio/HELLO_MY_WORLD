@@ -21,5 +21,6 @@
   <ItemGroup>
     <Compile Remove="Handlers/Disabled/**/*.cs" />
     <Compile Remove="DummyMinecraftClient.cs" />
+    <Compile Remove="DummyProtocolTestClient.cs" />
   </ItemGroup>
 </Project>

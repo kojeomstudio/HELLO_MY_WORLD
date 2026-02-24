@@ -55,9 +55,14 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-02-24
-        /// (floodplain-coupled cave shielding + hotspot-retention queue guard + map-control v55).
+        /// (floodplain-basin pressure coupling + hotspot-retention queue guard + map-control v56).
         /// </summary>
-        public const string HydrologySignature = "2026-02-24-hydrology-riverlake-cave-v51";
+        public const string HydrologySignature = "2026-02-24-hydrology-riverlake-cave-v52";
+
+        /// <summary>
+        /// Shared minimum profile version expected by server/client/probe paths.
+        /// </summary>
+        public const int MapControlProfileVersion = 56;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -83,7 +88,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v51",
+                "Hydrology WorldGen v52",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -100,6 +105,7 @@ namespace GameCommon.World
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-02-24-session-119.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",

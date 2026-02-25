@@ -1,4 +1,4 @@
-{
+﻿{
     "worldMapControl":  {
                             "ui":  {
                                        "showMiniMap":  true,
@@ -35,7 +35,8 @@
                                                 "queueRecoveryRampTicks":  10,
                                                 "queueHotspotBias":  0.44,
                                                 "queueHotspotEmergencyPenalty":  0.9,
-                                                "queueHotspotRetentionSeconds":  18
+                                                "queueHotspotRetentionSeconds":  18,
+                                                "queueNearChunkKeepCount":  28
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

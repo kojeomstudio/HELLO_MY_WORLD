@@ -64,4 +64,28 @@ public static class WorldEnums
         ChunkUnload = 3,
         Command = 4
     }
+
+    /// <summary>
+    /// Detail level for world map region payloads.
+    /// </summary>
+    public enum WorldMapDetailLevel
+    {
+        Minimal = 0,
+        Standard = 1,
+        Detailed = 2,
+        Full = 3
+    }
+
+    /// <summary>
+    /// Update categories for world map broadcast payloads.
+    /// </summary>
+    public enum MapUpdateType
+    {
+        Unknown = 0,
+        TerrainChanged = 1,
+        WaterChanged = 2,
+        BiomeChanged = 3,
+        StructuresChanged = 4,
+        RegionInvalidated = 5
+    }
 }

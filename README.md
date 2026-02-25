@@ -32,6 +32,30 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-25: Session 123 - Hydrology v54 / Map-Control v58 / Karst-Spring Coupling + Queue Near-Keep
+
+**Status:** COMPLETED
+
+- Core/Content/Utility 분류 산출물 추가:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-25-session-123.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-25-session-123.json`
+- 지형 생성 개선(동굴/강/호수 연계):
+  - 서버/클라에 `Karst Spring Floodplain Coupling` 단계 추가
+  - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+  - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- 월드맵 제어 아키텍처 개선:
+  - 서버/클라 공통 큐 근접 청크 보호 예산(`queueNearChunkKeepCount`) 도입
+  - `GameServer/Configuration/ConfigurationModels.cs`
+  - `GameServer/World/WorldMapControlManager.cs`
+  - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+  - `config/world_map_control_queue_policy.json`
+- SharedProtocol 정합성 개선:
+  - 중복 메시지/상수/enum 선언 제거 및 world-map enum 보강
+  - `SharedProtocol/Common/*`, `SharedProtocol/Messages/*`
+- 문서:
+  - `docs/session-123-implementation-summary.md`
+  - `docs/session-123-protobuf-and-build-validation.md`
+
 ### 2026-02-25: Session 121 - Hydrology v53 / Map-Control v57 / Hyporheic Exchange Relay + Profile Drift Auto-Heal
 
 **Status:** COMPLETED

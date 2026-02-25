@@ -165,7 +165,7 @@ namespace GameServerApp.World
 
             _ = GetAdaptiveQueueLimit();
             QueuePressureBand pressureBand = GetCurrentQueuePressureBand();
-            int minNearKeepCount = Math.Max(24, settings.UpdateBatchSize / 2);
+            int minNearKeepCount = ComputeNearChunkKeepCount(24);
             var chunks = new List<ChunkData>();
             var candidates = WorldMapQueuePolicy.EnumerateByDistance(playerChunkX, playerChunkZ, renderDistance);
             var prioritized = WorldMapQueuePolicy.PrioritizeByDistance(
@@ -237,7 +237,7 @@ namespace GameServerApp.World
                 pressureBand,
                 queueEmergencyBrakeLatched);
 
-            int minNearKeepCount = Math.Max(16, settings.UpdateBatchSize / 2);
+            int minNearKeepCount = ComputeNearChunkKeepCount(16);
 
             foreach (var update in prioritizedUpdates)
             {
@@ -796,6 +796,13 @@ namespace GameServerApp.World
                 ComputeQueueLoadSnapshot(),
                 configuredQueueHotspotBias,
                 configuredQueueHotspotEmergencyPenalty);
+        }
+
+        private int ComputeNearChunkKeepCount(int fallbackBase)
+        {
+            int configured = Math.Clamp(settings.QueueNearChunkKeepCount, 8, 512);
+            int updateDriven = Math.Max(fallbackBase, settings.UpdateBatchSize / 2);
+            return Math.Max(configured, updateDriven);
         }
 
         private double ComputeQueueLoadSnapshot()

@@ -88,6 +88,7 @@ namespace GameServerApp.World.Generation
             ApplyKarstConfluenceRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplySubsurfaceVentilationRetentionField(heightMap, hydrology, flow, erosionRisk);
             ApplyCoupledFloodplainVentilationField(heightMap, hydrology, flow, erosionRisk);
+            ApplyKarstSpringFloodplainCouplingField(heightMap, hydrology, flow, erosionRisk);
             ApplySeasonalRunoffCouplingField(heightMap, hydrology, flow, erosionRisk, chunkX, chunkZ);
 
             float[,]? riverMask = config.Water.EnableRivers
@@ -182,6 +183,93 @@ namespace GameServerApp.World.Generation
                         edgeBand * 0.03);
                 }
             }
+        }
+
+        private void ApplyKarstSpringFloodplainCouplingField(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            double couplingWeight = Math.Clamp(
+                config.Caves.GroundwaterConnectivityWeight * 0.34 +
+                config.Water.RiverEdgeContinuityWeight * 0.33 +
+                config.Lakes.SpillwayContinuityWeight * 0.33,
+                0.0,
+                1.25);
+            if (couplingWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(1, config.Water.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.05, config.Water.HydrologyFlowDivergenceClamp);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double seaBand = Math.Max(3.0, config.Lakes.MaxDepth * 1.5);
+            double varianceClamp = Math.Max(0.001, config.Water.HydrologyVarianceClamp);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowNode = flowCopy[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double erosion = Math.Clamp(erosionCopy[x, z], 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, edgeRadius);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double seaDistance = Math.Abs(heightMap[x, z] - seaLevel);
+                    double floodplainBand = 1.0 - Math.Clamp(seaDistance / seaBand, 0.0, 1.0);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double confluence = Math.Clamp((hydro + seamHydro + flowNode * 0.2 + seamFlow * 0.2) * 0.5, 0.0, 1.3);
+                    double springPotential = confluence * (0.35 + floodplainBand * 0.45 + edgeBand * 0.20);
+                    springPotential *= 1.0 - Math.Clamp(divergence * 0.35 + slope * slopePenalty * 0.01 + relief / 128.0, 0.0, 0.8);
+                    if (springPotential <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    double ventilation = Math.Clamp(
+                        (1.0 - hydro) * (1.0 - Math.Clamp(flowNode / 6.0, 0.0, 1.0)) * config.Caves.CaveVentilationBias,
+                        0.0,
+                        1.0);
+                    double coupling = springPotential * couplingWeight;
+
+                    double hydroTarget = hydro + coupling * 0.16 - ventilation * 0.05;
+                    double flowTarget =
+                        flowNode * (1.0 - coupling * 0.08) +
+                        seamFlow * coupling * 0.08 +
+                        springPotential * 0.03;
+                    double erosionTarget =
+                        erosion * (1.0 - coupling * 0.07) +
+                        Math.Clamp(flowTarget / 6.0, 0.0, 1.0) * 0.03 -
+                        floodplainBand * coupling * 0.02;
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01(Math.Clamp(hydroTarget, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = TerrainMaskUtility.Clamp01(Math.Clamp(flowTarget, 0.0, 1.25));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01(Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdges(
+                hydrology,
+                edgeRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend);
+            TerrainMaskUtility.NormalizeEdges(
+                flow,
+                edgeRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend * 0.72);
+            TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.22, 0.0, 0.9));
         }
 
         private void ApplySeasonalRunoffCouplingField(

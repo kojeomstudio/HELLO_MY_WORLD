@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  56,
+    "MapControlProfileVersion": 57,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -34,7 +34,7 @@
                   "HydrologyFlowGain":  0.72,
                   "HydrologyFlowShadowWeight":  0.68,
                   "HydrologyFlowShadowSlopeWeight":  0.52,
-                  "HydrologyContinuityWeight":  0.66,
+                  "HydrologyContinuityWeight": 0.68,
                   "HydrologyPressureBlend":  0.48,
                   "HydrologyPressureGradientClamp":  0.26,
                   "HydrologyEdgeFlowBias":  0.5,
@@ -84,9 +84,9 @@
                   "RiverBankErosionWeight":  0.22,
                   "RiverBankStabilityClamp":  0.52,
                   "LakeRimErosionWeight":  0.54,
-                  "LakeInflowBlendWeight":  0.82,
+                  "LakeInflowBlendWeight": 0.84,
                   "RiverEdgeFeather":  0.66,
-                  "RiverEdgeContinuityWeight":  0.96,
+                  "RiverEdgeContinuityWeight": 0.98,
                   "RiverMouthSmoothRadius":  10,
                   "RiverDeltaWetlandStrength":  0.84,
                   "RiverSeamFillStrength":  0.80,
@@ -153,7 +153,7 @@
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
                   "CaveEntranceFlowDampening":  0.8,
-                  "GroundwaterConnectivityWeight":  0.78,
+                  "GroundwaterConnectivityWeight": 0.80,
                   "CaveVentilationBias":  0.6
               },
     "Ores":  {
@@ -220,8 +220,9 @@
                   "WetlandBufferRadius":  6,
                   "FlowSeepageWeight":  0.78,
                   "LakeOutflowTaper":  0.76,
-                  "SpillwayContinuityWeight":  0.995,
+                  "SpillwayContinuityWeight": 0.998,
                   "TerraceBiasWeight":  0.44,
-                  "SpillRetentionWeight":  0.82
+                  "SpillRetentionWeight": 0.84
               }
 }
+

@@ -46,6 +46,12 @@ namespace GameServerApp.Testing
 
         public bool FailOnReferenceReportDrift { get; set; } = true;
 
+        public bool FailOnDescriptorCoverageRegression { get; set; } = true;
+
+        public double MinDescriptorCoverageRatio { get; set; } = 0.25;
+
+        public bool FailOnGeneratedRequiredDescriptorGap { get; set; } = true;
+
         public string OutputReportPath { get; set; } = "reports/proto_probe_report.json";
 
         public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
@@ -109,6 +115,10 @@ namespace GameServerApp.Testing
 
         public List<string> OptionalUnregistered { get; } = new();
 
+        public double DescriptorCoverageRatio { get; set; }
+
+        public List<string> MissingGeneratedRequiredDescriptors { get; } = new();
+
         public string ReportPath { get; set; } = string.Empty;
 
         public string ReferenceReportPath { get; set; } = string.Empty;
@@ -153,6 +163,27 @@ namespace GameServerApp.Testing
 
             ValidateProfileGuards();
             ValidateReferenceReportGuard();
+            var (boundDescriptors, generatedDescriptors) = ProtocolRegistry.GetBindingCoverage();
+            result.DescriptorCoverageRatio = generatedDescriptors > 0
+                ? boundDescriptors / (double)generatedDescriptors
+                : 1.0;
+            double minCoverageRatio = Math.Clamp(Settings.MinDescriptorCoverageRatio, 0.0, 1.0);
+            if (Settings.FailOnDescriptorCoverageRegression && result.DescriptorCoverageRatio < minCoverageRatio)
+            {
+                throw new InvalidOperationException(
+                    $"Proto descriptor coverage regression detected (coverage={result.DescriptorCoverageRatio:F3}, required={minCoverageRatio:F3}, bound={boundDescriptors}, generated={generatedDescriptors}).");
+            }
+
+            var requiredDescriptorGap = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings()
+                .OrderBy(item => item, StringComparer.Ordinal)
+                .ToArray();
+            result.MissingGeneratedRequiredDescriptors.AddRange(requiredDescriptorGap);
+            if (Settings.FailOnGeneratedRequiredDescriptorGap && requiredDescriptorGap.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    "Generated required descriptor bindings are missing: " +
+                    string.Join(", ", requiredDescriptorGap));
+            }
 
             var missingRequired = ProtocolRegistry.GetUnregisteredRequiredMessages()
                 .Select(item => item.ToString())
@@ -433,6 +464,9 @@ namespace GameServerApp.Testing
                     Settings.RequireRequiredPacketCoverage,
                     Settings.MinMapControlProfileVersion,
                     Settings.FailOnReferenceReportDrift,
+                    Settings.FailOnDescriptorCoverageRegression,
+                    Settings.MinDescriptorCoverageRatio,
+                    Settings.FailOnGeneratedRequiredDescriptorGap,
                     Settings.ProbeNetwork
                 },
                 totals = new
@@ -444,6 +478,8 @@ namespace GameServerApp.Testing
                     missingRequired = result.MissingRequiredPackets.Count,
                     missingPrototype = result.MissingPrototypePackets.Count,
                     optionalUnregistered = result.OptionalUnregistered.Count,
+                    descriptorCoverageRatio = result.DescriptorCoverageRatio,
+                    missingGeneratedRequiredDescriptors = result.MissingGeneratedRequiredDescriptors.Count,
                     result.RoundTripOk,
                     result.NetworkProbeAttempted,
                     result.NetworkProbeOk
@@ -452,6 +488,7 @@ namespace GameServerApp.Testing
                 missingRequiredPackets = result.MissingRequiredPackets,
                 missingPrototypePackets = result.MissingPrototypePackets,
                 optionalUnregistered = result.OptionalUnregistered,
+                missingGeneratedRequiredDescriptors = result.MissingGeneratedRequiredDescriptors,
                 networkError = result.NetworkError
             };
 

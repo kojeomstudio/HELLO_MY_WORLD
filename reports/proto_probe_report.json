@@ -1,5 +1,5 @@
 {
-  "timestampUtc": "2026-02-24T12:13:17.4833591Z",
+  "timestampUtc": "2026-02-25T06:16:35.3980148Z",
   "descriptor": "enhanced_minecraft_game.proto",
   "settings": {
     "Host": "127.0.0.1",
@@ -9,8 +9,11 @@
     "ValidateAllKnownPackets": true,
     "IncludeOptionalMessages": true,
     "RequireRequiredPacketCoverage": true,
-    "MinMapControlProfileVersion": 56,
+    "MinMapControlProfileVersion": 57,
     "FailOnReferenceReportDrift": true,
+    "FailOnDescriptorCoverageRegression": true,
+    "MinDescriptorCoverageRatio": 0.25,
+    "FailOnGeneratedRequiredDescriptorGap": true,
     "ProbeNetwork": false
   },
   "totals": {
@@ -21,6 +24,8 @@
     "missingRequired": 0,
     "missingPrototype": 10,
     "optionalUnregistered": 10,
+    "descriptorCoverageRatio": 0.25925925925925924,
+    "missingGeneratedRequiredDescriptors": 0,
     "RoundTripOk": true,
     "NetworkProbeAttempted": false,
     "NetworkProbeOk": false
@@ -66,5 +71,6 @@
     "ItemUse",
     "MultiBlockChange"
   ],
+  "missingGeneratedRequiredDescriptors": [],
   "networkError": ""
 }

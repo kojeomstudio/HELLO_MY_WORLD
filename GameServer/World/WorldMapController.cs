@@ -93,6 +93,7 @@ namespace GameServerApp.World
             pipeline = new EnhancedTerrainGenerationPipeline(this.generationConfig, worldSettings, logger);
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(this.generationConfig, worldSettings);
             WorldMapControlProfileUtility.Save(controlProfile, profilePath);
+            EnsureProfileBaseline("initialization");
             profileWriteTime = GetWriteTime(profilePath);
             worldConfigWriteTime = GetWriteTime(worldConfigPath);
             worldConfigHash = ComputeFileHash(worldConfigPath);
@@ -311,6 +312,13 @@ namespace GameServerApp.World
                     profileFileHash = ComputeFileHash(profilePath);
                 }
 
+                if (EnsureProfileBaseline("reload"))
+                {
+                    profileWriteTime = GetWriteTime(profilePath);
+                    profileFileHash = ComputeFileHash(profilePath);
+                    reloadNeeded = true;
+                }
+
                 if (reloadNeeded)
                 {
                     ResetPipeline();
@@ -321,6 +329,47 @@ namespace GameServerApp.World
                         generationSignature);
                 }
             }
+        }
+
+        private bool EnsureProfileBaseline(string reason)
+        {
+            bool changed = false;
+            int requiredVersion = Math.Max(1, SharedFeatureCatalog.MapControlProfileVersion);
+            string expectedSignature = SharedFeatureCatalog.HydrologySignature;
+
+            if (!string.Equals(controlProfile.HydrologySignature, expectedSignature, StringComparison.OrdinalIgnoreCase))
+            {
+                controlProfile.HydrologySignature = expectedSignature;
+                changed = true;
+            }
+
+            if (controlProfile.Version < requiredVersion)
+            {
+                controlProfile.Version = requiredVersion;
+                changed = true;
+            }
+
+            string expectedHash = WorldMapControlProfileUtility.ComputeHash(controlProfile);
+            if (!string.Equals(controlProfile.ProfileHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+            {
+                controlProfile.ProfileHash = expectedHash;
+                changed = true;
+            }
+
+            if (!changed)
+            {
+                return false;
+            }
+
+            controlProfile.GeneratedAtUtc = DateTime.UtcNow;
+            WorldMapControlProfileUtility.Save(controlProfile, profilePath);
+            logger.LogWarning(
+                "[WorldMapController] Auto-healed map profile baseline during {Reason} (version={Version}, signature={Signature}, hash={Hash})",
+                reason,
+                controlProfile.Version,
+                controlProfile.HydrologySignature,
+                controlProfile.ProfileHash);
+            return true;
         }
 
         private static DateTime GetWriteTime(string path)
@@ -389,6 +438,7 @@ namespace GameServerApp.World
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
             queueSlackRatio = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 57 ? 3.45 :
                 generationConfig.MapControlProfileVersion >= 56 ? 3.35 :
                 generationConfig.MapControlProfileVersion >= 45 ? 3.2 :
                 generationConfig.MapControlProfileVersion >= 40 ? 3.0 :
@@ -396,21 +446,25 @@ namespace GameServerApp.World
                 1.1,
                 6.0);
             queueBurstSlackMultiplier = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 57 ? 1.28 :
                 generationConfig.MapControlProfileVersion >= 56 ? 1.26 :
                 generationConfig.MapControlProfileVersion >= 45 ? 1.24 :
                 generationConfig.MapControlProfileVersion >= 40 ? 1.2 :
                 generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0,
                 1.0,
                 3.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 56 ? 7 :
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 57 ? 8 :
+                generationConfig.MapControlProfileVersion >= 56 ? 7 :
                 generationConfig.MapControlProfileVersion >= 45 ? 6 :
                 generationConfig.MapControlProfileVersion >= 40 ? 5 :
                 generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
-            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 56 ? 4 :
+            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 57 ? 3 :
+                generationConfig.MapControlProfileVersion >= 56 ? 4 :
                 generationConfig.MapControlProfileVersion >= 45 ? 5 :
                 generationConfig.MapControlProfileVersion >= 40 ? 6 :
                 generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
             queueLoadSheddingThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.8 :
                 generationConfig.MapControlProfileVersion >= 56 ? 0.82 :
                 generationConfig.MapControlProfileVersion >= 45 ? 0.84 :
                 generationConfig.MapControlProfileVersion >= 40 ? 0.86 :
@@ -418,6 +472,7 @@ namespace GameServerApp.World
                 0.5,
                 0.98);
             queueEmergencyBrakeThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.98 :
                 generationConfig.MapControlProfileVersion >= 56 ? 1.0 :
                 generationConfig.MapControlProfileVersion >= 45 ? 1.02 :
                 generationConfig.MapControlProfileVersion >= 40 ? 1.04 :
@@ -425,22 +480,26 @@ namespace GameServerApp.World
                 0.75,
                 4.0);
             queueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.3 :
                 generationConfig.MapControlProfileVersion >= 56 ? 0.28 :
                 generationConfig.MapControlProfileVersion >= 45 ? 0.26 :
                 generationConfig.MapControlProfileVersion >= 43 ? 0.24 : 0.18,
                 0.18);
             queueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.76 :
                 generationConfig.MapControlProfileVersion >= 56 ? 0.78 :
                 generationConfig.MapControlProfileVersion >= 45 ? 0.8 :
                 generationConfig.MapControlProfileVersion >= 43 ? 0.82 : 0.84,
                 0.84);
             queueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.34 :
                 generationConfig.MapControlProfileVersion >= 56 ? 0.32 :
                 generationConfig.MapControlProfileVersion >= 45 ? 0.3 :
                 generationConfig.MapControlProfileVersion >= 44 ? 0.26 :
                 generationConfig.MapControlProfileVersion >= 43 ? 0.22 : 0.18,
                 0.2);
             queueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(
+                generationConfig.MapControlProfileVersion >= 57 ? 0.32 :
                 generationConfig.MapControlProfileVersion >= 56 ? 0.3 :
                 generationConfig.MapControlProfileVersion >= 45 ? 0.28 :
                 generationConfig.MapControlProfileVersion >= 44 ? 0.24 :

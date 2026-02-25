@@ -152,6 +152,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-24-session-119.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-24-session-117.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-23-session-115.json"),
@@ -248,6 +249,13 @@ namespace GameServerApp
                 if (result.OptionalUnregistered.Count > 0)
                 {
                     Console.WriteLine("[ProtoProbe] Optional packets without bindings: " + string.Join(", ", result.OptionalUnregistered));
+                }
+                Console.WriteLine($"[ProtoProbe] Descriptor coverage ratio: {result.DescriptorCoverageRatio:F3}");
+                if (result.MissingGeneratedRequiredDescriptors.Count > 0)
+                {
+                    Console.WriteLine(
+                        "[ProtoProbe][WARN] Missing generated required descriptors: " +
+                        string.Join(", ", result.MissingGeneratedRequiredDescriptors));
                 }
                 if (!string.IsNullOrWhiteSpace(result.ReportPath))
                 {

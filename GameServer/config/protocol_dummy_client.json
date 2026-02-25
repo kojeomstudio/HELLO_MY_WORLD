@@ -10,10 +10,13 @@
     "includeOptionalMessages":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  56,
+    "minMapControlProfileVersion":  57,
     "failOnMapControlVersionRegression":  true,
     "failOnRequiredTypeDrift":  true,
     "failOnReferenceReportDrift":  true,
+    "failOnDescriptorCoverageRegression":  true,
+    "minDescriptorCoverageRatio":  0.25,
+    "failOnGeneratedRequiredDescriptorGap":  true,
     "outputReportPath":  "reports/proto_probe_report.json",
     "referenceReportPath":  "config/proto_reference_report.json",
     "worldMapControlProfilePath":  "config/world_map_control_profile.json",
@@ -45,3 +48,4 @@
                 ],
     "comment":  "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }
+

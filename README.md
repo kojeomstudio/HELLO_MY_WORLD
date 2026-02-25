@@ -32,6 +32,53 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-25: Session 121 - Hydrology v53 / Map-Control v57 / Hyporheic Exchange Relay + Profile Drift Auto-Heal
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 121 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json`
+  - Server startup manifest priority updated:
+    - `GameServer/Program.cs`
+- Terrain generation refinement (server + client parity):
+  - Added `ApplyHyporheicExchangeRelay` stage to couple cave/river/lake hydrology continuity.
+  - Applied matching stage in Unity enhanced terrain generation path.
+  - Files:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture updates:
+  - Added profile baseline auto-heal on server init/reload for signature/version/hash drift.
+  - Raised map-control baseline to profile `v57`.
+  - Extended high-pressure queue policy branch for v57 runtime stability.
+  - Files:
+    - `GameServer/World/WorldMapController.cs`
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`
+    - `GameServer/config/enhanced_world_map_control_server.json`
+- Protobuf and dummy-client validation hardening:
+  - Added descriptor coverage ratio guard + missing-generated-required-descriptor guard.
+  - Dummy probe profile guard raised to `57`.
+  - Files:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+- Shared DLL alignment:
+  - Updated shared baseline constants/signature:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet test GameServer/TerrainGenerationTest.csproj -v minimal` PASS
+  - `powershell -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, descriptor coverage `0.259`)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS (smoke flow completed with warning-level mismatch logs)
+
 ### 2026-02-24: Session 119 - Hydrology v52 / Map-Control v56 / Floodplain Basin Coupling + Queue Tuning
 
 **Status:** COMPLETED

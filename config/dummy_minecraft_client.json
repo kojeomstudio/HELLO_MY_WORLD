@@ -7,7 +7,7 @@
     "strictRequiredBindings":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  56,
+    "minMapControlProfileVersion":  57,
     "failOnMapControlVersionRegression":  true,
     "worldMapControlProfilePath":  "config/world_map_control_profile.json",
     "includeOptionalMessages":  true,

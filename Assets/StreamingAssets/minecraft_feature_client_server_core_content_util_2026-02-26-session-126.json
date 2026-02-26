@@ -1,0 +1,2524 @@
+{
+  "version": "2026-02-26-session-126",
+  "generated_at_utc": "2026-02-26T06:30:00Z",
+  "signature": "2026-02-26-comprehensive-minecraft-implementation-v126",
+  "mapControlProfileVersion": 59,
+  "features": [
+    {
+      "id": "S26-CORE-01",
+      "name": "Shared DLL Contract Baseline",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll baseline for enums/constants/contracts shared by client and server.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S26-CORE-02",
+      "name": "World Signature + Profile v59",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v55 and map-control profile version 59 synchronization across server/client/probe paths.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapSignature.cs",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-03",
+      "name": "Queue Policy Shared Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Adaptive queue pressure and near-chunk keep budget utilities shared by server and Unity client.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-02"
+      ]
+    },
+    {
+      "id": "S26-CORE-04",
+      "name": "Network Protocol Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core network protocol infrastructure including packet handling, message dispatchers, and session management.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/GameProtocol.cs",
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessages.cs",
+        "SharedProtocol/Session.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-05",
+      "name": "World Generation Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core world generation infrastructure including terrain generation pipeline, chunk data management, and world manager.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/TerrainGenerationContext.cs",
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01",
+        "S26-CORE-02"
+      ]
+    },
+    {
+      "id": "S26-CORE-06",
+      "name": "Entity System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core entity system including entity models, spawning, and synchronization.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/Entity.cs",
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/Synchronization/EntitySyncCoordinator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-07",
+      "name": "Block System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core block system including block types, block data, and block synchronization.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Models/BlockData.cs",
+        "GameServer/Synchronization/BlockSyncCoordinator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-08",
+      "name": "Physics System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core physics system including collision detection and water physics.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/WaterPhysicsSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01",
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CORE-09",
+      "name": "Data-Driven Configuration Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core data-driven configuration system for managing game data and settings.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-10",
+      "name": "Feature Manifest Runtime Loading",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server startup loads session-126 feature manifest with highest priority.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-26-session-126.json"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-01",
+      "name": "Terrain Generation - Base Terrain",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Base terrain generation including height maps, biomes, and terrain shaping.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-02",
+      "name": "Terrain Generation - Cave Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation system with improved algorithms including groundwater perch seal bridge.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/Stages/CaveGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-03",
+      "name": "Terrain Generation - River Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "River generation system with improved algorithms including groundwater exchange bridge.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/Stages/RiverGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-04",
+      "name": "Terrain Generation - Lake Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake generation system with improved algorithms including groundwater latch bridge.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/Stages/LakeGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-05",
+      "name": "Terrain Generation - Ore Distribution",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Ore distribution system for placing minerals and resources underground.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-06",
+      "name": "Terrain Generation - Vegetation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Vegetation generation system for placing trees, flowers, and other plants.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-07",
+      "name": "Terrain Generation - Dungeons",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Dungeon generation system for creating underground structures.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-08",
+      "name": "Terrain Generation - Clouds",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cloud generation system for atmospheric effects.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/CloudGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-09",
+      "name": "World Map Control - Server",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side world map control system for managing chunk loading, unloading, and synchronization.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "config/world_map_control_profile.json",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03",
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-10",
+      "name": "World Map Control - Client",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client-side world map control system for managing chunk loading, unloading, and rendering.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03",
+        "S26-CONTENT-09"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-11",
+      "name": "Player System - Server",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side player system including player state, movement, and actions.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MovementHandler.cs",
+        "GameServer/Handlers/MinecraftPlayerActionHandler.cs",
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Handlers/HealthHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-12",
+      "name": "Player System - Client",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client-side player system including player controller, camera, and input handling.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Player/GamePlayer.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerController.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerCameraManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-11"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-13",
+      "name": "Inventory System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Inventory system for managing player items and containers.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/InventoryHandler.cs",
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Systems/InventorySystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-14",
+      "name": "Crafting System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Crafting system for creating items from recipes.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/CraftingHandler.cs",
+        "GameServer/Handlers/RecipeListHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-13"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-15",
+      "name": "Health and Hunger System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Health and hunger system for player survival mechanics.",
+      "order": 25,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-11"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-16",
+      "name": "Combat System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Combat system for player and entity combat interactions.",
+      "order": 26,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Systems/CombatSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06",
+        "S26-CONTENT-15"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-17",
+      "name": "World Time and Weather System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World time and weather system for day/night cycles and weather effects.",
+      "order": 27,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/WorldTimeSystem.cs",
+        "GameServer/Systems/WeatherSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-18",
+      "name": "Mob Spawning System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Mob spawning system for generating animals and monsters.",
+      "order": 28,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/World/Spawning/MobSpawningConfig.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-19",
+      "name": "AI System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "AI system for entity behavior including behavior trees and pathfinding.",
+      "order": 29,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/AI/ServerAIManager.cs",
+        "Assets/MyAssets/Scripts/AI/BehaviorTree.cs",
+        "Assets/MyAssets/Scripts/AI/BlackBoard.cs",
+        "Assets/MyAssets/Scripts/AI/CommonAnimalAI.cs",
+        "Assets/MyAssets/Scripts/AI/CommonNpcAI.cs",
+        "Assets/MyAssets/Scripts/AI/AdvancedMonsterAI.cs",
+        "Assets/MyAssets/Scripts/PathFinding/CustomAstar3D.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06",
+        "S26-CONTENT-18"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-20",
+      "name": "Chunk Synchronization",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chunk synchronization system for syncing world data between server and client.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftChunkHandler.cs",
+        "GameServer/Synchronization/ChunkSyncCoordinator.cs",
+        "GameServer/World/WorldSynchronizationManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-21",
+      "name": "Block Modification System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Block modification system for placing and breaking blocks.",
+      "order": 31,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-22",
+      "name": "Container System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Container system for managing storage containers like chests.",
+      "order": 32,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Systems/ContainerSystem.cs",
+        "GameServer/Models/ContainerRecord.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-13
+      ]
+    },
+    {
+      "id": "S26-CONTENT-23",
+      "name": "Chat System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chat system for player communication.",
+      "order": 33,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/ChatHandler.cs",
+        "GameServer/Handlers/MessageHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-24",
+      "name": "Room System",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Room system for managing game instances and player sessions.",
+      "order": 34,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Room/GameRoom.cs",
+        "GameServer/Room/RoomManager.cs",
+        "GameServer/Handlers/RoomEnterHandler.cs",
+        "GameServer/Handlers/RoomLeaveHandler.cs",
+        "GameServer/Handlers/RoomListHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-25",
+      "name": "World Border System",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "World border system for defining playable world boundaries.",
+      "order": 35,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldBorderSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-26",
+      "name": "UI System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "UI system for in-game interface including menus, HUD, and popups.",
+      "order": 36,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/UI/MainMenuManager.cs",
+        "Assets/MyAssets/Scripts/UI/InGame/InGameMenuManager.cs",
+        "Assets/MyAssets/Scripts/UI/InGame/InGameUISupervisor.cs",
+        "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+        "Assets/MyAssets/Scripts/UI/UIPopupSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-27",
+      "name": "Input System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Input system for handling player input including keyboard, mouse, and mobile controls.",
+      "order": 37,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Input/InputManager.cs",
+        "Assets/MyAssets/Scripts/Input/WindowInput.cs",
+        "Assets/MyAssets/Scripts/Input/MobileInput.cs",
+        "Assets/MyAssets/Scripts/Input/VirtualJoystick/VirtualJoystickManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-28",
+      "name": "Animation System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Animation system for character and entity animations.",
+      "order": 38,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Animation/ActorAnimationController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-29",
+      "name": "Particle System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Particle system for visual effects.",
+      "order": 39,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-30",
+      "name": "Sound System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Sound system for audio effects and music.",
+      "order": 40,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameSound/GameSoundManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-31",
+      "name": "State Machine System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "State machine system for managing game and entity states.",
+      "order": 41,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/StateMachine/GameStateManager.cs",
+        "Assets/MyAssets/Scripts/StateMachine/StateMachineController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-32",
+      "name": "Data Management System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Data management system for loading and saving game data.",
+      "order": 42,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/GameDBManager.cs",
+        "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs",
+        "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-09"
+      ]
+    },
+    {
+      "id": "S26-UTIL-01",
+      "name": "Protocol Registry Validation Pipeline",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Ensure protobuf generated contracts are registered, mapped, and validated.",
+      "order": 43,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-02",
+      "name": "Dummy Protocol Probe Client",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side dummy protocol probe validates protobuf round-trip and descriptor coverage.",
+      "order": 44,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S26-UTIL-01",
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-03",
+      "name": "Standalone Dummy Client Tool",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Standalone dummy client tool validates packet encoding/decoding and profile guards from client perspective.",
+      "order": 45,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S26-UTIL-01",
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-04",
+      "name": "Protobuf Generation Freshness Check",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "PowerShell verification script checks proto schema and generated C# timestamp/hash freshness.",
+      "order": 46,
+      "status": "implemented",
+      "artifacts": [
+        "scripts/verify_protobuf.ps1",
+        "proto/*.proto",
+        "Assets/Generated/Protobuf/*.cs"
+      ],
+      "dependencies": [
+        "S26-UTIL-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-05",
+      "name": "Queue Policy Data-Driven Sync",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Queue policy json synchronized for server runtime, server mirror, and Unity streaming assets.",
+      "order": 47,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "GameServer/config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03"
+      ]
+    },
+    {
+      "id": "S26-UTIL-06",
+      "name": "Logger Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Logging utility for debugging and monitoring.",
+      "order": 48,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/Logger.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-07",
+      "name": "Error Handler Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Error handling utility for managing exceptions and errors.",
+      "order": 49,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/ErrorHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-08",
+      "name": "Performance Monitor Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Performance monitoring utility for tracking system metrics.",
+      "order": 50,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/PerformanceMonitor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-09",
+      "name": "Noise Generation Utilities",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Noise generation utilities for procedural generation including Simplex and Perlin noise.",
+      "order": 51,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/Noise.cs",
+        "GameServer/Utils/SimplexNoise.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-10",
+      "name": "Config Validator Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Configuration validation utility for ensuring config file integrity.",
+      "order": 52,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/ConfigValidator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-09"
+      ]
+    },
+    {
+      "id": "S26-UTIL-11",
+      "name": "Compression Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Compression utility for data compression and decompression.",
+      "order": 53,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/LZFCompress.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-12",
+      "name": "JSON Array Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "JSON array utility for handling JSON data structures.",
+      "order": 54,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/JsonArrayUtility.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-13",
+      "name": "Collision Detection Utilities",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Collision detection utilities including AABB, OBB, and ray casting.",
+      "order": 55,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/AABBCollider.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomAABB.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOBB.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomRayCast.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOctree.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-08"
+      ]
+    },
+    {
+      "id": "S26-UTIL-14",
+      "name": "Instancing Helper Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Instancing helper utility for object pooling and instancing.",
+      "order": 56,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/InstancingHelper.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-15",
+      "name": "Memory System Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Memory system utility for soft object references and memory management.",
+      "order": 57,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/MemorySystem/SoftObjectPtr.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-16",
+      "name": "Database Helper Utility",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Database helper utility for database operations.",
+      "order": 58,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-17",
+      "name": "Anti-Cheat Middleware",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Anti-cheat middleware for detecting and preventing cheating.",
+      "order": 59,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Middleware/AntiCheatMiddleware.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-18",
+      "name": "Server Metrics Service",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server metrics service for monitoring server performance and statistics.",
+      "order": 60,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/ServerMetricsService.cs"
+      ],
+      "dependencies": [
+        "S26-UTIL-08"
+      ]
+    },
+    {
+      "id": "S26-UTIL-19",
+      "name": "Permission System",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Permission system for managing player and system permissions.",
+      "order": 61,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/PermissionSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-20",
+      "name": "Command System",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Command system for handling server commands and console input.",
+      "order": 62,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/CommandSystem.cs",
+        "GameServer/Handlers/CommandHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-21",
+      "name": "Entity Sync Service",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Entity synchronization service for managing entity state synchronization.",
+      "order": 63,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/EntitySyncService.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-UTIL-22",
+      "name": "Sync Manager",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Sync manager for coordinating all synchronization operations.",
+      "order": 64,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Synchronization/SyncManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-UTIL-23",
+      "name": "Session Manager",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Session manager for managing player sessions and connections.",
+      "order": 65,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-24",
+      "name": "Network Infrastructure",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Network infrastructure for client-side networking.",
+      "order": 66,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+        "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-25",
+      "name": "Game Supervisor",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Game supervisor for managing game state and coordination.",
+      "order": 67,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CentralSupervisor/GameSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-26",
+      "name": "Game Resource Supervisor",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Game resource supervisor for managing game assets and resources.",
+      "order": 68,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameResourceSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-27",
+      "name": "Session 126 Documentation Pack",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Plan, implementation summary, README update, and category document updated in markdown.",
+      "order": 69,
+      "status": "pending",
+      "artifacts": [
+        "plans/2026-02-26-session-126-comprehensive-work-plan.md",
+        "docs/session-126-implementation-summary.md",
+        "docs/minecraft_features_core_content_util_session_126.md",
+        "README.md"
+      ],
+      "dependencies": [
+        "S26-CONTENT-32",
+        "S26-UTIL-03"
+      ]
+    }
+  ],
+  "implementation_sequence": [
+    "1. Shared baseline constants/signature/profile version update",
+    "2. Core systems review and validation (network, world generation, entity, block, physics)",
+    "3. Content systems review and validation (terrain, player, inventory, crafting, combat, AI)",
+    "4. Utility systems review and validation (protocol, logging, performance, tools)",
+    "5. Terrain generation improvements (caves, rivers, lakes)",
+    "6. World map control architecture improvements (server/client)",
+    "7. Protobuf protocol usage and reference verification",
+    "8. Using statement existence audit and compile checks",
+    "9. Config file organization and data-driven approach validation",
+    "10. Dummy client for protocol testing improvements",
+    "11. Shared DLL architecture review and validation",
+    "12. Build/test/protobuf scripts execution",
+    "13. Documentation update and finalize with commit + push"
+  ]
+}
+  "version": "2026-02-26-session-126",
+  "generated_at_utc": "2026-02-26T06:30:00Z",
+  "signature": "2026-02-26-comprehensive-minecraft-implementation-v126",
+  "mapControlProfileVersion": 59,
+  "features": [
+    {
+      "id": "S26-CORE-01",
+      "name": "Shared DLL Contract Baseline",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll baseline for enums/constants/contracts shared by client and server.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S26-CORE-02",
+      "name": "World Signature + Profile v59",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v55 and map-control profile version 59 synchronization across server/client/probe paths.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapSignature.cs",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-03",
+      "name": "Queue Policy Shared Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Adaptive queue pressure and near-chunk keep budget utilities shared by server and Unity client.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-02"
+      ]
+    },
+    {
+      "id": "S26-CORE-04",
+      "name": "Network Protocol Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core network protocol infrastructure including packet handling, message dispatchers, and session management.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/GameProtocol.cs",
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessages.cs",
+        "SharedProtocol/Session.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-05",
+      "name": "World Generation Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core world generation infrastructure including terrain generation pipeline, chunk data management, and world manager.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/TerrainGenerationContext.cs",
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01",
+        "S26-CORE-02"
+      ]
+    },
+    {
+      "id": "S26-CORE-06",
+      "name": "Entity System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core entity system including entity models, spawning, and synchronization.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/Entity.cs",
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/Synchronization/EntitySyncCoordinator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-07",
+      "name": "Block System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core block system including block types, block data, and block synchronization.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Models/BlockData.cs",
+        "GameServer/Synchronization/BlockSyncCoordinator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-08",
+      "name": "Physics System Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core physics system including collision detection and water physics.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/WaterPhysicsSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01",
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CORE-09",
+      "name": "Data-Driven Configuration Core",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Core data-driven configuration system for managing game data and settings.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CORE-10",
+      "name": "Feature Manifest Runtime Loading",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server startup loads session-126 feature manifest with highest priority.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-26-session-126.json"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-01",
+      "name": "Terrain Generation - Base Terrain",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Base terrain generation including height maps, biomes, and terrain shaping.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-02",
+      "name": "Terrain Generation - Cave Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation system with improved algorithms including groundwater perch seal bridge.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/Stages/CaveGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-03",
+      "name": "Terrain Generation - River Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "River generation system with improved algorithms including groundwater exchange bridge.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/Stages/RiverGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-04",
+      "name": "Terrain Generation - Lake Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake generation system with improved algorithms including groundwater latch bridge.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/Stages/LakeGenerationStage.cs",
+        "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-05",
+      "name": "Terrain Generation - Ore Distribution",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Ore distribution system for placing minerals and resources underground.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-06",
+      "name": "Terrain Generation - Vegetation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Vegetation generation system for placing trees, flowers, and other plants.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-07",
+      "name": "Terrain Generation - Dungeons",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Dungeon generation system for creating underground structures.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05",
+        "S26-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-08",
+      "name": "Terrain Generation - Clouds",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cloud generation system for atmospheric effects.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/CloudGenerationStage.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-09",
+      "name": "World Map Control - Server",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side world map control system for managing chunk loading, unloading, and synchronization.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "config/world_map_control_profile.json",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03",
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-10",
+      "name": "World Map Control - Client",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client-side world map control system for managing chunk loading, unloading, and rendering.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03",
+        "S26-CONTENT-09"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-11",
+      "name": "Player System - Server",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side player system including player state, movement, and actions.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MovementHandler.cs",
+        "GameServer/Handlers/MinecraftPlayerActionHandler.cs",
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Handlers/HealthHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-12",
+      "name": "Player System - Client",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client-side player system including player controller, camera, and input handling.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Player/GamePlayer.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerController.cs",
+        "Assets/MyAssets/Scripts/Player/GamePlayerCameraManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-11"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-13",
+      "name": "Inventory System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Inventory system for managing player items and containers.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/InventoryHandler.cs",
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Systems/InventorySystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-14",
+      "name": "Crafting System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Crafting system for creating items from recipes.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/CraftingHandler.cs",
+        "GameServer/Handlers/RecipeListHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-13"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-15",
+      "name": "Health and Hunger System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Health and hunger system for player survival mechanics.",
+      "order": 25,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-11"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-16",
+      "name": "Combat System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Combat system for player and entity combat interactions.",
+      "order": 26,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/PlayerAttackHandler.cs",
+        "GameServer/Systems/CombatSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06",
+        "S26-CONTENT-15"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-17",
+      "name": "World Time and Weather System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World time and weather system for day/night cycles and weather effects.",
+      "order": 27,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/WorldTimeSystem.cs",
+        "GameServer/Systems/WeatherSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-18",
+      "name": "Mob Spawning System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Mob spawning system for generating animals and monsters.",
+      "order": 28,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/World/Spawning/MobSpawningConfig.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06",
+        "S26-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-19",
+      "name": "AI System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "AI system for entity behavior including behavior trees and pathfinding.",
+      "order": 29,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/AI/ServerAIManager.cs",
+        "Assets/MyAssets/Scripts/AI/BehaviorTree.cs",
+        "Assets/MyAssets/Scripts/AI/BlackBoard.cs",
+        "Assets/MyAssets/Scripts/AI/CommonAnimalAI.cs",
+        "Assets/MyAssets/Scripts/AI/CommonNpcAI.cs",
+        "Assets/MyAssets/Scripts/AI/AdvancedMonsterAI.cs",
+        "Assets/MyAssets/Scripts/PathFinding/CustomAstar3D.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06",
+        "S26-CONTENT-18"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-20",
+      "name": "Chunk Synchronization",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chunk synchronization system for syncing world data between server and client.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftChunkHandler.cs",
+        "GameServer/Synchronization/ChunkSyncCoordinator.cs",
+        "GameServer/World/WorldSynchronizationManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-21",
+      "name": "Block Modification System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Block modification system for placing and breaking blocks.",
+      "order": 31,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-22",
+      "name": "Container System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Container system for managing storage containers like chests.",
+      "order": 32,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftContainerHandlers.cs",
+        "GameServer/Systems/ContainerSystem.cs",
+        "GameServer/Models/ContainerRecord.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CONTENT-13
+      ]
+    },
+    {
+      "id": "S26-CONTENT-23",
+      "name": "Chat System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chat system for player communication.",
+      "order": 33,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/ChatHandler.cs",
+        "GameServer/Handlers/MessageHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-24",
+      "name": "Room System",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Room system for managing game instances and player sessions.",
+      "order": 34,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Room/GameRoom.cs",
+        "GameServer/Room/RoomManager.cs",
+        "GameServer/Handlers/RoomEnterHandler.cs",
+        "GameServer/Handlers/RoomLeaveHandler.cs",
+        "GameServer/Handlers/RoomListHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-25",
+      "name": "World Border System",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "World border system for defining playable world boundaries.",
+      "order": 35,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldBorderSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-05"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-26",
+      "name": "UI System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "UI system for in-game interface including menus, HUD, and popups.",
+      "order": 36,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/UI/MainMenuManager.cs",
+        "Assets/MyAssets/Scripts/UI/InGame/InGameMenuManager.cs",
+        "Assets/MyAssets/Scripts/UI/InGame/InGameUISupervisor.cs",
+        "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+        "Assets/MyAssets/Scripts/UI/UIPopupSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-27",
+      "name": "Input System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Input system for handling player input including keyboard, mouse, and mobile controls.",
+      "order": 37,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Input/InputManager.cs",
+        "Assets/MyAssets/Scripts/Input/WindowInput.cs",
+        "Assets/MyAssets/Scripts/Input/MobileInput.cs",
+        "Assets/MyAssets/Scripts/Input/VirtualJoystick/VirtualJoystickManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-28",
+      "name": "Animation System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Animation system for character and entity animations.",
+      "order": 38,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Animation/ActorAnimationController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-29",
+      "name": "Particle System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Particle system for visual effects.",
+      "order": 39,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-30",
+      "name": "Sound System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Sound system for audio effects and music.",
+      "order": 40,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameSound/GameSoundManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-31",
+      "name": "State Machine System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "State machine system for managing game and entity states.",
+      "order": 41,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/StateMachine/GameStateManager.cs",
+        "Assets/MyAssets/Scripts/StateMachine/StateMachineController.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-CONTENT-32",
+      "name": "Data Management System",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Data management system for loading and saving game data.",
+      "order": 42,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/GameDBManager.cs",
+        "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs",
+        "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-09"
+      ]
+    },
+    {
+      "id": "S26-UTIL-01",
+      "name": "Protocol Registry Validation Pipeline",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Ensure protobuf generated contracts are registered, mapped, and validated.",
+      "order": 43,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-02",
+      "name": "Dummy Protocol Probe Client",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side dummy protocol probe validates protobuf round-trip and descriptor coverage.",
+      "order": 44,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S26-UTIL-01",
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-03",
+      "name": "Standalone Dummy Client Tool",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Standalone dummy client tool validates packet encoding/decoding and profile guards from client perspective.",
+      "order": 45,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S26-UTIL-01",
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-04",
+      "name": "Protobuf Generation Freshness Check",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "PowerShell verification script checks proto schema and generated C# timestamp/hash freshness.",
+      "order": 46,
+      "status": "implemented",
+      "artifacts": [
+        "scripts/verify_protobuf.ps1",
+        "proto/*.proto",
+        "Assets/Generated/Protobuf/*.cs"
+      ],
+      "dependencies": [
+        "S26-UTIL-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-05",
+      "name": "Queue Policy Data-Driven Sync",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Queue policy json synchronized for server runtime, server mirror, and Unity streaming assets.",
+      "order": 47,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "GameServer/config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S26-CORE-03"
+      ]
+    },
+    {
+      "id": "S26-UTIL-06",
+      "name": "Logger Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Logging utility for debugging and monitoring.",
+      "order": 48,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/Logger.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-07",
+      "name": "Error Handler Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Error handling utility for managing exceptions and errors.",
+      "order": 49,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/ErrorHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-08",
+      "name": "Performance Monitor Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Performance monitoring utility for tracking system metrics.",
+      "order": 50,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/PerformanceMonitor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-09",
+      "name": "Noise Generation Utilities",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Noise generation utilities for procedural generation including Simplex and Perlin noise.",
+      "order": 51,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/Noise.cs",
+        "GameServer/Utils/SimplexNoise.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-10",
+      "name": "Config Validator Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Configuration validation utility for ensuring config file integrity.",
+      "order": 52,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/ConfigValidator.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-09"
+      ]
+    },
+    {
+      "id": "S26-UTIL-11",
+      "name": "Compression Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Compression utility for data compression and decompression.",
+      "order": 53,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/DataManageMent/LZFCompress.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-12",
+      "name": "JSON Array Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "JSON array utility for handling JSON data structures.",
+      "order": 54,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/JsonArrayUtility.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-13",
+      "name": "Collision Detection Utilities",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Collision detection utilities including AABB, OBB, and ray casting.",
+      "order": 55,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/AABBCollider.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomAABB.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOBB.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomRayCast.cs",
+        "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOctree.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-08"
+      ]
+    },
+    {
+      "id": "S26-UTIL-14",
+      "name": "Instancing Helper Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Instancing helper utility for object pooling and instancing.",
+      "order": 56,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/InstancingHelper.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-15",
+      "name": "Memory System Utility",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Memory system utility for soft object references and memory management.",
+      "order": 57,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/MemorySystem/SoftObjectPtr.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-16",
+      "name": "Database Helper Utility",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Database helper utility for database operations.",
+      "order": 58,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-17",
+      "name": "Anti-Cheat Middleware",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Anti-cheat middleware for detecting and preventing cheating.",
+      "order": 59,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Middleware/AntiCheatMiddleware.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-18",
+      "name": "Server Metrics Service",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server metrics service for monitoring server performance and statistics.",
+      "order": 60,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/ServerMetricsService.cs"
+      ],
+      "dependencies": [
+        "S26-UTIL-08"
+      ]
+    },
+    {
+      "id": "S26-UTIL-19",
+      "name": "Permission System",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Permission system for managing player and system permissions.",
+      "order": 61,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/PermissionSystem.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-20",
+      "name": "Command System",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Command system for handling server commands and console input.",
+      "order": 62,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/CommandSystem.cs",
+        "GameServer/Handlers/CommandHandler.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-21",
+      "name": "Entity Sync Service",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Entity synchronization service for managing entity state synchronization.",
+      "order": 63,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/EntitySyncService.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-06"
+      ]
+    },
+    {
+      "id": "S26-UTIL-22",
+      "name": "Sync Manager",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Sync manager for coordinating all synchronization operations.",
+      "order": 64,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Synchronization/SyncManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04",
+        "S26-CORE-06",
+        "S26-CORE-07"
+      ]
+    },
+    {
+      "id": "S26-UTIL-23",
+      "name": "Session Manager",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Session manager for managing player sessions and connections.",
+      "order": 65,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-24",
+      "name": "Network Infrastructure",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Network infrastructure for client-side networking.",
+      "order": 66,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+        "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-04"
+      ]
+    },
+    {
+      "id": "S26-UTIL-25",
+      "name": "Game Supervisor",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Game supervisor for managing game state and coordination.",
+      "order": 67,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/CentralSupervisor/GameSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-26",
+      "name": "Game Resource Supervisor",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Game resource supervisor for managing game assets and resources.",
+      "order": 68,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameResourceSupervisor.cs"
+      ],
+      "dependencies": [
+        "S26-CORE-01"
+      ]
+    },
+    {
+      "id": "S26-UTIL-27",
+      "name": "Session 126 Documentation Pack",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Plan, implementation summary, README update, and category document updated in markdown.",
+      "order": 69,
+      "status": "pending",
+      "artifacts": [
+        "plans/2026-02-26-session-126-comprehensive-work-plan.md",
+        "docs/session-126-implementation-summary.md",
+        "docs/minecraft_features_core_content_util_session_126.md",
+        "README.md"
+      ],
+      "dependencies": [
+        "S26-CONTENT-32",
+        "S26-UTIL-03"
+      ]
+    }
+  ],
+  "implementation_sequence": [
+    "1. Shared baseline constants/signature/profile version update",
+    "2. Core systems review and validation (network, world generation, entity, block, physics)",
+    "3. Content systems review and validation (terrain, player, inventory, crafting, combat, AI)",
+    "4. Utility systems review and validation (protocol, logging, performance, tools)",
+    "5. Terrain generation improvements (caves, rivers, lakes)",
+    "6. World map control architecture improvements (server/client)",
+    "7. Protobuf protocol usage and reference verification",
+    "8. Using statement existence audit and compile checks",
+    "9. Config file organization and data-driven approach validation",
+    "10. Dummy client for protocol testing improvements",
+    "11. Shared DLL architecture review and validation",
+    "12. Build/test/protobuf scripts execution",
+    "13. Documentation update and finalize with commit + push"
+  ]
+}
+

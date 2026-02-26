@@ -268,6 +268,36 @@ namespace GameCommon.World
         }
 
         /// <summary>
+        /// Computes a shared queue-limit candidate from budget/pressure/slack inputs.
+        /// This keeps server/client queue admission behavior aligned.
+        /// </summary>
+        public static int ComputeQueueLimitFromBudget(
+            int cacheBudget,
+            int pressureFactor,
+            double slackRatio,
+            double burstSlackMultiplier,
+            double effectiveLoad,
+            bool emergencyBrake,
+            int min = 64,
+            int max = 16384)
+        {
+            min = Math.Max(1, min);
+            max = Math.Max(min, max);
+            int budget = Math.Max(min, cacheBudget);
+            int pressure = Math.Max(1, pressureFactor);
+            double slack = Math.Clamp(slackRatio, 1.1, 6.0);
+            double burst = Math.Clamp(burstSlackMultiplier, 1.0, 3.0);
+            double appliedBurst = !emergencyBrake && effectiveLoad >= 0.9 ? burst : 1.0;
+            int limit = (int)Math.Ceiling(budget * pressure * slack * appliedBurst);
+            if (emergencyBrake)
+            {
+                limit = (int)Math.Ceiling(limit * 0.9);
+            }
+
+            return Math.Clamp(limit, min, max);
+        }
+
+        /// <summary>
         /// Computes a dynamic stale-pruning budget shared by server/client queue managers.
         /// Budget grows with pressure band, effective load, and emergency latch state.
         /// </summary>

@@ -680,8 +680,24 @@ namespace GameServerApp.World
             double burstMultiplier = !queueEmergencyBrakeLatched && load >= 0.9
                 ? stabilizedBurstMultiplier * (1.0 + overloadBias * 0.5 * shockScale)
                 : 1.0;
-            int minQueueLimit = Math.Clamp((int)Math.Ceiling(cacheBudget * Math.Max(1.1, configuredQueueSlackRatio)), 128, 16384);
-            int candidateQueueLimit = (int)Math.Ceiling(cacheBudget * dynamicQueueSlackRatio * burstMultiplier);
+            int minQueueLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                cacheBudget,
+                1,
+                Math.Max(1.1, configuredQueueSlackRatio),
+                1.0,
+                load,
+                emergencyBrake: false,
+                min: 128,
+                max: 16384);
+            int candidateQueueLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                cacheBudget,
+                1,
+                dynamicQueueSlackRatio,
+                burstMultiplier,
+                load,
+                emergencyBrake: false,
+                min: 128,
+                max: 16384);
             var now = DateTime.UtcNow;
             if ((now - lastQueuePolicyAdjustUtc).TotalMilliseconds >= Math.Max(15, configuredQueueBackoffDelayMs * 4))
             {
@@ -725,10 +741,15 @@ namespace GameServerApp.World
                 double recoveryScale = WorldMapQueuePolicy.ComputeRecoveryRamp(
                     queueRecoveryRampTicksRemaining,
                     configuredQueueRecoveryRampTicks);
-                int floorLimit = Math.Clamp(
-                    (int)Math.Ceiling(cacheBudget * Math.Max(1.1, configuredQueueSlackRatio)),
-                    128,
-                    16384);
+                int floorLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                    cacheBudget,
+                    1,
+                    Math.Max(1.1, configuredQueueSlackRatio),
+                    1.0,
+                    load,
+                    emergencyBrake: false,
+                    min: 128,
+                    max: 16384);
                 dynamicQueueLimit = Math.Clamp(
                     floorLimit + (int)Math.Round((dynamicQueueLimit - floorLimit) * recoveryScale),
                     floorLimit,

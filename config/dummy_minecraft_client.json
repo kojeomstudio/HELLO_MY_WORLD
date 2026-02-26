@@ -1,4 +1,4 @@
-{
+﻿{
     "host":  "127.0.0.1",
     "port":  9000,
     "connectTimeoutMs":  1500,
@@ -7,7 +7,7 @@
     "strictRequiredBindings":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  59,
+    "minMapControlProfileVersion":  60,
     "failOnMapControlVersionRegression":  true,
     "worldMapControlProfilePath":  "config/world_map_control_profile.json",
     "includeOptionalMessages":  true,
@@ -27,5 +27,7 @@
                     "ParticleEffect",
                     "EntitySpawn",
                     "EntityDespawn"
-                ]
+                ],
+    "failOnReferenceReportDrift":  true,
+    "referenceReportPath":  "config/proto_reference_report.json"
 }

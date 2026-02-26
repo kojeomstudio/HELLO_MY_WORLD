@@ -32,6 +32,55 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-26: Session 127 - Hydrology v56 / Map-Control v60 / Cave-River-Lake Recharge Bridge + Queue Budget Unification
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-02-26-session-127-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifests:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json`
+- Terrain generation improvement:
+  - Added `ApplyCaveRiverLakeRechargeBridge` stage to:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map architecture improvements:
+  - Added shared queue budget helper in:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+  - Server/client queue-limit calculation aligned to shared helper:
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared baseline sync:
+  - `HydrologySignature`: `2026-02-26-hydrology-riverlake-cave-v56`
+  - `MapControlProfileVersion`: `60`
+  - `GameCommon/World/SharedFeatureCatalog.cs`
+- Data-driven config and profile sync:
+  - Updated and mirrored:
+    - `config/world.json`, `GameServer/config/world.json`, `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_queue_policy.json`, `GameServer/config/world_map_control_queue_policy.json`, `Assets/StreamingAssets/world_map_control_queue_policy.json`
+    - `config/enhanced_world_map_control_server.json`, `GameServer/config/enhanced_world_map_control_server.json`, `config/enhanced_world_map_control_client.json`, `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+    - `GameServer/config/world_map_control_profile.json`, `config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf / dummy probe hardening:
+  - Extended reference drift guards:
+    - `GameServer/Testing/DummyProtocolClient.cs`
+    - `Tools/DummyMinecraftClient/Program.cs`
+  - Updated probe config thresholds:
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, descriptor coverage `0.259`)
+- Session docs:
+  - `docs/session-127-implementation-summary.md`
+  - `docs/session-127-build-and-proto-validation.md`
+  - `docs/minecraft_features_core_content_util_session_127.md`
+
 ### 2026-02-26: Session 126 - Comprehensive Implementation & Validation
 
 **Status:** COMPLETED
@@ -3688,6 +3737,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-
 
 

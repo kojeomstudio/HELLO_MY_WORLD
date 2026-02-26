@@ -576,6 +576,50 @@ namespace GameServerApp.Testing
                         "Proto reference report contains unregistered enum message types: " +
                         string.Join(", ", reference.UnregisteredMessageTypes));
                 }
+
+                if (reference.Registered != null && reference.Registered.Length > 0)
+                {
+                    var referenceRegisteredTypes = new HashSet<string>(
+                        reference.Registered
+                            .Select(item => item.MessageType ?? string.Empty)
+                            .Where(item => !string.IsNullOrWhiteSpace(item)),
+                        StringComparer.Ordinal);
+                    var runtimeRegisteredTypes = ProtocolRegistry.RegisteredMessageTypes
+                        .Select(item => item.ToString())
+                        .OrderBy(item => item, StringComparer.Ordinal)
+                        .ToArray();
+                    var missingRegisteredTypes = runtimeRegisteredTypes
+                        .Where(item => !referenceRegisteredTypes.Contains(item))
+                        .ToArray();
+                    if (missingRegisteredTypes.Length > 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Proto reference report is missing runtime registered message types: " +
+                            string.Join(", ", missingRegisteredTypes));
+                    }
+                }
+
+                if (reference.DeclaredMessages != null && reference.DeclaredMessages.Length > 0)
+                {
+                    var declaredDescriptors = new HashSet<string>(
+                        reference.DeclaredMessages.Where(item => !string.IsNullOrWhiteSpace(item)),
+                        StringComparer.Ordinal);
+                    var requiredDescriptorNames = ProtocolRegistry.GetBindingDiagnostics()
+                        .Select(item => item.DescriptorName)
+                        .Where(item => !string.IsNullOrWhiteSpace(item))
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(item => item, StringComparer.Ordinal)
+                        .ToArray();
+                    var missingDeclaredDescriptors = requiredDescriptorNames
+                        .Where(item => !declaredDescriptors.Contains(item))
+                        .ToArray();
+                    if (missingDeclaredDescriptors.Length > 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Proto reference report is missing declared descriptor names required by registry: " +
+                            string.Join(", ", missingDeclaredDescriptors));
+                    }
+                }
             }
             catch (JsonException ex)
             {
@@ -593,6 +637,17 @@ namespace GameServerApp.Testing
             public string[] MissingRegistrations { get; set; } = Array.Empty<string>();
 
             public string[] UnregisteredMessageTypes { get; set; } = Array.Empty<string>();
+
+            public string[] DeclaredMessages { get; set; } = Array.Empty<string>();
+
+            public ProtoReferenceRegisteredSnapshot[] Registered { get; set; } = Array.Empty<ProtoReferenceRegisteredSnapshot>();
+        }
+
+        private sealed class ProtoReferenceRegisteredSnapshot
+        {
+            public string MessageType { get; set; } = string.Empty;
+
+            public string PrototypeName { get; set; } = string.Empty;
         }
     }
 }

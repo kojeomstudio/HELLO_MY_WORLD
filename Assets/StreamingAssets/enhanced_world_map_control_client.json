@@ -1,4 +1,4 @@
-{
+﻿{
     "worldMapControl":  {
                             "ui":  {
                                        "showMiniMap":  true,
@@ -17,26 +17,26 @@
                             "performance":  {
                                                 "chunkUpdateThrottleMs":  50,
                                                 "maxConcurrentChunkRequests":  8,
-                                                "maxQueuedChunkRequests":  3712,
+                                                "maxQueuedChunkRequests":  3840,
                                                 "queuePressureFactor":  4,
-                                                "queueSlackRatio":  2.8,
-                                                "queueBurstSlackMultiplier":  1.2,
-                                                "queueLoadSheddingThreshold":  0.79,
-                                                "queueEmergencyBrakeThreshold":  0.96,
+                                                "queueSlackRatio":  2.9,
+                                                "queueBurstSlackMultiplier":  1.22,
+                                                "queueLoadSheddingThreshold":  0.82,
+                                                "queueEmergencyBrakeThreshold":  0.99,
                                                 "queueLoadEmaBlend":  0.24,
-                                                "queueEmergencyReleaseRatio":  0.81,
-                                                "queueTrendBoostWeight":  0.3,
-                                                "queueShockAbsorberWeight":  0.34,
-                                                "queueOverloadDrainFactor":  8,
+                                                "queueEmergencyReleaseRatio":  0.82,
+                                                "queueTrendBoostWeight":  0.31,
+                                                "queueShockAbsorberWeight":  0.3,
+                                                "queueOverloadDrainFactor":  6,
                                                 "queueBackoffDelayMs":  5,
-                                                "queueEmergencyHoldTicks":  9,
-                                                "queueRecoveryRampTicks":  13,
                                                 "enableChunkPrediction":  true,
-                                                "queueRequestTtlSeconds":  44,
-                                                "queueHotspotBias":  0.52,
-                                                "queueHotspotEmergencyPenalty":  0.98,
-                                                "queueHotspotRetentionSeconds":  24,
-                                                "queueNearChunkKeepCount":  32
+                                                "queueRequestTtlSeconds":  46,
+                                                "queueEmergencyHoldTicks":  7,
+                                                "queueRecoveryRampTicks":  12,
+                                                "queueHotspotBias":  0.5,
+                                                "queueHotspotEmergencyPenalty":  0.95,
+                                                "queueHotspotRetentionSeconds":  20,
+                                                "queueNearChunkKeepCount":  30
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

@@ -22,6 +22,8 @@ public sealed class DummyClientConfig
     public int MinMapControlProfileVersion { get; set; } = SharedFeatureCatalog.MapControlProfileVersion;
     public bool FailOnMapControlVersionRegression { get; set; } = true;
     public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
+    public bool FailOnReferenceReportDrift { get; set; } = true;
+    public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
     public bool IncludeOptionalMessages { get; set; } = false;
     public string[] Packets { get; set; } = new[]
     {
@@ -194,6 +196,13 @@ public static class Program
             }
         }
 
+        if (config.FailOnReferenceReportDrift &&
+            !ValidateReferenceReport(config.ReferenceReportPath, out string referenceError))
+        {
+            Console.WriteLine("[ERROR] Proto reference report drift detected: " + referenceError);
+            return 1;
+        }
+
         var packetTypes = ResolvePackets(config.Packets);
         if (config.IncludeOptionalMessages)
         {
@@ -322,6 +331,91 @@ public static class Program
         return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 && unboundRequiredDescriptors.Length == 0 ? 0 : 1;
     }
 
+    private static bool ValidateReferenceReport(string reportPath, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(reportPath))
+        {
+            return true;
+        }
+
+        string resolvedPath = Path.IsPathRooted(reportPath)
+            ? reportPath
+            : Path.GetFullPath(reportPath);
+        if (!File.Exists(resolvedPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var reference = JsonSerializer.Deserialize<ProtoReferenceSnapshot>(
+                File.ReadAllText(resolvedPath),
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                });
+            if (reference == null)
+            {
+                return true;
+            }
+
+            string runtimeDescriptor = ProtoFingerprint.DescriptorFingerprint;
+            string runtimeComputed = ProtoFingerprint.ComputeFingerprint();
+            if (!string.IsNullOrWhiteSpace(reference.DescriptorFingerprint) &&
+                !string.Equals(reference.DescriptorFingerprint, runtimeDescriptor, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"descriptor fingerprint mismatch (reference={reference.DescriptorFingerprint}, runtime={runtimeDescriptor})";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(reference.ComputedFingerprint) &&
+                !string.Equals(reference.ComputedFingerprint, runtimeComputed, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"computed fingerprint mismatch (reference={reference.ComputedFingerprint}, runtime={runtimeComputed})";
+                return false;
+            }
+
+            if (reference.MissingRegistrations?.Length > 0)
+            {
+                error = "reference report contains missing registrations: " + string.Join(", ", reference.MissingRegistrations);
+                return false;
+            }
+
+            if (reference.UnregisteredMessageTypes?.Length > 0)
+            {
+                error = "reference report contains unregistered message types: " + string.Join(", ", reference.UnregisteredMessageTypes);
+                return false;
+            }
+
+            if (reference.Registered != null && reference.Registered.Length > 0)
+            {
+                var registered = new HashSet<string>(
+                    reference.Registered
+                        .Select(item => item.MessageType ?? string.Empty)
+                        .Where(item => !string.IsNullOrWhiteSpace(item)),
+                    StringComparer.Ordinal);
+                var missing = ProtocolRegistry.RegisteredMessageTypes
+                    .Select(item => item.ToString())
+                    .Where(item => !registered.Contains(item))
+                    .ToArray();
+                if (missing.Length > 0)
+                {
+                    error = "reference report missing runtime registered message types: " + string.Join(", ", missing);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
     private static List<MinecraftMessageType> ResolvePackets(IEnumerable<string> packetNames)
     {
         var types = new List<MinecraftMessageType>();
@@ -408,5 +502,20 @@ public static class Program
         }
 
         await stream.FlushAsync().ConfigureAwait(false);
+    }
+
+    private sealed class ProtoReferenceSnapshot
+    {
+        public string DescriptorFingerprint { get; set; } = string.Empty;
+        public string ComputedFingerprint { get; set; } = string.Empty;
+        public string[] MissingRegistrations { get; set; } = Array.Empty<string>();
+        public string[] UnregisteredMessageTypes { get; set; } = Array.Empty<string>();
+        public ProtoReferenceRegisteredSnapshot[] Registered { get; set; } = Array.Empty<ProtoReferenceRegisteredSnapshot>();
+    }
+
+    private sealed class ProtoReferenceRegisteredSnapshot
+    {
+        public string MessageType { get; set; } = string.Empty;
+        public string PrototypeName { get; set; } = string.Empty;
     }
 }

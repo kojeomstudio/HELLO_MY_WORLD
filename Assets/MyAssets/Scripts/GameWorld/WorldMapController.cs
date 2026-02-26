@@ -868,20 +868,29 @@ namespace GameWorld
             float burstMultiplier = !emergencyBrake && load >= 0.9f
                 ? 1.0f + (Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) - 1.0f) * shockScale
                 : 1.0f;
-            int limit = Mathf.Clamp(
-                Mathf.CeilToInt(dynamicBudget * Mathf.Max(1, adaptivePressure) * Mathf.Max(1.1f, adaptiveSlack) * burstMultiplier),
+            int limit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                Mathf.CeilToInt(dynamicBudget),
+                Mathf.Max(1, adaptivePressure),
+                Mathf.Max(1.1f, adaptiveSlack),
+                burstMultiplier,
+                load,
+                emergencyBrake,
                 64,
                 16384);
 
             if (emergencyBrake)
             {
-                limit = Mathf.Clamp(Mathf.CeilToInt(limit * 0.9f), 64, 16384);
                 queueRecoveryRampTicksRemaining = Mathf.Clamp(queueRecoveryRampTicks, 1, 256);
             }
             else if (load < Mathf.Clamp(queueLoadSheddingThreshold, 0.5f, 0.98f) * 0.65f)
             {
-                int floorLimit = Mathf.Clamp(
-                    Mathf.CeilToInt(dynamicBudget * Mathf.Max(1.1f, queueSlackRatio)),
+                int floorLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                    Mathf.CeilToInt(dynamicBudget),
+                    1,
+                    Mathf.Max(1.1f, queueSlackRatio),
+                    1.0f,
+                    load,
+                    emergencyBrake: false,
                     64,
                     16384);
                 int recoveryStep = Mathf.Max(8, Mathf.Clamp(queueOverloadDrainFactor, 1, 16) * 6);
@@ -894,8 +903,13 @@ namespace GameWorld
                 float recoveryScale = (float)WorldMapQueuePolicy.ComputeRecoveryRamp(
                     queueRecoveryRampTicksRemaining,
                     totalRampTicks);
-                int floorLimit = Mathf.Clamp(
-                    Mathf.CeilToInt(dynamicBudget * Mathf.Max(1.1f, queueSlackRatio)),
+                int floorLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
+                    Mathf.CeilToInt(dynamicBudget),
+                    1,
+                    Mathf.Max(1.1f, queueSlackRatio),
+                    1.0f,
+                    load,
+                    emergencyBrake: false,
                     64,
                     16384);
                 limit = Mathf.Clamp(

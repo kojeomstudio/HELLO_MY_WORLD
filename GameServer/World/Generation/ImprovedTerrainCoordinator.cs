@@ -90,6 +90,7 @@ namespace GameServerApp.World.Generation
             ApplyCoupledFloodplainVentilationField(heightMap, hydrology, flow, erosionRisk);
             ApplyKarstSpringFloodplainCouplingField(heightMap, hydrology, flow, erosionRisk);
             ApplySeasonalRunoffCouplingField(heightMap, hydrology, flow, erosionRisk, chunkX, chunkZ);
+            ApplyCaveRiverLakeRechargeBridge(heightMap, hydrology, flow, erosionRisk);
 
             float[,]? riverMask = config.Water.EnableRivers
                 ? riverGenerator.BuildMask(chunkX, chunkZ, size, heightMap, hydrology, flow, erosionRisk, seaLevel)
@@ -358,6 +359,94 @@ namespace GameServerApp.World.Generation
                 hash = (hash * 397) ^ localZ;
                 return hash;
             }
+        }
+
+        private void ApplyCaveRiverLakeRechargeBridge(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.Caves.GroundwaterConnectivityWeight * 0.34 +
+                config.Water.RiverConfluenceBoost * 0.33 +
+                config.Lakes.SpillRetentionWeight * 0.33,
+                0.0,
+                1.25);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(2, config.Water.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.05, config.Water.HydrologyFlowDivergenceClamp);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowNode = flowCopy[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double erosion = Math.Clamp(erosionCopy[x, z], 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, edgeRadius);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    int edgeDistance = Math.Min(Math.Min(x, sizeX - 1 - x), Math.Min(z, sizeZ - 1 - z));
+                    double edgeBand = 1.0 - Math.Clamp(edgeDistance / (double)(edgeRadius + 1), 0.0, 1.0);
+                    double groundwaterBand = Math.Clamp(
+                        (seaLevel + config.Lakes.MaxDepth - heightMap[x, z]) /
+                        Math.Max(8.0, config.Water.HydrologyWaterTableClampRange),
+                        0.0,
+                        1.0);
+                    double rechargeSignal = Math.Clamp(
+                        (hydro + seamHydro + flowNode * 0.3 + seamFlow * 0.3) * 0.5 +
+                        groundwaterBand * 0.2 +
+                        edgeBand * 0.15,
+                        0.0,
+                        1.35);
+                    rechargeSignal *= 1.0 - Math.Clamp(
+                        divergence * 0.45 +
+                        slope * slopePenalty * 0.01 +
+                        relief / 128.0,
+                        0.0,
+                        0.82);
+                    if (rechargeSignal <= 0.04)
+                    {
+                        continue;
+                    }
+
+                    double coupling = rechargeSignal * bridgeWeight * (0.11 + groundwaterBand * 0.09);
+                    double hydroTarget = hydro * (1.0 - coupling * 0.18) + (seamHydro + rechargeSignal * 0.12) * coupling * 0.18;
+                    double flowTarget = flowNode * (1.0 - coupling * 0.09) + (seamFlow + rechargeSignal * 0.08) * coupling * 0.09;
+                    double erosionTarget = erosion * (1.0 - coupling * 0.07) +
+                        Math.Clamp(flowTarget / 6.0, 0.0, 1.0) * 0.03 -
+                        groundwaterBand * coupling * 0.015;
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.2));
+                    flow[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.2));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                }
+            }
+
+            TerrainMaskUtility.NormalizeEdges(
+                hydrology,
+                edgeRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend);
+            TerrainMaskUtility.NormalizeEdges(
+                flow,
+                edgeRadius,
+                config.Water.HydrologyEdgeNormalizationIterations,
+                config.Water.HydrologyEdgeNormalizationBlend * 0.72);
+            TerrainMaskUtility.Smooth2D(erosionRisk, 1, Math.Clamp(config.Water.HydrologySmoothBlend * 0.22, 0.0, 0.9));
         }
 
         private void ApplyLakeHydrologySeepage(

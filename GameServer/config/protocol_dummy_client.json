@@ -1,4 +1,4 @@
-{
+﻿{
     "host":  "127.0.0.1",
     "port":  9000,
     "connectTimeoutMs":  750,
@@ -10,7 +10,7 @@
     "includeOptionalMessages":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  59,
+    "minMapControlProfileVersion":  60,
     "failOnMapControlVersionRegression":  true,
     "failOnRequiredTypeDrift":  true,
     "failOnReferenceReportDrift":  true,

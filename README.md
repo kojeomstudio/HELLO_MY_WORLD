@@ -32,6 +32,60 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-26: Session 125 - Hydrology v55 / Map-Control v59 / Groundwater Bridge Passes + Queue Near-Keep Signature Context
+
+**Status:** COMPLETED
+
+- Core/Content/Utility feature inventory refresh:
+  - Added session 125 manifests:
+    - `config/minecraft_feature_client_server_core_content_util_2026-02-26-session-125.json`
+    - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-26-session-125.json`
+  - Updated startup manifest priority:
+    - `GameServer/Program.cs`
+- Terrain generation improvements (server + client parity):
+  - Added river groundwater exchange bridge pass.
+  - Added lake groundwater latch bridge pass.
+  - Added cave groundwater perch-seal bridge pass.
+  - Files:
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture improvements:
+  - Shared adaptive near-chunk keep policy utilities added.
+  - World-map signature context extended with near-keep preview value.
+  - Server/client queue parity updates applied.
+  - Files:
+    - `GameCommon/World/WorldMapQueuePolicy.cs`
+    - `GameCommon/World/WorldMapContracts.cs`
+    - `GameCommon/World/WorldMapSignature.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/World/WorldMapController.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared baseline sync:
+  - `HydrologySignature`: `2026-02-26-hydrology-riverlake-cave-v55`
+  - `MapControlProfileVersion`: `59`
+  - File:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+- Data-driven JSON sync:
+  - World/profile/queue/runtime/probe settings synchronized across:
+    - `config/`
+    - `GameServer/config/`
+    - `Assets/StreamingAssets/`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, coverage `0.259`)
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json` PASS (required packets `14/14`)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS (smoke path; warning-level protocol mismatch logs remained)
+- Documentation:
+  - `docs/session-125-implementation-summary.md`
+  - `docs/minecraft_features_core_content_util_session_125.md`
+  - `plans/2026-02-26-session-125-comprehensive-work-plan.md`
+
 ### 2026-02-25: Session 124 - Comprehensive Review & Validation
 
 **Status:** COMPLETED
@@ -3525,6 +3579,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-
 
 

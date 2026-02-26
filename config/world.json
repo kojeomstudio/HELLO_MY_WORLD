@@ -1,4 +1,4 @@
-﻿{
+{
     "WorldName":  "HELLO_MY_WORLD",
     "Seed":  0,
     "GameMode":  "survival",
@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  58,
+    "MapControlProfileVersion":  59,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -51,12 +51,12 @@
                   "HydrologyVarianceClamp":  0.58,
                   "HydrologyEdgeNormalizationBlend":  0.61,
                   "HydrologyEdgeNormalizationIterations":  4,
-                  "HydrologyFlowMemoryWeight":  0.79,
+                  "HydrologyFlowMemoryWeight":  0.82,
                   "HydrologyWaterTableClampWeight":  0.69,
                   "HydrologyWaterTableClampRange":  26,
                   "HydrologyWaterTableSlopeWeight":  0.7,
                   "HydrologyFlowPersistence":  0.99,
-                  "HydrologyCatchmentWeight":  0.52,
+                  "HydrologyCatchmentWeight":  0.56,
                   "HydrologyGradientWeight":  0.38,
                   "HydrologyGradientSlopeWeight":  0.5,
                   "HydrologyGradientClamp":  1.52,
@@ -64,7 +64,7 @@
                   "HydrologyGradientStabilityBlend":  0.58,
                   "HydrologyDirectionalIterations":  3,
                   "HydrologyDirectionalBlend":  0.58,
-                  "HydrologyFlowDivergenceClamp":  0.52,
+                  "HydrologyFlowDivergenceClamp":  0.5,
                   "HydrologyCurvatureWeight":  0.46,
                   "HydrologySeamRelaxIterations":  6,
                   "HydrologySeamRelaxBlend":  0.67,
@@ -88,7 +88,7 @@
                   "RiverEdgeFeather":  0.66,
                   "RiverEdgeContinuityWeight":  0.98,
                   "RiverMouthSmoothRadius":  10,
-                  "RiverDeltaWetlandStrength":  0.84,
+                  "RiverDeltaWetlandStrength":  0.88,
                   "RiverSeamFillStrength":  0.80,
                   "RiverNoiseScale":  0.0145,
                   "RiverDepth":  9,
@@ -97,9 +97,9 @@
                   "HydrologyReservoirIterations":  6,
                   "HydrologyReservoirBlend":  0.5,
                   "RiverConfluenceBoost":  1.02,
-                  "RiverTributaryCaptureWeight":  0.69,
-                  "RiverAvulsionResistance":  0.66,
-                  "RiverBraidingWeight":  0.61,
+                  "RiverTributaryCaptureWeight":  0.73,
+                  "RiverAvulsionResistance":  0.70,
+                  "RiverBraidingWeight":  0.64,
                   "EnableOceans":  true,
                   "EnableRivers":  true,
                   "EnableLakes":  true,
@@ -144,7 +144,7 @@
                   "RiverSuppressionWeight":  0.54,
                   "MoistureRetentionWeight":  0.64,
                   "MoistureFlowClamp":  0.48,
-                  "AquiferBarrierWeight":  0.8,
+                  "AquiferBarrierWeight":  0.82,
                   "RiparianCaveGuardWeight":  0.72,
                   "EdgeSealStrength":  0.82,
                   "SupportPillarChance":  0.38,
@@ -153,8 +153,8 @@
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
                   "CaveEntranceFlowDampening":  0.8,
-                  "GroundwaterConnectivityWeight":  0.80,
-                  "CaveVentilationBias":  0.6
+                  "GroundwaterConnectivityWeight":  0.84,
+                  "CaveVentilationBias":  0.62
               },
     "Ores":  {
                  "EnableOreGeneration":  true,
@@ -218,10 +218,10 @@
                   "OutflowSealWeight":  0.6,
                   "OutflowStabilityWeight":  0.95,
                   "WetlandBufferRadius":  6,
-                  "FlowSeepageWeight":  0.78,
+                  "FlowSeepageWeight":  0.80,
                   "LakeOutflowTaper":  0.76,
-                  "SpillwayContinuityWeight":  0.998,
+                  "SpillwayContinuityWeight":  1.02,
                   "TerraceBiasWeight":  0.44,
-                  "SpillRetentionWeight":  0.84
+                  "SpillRetentionWeight":  0.88
               }
 }

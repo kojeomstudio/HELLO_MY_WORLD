@@ -341,8 +341,75 @@ namespace GameServerApp.World.Generation
             ApplyOxbowCutoffContinuityBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyAnabranchHotspotRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplySeasonalRunoffPulseBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
+            ApplyGroundwaterExchangeBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyGroundwaterExchangeBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double exchangeWeight = Math.Clamp(
+                config.HydrologyFlowPersistence * 0.34 +
+                config.RiverEdgeContinuityWeight * 0.33 +
+                config.RiverTributaryCaptureWeight * 0.33,
+                0.0,
+                1.0);
+            if (exchangeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int reliefRadius = Math.Max(2, config.HydrologyWatershedStitchRadius + 1);
+            double divergenceClamp = Math.Max(0.0001, config.HydrologyFlowDivergenceClamp);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(flow[x, z] / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius);
+                    double groundwaterBand = Math.Clamp(
+                        (seaLevel + config.RiverMouthSmoothRadius * 0.5 - heightMap[x, z]) / Math.Max(8.0, config.HydrologyWaterTableClampRange),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double exchangeSignal = Math.Clamp(
+                        hydro * 0.28 +
+                        seamHydro * 0.24 +
+                        flowNode * 0.2 +
+                        seamFlow * 0.18 +
+                        groundwaterBand * 0.1,
+                        0.0,
+                        1.25);
+                    exchangeSignal *= 1.0 - Math.Clamp(slope * 0.024 + relief / 44.0 + divergence * 0.28, 0.0, 0.82);
+                    if (exchangeSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(river * (0.85 + config.RiverEdgeContinuityWeight * 0.08), exchangeSignal * 0.18);
+                    double target = river * (1.0 - exchangeWeight * 0.12) + (river + exchangeSignal) * exchangeWeight * 0.12;
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyAnabranchHotspotRelayBridge(

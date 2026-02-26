@@ -70,6 +70,18 @@ namespace GameCommon.World
             return Math.Clamp(resolved, 0.0, 3.0);
         }
 
+        public static int ClampNearChunkKeepCount(
+            int nearChunkKeepCount,
+            int fallback = 24,
+            int min = 8,
+            int max = 512)
+        {
+            min = Math.Max(1, min);
+            max = Math.Max(min, max);
+            int resolved = nearChunkKeepCount > 0 ? nearChunkKeepCount : fallback;
+            return Math.Clamp(resolved, min, max);
+        }
+
         public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
         {
             return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);
@@ -200,6 +212,59 @@ namespace GameCommon.World
             }
 
             return Math.Clamp(pressure, min, max);
+        }
+
+        /// <summary>
+        /// Computes the near-chunk keep budget used by queue pruning.
+        /// Higher pressure reduces the keep budget while preserving a deterministic floor.
+        /// </summary>
+        public static int ComputeAdaptiveNearChunkKeepCount(
+            int configuredNearChunkKeepCount,
+            int fallbackBase,
+            QueuePressureBand band,
+            double effectiveLoad,
+            bool emergencyBrake,
+            double hotspotBias,
+            double hotspotEmergencyPenalty,
+            int min = 8,
+            int max = 512)
+        {
+            int clampedConfigured = ClampNearChunkKeepCount(configuredNearChunkKeepCount, fallbackBase, min, max);
+            int clampedFallback = ClampNearChunkKeepCount(fallbackBase, fallbackBase, min, max);
+            int baseline = Math.Clamp(Math.Max(clampedConfigured, clampedFallback), min, max);
+
+            double clampedLoad = Math.Clamp(effectiveLoad, 0.0, 4.0);
+            double clampedBias = ClampHotspotBias(hotspotBias);
+            double clampedEmergencyPenalty = ClampHotspotEmergencyPenalty(hotspotEmergencyPenalty);
+            double bandPenalty = band switch
+            {
+                QueuePressureBand.Critical => 0.28,
+                QueuePressureBand.High => 0.18,
+                QueuePressureBand.Elevated => 0.08,
+                _ => 0.0
+            };
+            double loadPenalty = Math.Clamp((clampedLoad - 0.95) * 0.22, 0.0, 0.3);
+            double retentionBoost = Math.Clamp((1.0 - clampedLoad) * clampedBias * 0.15, 0.0, 0.2);
+            double emergencyPenalty = emergencyBrake
+                ? Math.Clamp(clampedEmergencyPenalty * 0.08, 0.0, 0.2)
+                : 0.0;
+
+            double scale = 1.0 + retentionBoost - bandPenalty - loadPenalty - emergencyPenalty;
+            int adaptive = (int)Math.Round(baseline * Math.Clamp(scale, 0.35, 1.2));
+            int floor = band switch
+            {
+                QueuePressureBand.Critical => (int)Math.Ceiling(baseline * 0.45),
+                QueuePressureBand.High => (int)Math.Ceiling(baseline * 0.55),
+                QueuePressureBand.Elevated => (int)Math.Ceiling(baseline * 0.65),
+                _ => (int)Math.Ceiling(baseline * 0.75)
+            };
+
+            if (emergencyBrake)
+            {
+                floor = Math.Max(min, (int)Math.Ceiling(floor * 0.9));
+            }
+
+            return Math.Clamp(Math.Max(adaptive, floor), min, max);
         }
 
         /// <summary>

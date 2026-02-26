@@ -673,6 +673,23 @@ namespace GameServerApp.World
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtocolRegistry.ValidateBindings();
             var queueState = GetAdaptiveQueueState();
+            double queueLoadSnapshot = Math.Max(
+                generationTasks.Count / Math.Max(1.0, Math.Max(128, maxLoadedChunks)),
+                queueLoadEma);
+            int signatureNearKeepBaseline = WorldMapQueuePolicy.ClampNearChunkKeepCount(
+                Math.Max(8, maxLoadedChunks / Math.Max(2, queuePressureFactor * 2)),
+                24);
+            int signatureNearKeepUpdateDriven = Math.Max(16, Math.Min(512, queueLimit / Math.Max(2, queuePressureFactor * 4)));
+            int signatureNearKeepCount = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
+                signatureNearKeepBaseline,
+                signatureNearKeepUpdateDriven,
+                WorldMapQueuePolicy.ClassifyBand(queueLoadSnapshot),
+                queueLoadSnapshot,
+                queueState.EmergencyBrake,
+                0.42,
+                1.0,
+                8,
+                512);
             long seed = worldSettings.WorldSeed != 0 ? worldSettings.WorldSeed : generationConfig.Seed;
             int effectiveChunkSize = controlProfile?.ChunkSize > 0 ? controlProfile.ChunkSize : generationConfig.ChunkSize;
             int effectiveRenderDistance = controlProfile?.RenderDistance > 0 ? controlProfile.RenderDistance : generationConfig.RenderDistance;
@@ -780,6 +797,7 @@ namespace GameServerApp.World
                 generationTasks.Count,
                 Math.Max(1, queueState.PressureFactor),
                 Math.Max(64, queueState.QueueLimit),
+                signatureNearKeepCount,
                 Math.Clamp(queueState.LoadSheddingThreshold, 0.5, 0.98),
                 Math.Max(1.1, queueState.SlackRatio),
                 Math.Max(1.0, queueBurstSlackMultiplier),

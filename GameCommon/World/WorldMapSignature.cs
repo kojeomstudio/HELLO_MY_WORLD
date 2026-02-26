@@ -114,6 +114,7 @@ namespace GameCommon.World
                 .Append(context.PreviewInflightBudget).Append('|')
                 .Append(context.PreviewQueuePressureFactor).Append('|')
                 .Append(context.PreviewQueueLimit).Append('|')
+                .Append(context.PreviewNearChunkKeepCount).Append('|')
                 .Append(context.PreviewQueueLoadSheddingThreshold).Append('|')
                 .Append(context.PreviewQueueSlackRatio).Append('|')
                 .Append(context.PreviewQueueBurstSlackMultiplier).Append('|')

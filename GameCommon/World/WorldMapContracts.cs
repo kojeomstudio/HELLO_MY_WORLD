@@ -125,6 +125,7 @@ namespace GameCommon.World
             int previewInflightBudget,
             int previewQueuePressureFactor,
             int previewQueueLimit,
+            int previewNearChunkKeepCount,
             double previewQueueLoadSheddingThreshold,
             double previewQueueSlackRatio,
             double previewQueueBurstSlackMultiplier,
@@ -227,6 +228,7 @@ namespace GameCommon.World
             PreviewInflightBudget = previewInflightBudget;
             PreviewQueuePressureFactor = previewQueuePressureFactor;
             PreviewQueueLimit = previewQueueLimit;
+            PreviewNearChunkKeepCount = previewNearChunkKeepCount;
             PreviewQueueLoadSheddingThreshold = previewQueueLoadSheddingThreshold;
             PreviewQueueSlackRatio = previewQueueSlackRatio;
             PreviewQueueBurstSlackMultiplier = previewQueueBurstSlackMultiplier;
@@ -305,6 +307,7 @@ namespace GameCommon.World
         public int PreviewInflightBudget { get; }
         public int PreviewQueuePressureFactor { get; }
         public int PreviewQueueLimit { get; }
+        public int PreviewNearChunkKeepCount { get; }
         public double PreviewQueueLoadSheddingThreshold { get; }
         public double PreviewQueueSlackRatio { get; }
         public double PreviewQueueBurstSlackMultiplier { get; }

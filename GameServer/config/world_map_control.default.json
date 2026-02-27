@@ -28,5 +28,6 @@
   "QueueTrendBoostWeight": 0.22,
   "QueueShockAbsorberWeight": 0.24,
   "QueueOverloadDrainFactor": 2,
-  "QueueBackoffDelayMs": 4
+  "QueueBackoffDelayMs": 4,
+  "QueueStalePruneMax": 48
 }

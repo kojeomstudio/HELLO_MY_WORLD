@@ -35,7 +35,8 @@
                                           "queueHotspotBias":  0.62,
                                           "queueHotspotEmergencyPenalty":  1.16,
                                           "queueHotspotRetentionSeconds":  26,
-                                          "queueNearChunkKeepCount":  38
+                                          "queueNearChunkKeepCount":  38,
+                                          "queueStalePruneMax":  56
                                       },
                             "realTimeUpdates":  {
                                                     "enabled":  true,
@@ -67,7 +68,8 @@
                                                       "queueHotspotBias":  0.62,
                                                       "queueHotspotEmergencyPenalty":  1.16,
                                                       "queueHotspotRetentionSeconds":  26,
-                                                      "queueNearChunkKeepCount":  38
+                                                      "queueNearChunkKeepCount":  38,
+                                                      "queueStalePruneMax":  56
                                                   }
                         }
 }

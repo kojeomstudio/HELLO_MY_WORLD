@@ -48,6 +48,7 @@ namespace GameServerApp.World
         private readonly int configuredQueueBackoffDelayMs;
         private readonly int configuredQueueEmergencyHoldTicks;
         private readonly int configuredQueueRecoveryRampTicks;
+        private readonly int configuredQueueStalePruneMax;
         private readonly double configuredQueueHotspotBias;
         private readonly double configuredQueueHotspotEmergencyPenalty;
         private readonly TimeSpan queueHotspotRetention;
@@ -106,6 +107,7 @@ namespace GameServerApp.World
             configuredQueueBackoffDelayMs = Math.Clamp(Math.Max(1, this.settings.QueueBackoffDelayMs), 1, 200);
             configuredQueueEmergencyHoldTicks = Math.Clamp(Math.Max(1, this.settings.QueueEmergencyHoldTicks), 1, 128);
             configuredQueueRecoveryRampTicks = Math.Clamp(Math.Max(1, this.settings.QueueRecoveryRampTicks), 1, 256);
+            configuredQueueStalePruneMax = Math.Clamp(Math.Max(8, this.settings.QueueStalePruneMax), 8, 256);
             configuredQueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(this.settings.QueueHotspotBias, 0.42);
             configuredQueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(this.settings.QueueHotspotEmergencyPenalty, 1.0);
             int hotspotRetentionSeconds = Math.Clamp(Math.Max(0, this.settings.QueueHotspotRetentionSeconds), 0, 300);
@@ -864,7 +866,7 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched || emergencyBoost,
                 queueLoadSnapshot,
                 1,
-                48);
+                configuredQueueStalePruneMax);
         }
 
         private void EnforceCacheBudget()

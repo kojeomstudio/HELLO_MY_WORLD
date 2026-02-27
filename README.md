@@ -32,6 +32,51 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-27: Session 129 - Hydrology v57 / Map-Control v61 / Subsurface Conduit Exchange + Stale-Prune Cap
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-02-27-session-129-comprehensive-work-plan.md`
+- Core/Content/Utility feature manifest (session 129):
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json`
+- Terrain generation improvement (cave/river/lake coupling):
+  - Added `ApplySubsurfaceConduitExchangeBridge` to server and client preview paths:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map architecture improvement (server + client):
+  - Added data-driven stale-prune cap control:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+    - `GameServer/Program.cs`
+- Shared baseline sync update:
+  - `HydrologySignature`: `2026-02-27-hydrology-riverlake-cave-v57`
+  - `MapControlProfileVersion`: `61`
+  - `GameCommon/World/SharedFeatureCatalog.cs`
+- Data-driven JSON updates (server/client parity):
+  - `config/world.json`, `GameServer/config/world.json`, `Assets/StreamingAssets/world-config.json`
+  - `config/world_map_control_queue_policy.json`, `GameServer/config/world_map_control_queue_policy.json`, `Assets/StreamingAssets/world_map_control_queue_policy.json`
+  - `config/enhanced_world_map_control_server.json`, `GameServer/config/enhanced_world_map_control_server.json`
+  - `config/enhanced_world_map_control_client.json`, `Assets/StreamingAssets/enhanced_world_map_control_client.json`
+  - `config/protocol_dummy_client.json`, `GameServer/config/protocol_dummy_client.json`
+  - `config/world_map_control_profile.json`, `GameServer/config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`
+- Protobuf / packet handling verification:
+  - Verified generated protobuf freshness with `scripts/verify_protobuf.ps1`
+  - Validated protocol round-trip and descriptor coverage with `--proto-probe` and `--selftest`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, coverage `0.259`)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS
+- Session docs:
+  - `docs/session-129-implementation-and-validation.md`
+
 ### 2026-02-26: Session 127 - Hydrology v56 / Map-Control v60 / Cave-River-Lake Recharge Bridge + Queue Budget Unification
 
 **Status:** COMPLETED

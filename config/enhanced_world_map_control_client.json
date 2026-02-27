@@ -36,7 +36,8 @@
                                                 "queueHotspotBias":  0.5,
                                                 "queueHotspotEmergencyPenalty":  0.95,
                                                 "queueHotspotRetentionSeconds":  20,
-                                                "queueNearChunkKeepCount":  30
+                                                "queueNearChunkKeepCount":  30,
+                                                "queueStalePruneMax":  112
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

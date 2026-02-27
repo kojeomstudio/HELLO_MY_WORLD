@@ -40,7 +40,7 @@
 - [x] Verify shared enum/common-code DLL architecture and usage
 - [x] Run compile/test commands and validate protobuf packet handling
 - [x] Update `README.md` and markdown docs under `docs/`
-- [ ] Stage all changes, local commit, and push to `origin/master`
+- [x] Stage all changes, local commit, and push to `origin/master`
 
 ## COMPLETED
 - [x] Checked working tree status and branch (`master`) before task start
@@ -63,3 +63,4 @@
   - `dotnet run --project GameServer/GameServer.csproj -- --selftest`
   - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json --required-only`
 - [x] Updated markdown docs in `README.md` and `docs/session-131-implementation-and-validation.md`
+- [x] Staged all session changes and completed push to `origin/master` (`0656b40b`)

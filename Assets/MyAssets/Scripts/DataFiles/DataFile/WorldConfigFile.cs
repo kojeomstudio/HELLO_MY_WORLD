@@ -171,7 +171,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.RenderDistance = ParseInt(data, "RenderDistance", 10);
                 Config.SimulationDistance = ParseInt(data, "SimulationDistance", 8);
                 Config.MapControlProfilePath = data.ContainsKey("MapControlProfilePath") ? data["MapControlProfilePath"] : "world-map-control.json";
-                Config.MapControlProfileVersion = ParseInt(data, "MapControlProfileVersion", 56);
+                Config.MapControlProfileVersion = ParseInt(data, "MapControlProfileVersion", 62);
                 Config.SubWorld_Count_X_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_X_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Y_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Y_Axis_Per_WorldArea", 32);
                 Config.SubWorld_Count_Z_Axis_Per_WorldArea = ParseInt(data, "SubWorld_Count_Z_Axis_Per_WorldArea", 32);

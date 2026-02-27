@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  61,
+    "MapControlProfileVersion":  62,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -34,7 +34,7 @@
                   "HydrologyFlowGain":  0.72,
                   "HydrologyFlowShadowWeight":  0.68,
                   "HydrologyFlowShadowSlopeWeight":  0.52,
-                  "HydrologyContinuityWeight":  0.71,
+                  "HydrologyContinuityWeight":  0.74,
                   "HydrologyPressureBlend":  0.5,
                   "HydrologyPressureGradientClamp":  0.26,
                   "HydrologyEdgeFlowBias":  0.5,
@@ -153,7 +153,7 @@
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
                   "CaveEntranceFlowDampening":  0.84,
-                  "GroundwaterConnectivityWeight":  0.89,
+                  "GroundwaterConnectivityWeight":  0.92,
                   "CaveVentilationBias":  0.64
               },
     "Ores":  {
@@ -222,6 +222,6 @@
                   "LakeOutflowTaper":  0.78,
                   "SpillwayContinuityWeight":  1.08,
                   "TerraceBiasWeight":  0.48,
-                  "SpillRetentionWeight":  0.92
+                  "SpillRetentionWeight":  0.95
               }
 }

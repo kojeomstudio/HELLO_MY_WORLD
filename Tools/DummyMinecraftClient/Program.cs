@@ -25,6 +25,7 @@ public sealed class DummyClientConfig
     public bool FailOnReferenceReportDrift { get; set; } = true;
     public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
     public bool IncludeOptionalMessages { get; set; } = false;
+    public bool PrintBindingDiagnostics { get; set; } = true;
     public string[] Packets { get; set; } = new[]
     {
         "PlayerStateUpdate",
@@ -61,6 +62,7 @@ public static class Program
         bool forceNetworkProbe = false;
         bool? includeOptionalOverride = null;
         bool? strictRequiredOverride = null;
+        bool? printBindingOverride = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -88,6 +90,12 @@ public static class Program
                 case "--no-strict-required-bindings":
                     strictRequiredOverride = false;
                     break;
+                case "--print-bindings":
+                    printBindingOverride = true;
+                    break;
+                case "--no-print-bindings":
+                    printBindingOverride = false;
+                    break;
             }
         }
 
@@ -102,11 +110,16 @@ public static class Program
             config.StrictRequiredBindings = strictRequiredOverride.Value;
         }
 
+        if (printBindingOverride.HasValue)
+        {
+            config.PrintBindingDiagnostics = printBindingOverride.Value;
+        }
+
         bool probeNetwork = forceNetworkProbe || config.ProbeNetwork;
 
         Console.WriteLine("=== Dummy Minecraft Client (Protocol Probe) ===");
         Console.WriteLine($"Config: {Path.GetFullPath(configPath)}");
-        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, RequireRequiredCoverage={config.RequireRequiredPacketCoverage}, ProbeNetwork={probeNetwork}");
+        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, RequireRequiredCoverage={config.RequireRequiredPacketCoverage}, ProbeNetwork={probeNetwork}, PrintBindings={config.PrintBindingDiagnostics}");
 
         string resolvedProfilePath = string.IsNullOrWhiteSpace(config.WorldMapControlProfilePath)
             ? string.Empty
@@ -158,6 +171,11 @@ public static class Program
             .ToHashSet(StringComparer.Ordinal);
         string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
         string expectedDescriptorFileName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty;
+
+        if (config.PrintBindingDiagnostics)
+        {
+            PrintBindingDiagnostics(generatedDescriptorNames, expectedDescriptorPackage, expectedDescriptorFileName);
+        }
 
         if (missingRequiredBindings.Length > 0)
         {
@@ -329,6 +347,27 @@ public static class Program
         }
 
         return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 && unboundRequiredDescriptors.Length == 0 ? 0 : 1;
+    }
+
+    private static void PrintBindingDiagnostics(
+        HashSet<string> generatedDescriptorNames,
+        string expectedDescriptorPackage,
+        string expectedDescriptorFileName)
+    {
+        var bindings = ProtocolRegistry.GetBindingDiagnostics()
+            .OrderBy(diagnostic => diagnostic.MessageType.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        var coverage = ProtocolRegistry.GetBindingCoverage();
+        Console.WriteLine($"Binding coverage: {coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} (descriptorFile={expectedDescriptorFileName}, package={expectedDescriptorPackage})");
+
+        foreach (var binding in bindings)
+        {
+            bool descriptorExists = generatedDescriptorNames.Contains(binding.DescriptorName);
+            bool packageMatch = string.IsNullOrWhiteSpace(expectedDescriptorPackage) ||
+                string.Equals(binding.DescriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal);
+            string packageStatus = packageMatch ? "pkg=ok" : $"pkg=drift:{binding.DescriptorPackage}";
+            Console.WriteLine($"[BINDING] {binding.MessageType} -> {binding.DescriptorName} ({packageStatus}, generated={(descriptorExists ? "yes" : "no")}, clr={binding.ClrType})");
+        }
     }
 
     private static bool ValidateReferenceReport(string reportPath, out string error)

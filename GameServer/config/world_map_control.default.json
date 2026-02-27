@@ -29,5 +29,6 @@
   "QueueShockAbsorberWeight": 0.24,
   "QueueOverloadDrainFactor": 2,
   "QueueBackoffDelayMs": 4,
-  "QueueStalePruneMax": 48
+  "QueueStalePruneMax": 48,
+  "QueueStalePruneEmergencyMultiplier": 1.35
 }

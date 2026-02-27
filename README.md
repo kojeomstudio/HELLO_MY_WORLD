@@ -32,6 +32,33 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-27: Session 131 - Hydrology v58 / Map-Control v62 / Riparian-Aquifer Continuity + Stale-Prune Emergency Multiplier
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-02-27-session-131-comprehensive-work-plan.md`
+- Core/Content/Utility feature manifest (session 131):
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json`
+- Terrain generation improvement (server/client parity):
+  - Added `ApplyRiparianAquiferContinuityBridge`:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map architecture improvement:
+  - Added data-driven `queueStalePruneEmergencyMultiplier` handling:
+    - `GameServer/Configuration/ConfigurationModels.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `GameServer/Program.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- Shared baseline sync:
+  - `HydrologySignature`: `2026-02-27-hydrology-riverlake-cave-v58`
+  - `MapControlProfileVersion`: `62`
+  - `GameCommon/World/SharedFeatureCatalog.cs`
+- Validation report:
+  - `docs/session-131-implementation-and-validation.md`
+
 ### 2026-02-27: Session 129 - Hydrology v57 / Map-Control v61 / Subsurface Conduit Exchange + Stale-Prune Cap
 
 **Status:** COMPLETED

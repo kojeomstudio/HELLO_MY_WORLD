@@ -142,6 +142,17 @@ namespace GameServerApp.World.Generation
                 lakeMask,
                 caveMask);
 
+            ApplyRiparianKarstExchangeBridge(
+                chunkX,
+                chunkZ,
+                heightMap,
+                hydrology,
+                flow,
+                erosionRisk,
+                riverMask,
+                lakeMask,
+                caveMask);
+
             return new TerrainMaskResult
             {
                 Caves = caveMask,
@@ -388,6 +399,141 @@ namespace GameServerApp.World.Generation
 
                         double pulse = ComputeSubsurfacePulse(worldX + 17, worldZ - 19, y + 5);
                         double carveThreshold = 0.86 - recharge * 0.28 - channelPressure * 0.10;
+                        if (pulse > carveThreshold)
+                        {
+                            caveMask[x, y, z] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyRiparianKarstExchangeBridge(
+            int chunkX,
+            int chunkZ,
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            float[,]? riverMask,
+            float[,]? lakeMask,
+            bool[,,]? caveMask)
+        {
+            if (riverMask == null && lakeMask == null)
+            {
+                return;
+            }
+
+            double exchangeWeight = Math.Clamp(
+                config.Water.HydrologyFlowPersistence * 0.34 +
+                config.Caves.GroundwaterConnectivityWeight * 0.33 +
+                config.Lakes.FlowSeepageWeight * 0.33,
+                0.0,
+                1.3);
+            if (exchangeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, config.TerrainGeneration.BedrockLevel);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double divergenceClamp = Math.Max(0.0001, config.Water.HydrologyFlowDivergenceClamp);
+            int edgeRadius = Math.Max(2, config.Water.HydrologyEdgeBlendRadius);
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double lake = lakeMask != null ? TerrainMaskUtility.Clamp01(lakeMask[x, z]) : 0.0;
+                    double channelPressure = Math.Clamp(river * 0.54 + lake * 0.46, 0.0, 1.2);
+                    if (channelPressure <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowNodeRaw = flowCopy[x, z];
+                    double seamFlowRaw = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double flowNode = Math.Clamp(flowNodeRaw / 6.0, 0.0, 1.2);
+                    double seamFlow = Math.Clamp(seamFlowRaw / 6.0, 0.0, 1.2);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, edgeRadius) /
+                        Math.Max(1.0, config.Water.HydrologyWaterTableClampRange + 6.0),
+                        0.0,
+                        1.0);
+                    double curvature = Math.Clamp(Math.Max(0.0, SampleCurvature(heightMap, x, z)), 0.0, 1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNodeRaw - seamFlowRaw) / Math.Max(1.0, divergenceClamp * 10.0));
+                    double slopeNormalized = Math.Clamp(slope * 0.08, 0.0, 1.0);
+                    double karstPocket = Math.Clamp(
+                        curvature * 0.52 +
+                        (1.0 - slopeNormalized) * 0.33 +
+                        (1.0 - relief) * 0.15,
+                        0.0,
+                        1.0);
+                    double continuity = Math.Clamp((seamHydro + flowNode + seamFlow) / 3.0, 0.0, 1.2);
+
+                    double relay = channelPressure * (0.42 + continuity * 0.28 + karstPocket * 0.30);
+                    relay *= 1.0 - Math.Clamp(
+                        slope * slopePenalty * 0.011 +
+                        divergence * 0.30,
+                        0.0,
+                        0.78);
+
+                    double recharge = relay * exchangeWeight;
+                    double hydroTarget = hydro + recharge * 0.058 - Math.Max(0.0, slope - 0.2) * 0.016;
+                    double flowTarget = flowNodeRaw * (1.0 - recharge * 0.04) + seamFlowRaw * recharge * 0.06 + channelPressure * 0.12 + karstPocket * 0.06;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.2));
+                    flow[x, z] = (float)Math.Clamp(
+                        flowTarget,
+                        0.0,
+                        Math.Max(flowNodeRaw + 1.25, divergenceClamp * 12.0));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                        erosionRisk[x, z] * (1.0 - recharge * 0.055) +
+                        channelPressure * 0.022 +
+                        karstPocket * 0.018,
+                        0.0,
+                        1.0));
+
+                    if (riverMask != null)
+                    {
+                        riverMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(river + hydrology[x, z] * 0.015 + continuity * 0.012, 0.0, 1.0));
+                    }
+
+                    if (lakeMask != null)
+                    {
+                        lakeMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(lake + hydrology[x, z] * 0.013 + karstPocket * 0.015, 0.0, 1.0));
+                    }
+
+                    if (caveMask == null || recharge <= 0.32)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Max(bedrockLevel + 9, heightMap[x, z]);
+                    int relayTop = Math.Clamp(
+                        seaLevel - 5 + (int)Math.Round((hydrology[x, z] - 0.5f) * 7.0f),
+                        bedrockLevel + 5,
+                        Math.Max(bedrockLevel + 5, surface - 8));
+                    int relayBottom = Math.Max(bedrockLevel + 2, relayTop - 3 - (int)Math.Round(karstPocket * 3.0));
+                    int worldX = chunkX * chunkSize + x;
+                    int worldZ = chunkZ * chunkSize + z;
+
+                    for (int y = relayBottom; y <= relayTop; y++)
+                    {
+                        if (y < 0 || y >= worldHeight || caveMask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double pulse = ComputeSubsurfacePulse(worldX - 23, worldZ + 29, y + 11);
+                        double carveThreshold = 0.84 - recharge * 0.24 - karstPocket * 0.11;
                         if (pulse > carveThreshold)
                         {
                             caveMask[x, y, z] = true;

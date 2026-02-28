@@ -151,12 +151,21 @@ public static class ProtoDiagnostics
     public static void WriteReportToFile(string path)
     {
         var report = BuildReferenceReport();
+        var coverage = ProtocolRegistry.GetBindingCoverage();
+        var missingGeneratedRequiredDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
         var payload = new
         {
             report.FileName,
             report.Package,
             report.DescriptorFingerprint,
             report.ComputedFingerprint,
+            BoundDescriptorCount = coverage.BoundDescriptors,
+            GeneratedDescriptorCount = coverage.GeneratedDescriptors,
+            DescriptorCoverageRatio = coverage.GeneratedDescriptors > 0
+                ? coverage.BoundDescriptors / (double)coverage.GeneratedDescriptors
+                : 1.0,
             DeclaredMessages = report.DeclaredMessages,
             Registered = report.RegisteredMessages
                 .Select(entry => new { MessageType = entry.MessageType.ToString(), entry.PrototypeName })
@@ -164,6 +173,7 @@ public static class ProtoDiagnostics
             MissingRegistrations = report.MissingRegistrations.Select(m => m.ToString()).ToArray(),
             UnregisteredMessageTypes = report.UnregisteredMessageTypes.Select(m => m.ToString()).ToArray(),
             OptionalUnregistered = report.OptionalUnregistered.Select(m => m.ToString()).ToArray(),
+            MissingGeneratedRequiredDescriptors = missingGeneratedRequiredDescriptors,
             UnboundDescriptors = report.UnboundDescriptors,
             OrphanedDescriptors = report.OrphanedDescriptors
         };
@@ -178,10 +188,12 @@ public static class ProtoDiagnostics
     public static void LogSummary()
     {
         var report = BuildReferenceReport();
+        var coverage = ProtocolRegistry.GetBindingCoverage();
         Console.WriteLine("[Proto] EnhancedMinecraft descriptor: " + report.FileName);
         Console.WriteLine("[Proto] Package: " + report.Package);
         Console.WriteLine("[Proto] Expected fingerprint: " + report.DescriptorFingerprint);
         Console.WriteLine("[Proto] Computed fingerprint: " + report.ComputedFingerprint);
+        Console.WriteLine("[Proto] Binding coverage: " + coverage.BoundDescriptors + "/" + coverage.GeneratedDescriptors);
         if (!report.DescriptorFingerprint.Equals(report.ComputedFingerprint, StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine("[Proto][WARN] Descriptor fingerprint mismatch detected.");
@@ -222,6 +234,15 @@ public static class ProtoDiagnostics
         {
             Console.WriteLine("[Proto][WARN] Optional EnhancedMinecraft enums missing ProtocolRegistry bindings: " +
                               FormatListForLog(report.OptionalUnregistered.Select(item => item.ToString())));
+        }
+
+        var missingGeneratedRequiredDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        if (missingGeneratedRequiredDescriptors.Length > 0)
+        {
+            Console.WriteLine("[Proto][WARN] Required generated descriptors missing ProtocolRegistry bindings: " +
+                              string.Join(", ", missingGeneratedRequiredDescriptors));
         }
     }
 

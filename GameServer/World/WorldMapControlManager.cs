@@ -865,13 +865,12 @@ namespace GameServerApp.World
             }
 
             int effectiveStalePruneMax = configuredQueueStalePruneMax;
-            if (queueEmergencyBrakeLatched || emergencyBoost)
-            {
-                effectiveStalePruneMax = Math.Clamp(
-                    (int)Math.Ceiling(configuredQueueStalePruneMax * configuredQueueStalePruneEmergencyMultiplier),
-                    configuredQueueStalePruneMax,
-                    512);
-            }
+            effectiveStalePruneMax = WorldMapQueuePolicy.ComputeEmergencyScaledStalePruneMax(
+                configuredQueueStalePruneMax,
+                configuredQueueStalePruneEmergencyMultiplier,
+                queueEmergencyBrakeLatched || emergencyBoost,
+                8,
+                512);
 
             return WorldMapQueuePolicy.ComputeStalePruneBudget(
                 inflightChunkGenerations.Count,

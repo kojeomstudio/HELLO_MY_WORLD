@@ -10,7 +10,7 @@
     "includeOptionalMessages":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  62,
+    "minMapControlProfileVersion":  63,
     "failOnMapControlVersionRegression":  true,
     "failOnRequiredTypeDrift":  true,
     "failOnReferenceReportDrift":  true,
@@ -48,3 +48,4 @@
                 ],
     "comment":  "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }
+

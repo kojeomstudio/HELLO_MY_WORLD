@@ -137,15 +137,26 @@ namespace GameServerApp.Testing
     public sealed class DummyProtocolClient
     {
         public DummyProtocolProbeSettings Settings { get; }
+        private readonly string _settingsBaseDirectory;
 
-        private DummyProtocolClient(DummyProtocolProbeSettings settings)
+        private DummyProtocolClient(DummyProtocolProbeSettings settings, string settingsBaseDirectory)
         {
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _settingsBaseDirectory = string.IsNullOrWhiteSpace(settingsBaseDirectory)
+                ? Directory.GetCurrentDirectory()
+                : settingsBaseDirectory;
         }
 
         public static DummyProtocolClient CreateFromConfig(string settingsPath)
         {
-            return new DummyProtocolClient(DummyProtocolProbeSettings.Load(settingsPath));
+            string resolvedSettingsPath = string.IsNullOrWhiteSpace(settingsPath)
+                ? string.Empty
+                : Path.GetFullPath(settingsPath);
+            string settingsBaseDirectory = string.IsNullOrWhiteSpace(resolvedSettingsPath)
+                ? Directory.GetCurrentDirectory()
+                : Path.GetDirectoryName(resolvedSettingsPath) ?? Directory.GetCurrentDirectory();
+            var settings = DummyProtocolProbeSettings.Load(resolvedSettingsPath);
+            return new DummyProtocolClient(settings, settingsBaseDirectory);
         }
 
         public async Task<DummyProtocolProbeResult> RunAsync(bool probeNetwork, CancellationToken cancellationToken)
@@ -504,7 +515,7 @@ namespace GameServerApp.Testing
             }));
         }
 
-        private static string ResolvePath(string path)
+        private string ResolvePath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -514,6 +525,12 @@ namespace GameServerApp.Testing
             if (Path.IsPathRooted(path))
             {
                 return path;
+            }
+
+            string settingsRelativePath = Path.GetFullPath(Path.Combine(_settingsBaseDirectory, path));
+            if (File.Exists(settingsRelativePath) || Directory.Exists(settingsRelativePath))
+            {
+                return settingsRelativePath;
             }
 
             return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), path));

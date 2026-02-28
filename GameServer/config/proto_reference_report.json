@@ -3,6 +3,9 @@
   "Package": "EnhancedMinecraftProtocol",
   "DescriptorFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
   "ComputedFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
+  "BoundDescriptorCount": 14,
+  "GeneratedDescriptorCount": 54,
+  "DescriptorCoverageRatio": 0.25925925925925924,
   "DeclaredMessages": [
     "PlayerInfo",
     "PlayerStats",
@@ -131,6 +134,7 @@
     "ContainerClose",
     "ContainerUpdate"
   ],
+  "MissingGeneratedRequiredDescriptors": [],
   "UnboundDescriptors": [
     "PlayerStats",
     "PlayerInventory",

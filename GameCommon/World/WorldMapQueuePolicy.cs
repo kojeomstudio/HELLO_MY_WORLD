@@ -329,6 +329,30 @@ namespace GameCommon.World
         }
 
         /// <summary>
+        /// Computes an emergency-scaled stale prune max budget from a configured base value.
+        /// Shared by server/client queue managers to keep emergency expansion behavior aligned.
+        /// </summary>
+        public static int ComputeEmergencyScaledStalePruneMax(
+            int configuredStalePruneMax,
+            double emergencyMultiplier,
+            bool emergencyMode,
+            int min = 8,
+            int max = 1024)
+        {
+            min = Math.Max(1, min);
+            max = Math.Max(min, max);
+            int baseCap = Math.Clamp(configuredStalePruneMax <= 0 ? min : configuredStalePruneMax, min, max);
+            if (!emergencyMode)
+            {
+                return baseCap;
+            }
+
+            double clampedMultiplier = Math.Clamp(emergencyMultiplier <= 0.0 ? 1.0 : emergencyMultiplier, 1.0, 3.0);
+            int scaled = (int)Math.Ceiling(baseCap * clampedMultiplier);
+            return Math.Clamp(scaled, baseCap, max);
+        }
+
+        /// <summary>
         /// Computes a Manhattan distance threshold for queue shedding based on pressure band.
         /// </summary>
         public static int GetDistanceThreshold(int baseRadius, QueuePressureBand band, bool emergencyBrake = false)

@@ -73,9 +73,10 @@ namespace GameServerApp
                 var config = ServerConfig.LoadFromFile();
                 EnsureWorldMapProfile(config);
                 var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
-                var profile = ServerWorldMapControlProfileUtility.Load(worldGenConfig.MapControlProfilePath);
+                string profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
+                var profile = ServerWorldMapControlProfileUtility.Load(profilePath);
                 Console.WriteLine(
-                    $"Generated world map control profile at '{worldGenConfig.MapControlProfilePath}' " +
+                    $"Generated world map control profile at '{profilePath}' " +
                     $"(hash: {profile?.ProfileHash ?? "unknown"}, version: {profile?.Version}, signature: {profile?.HydrologySignature}).");
                 return 0;
             }
@@ -152,6 +153,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-133.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json"),
@@ -437,6 +439,7 @@ namespace GameServerApp
             profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
             profile.ProfileHash = ServerWorldMapControlProfileUtility.ComputeHash(profile);
             ServerWorldMapControlProfileUtility.Save(profile, profilePath);
+            TryMirrorProfileToRootConfig(profilePath, worldGenConfig.MapControlProfilePath);
             TryMirrorProfileToStreamingAssets(profilePath);
         }
 
@@ -941,7 +944,50 @@ namespace GameServerApp
         {
             try
             {
-                string targetPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+                string repoTargetPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+                MirrorProfile(profilePath, repoTargetPath);
+
+                string rootTargetPath = Path.GetFullPath(Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "Assets",
+                    "StreamingAssets",
+                    "world-map-control.json"));
+                if (!string.Equals(repoTargetPath, rootTargetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    MirrorProfile(profilePath, rootTargetPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to StreamingAssets: {ex.Message}");
+            }
+        }
+
+        private static void MirrorProfile(string sourcePath, string targetPath)
+        {
+            var directory = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+            Console.WriteLine($"[WorldMapControlProfile] Mirrored profile to {targetPath}");
+        }
+
+        private static void TryMirrorProfileToRootConfig(string profilePath, string configuredRelativePath)
+        {
+            try
+            {
+                string targetPath = Path.IsPathRooted(configuredRelativePath)
+                    ? configuredRelativePath
+                    : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), configuredRelativePath));
+
+                if (string.Equals(profilePath, targetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
                 var directory = Path.GetDirectoryName(targetPath);
                 if (!string.IsNullOrWhiteSpace(directory))
                 {
@@ -953,7 +999,7 @@ namespace GameServerApp
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to StreamingAssets: {ex.Message}");
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to root config: {ex.Message}");
             }
         }
 

@@ -3176,7 +3176,31 @@ This project is licensed under MIT License - see LICENSE file for details.
 
 ---
 
-**Last Updated:** 2026-02-06
+## Session 133 Update (2026-02-28)
+
+- Applied hydrology/terrain coupling improvements for cave-river-lake integration on both server and client world generation flows.
+- Upgraded shared map-control signature/profile to `v59` / `63` and synchronized JSON-driven config/runtime files.
+- Improved world-map profile path consistency:
+  - profile generation now reports resolved path,
+  - generated profile is mirrored to root/server config and StreamingAssets targets.
+- Hardened protobuf diagnostics/probe outputs with descriptor coverage + generated-required-descriptor gap reporting.
+- Verified protobuf dummy probe and standalone dummy client with shared DLL contracts (`GameCommon`, `SharedProtocol`).
+- Added session artifact docs:
+  - `docs/session-133-comprehensive-implementation-report.md`
+  - `plans/2026-02-28-session-133-comprehensive-work-plan.md`
+
+### Session 133 Validation Commands
+
+- `dotnet build SharedProtocol/SharedProtocol.csproj`
+- `dotnet build GameCommon/GameCommon.csproj`
+- `dotnet build GameServer/GameServer.csproj`
+- `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj`
+- `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile`
+- `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
+- `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --config config/dummy_minecraft_client.json`
+- `dotnet run --project GameServer/GameServer.csproj -- --selftest`
+
+**Last Updated:** 2026-02-28
 - Profile loading and caching
 - Chunk streaming from server
 - Async generation with progress tracking
@@ -3894,6 +3918,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-
 
 

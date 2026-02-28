@@ -32,6 +32,7 @@ namespace GameServerApp
             ProtoDiagnostics.AssertRegistryClean();
             EmitProtoReport();
             LoadFeatureManifest();
+            ValidateWorldMapQueuePolicyParity();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -153,6 +154,7 @@ namespace GameServerApp
             {
                 string[] manifestCandidates =
                 {
+                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-133.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json"),
                     Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json"),
@@ -236,6 +238,78 @@ namespace GameServerApp
             {
                 Console.WriteLine($"[FeatureManifest][WARN] Failed to load feature manifest: {ex.Message}");
             }
+        }
+
+        private static void ValidateWorldMapQueuePolicyParity()
+        {
+            try
+            {
+                string serverPolicyPath = ResolveRepoPath(Path.Combine("config", "world_map_control_queue_policy.json"));
+                string clientPolicyPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world_map_control_queue_policy.json"));
+
+                if (!File.Exists(serverPolicyPath) || !File.Exists(clientPolicyPath))
+                {
+                    Console.WriteLine(
+                        $"[WorldMapQueuePolicy][WARN] Skipped parity check (server='{serverPolicyPath}', client='{clientPolicyPath}').");
+                    return;
+                }
+
+                string serverJson = File.ReadAllText(serverPolicyPath);
+                string clientJson = File.ReadAllText(clientPolicyPath);
+                int serverVersion = ReadJsonVersion(serverJson);
+                int clientVersion = ReadJsonVersion(clientJson);
+                string serverHash = ComputeSha256Hex(serverJson);
+                string clientHash = ComputeSha256Hex(clientJson);
+
+                if (string.Equals(serverHash, clientHash, StringComparison.OrdinalIgnoreCase) && serverVersion == clientVersion)
+                {
+                    Console.WriteLine(
+                        $"[WorldMapQueuePolicy] Server/client policy parity OK (version={serverVersion}, hash={serverHash[..12]}...).");
+                    return;
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapQueuePolicy][WARN] Policy drift detected: server(v={serverVersion}, hash={serverHash[..12]}...) != client(v={clientVersion}, hash={clientHash[..12]}...). Mirroring server policy to StreamingAssets.");
+                string? clientDirectory = Path.GetDirectoryName(clientPolicyPath);
+                if (!string.IsNullOrWhiteSpace(clientDirectory))
+                {
+                    Directory.CreateDirectory(clientDirectory);
+                }
+
+                File.Copy(serverPolicyPath, clientPolicyPath, overwrite: true);
+                Console.WriteLine($"[WorldMapQueuePolicy] Mirrored policy to {clientPolicyPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapQueuePolicy][WARN] Parity validation failed: {ex.Message}");
+            }
+        }
+
+        private static int ReadJsonVersion(string json)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                if (document.RootElement.TryGetProperty("version", out var versionElement) &&
+                    versionElement.ValueKind == JsonValueKind.Number &&
+                    versionElement.TryGetInt32(out int version))
+                {
+                    return version;
+                }
+            }
+            catch
+            {
+            }
+
+            return 0;
+        }
+
+        private static string ComputeSha256Hex(string content)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(content ?? string.Empty);
+            byte[] hash = sha.ComputeHash(bytes);
+            return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
         }
 
         private static async Task RunDummyProtocolProbeAsync(bool probeNetwork, CancellationToken cancellationToken)

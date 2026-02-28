@@ -42,6 +42,7 @@ public struct WorldConfig
     public float HydrologyFlowShadowWeight;
     public float HydrologyFlowShadowSlopeWeight;
     public float HydrologyContinuityWeight;
+    public float HydrologyThalwegStabilityWeight;
     public float HydrologyPressureBlend;
     public float HydrologyPressureGradientClamp;
     public float HydrologyEdgeFlowBias;
@@ -200,6 +201,7 @@ public class WorldConfigFile : BaseDataFile
                 Config.HydrologyFlowShadowWeight = ParseFloat(data, "HydrologyFlowShadowWeight", 0.52f);
                 Config.HydrologyFlowShadowSlopeWeight = ParseFloat(data, "HydrologyFlowShadowSlopeWeight", 0.42f);
                 Config.HydrologyContinuityWeight = ParseFloat(data, "HydrologyContinuityWeight", 0.35f);
+                Config.HydrologyThalwegStabilityWeight = ParseFloat(data, "HydrologyThalwegStabilityWeight", 0.58f);
                 Config.HydrologyPressureBlend = ParseFloat(data, "HydrologyPressureBlend", 0.42f);
                 Config.HydrologyPressureGradientClamp = ParseFloat(data, "HydrologyPressureGradientClamp", 0.22f);
                 Config.HydrologyEdgeFlowBias = ParseFloat(data, "HydrologyEdgeFlowBias", 0.42f);
@@ -312,6 +314,7 @@ public class WorldConfigFile : BaseDataFile
         Config.HydrologyFlowShadowWeight = profile.HydrologyFlowShadowWeight;
         Config.HydrologyFlowShadowSlopeWeight = profile.HydrologyFlowShadowSlopeWeight;
         Config.HydrologyContinuityWeight = profile.HydrologyContinuityWeight;
+        Config.HydrologyThalwegStabilityWeight = profile.HydrologyThalwegStabilityWeight;
         Config.HydrologyPressureBlend = profile.HydrologyPressureBlend;
         Config.HydrologyPressureGradientClamp = profile.HydrologyPressureGradientClamp;
         Config.HydrologyEdgeFlowBias = profile.HydrologyEdgeFlowBias;

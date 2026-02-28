@@ -46,6 +46,7 @@ namespace GameCommon.World
                 .Append(profile.HydrologyEdgeNormalizationIterations).Append('|')
                 .Append(profile.HydrologyFlowMemoryWeight).Append('|')
                 .Append(profile.HydrologyContinuityWeight).Append('|')
+                .Append(profile.HydrologyThalwegStabilityWeight).Append('|')
                 .Append(profile.HydrologyPressureBlend).Append('|')
                 .Append(profile.HydrologyPressureGradientClamp).Append('|')
                 .Append(profile.HydrologyEdgeFlowBias).Append('|')

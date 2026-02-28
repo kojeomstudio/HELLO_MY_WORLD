@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 63;
+        public int MapControlProfileVersion = 64;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();
@@ -159,6 +159,7 @@ namespace Minecraft.Core
         public float HydrologyPressureBlend = 0.42f;
         public float HydrologyPressureGradientClamp = 0.22f;
         public float HydrologyContinuityWeight = 0.35f;
+        public float HydrologyThalwegStabilityWeight = 0.58f;
         public float HydrologyEdgeFlowBias = 0.35f;
         public float HydrologyEdgeTangentWeight = 0.45f;
         public float HydrologyEdgeFlowLockWeight = 0.38f;
@@ -388,6 +389,7 @@ namespace Minecraft.Core
         public float HydrologyPressureBlend { get; }
         public float HydrologyPressureGradientClamp { get; }
         public float HydrologyContinuityWeight { get; }
+        public float HydrologyThalwegStabilityWeight { get; }
         public float HydrologyEdgeFlowBias { get; }
         public float HydrologyEdgeTangentWeight { get; }
         public float HydrologyEdgeFlowLockWeight { get; }
@@ -472,6 +474,7 @@ namespace Minecraft.Core
             HydrologyPressureBlend = data.HydrologyPressureBlend;
             HydrologyPressureGradientClamp = data.HydrologyPressureGradientClamp;
             HydrologyContinuityWeight = data.HydrologyContinuityWeight;
+            HydrologyThalwegStabilityWeight = data.HydrologyThalwegStabilityWeight;
             HydrologyEdgeFlowBias = data.HydrologyEdgeFlowBias;
             HydrologyEdgeTangentWeight = data.HydrologyEdgeTangentWeight;
             HydrologyEdgeFlowLockWeight = data.HydrologyEdgeFlowLockWeight;

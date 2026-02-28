@@ -32,6 +32,59 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-02-28: Session 134 - Hydrology v60 / Map-Control v64 / Thalweg Relay Stabilization + Queue Policy Parity Guard
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-02-28-session-134-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifest:
+  - `config/minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json`
+- Terrain generation improvements:
+  - Added `HydrologyThalwegStabilityWeight` and applied it to river/lake/cave coupling:
+    - `GameServer/World/WorldGenerationConfig.cs`
+    - `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+    - `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+  - New bridge pass: `ApplyThalwegRelayStabilizationBridge`
+- World-map architecture improvements:
+  - Added startup parity guard for shared queue policy JSON:
+    - `GameServer/Program.cs`
+  - Updated shared queue policy config version/description:
+    - `config/world_map_control_queue_policy.json`
+    - `GameServer/config/world_map_control_queue_policy.json`
+    - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+- Shared DLL/profile sync:
+  - Updated signature and profile version constants:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+  - Added thalweg field to shared profile + hash pipeline:
+    - `GameCommon/World/WorldMapControlProfile.cs`
+    - `GameCommon/World/WorldMapControlProfileUtility.cs`
+    - `GameServer/World/WorldMapControlProfile.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+- Data-driven config sync:
+  - Updated world/profile JSONs across server/client mirrors:
+    - `config/world.json`, `GameServer/config/world.json`, `Assets/StreamingAssets/world-config.json`
+    - `config/world_map_control_profile.json`, `GameServer/config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`, `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf/dummy probe guard updates:
+  - Raised `minMapControlProfileVersion` to `64`:
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, descriptor coverage `0.259`)
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1` PASS
+- Session documentation:
+  - `docs/session-134-implementation-and-validation.md`
+
 ### 2026-02-28: Comprehensive Analysis and Validation
 
 **Status:** Analysis Complete - All Components Verified
@@ -4013,6 +4066,5 @@ This project is licensed under MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** 2026-02-06
-
 
 

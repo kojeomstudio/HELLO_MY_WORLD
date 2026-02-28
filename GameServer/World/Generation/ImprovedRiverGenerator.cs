@@ -34,6 +34,7 @@ namespace GameServerApp.World.Generation
             double confluenceBoost = Math.Clamp(config.RiverConfluenceBoost, 0.0, 2.0);
             double flowShadowWeight = Math.Clamp(config.HydrologyFlowShadowWeight, 0.0, 1.0);
             double flowShadowSlopeWeight = Math.Clamp(config.HydrologyFlowShadowSlopeWeight, 0.0, 1.0);
+            double thalwegStabilityWeight = Math.Clamp(config.HydrologyThalwegStabilityWeight, 0.0, 1.5);
             double watershedBlend = Math.Clamp(config.HydrologyWatershedStitchWeight, 0.0, 1.0);
             int watershedRadius = Math.Max(1, config.HydrologyWatershedStitchRadius);
             double flowMemoryWeight = Math.Clamp(config.HydrologyFlowMemoryWeight, 0.0, 1.0);
@@ -158,6 +159,7 @@ namespace GameServerApp.World.Generation
                     double pressure = Math.Max(0.0, riverMask);
                     double erosionBrake = 1.0 - Math.Clamp(erosion * riverBankErosionWeight * 0.45, 0.0, 0.45);
                     pressure *= 1.0 + hydrology * config.HydrologyContinuityWeight;
+                    pressure *= 1.0 + Math.Max(0.0, 1.0 - relief) * thalwegStabilityWeight * 0.07;
                     pressure *= 1.0 + flow * config.RiverFlowAlignmentWeight;
                     double anisotropyPenalty = 1.0 - Math.Clamp(gradient * anisotropyDamping * 0.05 + relief * anisotropyDamping * 0.1, 0.0, 0.45);
                     pressure *= (1.0 + directionality * config.RiverAnisotropyWeight * 0.2) * anisotropyPenalty;
@@ -199,6 +201,7 @@ namespace GameServerApp.World.Generation
                         0.45);
                     pressure *= Math.Max(0.55, pressureStabilizer);
                     pressure *= 1.0 + flowMemoryContinuity * 0.25;
+                    pressure *= 1.0 + Math.Max(0.0, 1.0 - divergencePenalty) * thalwegStabilityWeight * 0.06;
                     pressure *= 1.0 - Math.Clamp(flowMemoryGradient * 0.2, 0.0, 0.35);
                     pressure *= 1.0 - Math.Clamp((hydrologyGradient + flowGradient) * edgeGuardWeight * 0.2, 0.0, 0.4);
                     pressure *= 1.0 - Math.Clamp(hydrologyVariance * 0.2 + flowVariance * 0.15, 0.0, 0.35);

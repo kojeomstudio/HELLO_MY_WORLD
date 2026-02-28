@@ -240,12 +240,18 @@ namespace GameServerApp.World.Generation
                 }
             }
 
+            double lakeContinuityWeight = Math.Clamp(
+                waterConfig.HydrologyContinuityWeight * 0.78 +
+                waterConfig.HydrologyThalwegStabilityWeight * 0.22,
+                0.0,
+                1.5);
+
             TerrainMaskUtility.ApplyHydrologyContinuity(
                 lakes,
                 hydrologyMask,
                 flowAccumulation,
                 waterConfig.HydrologyEdgeBlendRadius,
-                waterConfig.HydrologyContinuityWeight);
+                lakeContinuityWeight);
             TerrainMaskUtility.ClampVariance(lakes, waterConfig.HydrologyVarianceClamp);
             TerrainMaskUtility.NormalizeEdgeBands(
                 lakes,

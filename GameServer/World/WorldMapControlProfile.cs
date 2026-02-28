@@ -54,6 +54,7 @@ namespace GameServerApp.World
                 HydrologyEdgeNormalizationIterations = Math.Max(0, config.Water.HydrologyEdgeNormalizationIterations),
                 HydrologyFlowMemoryWeight = config.Water.HydrologyFlowMemoryWeight,
                 HydrologyContinuityWeight = config.Water.HydrologyContinuityWeight,
+                HydrologyThalwegStabilityWeight = config.Water.HydrologyThalwegStabilityWeight,
                 HydrologyPressureBlend = config.Water.HydrologyPressureBlend,
                 HydrologyPressureGradientClamp = config.Water.HydrologyPressureGradientClamp,
                 HydrologyEdgeFlowBias = config.Water.HydrologyEdgeFlowBias,

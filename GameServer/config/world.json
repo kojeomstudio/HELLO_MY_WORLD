@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  63,
+    "MapControlProfileVersion":  64,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -35,6 +35,7 @@
                   "HydrologyFlowShadowWeight":  0.68,
                   "HydrologyFlowShadowSlopeWeight":  0.52,
                   "HydrologyContinuityWeight":  0.76,
+                  "HydrologyThalwegStabilityWeight":  0.58,
                   "HydrologyPressureBlend":  0.53,
                   "HydrologyPressureGradientClamp":  0.26,
                   "HydrologyEdgeFlowBias":  0.5,

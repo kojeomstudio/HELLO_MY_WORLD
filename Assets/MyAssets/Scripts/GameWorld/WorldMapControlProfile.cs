@@ -41,6 +41,7 @@ public class WorldMapControlProfileData
     public int hydrologyEdgeNormalizationIterations;
     public float hydrologyFlowMemoryWeight;
     public float hydrologyContinuityWeight;
+    public float hydrologyThalwegStabilityWeight;
     public float hydrologyPressureBlend;
     public float hydrologyPressureGradientClamp;
     public float hydrologyEdgeFlowBias;
@@ -168,6 +169,7 @@ public sealed class WorldMapControlProfile
     public int HydrologyEdgeNormalizationIterations { get; private set; }
     public float HydrologyFlowMemoryWeight { get; private set; }
     public float HydrologyContinuityWeight { get; private set; }
+    public float HydrologyThalwegStabilityWeight { get; private set; }
     public float HydrologyPressureBlend { get; private set; }
     public float HydrologyPressureGradientClamp { get; private set; }
     public float HydrologyEdgeFlowBias { get; private set; }
@@ -365,6 +367,7 @@ public sealed class WorldMapControlProfile
             hydrologyEdgeNormalizationIterations = profile.HydrologyEdgeNormalizationIterations,
             hydrologyFlowMemoryWeight = profile.HydrologyFlowMemoryWeight,
             hydrologyContinuityWeight = profile.HydrologyContinuityWeight,
+            hydrologyThalwegStabilityWeight = profile.HydrologyThalwegStabilityWeight,
             hydrologyPressureBlend = profile.HydrologyPressureBlend,
             hydrologyPressureGradientClamp = profile.HydrologyPressureGradientClamp,
             hydrologyEdgeFlowBias = profile.HydrologyEdgeFlowBias,
@@ -500,6 +503,7 @@ public sealed class WorldMapControlProfile
                 hydrologyEdgeNormalizationIterations = Mathf.Max(0, water.HydrologyEdgeNormalizationIterations),
                 hydrologyFlowMemoryWeight = Mathf.Clamp01(water.HydrologyFlowMemoryWeight),
                 hydrologyContinuityWeight = Mathf.Clamp01(water.HydrologyContinuityWeight),
+                hydrologyThalwegStabilityWeight = Mathf.Clamp(water.HydrologyThalwegStabilityWeight, 0f, 1.5f),
                 hydrologyPressureBlend = Mathf.Clamp01(water.HydrologyPressureBlend),
                 hydrologyPressureGradientClamp = Mathf.Clamp(water.HydrologyPressureGradientClamp, 0f, 1.5f),
                 hydrologyEdgeFlowBias = Mathf.Clamp01(water.HydrologyEdgeFlowBias),
@@ -633,6 +637,9 @@ public sealed class WorldMapControlProfile
             HydrologyEdgeNormalizationIterations = data.hydrologyEdgeNormalizationIterations,
             HydrologyFlowMemoryWeight = data.hydrologyFlowMemoryWeight,
             HydrologyContinuityWeight = data.hydrologyContinuityWeight,
+            HydrologyThalwegStabilityWeight = data.hydrologyThalwegStabilityWeight > 0f
+                ? data.hydrologyThalwegStabilityWeight
+                : Mathf.Clamp(data.hydrologyContinuityWeight, 0f, 1.5f),
             HydrologyPressureBlend = data.hydrologyPressureBlend,
             HydrologyPressureGradientClamp = data.hydrologyPressureGradientClamp,
             HydrologyEdgeFlowBias = data.hydrologyEdgeFlowBias,
@@ -759,6 +766,7 @@ public sealed class WorldMapControlProfile
             .Append(data.hydrologyEdgeNormalizationIterations).Append('|')
             .Append(data.hydrologyFlowMemoryWeight).Append('|')
             .Append(data.hydrologyContinuityWeight).Append('|')
+            .Append(data.hydrologyThalwegStabilityWeight).Append('|')
             .Append(data.hydrologyPressureBlend).Append('|')
             .Append(data.hydrologyPressureGradientClamp).Append('|')
             .Append(data.hydrologyEdgeFlowBias).Append('|')

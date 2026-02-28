@@ -4303,11 +4303,12 @@ namespace GameWorld
             int sizeZ = hydrology.GetLength(1);
             int edgeRadius = Math.Max(1, worldConfig.Water.HydrologyEdgeBlendRadius + 1);
             double sinkRepairWeight = Math.Clamp(
-                worldConfig.Water.HydrologyContinuityWeight * 0.32 +
+                worldConfig.Water.HydrologyContinuityWeight * 0.26 +
+                worldConfig.Water.HydrologyThalwegStabilityWeight * 0.16 +
                 worldConfig.Water.RiverConfluenceBoost * 0.14 +
-                worldConfig.Water.LakeInflowBlendWeight * 0.2 +
-                worldConfig.Lakes.SpillRetentionWeight * 0.18 +
-                worldConfig.Caves.AquiferBarrierWeight * 0.16,
+                worldConfig.Water.LakeInflowBlendWeight * 0.18 +
+                worldConfig.Lakes.SpillRetentionWeight * 0.14 +
+                worldConfig.Caves.AquiferBarrierWeight * 0.12,
                 0.0,
                 1.35);
             double sinkDepthThreshold = Math.Max(0.5, 1.0 + worldConfig.Lakes.ShelfDepth * 0.18 - worldConfig.Lakes.TerraceBiasWeight * 0.12);
@@ -4741,9 +4742,10 @@ namespace GameWorld
             float[,] lakeMask)
         {
             double couplingWeight = Math.Clamp(
-                worldConfig.Water.HydrologyContinuityWeight * 0.34 +
-                worldConfig.Lakes.SpillwayContinuityWeight * 0.33 +
-                worldConfig.Caves.GroundwaterConnectivityWeight * 0.33,
+                worldConfig.Water.HydrologyContinuityWeight * 0.30 +
+                worldConfig.Water.HydrologyThalwegStabilityWeight * 0.20 +
+                worldConfig.Lakes.SpillwayContinuityWeight * 0.28 +
+                worldConfig.Caves.GroundwaterConnectivityWeight * 0.22,
                 0.0,
                 1.0);
             if (couplingWeight <= 0.01)
@@ -4827,10 +4829,11 @@ namespace GameWorld
             float[,] lakeMask)
         {
             double relayWeight = Math.Clamp(
-                profile.HydrologyContinuityWeight * 0.28 +
-                profile.RiverEdgeContinuityWeight * 0.26 +
-                profile.LakeOutflowStabilityWeight * 0.24 +
-                profile.CaveGroundwaterConnectivityWeight * 0.22,
+                profile.HydrologyContinuityWeight * 0.24 +
+                profile.HydrologyThalwegStabilityWeight * 0.22 +
+                profile.RiverEdgeContinuityWeight * 0.22 +
+                profile.LakeOutflowStabilityWeight * 0.18 +
+                profile.CaveGroundwaterConnectivityWeight * 0.14,
                 0.0,
                 1.0);
             if (relayWeight <= 0.01)

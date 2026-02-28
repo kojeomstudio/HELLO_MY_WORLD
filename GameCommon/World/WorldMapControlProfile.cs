@@ -73,6 +73,8 @@ namespace GameCommon.World
 
         public double HydrologyContinuityWeight { get; set; }
 
+        public double HydrologyThalwegStabilityWeight { get; set; }
+
         public double HydrologyPressureBlend { get; set; }
 
         public double HydrologyPressureGradientClamp { get; set; }
@@ -268,6 +270,11 @@ namespace GameCommon.World
             if (GeneratedAtUtc == default)
             {
                 GeneratedAtUtc = DateTime.UtcNow;
+            }
+
+            if (HydrologyThalwegStabilityWeight <= 0.0)
+            {
+                HydrologyThalwegStabilityWeight = Math.Clamp(HydrologyContinuityWeight, 0.0, 1.5);
             }
         }
     }

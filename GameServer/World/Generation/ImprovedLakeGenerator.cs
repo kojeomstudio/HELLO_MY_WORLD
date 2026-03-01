@@ -304,8 +304,128 @@ namespace GameServerApp.World.Generation
             ApplyAlluvialBackwaterLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyFloodplainRetentionClampBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplySeasonalFloodplainRechargeBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
+            ApplyFloodplainStorageSpillBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyGroundwaterLatchBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             return lakes;
+        }
+
+        private void ApplyFloodplainStorageSpillBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int seaLevel)
+        {
+            double storageWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.35 +
+                lakeConfig.SpillwayContinuityWeight * 0.35 +
+                waterConfig.HydrologyFlowPersistence * 0.30,
+                0.0,
+                1.25);
+            if (storageWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int reliefRadius = Math.Max(2, waterConfig.HydrologyWatershedStitchRadius + 1);
+            double divergenceScale = Math.Max(0.12, waterConfig.HydrologyFlowDivergenceClamp * 0.5);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    if (lake <= 0.001 && river <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNormalized = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.0);
+                    double seamFlowNormalized = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNormalized - seamFlowNormalized) / divergenceScale);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange + 4.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, lakeConfig.MaxRadius + waterConfig.HydrologyEdgeBlendRadius),
+                        0.0,
+                        1.0);
+
+                    double storageSignal = Math.Clamp(
+                        lake * 0.26 +
+                        river * 0.16 +
+                        hydro * 0.2 +
+                        seamHydro * 0.14 +
+                        flowNormalized * 0.12 +
+                        floodplainBand * 0.12,
+                        0.0,
+                        1.25);
+                    storageSignal *= 1.0 - Math.Clamp(
+                        slope * waterConfig.HydrologySlopePenalty * 0.016 +
+                        relief * 0.35 +
+                        divergence * 0.22,
+                        0.0,
+                        0.8);
+
+                    if (storageSignal <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double reinforce = storageSignal * storageWeight;
+                    double target = lake * (1.0 - reinforce * 0.09) +
+                                    (lake + seamHydro * 0.08 + river * 0.06 + floodplainBand * 0.06) * reinforce * 0.09;
+                    target = Math.Max(target, lake + reinforce * 0.028 * (1.0 - Math.Clamp(slope, 0.0, 1.0)));
+                    lakes[x, z] = (float)Math.Clamp(target, 0.0, 1.0);
+
+                    if (reinforce <= 0.3)
+                    {
+                        continue;
+                    }
+
+                    int targetX = x;
+                    int targetZ = z;
+                    int center = heightMap[x, z];
+                    int bestDrop = 0;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            if ((dx == 0 && dz == 0) || (dx != 0 && dz != 0))
+                            {
+                                continue;
+                            }
+
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            int drop = center - heightMap[nx, nz];
+                            if (drop > bestDrop)
+                            {
+                                bestDrop = drop;
+                                targetX = nx;
+                                targetZ = nz;
+                            }
+                        }
+                    }
+
+                    if (targetX == x && targetZ == z)
+                    {
+                        continue;
+                    }
+
+                    double neighbor = lakes[targetX, targetZ];
+                    lakes[targetX, targetZ] = (float)Math.Clamp(Math.Max(neighbor, neighbor + reinforce * 0.015), 0.0, 1.0);
+                }
+            }
         }
 
         private void ApplyGroundwaterLatchBridge(

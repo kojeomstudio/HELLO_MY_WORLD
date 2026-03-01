@@ -372,7 +372,119 @@ namespace GameServerApp.World.Generation
             ApplyBankfullVentilationSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplySeasonalRechargeCaveSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyGroundwaterPerchSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
+            ApplySubsurfaceConduitRelayBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
+        }
+
+        private void ApplySubsurfaceConduitRelayBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double relayWeight = Math.Clamp(
+                config.GroundwaterConnectivityWeight * 0.38 +
+                config.CaveEntranceFlowDampening * 0.32 +
+                config.RiparianCaveGuardWeight * 0.30,
+                0.0,
+                1.2);
+            if (relayWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int top = Math.Min(sizeY - 2, seaLevel + Math.Max(4, config.RiparianPlugDepth + 1));
+            int bottom = Math.Max(3, seaLevel - Math.Max(10, config.RiparianPlugDepth + 5));
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 1);
+            double divergenceScale = Math.Max(0.12, config.MoistureFlowClamp * 0.5);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.RiparianPlugDepth + 12.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceScale);
+                    double perchedBand = Math.Clamp(
+                        (seaLevel + config.RiparianPlugDepth - heightMap[x, z]) / Math.Max(6.0, config.RiparianPlugDepth + 8.0),
+                        0.0,
+                        1.0);
+                    double relaySignal = Math.Clamp(
+                        hydro * 0.28 +
+                        seamHydro * 0.22 +
+                        flow * 0.18 +
+                        seamFlow * 0.14 +
+                        river * 0.1 +
+                        perchedBand * 0.08,
+                        0.0,
+                        1.25);
+                    relaySignal *= 1.0 - Math.Clamp(slope * 0.03 + relief * 0.38 + divergence * 0.22, 0.0, 0.82);
+                    if (relaySignal <= 0.24)
+                    {
+                        continue;
+                    }
+
+                    int worldX = chunkX * sizeX + x;
+                    int worldZ = chunkZ * sizeZ + z;
+                    int surface = Math.Clamp(heightMap[x, z], bottom + 4, sizeY - 2);
+
+                    for (int y = bottom + 1; y <= top - 1; y++)
+                    {
+                        if (y >= surface - 2 || mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int connected = 0;
+                        if (mask[x + 1, y, z]) connected++;
+                        if (mask[x - 1, y, z]) connected++;
+                        if (mask[x, y + 1, z]) connected++;
+                        if (mask[x, y - 1, z]) connected++;
+                        if (mask[x, y, z + 1]) connected++;
+                        if (mask[x, y, z - 1]) connected++;
+                        if (connected <= 0)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = Math.Clamp((surface - y) / Math.Max(6.0, surface), 0.0, 1.0);
+                        double conduitNoise = Math.Abs(SimplexNoise.Generate(
+                            (worldX + 13) * 0.016,
+                            (worldZ - 17) * 0.016 + y * 0.032,
+                            1.0,
+                            2,
+                            1.0,
+                            0.5,
+                            worldX * 73856093 ^ worldZ * 19349663 ^ y * 83492791));
+                        double carveThreshold = Math.Clamp(
+                            0.63 - connected * 0.08 - depthFactor * 0.06 + slope * 0.09 + (1.0 - conduitNoise) * 0.1,
+                            0.28,
+                            0.78);
+                        double conduitPotential = relaySignal * relayWeight * (0.84 + depthFactor * 0.16);
+                        if (conduitPotential <= carveThreshold)
+                        {
+                            continue;
+                        }
+
+                        mask[x, y, z] = true;
+                    }
+                }
+            }
         }
 
         private void ApplyGroundwaterPerchSealBridge(

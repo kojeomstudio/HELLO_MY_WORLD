@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -33,6 +35,7 @@ namespace GameServerApp
             EmitProtoReport();
             LoadFeatureManifest();
             ValidateWorldMapQueuePolicyParity();
+            ValidateWorldMapProfileParity();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -152,67 +155,19 @@ namespace GameServerApp
         {
             try
             {
-                string[] manifestCandidates =
+                var manifestCandidates = DiscoverFeatureManifestCandidates().ToList();
+                if (manifestCandidates.Count == 0)
                 {
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-133.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-27-session-129.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-26-session-126.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-26-session-125.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-25-session-124.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-25-session-123.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-24-session-119.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-24-session-117.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-23-session-115.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-23-session-113.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-22-session-109.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-21-session-105.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-20-session-103.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-20-session-101.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-19-session-99.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-18-session-95.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-18-session-93.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-87.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-84.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-83.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-15-session-81.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-14-session-77.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-13-session-75.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-13-session-74.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-12-session-70.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-11-session-68.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-11-session-67.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-10-session-65.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-10-session-64.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-10-session-63.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-09-session-61.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-09-session-59.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-08-session-58.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-08-session-57.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-08-session-55.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-53.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-07-session-51.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-49.json"),
-                    Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-06-session-47.json"),
-                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json"),
-                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03-session-40.json"),
-                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-03.json"),
-                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-02-session-38.json"),
-                    Path.Combine("config", "minecraft_feature_core_content_util_2026-02-01.json")
-                };
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json")));
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json")));
+                }
 
                 FeatureManifest? manifest = null;
                 string manifestPath = string.Empty;
 
                 foreach (var candidate in manifestCandidates)
                 {
-                    var resolved = ResolveRepoPath(candidate);
+                    var resolved = Path.IsPathRooted(candidate) ? candidate : ResolveRepoPath(candidate);
                     manifest = FeatureManifest.TryLoad(resolved);
                     if (manifest != null)
                     {
@@ -238,6 +193,64 @@ namespace GameServerApp
             {
                 Console.WriteLine($"[FeatureManifest][WARN] Failed to load feature manifest: {ex.Message}");
             }
+        }
+
+        private static IEnumerable<string> DiscoverFeatureManifestCandidates()
+        {
+            string configDirectory = ResolveRepoPath("config");
+            if (!Directory.Exists(configDirectory))
+            {
+                return Array.Empty<string>();
+            }
+
+            var patterns = new[]
+            {
+                "minecraft_feature_client_server_core_content_util_*.json",
+                "minecraft_feature_core_content_util_*.json"
+            };
+
+            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pattern in patterns)
+            {
+                foreach (var path in Directory.GetFiles(configDirectory, pattern, SearchOption.TopDirectoryOnly))
+                {
+                    candidates.Add(path);
+                }
+            }
+
+            return candidates
+                .OrderByDescending(path => TryExtractSessionNumber(Path.GetFileNameWithoutExtension(path)))
+                .ThenByDescending(File.GetLastWriteTimeUtc)
+                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static int TryExtractSessionNumber(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return -1;
+            }
+
+            int marker = fileName.LastIndexOf("session-", StringComparison.OrdinalIgnoreCase);
+            if (marker < 0)
+            {
+                return -1;
+            }
+
+            int start = marker + "session-".Length;
+            int end = start;
+            while (end < fileName.Length && char.IsDigit(fileName[end]))
+            {
+                end++;
+            }
+
+            if (end <= start)
+            {
+                return -1;
+            }
+
+            return int.TryParse(fileName.Substring(start, end - start), out int value) ? value : -1;
         }
 
         private static void ValidateWorldMapQueuePolicyParity()
@@ -282,6 +295,77 @@ namespace GameServerApp
             catch (Exception ex)
             {
                 Console.WriteLine($"[WorldMapQueuePolicy][WARN] Parity validation failed: {ex.Message}");
+            }
+        }
+
+        private static void ValidateWorldMapProfileParity()
+        {
+            try
+            {
+                string serverProfilePath = ResolveRepoPath(Path.Combine("config", "world_map_control_profile.json"));
+                string clientProfilePath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+
+                if (!File.Exists(serverProfilePath) || !File.Exists(clientProfilePath))
+                {
+                    Console.WriteLine(
+                        $"[WorldMapControlProfile][WARN] Skipped parity check (server='{serverProfilePath}', client='{clientProfilePath}').");
+                    return;
+                }
+
+                var serverProfile = SharedWorldMapControlProfileUtility.Load(serverProfilePath);
+                var clientProfile = SharedWorldMapControlProfileUtility.Load(clientProfilePath);
+                if (serverProfile == null || clientProfile == null)
+                {
+                    Console.WriteLine("[WorldMapControlProfile][WARN] Unable to read profiles; skipping parity check.");
+                    return;
+                }
+
+                string computedServerHash = SharedWorldMapControlProfileUtility.ComputeHash(serverProfile);
+                string computedClientHash = SharedWorldMapControlProfileUtility.ComputeHash(clientProfile);
+                string serverHash = string.IsNullOrWhiteSpace(serverProfile.ProfileHash)
+                    ? computedServerHash
+                    : serverProfile.ProfileHash;
+                string clientHash = string.IsNullOrWhiteSpace(clientProfile.ProfileHash)
+                    ? computedClientHash
+                    : clientProfile.ProfileHash;
+                bool serverHashStale = !string.IsNullOrWhiteSpace(serverProfile.ProfileHash) &&
+                                       !string.Equals(serverProfile.ProfileHash, computedServerHash, StringComparison.OrdinalIgnoreCase);
+                bool clientHashStale = !string.IsNullOrWhiteSpace(clientProfile.ProfileHash) &&
+                                       !string.Equals(clientProfile.ProfileHash, computedClientHash, StringComparison.OrdinalIgnoreCase);
+
+                bool versionMismatch = clientProfile.Version < serverProfile.Version ||
+                                       clientProfile.Version < SharedFeatureCatalog.MapControlProfileVersion;
+                bool signatureMismatch = !string.Equals(
+                    clientProfile.HydrologySignature,
+                    serverProfile.HydrologySignature,
+                    StringComparison.OrdinalIgnoreCase);
+                bool hashMismatch = !string.Equals(clientHash, serverHash, StringComparison.OrdinalIgnoreCase) ||
+                                    serverHashStale ||
+                                    clientHashStale;
+
+                if (versionMismatch || signatureMismatch || hashMismatch)
+                {
+                    if (serverHashStale)
+                    {
+                        serverProfile.ProfileHash = computedServerHash;
+                        serverProfile.GeneratedAtUtc = DateTime.UtcNow;
+                        SharedWorldMapControlProfileUtility.Save(serverProfile, serverProfilePath);
+                    }
+
+                    MirrorProfile(serverProfilePath, clientProfilePath);
+                    Console.WriteLine(
+                        $"[WorldMapControlProfile] Repaired parity " +
+                        $"(versionMismatch={versionMismatch}, signatureMismatch={signatureMismatch}, hashMismatch={hashMismatch}).");
+                    return;
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapControlProfile] Server/client parity verified " +
+                    $"(version={serverProfile.Version}, signature={serverProfile.HydrologySignature}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Parity validation failed: {ex.Message}");
             }
         }
 

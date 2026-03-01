@@ -32,6 +32,57 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-03-01: Session 136 - Hydrology v61 / Map-Control v65 / Spring Relay + Profile Parity Auto-Heal
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-03-01-session-136-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifest:
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-01-session-136.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-01-session-136.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-01-session-136.json`
+- Terrain generation improvements:
+  - Added `ApplySpringFloodplainRelayBridge` to `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+  - Added `ApplyFloodplainStorageSpillBridge` to `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+  - Added `ApplySubsurfaceConduitRelayBridge` to `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+  - Added `ApplyRiparianChannelMomentumBridge` to `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+- World-map architecture improvements:
+  - Dynamic feature manifest discovery (removed hardcoded session-only lookup path):
+    - `GameServer/Program.cs`
+  - Added world-map profile parity guard + hash stale auto-heal:
+    - `GameServer/Program.cs`
+- Shared DLL/profile versioning:
+  - Updated shared signature/version constants:
+    - `GameCommon/World/SharedFeatureCatalog.cs`
+  - Applied profile/config version uplift to `65` and hydrology signature `v61`:
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+- Queue policy/profile runtime config updates:
+  - `config/world_map_control_queue_policy.json`
+  - `GameServer/config/world_map_control_queue_policy.json`
+  - `Assets/StreamingAssets/world_map_control_queue_policy.json`
+  - `config/enhanced_world_map_control_server.json`
+  - `GameServer/config/enhanced_world_map_control_server.json`
+- Dummy protocol client profile-version guard update:
+  - `config/protocol_dummy_client.json`
+  - `GameServer/config/protocol_dummy_client.json`
+  - `config/dummy_minecraft_client.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet test GameServer/TerrainGenerationTest.csproj --no-build` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS (`RoundTrip=True`, coverage `0.259`)
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS
+- Session docs:
+  - `docs/session-136-implementation-summary.md`
+
 ### 2026-02-28: Session 134 - Hydrology v60 / Map-Control v64 / Thalweg Relay Stabilization + Queue Policy Parity Guard
 
 **Status:** COMPLETED

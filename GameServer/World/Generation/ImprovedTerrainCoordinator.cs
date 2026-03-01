@@ -114,6 +114,7 @@ namespace GameServerApp.World.Generation
                 ApplyFloodplainBasinPressureCoupling(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
                 ApplyAquiferExchangeStability(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
                 ApplyHyporheicExchangeRelay(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
+                ApplyRiparianChannelMomentumBridge(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
             }
 
             bool[,,]? caveMask = config.Caves.EnableCaves
@@ -173,6 +174,108 @@ namespace GameServerApp.World.Generation
                 Hydrology = hydrology,
                 FlowAccumulation = flow
             };
+        }
+
+        private void ApplyRiparianChannelMomentumBridge(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            float[,]? riverMask,
+            float[,]? lakeMask)
+        {
+            if (riverMask == null && lakeMask == null)
+            {
+                return;
+            }
+
+            double bridgeWeight = Math.Clamp(
+                config.Water.HydrologyFlowPersistence * 0.34 +
+                config.Water.RiverEdgeContinuityWeight * 0.33 +
+                config.Lakes.SpillwayContinuityWeight * 0.33,
+                0.0,
+                1.4);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int reliefRadius = Math.Max(2, config.Water.HydrologyEdgeBlendRadius + 1);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double lake = lakeMask != null ? TerrainMaskUtility.Clamp01(lakeMask[x, z]) : 0.0;
+                    double channelPressure = Math.Clamp(river * 0.62 + lake * 0.38, 0.0, 1.0);
+                    if (channelPressure <= 0.001)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowNode = flowCopy[x, z];
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowCopy, x, z);
+                    double flowNormalized = Math.Clamp(flowNode / 6.0, 0.0, 1.0);
+                    double seamFlowNormalized = Math.Clamp(seamFlow / 6.0, 0.0, 1.0);
+                    double continuity = Math.Clamp((seamHydro + seamFlowNormalized) * 0.5, 0.0, 1.0);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.Water.HydrologyWaterTableClampRange + 4.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, config.Water.RiverMouthSmoothRadius * 1.5),
+                        0.0,
+                        1.0);
+
+                    double momentum = channelPressure *
+                                      (0.4 + continuity * 0.25 + floodplainBand * 0.2 + flowNormalized * 0.15);
+                    momentum *= 1.0 - Math.Clamp(
+                        slope * slopePenalty * 0.012 + relief * 0.3,
+                        0.0,
+                        0.75);
+                    double coupling = momentum * bridgeWeight;
+
+                    double hydroTarget = hydro * (1.0 - coupling * 0.09) +
+                                         (hydro + channelPressure * 0.09 + continuity * 0.04) * coupling * 0.09;
+                    double flowTarget = flowNode * (1.0 - coupling * 0.06) +
+                                        (flowNode + seamFlow * 0.05 + channelPressure * 0.06) * coupling * 0.06;
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01(Math.Clamp(hydroTarget, 0.0, 1.2));
+                    flow[x, z] = (float)Math.Clamp(
+                        flowTarget,
+                        0.0,
+                        Math.Max(flowNode + 1.6, config.Water.HydrologyFlowDivergenceClamp * 12.0));
+
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01(
+                        erosionRisk[x, z] * (1.0 - coupling * 0.08) +
+                        channelPressure * 0.045 +
+                        flowNormalized * 0.03);
+
+                    if (riverMask != null)
+                    {
+                        riverMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                            river + coupling * 0.03 + continuity * 0.012,
+                            0.0,
+                            1.0));
+                    }
+
+                    if (lakeMask != null)
+                    {
+                        lakeMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                            lake + coupling * 0.02 + floodplainBand * 0.012,
+                            0.0,
+                            1.0));
+                    }
+                }
+            }
         }
 
         private void ApplySubsurfaceConduitExchangeBridge(

@@ -27,7 +27,7 @@
 - [x] Verify `using`/project reference integrity via compilation and probe runs
 - [x] Keep server/client config and gameplay data in JSON-driven format
 - [x] Update README and add docs markdown in `docs/`
-- [ ] Final local commit and push to `origin/master`
+- [x] Final local commit and push to `origin/master`
 
 ## Completed
 - [x] Added hydrology v61 terrain passes:
@@ -55,4 +55,3 @@
 - [x] `dotnet test GameServer/TerrainGenerationTest.csproj --no-build`
 - [x] `dotnet run --project GameServer/GameServer.csproj -- --proto-probe`
 - [x] `dotnet run --project GameServer/GameServer.csproj -- --selftest`
-

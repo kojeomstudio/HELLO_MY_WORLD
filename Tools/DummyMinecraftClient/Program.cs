@@ -10,6 +10,18 @@ namespace DummyMinecraftClient;
 
 public sealed class DummyClientConfig
 {
+    private static readonly string[] DefaultPackets =
+    {
+        "PlayerStateUpdate",
+        "ChunkDataRequest",
+        "ChunkDataResponse",
+        "ChunkUnloadNotification",
+        "TimeUpdate",
+        "WeatherChange",
+        "SoundEffect",
+        "ParticleEffect"
+    };
+
     public string Host { get; set; } = "127.0.0.1";
     public int Port { get; set; } = 9000;
     public int ConnectTimeoutMs { get; set; } = 1500;
@@ -26,31 +38,52 @@ public sealed class DummyClientConfig
     public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
     public bool IncludeOptionalMessages { get; set; } = false;
     public bool PrintBindingDiagnostics { get; set; } = true;
-    public string[] Packets { get; set; } = new[]
+    public string[] Packets { get; set; } = DefaultPackets;
+
+    public void Normalize()
     {
-        "PlayerStateUpdate",
-        "ChunkDataRequest",
-        "ChunkDataResponse",
-        "ChunkUnloadNotification",
-        "TimeUpdate",
-        "WeatherChange",
-        "SoundEffect",
-        "ParticleEffect"
-    };
+        Host = string.IsNullOrWhiteSpace(Host) ? "127.0.0.1" : Host.Trim();
+        Port = Math.Clamp(Port <= 0 ? 9000 : Port, 1, 65535);
+        ConnectTimeoutMs = Math.Clamp(ConnectTimeoutMs <= 0 ? 1500 : ConnectTimeoutMs, 100, 120000);
+        ReceiveTimeoutMs = Math.Clamp(ReceiveTimeoutMs <= 0 ? 1500 : ReceiveTimeoutMs, 100, 120000);
+        MaxPacketsToSend = Math.Clamp(MaxPacketsToSend <= 0 ? 6 : MaxPacketsToSend, 1, 128);
+        MinMapControlProfileVersion = Math.Max(1, MinMapControlProfileVersion);
+        WorldMapControlProfilePath = string.IsNullOrWhiteSpace(WorldMapControlProfilePath)
+            ? "config/world_map_control_profile.json"
+            : WorldMapControlProfilePath;
+        ReferenceReportPath = string.IsNullOrWhiteSpace(ReferenceReportPath)
+            ? "config/proto_reference_report.json"
+            : ReferenceReportPath;
+
+        Packets = (Packets ?? Array.Empty<string>())
+            .Where(packet => !string.IsNullOrWhiteSpace(packet))
+            .Select(packet => packet.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (Packets.Length == 0)
+        {
+            Packets = DefaultPackets;
+        }
+    }
 
     public static DummyClientConfig Load(string path)
     {
         if (!File.Exists(path))
         {
-            return new DummyClientConfig();
+            var defaults = new DummyClientConfig();
+            defaults.Normalize();
+            return defaults;
         }
 
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<DummyClientConfig>(json, new JsonSerializerOptions
+        var loaded = JsonSerializer.Deserialize<DummyClientConfig>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             ReadCommentHandling = JsonCommentHandling.Skip
         }) ?? new DummyClientConfig();
+        loaded.Normalize();
+        return loaded;
     }
 }
 

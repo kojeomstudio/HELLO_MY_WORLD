@@ -11,13 +11,13 @@ namespace GameServerApp.World.Generation
     public sealed class ImprovedCaveGenerator
     {
         private readonly CaveConfig config;
-        private readonly Random random;
+        private readonly int worldSeedHash;
         private readonly double depthWeight;
 
         public ImprovedCaveGenerator(CaveConfig config, long worldSeed)
         {
             this.config = config ?? throw new ArgumentNullException(nameof(config));
-            random = new Random((int)(worldSeed ^ 0x5A3C7B01));
+            worldSeedHash = (int)(worldSeed ^ 0x5A3C7B01);
             depthWeight = Math.Clamp(
                 1.0 - (config.HydrologyStabilityWeight + config.FlowStabilityWeight + config.RoughnessStabilityWeight),
                 0.05,
@@ -68,7 +68,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()) * 0.5 + 0.5;
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 0, 311)) * 0.5 + 0.5;
 
                     float hydrology = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
                     float flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
@@ -230,7 +230,7 @@ namespace GameServerApp.World.Generation
                             vertical * 0.6,
                             4.0,
                             2.5,
-                            random.Next());
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 313));
 
                         double primary = SimplexNoise.Generate(
                             warpX + warp.dx,
@@ -239,7 +239,7 @@ namespace GameServerApp.World.Generation
                             3,
                             1.0,
                             0.55,
-                            random.Next());
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 317));
 
                         double secondary = PerlinNoise.Generate(
                             warpX + 17.0,
@@ -248,7 +248,7 @@ namespace GameServerApp.World.Generation
                             2,
                             1.0,
                             0.6,
-                            random.Next());
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 331));
 
                         double detail = Math.Abs(SimplexNoise.Generate(
                             warpX * 1.35 - 23.0,
@@ -257,11 +257,11 @@ namespace GameServerApp.World.Generation
                             2,
                             1.0,
                             0.55,
-                            random.Next()));
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 337)));
 
                         double density = (primary * 0.55) + (secondary * 0.25) + (detail * 0.2);
                         double moisturePenalty = hydrology * config.HydrologyStabilityWeight + riverPressure * config.RiverSuppressionWeight + wetnessRetention * 0.35;
-                        double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, random.Next()) * 0.5) * config.RoughnessStabilityWeight;
+                        double roughnessBias = (0.5 + SimplexNoise.Generate(warpX * 0.8, warpZ * 0.8, 1.0, 1, 1.0, 0.5, CreateNoiseSeed(chunkX, chunkZ, x, z, y, 347)) * 0.5) * config.RoughnessStabilityWeight;
                         double flowPenalty = flow * config.FlowStabilityWeight;
                         double flowMemoryClamp = Math.Clamp(flowMemory * config.MoistureRetentionWeight, 0.0, 1.0);
                         double roofThickness = surface - y;
@@ -346,8 +346,8 @@ namespace GameServerApp.World.Generation
 
             SmoothMask(mask, config.StabilitySmoothIterations, config.StabilitySmoothBlend);
             PlugRiparianCaves(mask, hydrologyMask, riverMask, seaLevel);
-            AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel);
-            SealEdges(mask, hydrologyMask, riverMask, config.EdgeSealStrength);
+            AddSupportColumns(mask, hydrologyMask, riverMask, seaLevel, chunkX, chunkZ);
+            SealEdges(mask, hydrologyMask, riverMask, config.EdgeSealStrength, chunkX, chunkZ);
             SealWetCeilings(mask, hydrologyMask, flowMask, seaLevel);
             ApplyRiparianStability(mask, hydrologyMask, flowMask, riverMask, seaLevel);
             ApplyAquiferContinuitySeal(mask, hydrologyMask, flowMask, riverMask, seaLevel);
@@ -1954,7 +1954,7 @@ namespace GameServerApp.World.Generation
             }
         }
 
-        private void AddSupportColumns(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, int seaLevel)
+        private void AddSupportColumns(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, int seaLevel, int chunkX, int chunkZ)
         {
             double chance = Math.Clamp(config.SupportPillarChance * config.SupportDensity, 0.0, 1.0);
             if (chance <= 0.0)
@@ -1974,13 +1974,14 @@ namespace GameServerApp.World.Generation
                     float river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0f;
                     double gradient = Math.Abs(TerrainMaskUtility.SampleInterior(hydrologyMask, x, z) - hydrology);
                     double pillarChance = chance * (1.0 + hydrology * config.SupportHydrationBias + river * config.SupportFlowBias + gradient * 0.15);
-                    if (random.NextDouble() > pillarChance)
+                    double pillarRoll = CreateDeterministicUnit(chunkX, chunkZ, x, z, seaLevel, 353);
+                    if (pillarRoll > pillarChance)
                     {
                         continue;
                     }
 
                     int baseY = Math.Max(1, seaLevel - 6);
-                    int height = random.Next(2, 6);
+                    int height = CreateDeterministicRange(chunkX, chunkZ, x, z, seaLevel, 359, 2, 6);
                     for (int y = baseY; y < Math.Min(sizeY - 1, baseY + height); y++)
                     {
                         mask[x, y, z] = false;
@@ -2022,7 +2023,7 @@ namespace GameServerApp.World.Generation
             }
         }
 
-        private void SealEdges(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, double strength)
+        private void SealEdges(bool[,,] mask, float[,] hydrologyMask, float[,]? riverMask, double strength, int chunkX, int chunkZ)
         {
             strength = Math.Clamp(strength, 0.0, 1.0);
             if (strength <= 0)
@@ -2051,7 +2052,8 @@ namespace GameServerApp.World.Generation
                         double gradient = Math.Abs(neighbourHydro - hydro);
                         double sealingBias = 0.5 + hydro * 0.35 + river * 0.25 + gradient * 0.25;
                         double sealChance = strength * Math.Clamp(sealingBias, 0.0, 1.5);
-                        if (mask[x, y, z] && random.NextDouble() < sealChance)
+                        double sealRoll = CreateDeterministicUnit(chunkX, chunkZ, x, z, y, 367);
+                        if (mask[x, y, z] && sealRoll < sealChance)
                         {
                             mask[x, y, z] = false;
                         }
@@ -2620,6 +2622,50 @@ namespace GameServerApp.World.Generation
                         }
                     }
                 }
+            }
+        }
+
+        private int CreateNoiseSeed(int chunkX, int chunkZ, int localX, int localZ, int y, int salt)
+        {
+            uint mixed = MixSeed((uint)worldSeedHash, (uint)chunkX, (uint)chunkZ, (uint)localX, (uint)localZ, (uint)y, (uint)salt);
+            return (int)(mixed & 0x7FFFFFFF);
+        }
+
+        private double CreateDeterministicUnit(int chunkX, int chunkZ, int localX, int localZ, int y, int salt)
+        {
+            uint mixed = MixSeed((uint)worldSeedHash, (uint)chunkX, (uint)chunkZ, (uint)localX, (uint)localZ, (uint)y, (uint)salt);
+            return (mixed & 0xFFFFFFu) / 16777215.0;
+        }
+
+        private int CreateDeterministicRange(int chunkX, int chunkZ, int localX, int localZ, int y, int salt, int minInclusive, int maxExclusive)
+        {
+            if (maxExclusive <= minInclusive)
+            {
+                return minInclusive;
+            }
+
+            uint mixed = MixSeed((uint)worldSeedHash, (uint)chunkX, (uint)chunkZ, (uint)localX, (uint)localZ, (uint)y, (uint)salt);
+            int width = maxExclusive - minInclusive;
+            return minInclusive + (int)(mixed % (uint)width);
+        }
+
+        private static uint MixSeed(params uint[] values)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                for (int index = 0; index < values.Length; index++)
+                {
+                    hash ^= values[index] + 0x9E3779B9u + (hash << 6) + (hash >> 2);
+                    hash *= 16777619u;
+                }
+
+                hash ^= hash >> 16;
+                hash *= 0x7FEB352Du;
+                hash ^= hash >> 15;
+                hash *= 0x846CA68Bu;
+                hash ^= hash >> 16;
+                return hash;
             }
         }
     }

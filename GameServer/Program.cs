@@ -10,6 +10,7 @@ using GameCommon.DataDriven;
 using GameCommon.World;
 using GameServerApp.Configuration;
 using GameServerApp.Testing;
+using EnhancedMinecraftProtocol;
 using SharedProtocol.EnhancedMinecraft;
 using ServerWorldMapControlProfileUtility = GameServerApp.World.WorldMapControlProfileUtility;
 using SharedWorldMapControlProfileUtility = GameCommon.World.WorldMapControlProfileUtility;
@@ -33,9 +34,11 @@ namespace GameServerApp
             ProtoDiagnostics.LogSummary();
             ProtoDiagnostics.AssertRegistryClean();
             EmitProtoReport();
+            ValidateGeneratedProtobufSources();
             LoadFeatureManifest();
             ValidateWorldMapQueuePolicyParity();
             ValidateWorldMapProfileParity();
+            ValidateConfigParityManifest();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -158,6 +161,7 @@ namespace GameServerApp
                 var manifestCandidates = DiscoverFeatureManifestCandidates().ToList();
                 if (manifestCandidates.Count == 0)
                 {
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-01-session-138.json")));
                     manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json")));
                     manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json")));
                 }
@@ -394,6 +398,151 @@ namespace GameServerApp
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(content ?? string.Empty);
             byte[] hash = sha.ComputeHash(bytes);
             return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+        }
+
+        private static void ValidateGeneratedProtobufSources()
+        {
+            try
+            {
+                string generatedDirectory = ResolveRepoPath(Path.Combine("Assets", "Generated", "Protobuf"));
+                string[] expectedFiles =
+                {
+                    "Common.cs",
+                    "EnhancedMinecraftGame.cs",
+                    "GameAuth.cs",
+                    "GameChat.cs",
+                    "GameCore.cs",
+                    "GameDiag.cs",
+                    "GameMove.cs",
+                    "GameWorld.cs"
+                };
+
+                var missing = expectedFiles
+                    .Where(file => !File.Exists(Path.Combine(generatedDirectory, file)))
+                    .OrderBy(file => file, StringComparer.Ordinal)
+                    .ToArray();
+
+                var descriptor = EnhancedMinecraftGameReflection.Descriptor;
+                int generatedMessages = descriptor?.MessageTypes?.Count ?? 0;
+                int generatedEnums = descriptor?.EnumTypes?.Count ?? 0;
+
+                if (missing.Length > 0)
+                {
+                    Console.WriteLine(
+                        "[Proto][WARN] Missing generated protobuf C# files: " +
+                        string.Join(", ", missing));
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"[Proto] Generated protobuf sources OK ({expectedFiles.Length} files, messages={generatedMessages}, enums={generatedEnums}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Proto][WARN] Generated source validation failed: {ex.Message}");
+            }
+        }
+
+        private static void ValidateConfigParityManifest()
+        {
+            try
+            {
+                string manifestPath = ResolveRepoPath(Path.Combine("config", "config_parity_manifest.json"));
+                if (!File.Exists(manifestPath))
+                {
+                    Console.WriteLine($"[ConfigParity][WARN] Manifest not found: {manifestPath}");
+                    return;
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+                var manifest = JsonSerializer.Deserialize<ConfigParityManifest>(File.ReadAllText(manifestPath), options);
+                if (manifest == null || manifest.Groups.Count == 0)
+                {
+                    Console.WriteLine($"[ConfigParity][WARN] Manifest is empty: {manifestPath}");
+                    return;
+                }
+
+                int mirrored = 0;
+                int checkedMirrors = 0;
+
+                foreach (var group in manifest.Groups)
+                {
+                    if (string.IsNullOrWhiteSpace(group.Source))
+                    {
+                        continue;
+                    }
+
+                    string sourcePath = ResolveRepoPath(group.Source);
+                    if (!File.Exists(sourcePath))
+                    {
+                        Console.WriteLine($"[ConfigParity][WARN] Missing source for '{group.Name}': {sourcePath}");
+                        continue;
+                    }
+
+                    string sourceJson = File.ReadAllText(sourcePath);
+                    string sourceHash = ComputeSha256Hex(sourceJson);
+                    IEnumerable<string> mirrors = (group.Mirrors ?? new List<string>())
+                        .Where(path => !string.IsNullOrWhiteSpace(path))
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (string mirrorRelative in mirrors)
+                    {
+                        checkedMirrors++;
+                        string mirrorPath = ResolveRepoPath(mirrorRelative);
+                        string? mirrorDirectory = Path.GetDirectoryName(mirrorPath);
+                        if (!string.IsNullOrWhiteSpace(mirrorDirectory))
+                        {
+                            Directory.CreateDirectory(mirrorDirectory);
+                        }
+
+                        bool shouldMirror = true;
+                        if (File.Exists(mirrorPath))
+                        {
+                            string mirrorHash = ComputeSha256Hex(File.ReadAllText(mirrorPath));
+                            shouldMirror = !string.Equals(sourceHash, mirrorHash, StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (!shouldMirror)
+                        {
+                            continue;
+                        }
+
+                        File.Copy(sourcePath, mirrorPath, overwrite: true);
+                        mirrored++;
+                        Console.WriteLine($"[ConfigParity] Mirrored '{group.Name}' => {mirrorPath}");
+                    }
+                }
+
+                Console.WriteLine(
+                    $"[ConfigParity] Manifest v{manifest.Version} checked={checkedMirrors}, mirrored={mirrored}, description='{manifest.Description}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ConfigParity][WARN] Validation failed: {ex.Message}");
+            }
+        }
+
+        private sealed class ConfigParityManifest
+        {
+            public int Version { get; set; }
+
+            public string Description { get; set; } = string.Empty;
+
+            public List<ConfigParityGroup> Groups { get; set; } = new();
+        }
+
+        private sealed class ConfigParityGroup
+        {
+            public string Name { get; set; } = string.Empty;
+
+            public string Source { get; set; } = string.Empty;
+
+            public List<string> Mirrors { get; set; } = new();
         }
 
         private static async Task RunDummyProtocolProbeAsync(bool probeNetwork, CancellationToken cancellationToken)

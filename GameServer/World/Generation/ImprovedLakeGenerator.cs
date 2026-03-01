@@ -11,13 +11,13 @@ namespace GameServerApp.World.Generation
     {
         private readonly LakeConfig lakeConfig;
         private readonly WaterConfig waterConfig;
-        private readonly Random random;
+        private readonly int worldSeedHash;
 
         public ImprovedLakeGenerator(LakeConfig lakeConfig, WaterConfig waterConfig, long worldSeed)
         {
             this.lakeConfig = lakeConfig ?? throw new ArgumentNullException(nameof(lakeConfig));
             this.waterConfig = waterConfig ?? throw new ArgumentNullException(nameof(waterConfig));
-            random = new Random((int)(worldSeed ^ 0x1A2E0001));
+            worldSeedHash = (int)(worldSeed ^ 0x1A2E0001);
         }
 
         public float[,] BuildMask(
@@ -74,10 +74,10 @@ namespace GameServerApp.World.Generation
                     int worldX = chunkX * chunkSize + x;
                     int worldZ = chunkZ * chunkSize + z;
 
-                    double basinNoise = SimplexNoise.Generate(worldX * 0.004, worldZ * 0.004, 1.0, 3, 1.0, 0.6, random.Next());
-                    double rimNoise = SimplexNoise.Generate(worldX * 0.009 + 31, worldZ * 0.009 + 17, 1.0, 2, 1.0, 0.55, random.Next());
-                    double macroNoise = SimplexNoise.Generate(worldX * 0.0017 - 37.0, worldZ * 0.0017 + 23.0, 1.0, 2, 1.0, 0.6, random.Next());
-                    double detailNoise = Math.Abs(SimplexNoise.Generate(worldX * 0.0065 + 3.0, worldZ * 0.0065 - 5.0, 1.0, 2, 1.0, 0.55, random.Next()));
+                    double basinNoise = SimplexNoise.Generate(worldX * 0.004, worldZ * 0.004, 1.0, 3, 1.0, 0.6, CreateNoiseSeed(chunkX, chunkZ, x, z, 211));
+                    double rimNoise = SimplexNoise.Generate(worldX * 0.009 + 31, worldZ * 0.009 + 17, 1.0, 2, 1.0, 0.55, CreateNoiseSeed(chunkX, chunkZ, x, z, 223));
+                    double macroNoise = SimplexNoise.Generate(worldX * 0.0017 - 37.0, worldZ * 0.0017 + 23.0, 1.0, 2, 1.0, 0.6, CreateNoiseSeed(chunkX, chunkZ, x, z, 227));
+                    double detailNoise = Math.Abs(SimplexNoise.Generate(worldX * 0.0065 + 3.0, worldZ * 0.0065 - 5.0, 1.0, 2, 1.0, 0.55, CreateNoiseSeed(chunkX, chunkZ, x, z, 229)));
                     double hydrology = hydrologyMask[x, z];
                     double flow = Math.Clamp(flowAccumulation[x, z] / 6.0, 0.0, 1.0);
                     double flowMemory = TerrainMaskUtility.SampleInterior(flowAccumulation, x, z) / 6.0;
@@ -116,7 +116,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next())) * lakeConfig.ShorelineBlend * 0.25;
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 233))) * lakeConfig.ShorelineBlend * 0.25;
 
                     double depthBelowSea = seaLevel - heightMap[x, z];
                     double depthPenalty = Math.Clamp(Math.Max(0.0, minDepth - depthBelowSea) / Math.Max(1.0, minDepth), 0.0, 1.0);
@@ -1073,15 +1073,36 @@ namespace GameServerApp.World.Generation
             }
         }
 
+        private int CreateNoiseSeed(int chunkX, int chunkZ, int localX, int localZ, int salt)
+        {
+            uint mixed = MixSeed((uint)worldSeedHash, (uint)chunkX, (uint)chunkZ, (uint)localX, (uint)localZ, (uint)salt);
+            return (int)(mixed & 0x7FFFFFFF);
+        }
+
         private static double ComputeEdgeNoise(int chunkX, int chunkZ, int x, int z)
         {
-            uint value = (uint)HashCode.Combine(chunkX, chunkZ, x, z, 0x9E3779B9);
-            value ^= value >> 16;
-            value *= 0x7FEB352D;
-            value ^= value >> 15;
-            value *= 0x846CA68B;
-            value ^= value >> 16;
-            return (value & 0xFFFF) / 65535.0;
+            uint value = MixSeed((uint)chunkX, (uint)chunkZ, (uint)x, (uint)z, 0x9E3779B9u);
+            return (value & 0xFFFFu) / 65535.0;
+        }
+
+        private static uint MixSeed(params uint[] values)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                for (int index = 0; index < values.Length; index++)
+                {
+                    hash ^= values[index] + 0x9E3779B9u + (hash << 6) + (hash >> 2);
+                    hash *= 16777619u;
+                }
+
+                hash ^= hash >> 16;
+                hash *= 0x7FEB352Du;
+                hash ^= hash >> 15;
+                hash *= 0x846CA68Bu;
+                hash ^= hash >> 16;
+                return hash;
+            }
         }
 
         private void ApplyBackwaterRetentionBridge(

@@ -16,6 +16,24 @@ namespace GameServerApp.Testing
 {
     public sealed class DummyProtocolProbeSettings
     {
+        private static readonly string[] DefaultPackets =
+        {
+            "PlayerStateUpdate",
+            "PlayerActionRequest",
+            "PlayerActionResponse",
+            "ChunkDataRequest",
+            "ChunkDataResponse",
+            "BlockChangeNotification",
+            "ChunkUnloadNotification",
+            "ChunkUnloadAcknowledge",
+            "TimeUpdate",
+            "WeatherChange",
+            "SoundEffect",
+            "ParticleEffect",
+            "EntitySpawn",
+            "EntityDespawn"
+        };
+
         public string Host { get; set; } = "127.0.0.1";
 
         public int Port { get; set; } = 9000;
@@ -58,23 +76,39 @@ namespace GameServerApp.Testing
 
         public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
 
-        public List<string> Packets { get; set; } = new()
+        public List<string> Packets { get; set; } = new(DefaultPackets);
+
+        public void Normalize()
         {
-            "PlayerStateUpdate",
-            "PlayerActionRequest",
-            "PlayerActionResponse",
-            "ChunkDataRequest",
-            "ChunkDataResponse",
-            "BlockChangeNotification",
-            "ChunkUnloadNotification",
-            "ChunkUnloadAcknowledge",
-            "TimeUpdate",
-            "WeatherChange",
-            "SoundEffect",
-            "ParticleEffect",
-            "EntitySpawn",
-            "EntityDespawn"
-        };
+            Host = string.IsNullOrWhiteSpace(Host) ? "127.0.0.1" : Host.Trim();
+            Port = Math.Clamp(Port <= 0 ? 9000 : Port, 1, 65535);
+            ConnectTimeoutMs = Math.Clamp(ConnectTimeoutMs <= 0 ? 750 : ConnectTimeoutMs, 100, 120000);
+            ReceiveTimeoutMs = Math.Clamp(ReceiveTimeoutMs <= 0 ? 750 : ReceiveTimeoutMs, 100, 120000);
+            RoundTripCount = Math.Clamp(RoundTripCount <= 0 ? 3 : RoundTripCount, 1, 64);
+            MaxNetworkProbePackets = Math.Clamp(MaxNetworkProbePackets <= 0 ? 4 : MaxNetworkProbePackets, 1, 128);
+            MinMapControlProfileVersion = Math.Max(1, MinMapControlProfileVersion);
+            MinDescriptorCoverageRatio = Math.Clamp(MinDescriptorCoverageRatio, 0.0, 1.0);
+            OutputReportPath = string.IsNullOrWhiteSpace(OutputReportPath)
+                ? "reports/proto_probe_report.json"
+                : OutputReportPath;
+            ReferenceReportPath = string.IsNullOrWhiteSpace(ReferenceReportPath)
+                ? "config/proto_reference_report.json"
+                : ReferenceReportPath;
+            WorldMapControlProfilePath = string.IsNullOrWhiteSpace(WorldMapControlProfilePath)
+                ? "config/world_map_control_profile.json"
+                : WorldMapControlProfilePath;
+
+            Packets = (Packets ?? new List<string>())
+                .Where(packet => !string.IsNullOrWhiteSpace(packet))
+                .Select(packet => packet.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (Packets.Count == 0)
+            {
+                Packets.AddRange(DefaultPackets);
+            }
+        }
 
         public static DummyProtocolProbeSettings Load(string path)
         {
@@ -82,7 +116,9 @@ namespace GameServerApp.Testing
             {
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 {
-                    return new DummyProtocolProbeSettings();
+                    var defaults = new DummyProtocolProbeSettings();
+                    defaults.Normalize();
+                    return defaults;
                 }
 
                 var json = File.ReadAllText(path);
@@ -92,11 +128,15 @@ namespace GameServerApp.Testing
                     ReadCommentHandling = JsonCommentHandling.Skip
                 });
 
-                return loaded ?? new DummyProtocolProbeSettings();
+                loaded ??= new DummyProtocolProbeSettings();
+                loaded.Normalize();
+                return loaded;
             }
             catch
             {
-                return new DummyProtocolProbeSettings();
+                var defaults = new DummyProtocolProbeSettings();
+                defaults.Normalize();
+                return defaults;
             }
         }
     }

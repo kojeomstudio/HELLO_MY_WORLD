@@ -10,12 +10,12 @@ namespace GameServerApp.World.Generation
     public sealed class ImprovedRiverGenerator
     {
         private readonly WaterConfig config;
-        private readonly Random random;
+        private readonly int worldSeedHash;
 
         public ImprovedRiverGenerator(WaterConfig config, long worldSeed)
         {
             this.config = config ?? throw new ArgumentNullException(nameof(config));
-            random = new Random((int)(worldSeed ^ 0x7B3C9A01));
+            worldSeedHash = (int)(worldSeed ^ 0x7B3C9A01);
         }
 
         public float[,] BuildMask(
@@ -85,7 +85,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()));
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 101)));
                     double macroNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * noiseScale * 0.4 + 71.0,
                         worldZ * noiseScale * 0.4 - 53.0,
@@ -93,7 +93,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()));
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 131)));
                     double detailNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * noiseScale * 1.85 - 17.0,
                         worldZ * noiseScale * 1.85 + 9.0,
@@ -101,7 +101,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()));
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 151)));
 
                     double meanderNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * noiseScale * 0.65 + 19.0,
@@ -110,7 +110,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()));
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 173)));
                     double warpNoise = Math.Abs(SimplexNoise.Generate(
                         worldX * warpFrequency + 11.0,
                         worldZ * warpFrequency - 7.0,
@@ -118,7 +118,7 @@ namespace GameServerApp.World.Generation
                         2,
                         1.0,
                         0.55,
-                        random.Next()));
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 197)));
                     double meanderFactor = 1.0 + meanderNoise * (Math.Clamp(warpAmplitude * 0.02, 0.05, 0.22) + Math.Max(0.0, config.RiverMeanderJitter));
                     meanderFactor *= 1.0 + warpNoise * Math.Clamp(warpAmplitude * 0.01, 0.0, 0.15);
                     double layeredNoise = (baseNoise * 0.55) + (macroNoise * 0.25) + (detailNoise * 0.2);
@@ -2056,15 +2056,36 @@ namespace GameServerApp.World.Generation
             return count == 0 ? field[cx, cz] : sum / count;
         }
 
+        private int CreateNoiseSeed(int chunkX, int chunkZ, int localX, int localZ, int salt)
+        {
+            uint mixed = MixSeed((uint)worldSeedHash, (uint)chunkX, (uint)chunkZ, (uint)localX, (uint)localZ, (uint)salt);
+            return (int)(mixed & 0x7FFFFFFF);
+        }
+
         private static double ComputeEdgeNoise(int chunkX, int chunkZ, int x, int z)
         {
-            uint value = (uint)HashCode.Combine(chunkX, chunkZ, x, z, 0x5F3759DF);
-            value ^= value >> 16;
-            value *= 0x7FEB352D;
-            value ^= value >> 15;
-            value *= 0x846CA68B;
-            value ^= value >> 16;
-            return (value & 0xFFFF) / 65535.0;
+            uint value = MixSeed((uint)chunkX, (uint)chunkZ, (uint)x, (uint)z, 0x5F3759DFu);
+            return (value & 0xFFFFu) / 65535.0;
+        }
+
+        private static uint MixSeed(params uint[] values)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                for (int index = 0; index < values.Length; index++)
+                {
+                    hash ^= values[index] + 0x9E3779B9u + (hash << 6) + (hash >> 2);
+                    hash *= 16777619u;
+                }
+
+                hash ^= hash >> 16;
+                hash *= 0x7FEB352Du;
+                hash ^= hash >> 15;
+                hash *= 0x846CA68Bu;
+                hash ^= hash >> 16;
+                return hash;
+            }
         }
     }
 }

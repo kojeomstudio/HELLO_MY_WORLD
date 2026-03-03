@@ -346,6 +346,7 @@ namespace GameServerApp.World.Generation
             ApplySeasonalRunoffPulseBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel, chunkX, chunkZ);
             ApplyGroundwaterExchangeBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplySpringFloodplainRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
+            ApplyBraidedDeltaConvergenceBridge(mask, hydrologyMask, flowAccumulation, heightMap, chunkX, chunkZ, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
         }
@@ -532,6 +533,100 @@ namespace GameServerApp.World.Generation
 
                     double floor = Math.Max(river * (0.85 + config.RiverEdgeContinuityWeight * 0.08), exchangeSignal * 0.18);
                     double target = river * (1.0 - exchangeWeight * 0.12) + (river + exchangeSignal) * exchangeWeight * 0.12;
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
+        }
+
+        private void ApplyBraidedDeltaConvergenceBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.RiverBraidingWeight * 0.35 +
+                config.RiverDeltaWetlandStrength * 0.35 +
+                config.HydrologyFlowPersistence * 0.30,
+                0.0,
+                1.25);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int reliefRadius = Math.Max(2, config.HydrologyWatershedStitchRadius + 2);
+            double divergenceScale = Math.Max(0.12, config.HydrologyFlowDivergenceClamp * 0.55);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    if (river <= 0.01 && hydro <= 0.08)
+                    {
+                        continue;
+                    }
+
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.HydrologyWaterTableClampRange + 6.0),
+                        0.0,
+                        1.0);
+                    double deltaBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(5.0, config.RiverMouthSmoothRadius * 1.8),
+                        0.0,
+                        1.0);
+                    double convergence = Math.Clamp(
+                        Math.Max(0.0, seamFlow - flowNode) * 0.55 +
+                        Math.Max(0.0, seamHydro - hydro) * 0.45,
+                        0.0,
+                        1.15);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double jitter = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0023 + 19.0,
+                        (chunkZ * sizeZ + z) * 0.0023 - 27.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 983)));
+
+                    double bridgeSignal = Math.Clamp(
+                        river * 0.24 +
+                        hydro * 0.16 +
+                        seamHydro * 0.14 +
+                        flowNode * 0.16 +
+                        seamFlow * 0.15 +
+                        deltaBand * 0.1 +
+                        convergence * 0.05,
+                        0.0,
+                        1.35);
+                    bridgeSignal *= 1.0 - Math.Clamp(
+                        slope * config.HydrologySlopePenalty * 0.015 +
+                        relief * 0.34 +
+                        divergence * 0.26,
+                        0.0,
+                        0.84);
+                    bridgeSignal *= 1.0 + Math.Clamp((jitter - 0.5) * config.RiverMeanderJitter * 0.16, -0.16, 0.16);
+
+                    if (bridgeSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(river * (0.86 + config.RiverEdgeContinuityWeight * 0.09), bridgeSignal * 0.2);
+                    double target = river * (1.0 - bridgeWeight * 0.12) + (river + bridgeSignal) * bridgeWeight * 0.12;
                     mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
                 }
             }

@@ -455,6 +455,18 @@ namespace GameWorld
                 lastProfileSignature = ComputeGenerationSignature(profile, worldConfig ?? WorldConfig.Instance);
             }
 
+            if (profile.Version < SharedFeatureCatalog.MapControlProfileVersion)
+            {
+                if (enableDebugLogging)
+                {
+                    Debug.LogWarning($"[WorldMapController] Profile version mismatch (profile={profile.Version}, required={SharedFeatureCatalog.MapControlProfileVersion}), rebuilding from config.");
+                }
+
+                profile = WorldMapControlProfile.FromConfig(WorldConfig.Instance);
+                lastProfileHash = profile.ProfileHash;
+                lastProfileSignature = ComputeGenerationSignature(profile, worldConfig ?? WorldConfig.Instance);
+            }
+
             if (enableDebugLogging)
             {
                 Debug.Log($"[WorldMapController] Loaded profile hash={profile.ProfileHash} from {profilePath}");
@@ -531,11 +543,23 @@ namespace GameWorld
 
                 var newProfile = WorldMapControlProfile.LoadFromFile(profilePath, WorldConfig.Instance);
                 bool signatureMismatch = !string.Equals(newProfile.HydrologySignature, SharedFeatureCatalog.HydrologySignature, StringComparison.OrdinalIgnoreCase);
+                bool versionMismatch = newProfile.Version < SharedFeatureCatalog.MapControlProfileVersion;
                 if (signatureMismatch)
                 {
                     if (enableDebugLogging)
                     {
                         Debug.LogWarning($"[WorldMapController] Profile hydrology signature drifted (profile={newProfile.HydrologySignature}, expected={SharedFeatureCatalog.HydrologySignature}); rebuilding from config.");
+                    }
+
+                    newProfile = WorldMapControlProfile.FromConfig(worldConfig ?? WorldConfig.Instance);
+                    profileContentChanged = true;
+                }
+
+                if (versionMismatch)
+                {
+                    if (enableDebugLogging)
+                    {
+                        Debug.LogWarning($"[WorldMapController] Profile version drifted (profile={newProfile.Version}, required={SharedFeatureCatalog.MapControlProfileVersion}); rebuilding from config.");
                     }
 
                     newProfile = WorldMapControlProfile.FromConfig(worldConfig ?? WorldConfig.Instance);

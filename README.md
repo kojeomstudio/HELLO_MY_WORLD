@@ -32,6 +32,45 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-03-03: Session 139 - Hydrology v63 / Map-Control v67 / River-Lake-Cave Convergence Bridges
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-03-03-session-139-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifest (session-139):
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-03-session-139.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-03-session-139.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-03-session-139.json`
+- Terrain generation improvements:
+  - Added `ApplyBraidedDeltaConvergenceBridge` to `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+  - Added `ApplyRiparianFloodplainLinkBridge` to `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+  - Added `ApplyRiparianRoofButtressBridge` to `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+- World-map control architecture improvements:
+  - Added client profile-version guard and auto-rebuild in `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+  - Updated shared baseline in `GameCommon/World/SharedFeatureCatalog.cs`:
+    - `HydrologySignature`: `2026-03-03-hydrology-riverlake-cave-v63`
+    - `MapControlProfileVersion`: `67`
+- Data-driven config/version updates:
+  - `config/world.json`, `GameServer/config/world.json`, `Assets/StreamingAssets/world-config.json` (`MapControlProfileVersion=67` + hydrology tuning)
+  - `config/world_map_control_profile.json`, `GameServer/config/world_map_control_profile.json`, `Assets/StreamingAssets/world-map-control.json`, `GameServer/Assets/StreamingAssets/world-map-control.json`
+  - `config/enhanced_world_map_control_server.json`, `GameServer/config/enhanced_world_map_control_server.json` (`profileVersion=67`)
+  - `config/protocol_dummy_client.json`, `GameServer/config/protocol_dummy_client.json`, `config/dummy_minecraft_client.json`, `GameServer/config/dummy_minecraft_client.json` (`minMapControlProfileVersion=67`)
+  - `config/config_parity_manifest.json` + mirrored copies updated to session-139 manifest source
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet build Tools/DummyMinecraftClient/DummyMinecraftClient.csproj` PASS
+  - `dotnet test GameServer/TerrainGenerationTest.csproj --no-build` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS
+  - `dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- --required-only --no-print-bindings` PASS
+- Session docs:
+  - `docs/session-139-implementation-summary.md`
+  - `docs/session-139-core-content-utility-inventory.md`
+
 ### 2026-03-01: Session 138 - Hydrology v62 / Map-Control v66 / Deterministic Terrain Seeds + Config Parity Manifest
 
 **Status:** COMPLETED

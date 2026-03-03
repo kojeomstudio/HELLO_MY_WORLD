@@ -114,7 +114,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 66;
+        public int MapControlProfileVersion = 67;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();
@@ -218,9 +218,9 @@ namespace Minecraft.Core
         public int RiverIntensitySmoothIterations = 3;
         public float RiverIntensitySmoothBlend = 0.6f;
         public float RiverConfluenceBoost = 0.38f;
-        public float RiverTributaryCaptureWeight = 0.34f;
-        public float RiverAvulsionResistance = 0.35f;
-        public float RiverBraidingWeight = 0.34f;
+        public float RiverTributaryCaptureWeight = 0.38f;
+        public float RiverAvulsionResistance = 0.39f;
+        public float RiverBraidingWeight = 0.39f;
         public bool EnableOceans = true;
         public bool EnableRivers = true;
         public bool EnableLakes = true;
@@ -269,7 +269,7 @@ namespace Minecraft.Core
         public float MoistureRetentionWeight = 0.35f;
         public float MoistureFlowClamp = 0.65f;
         public float CaveEntranceFlowDampening = 0.58f;
-        public float GroundwaterConnectivityWeight = 0.42f;
+        public float GroundwaterConnectivityWeight = 0.46f;
         public float CaveVentilationBias = 0.3f;
         public float AquiferBarrierWeight = 0.52f;
         public float EdgeSealStrength = 0.5f;
@@ -330,10 +330,10 @@ namespace Minecraft.Core
         public int WetlandBufferRadius = 3;
         public float FlowSeepageWeight = 0.38f;
         public float VarianceWeight = 0.3f;
-        public float OutflowStabilityWeight = 0.36f;
+        public float OutflowStabilityWeight = 0.42f;
         public float LakeOutflowTaper = 0.42f;
         public float SpillwayContinuityWeight = 0.58f;
-        public float SpillRetentionWeight = 0.46f;
+        public float SpillRetentionWeight = 0.52f;
         public float TerraceBiasWeight = 0.3f;
     }
 

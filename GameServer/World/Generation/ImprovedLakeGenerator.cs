@@ -306,7 +306,105 @@ namespace GameServerApp.World.Generation
             ApplySeasonalFloodplainRechargeBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel, chunkX, chunkZ);
             ApplyFloodplainStorageSpillBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
             ApplyGroundwaterLatchBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, seaLevel);
+            ApplyRiparianFloodplainLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return lakes;
+        }
+
+        private void ApplyRiparianFloodplainLinkBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double linkWeight = Math.Clamp(
+                lakeConfig.SpillRetentionWeight * 0.35 +
+                waterConfig.HydrologyFlowPersistence * 0.33 +
+                waterConfig.LakeInflowBlendWeight * 0.32,
+                0.0,
+                1.25);
+            if (linkWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int reliefRadius = Math.Max(2, waterConfig.HydrologyWatershedStitchRadius + 2);
+            double divergenceScale = Math.Max(0.12, waterConfig.HydrologyFlowDivergenceClamp * 0.55);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    if (lake <= 0.01 && river <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange + 6.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, lakeConfig.MaxRadius + waterConfig.HydrologyEdgeBlendRadius + 2.0),
+                        0.0,
+                        1.0);
+                    double convergence = Math.Clamp(
+                        Math.Max(0.0, seamFlow - flowNode) * 0.55 +
+                        Math.Max(0.0, seamHydro - hydro) * 0.45,
+                        0.0,
+                        1.15);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double jitter = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0021 + 13.0,
+                        (chunkZ * sizeZ + z) * 0.0021 - 21.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 991)));
+
+                    double linkSignal = Math.Clamp(
+                        lake * 0.26 +
+                        river * 0.12 +
+                        hydro * 0.18 +
+                        seamHydro * 0.15 +
+                        flowNode * 0.14 +
+                        seamFlow * 0.1 +
+                        floodplainBand * 0.05,
+                        0.0,
+                        1.35);
+                    linkSignal += convergence * 0.06;
+                    linkSignal *= 1.0 - Math.Clamp(
+                        slope * waterConfig.HydrologySlopePenalty * 0.014 +
+                        relief * 0.34 +
+                        divergence * 0.24,
+                        0.0,
+                        0.82);
+                    linkSignal *= 1.0 + Math.Clamp((jitter - 0.5) * waterConfig.RiverMeanderJitter * 0.16, -0.16, 0.16);
+
+                    if (linkSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(lake * (0.86 + lakeConfig.OutflowStabilityWeight * 0.1), linkSignal * 0.18);
+                    double target = lake * (1.0 - linkWeight * 0.12) + (lake + linkSignal) * linkWeight * 0.12;
+                    lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyFloodplainStorageSpillBridge(

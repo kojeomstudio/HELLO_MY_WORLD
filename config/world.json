@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  66,
+    "MapControlProfileVersion":  67,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -89,7 +89,7 @@
                   "RiverEdgeFeather":  0.66,
                   "RiverEdgeContinuityWeight":  1.03,
                   "RiverMouthSmoothRadius":  10,
-                  "RiverDeltaWetlandStrength":  0.88,
+                  "RiverDeltaWetlandStrength":  0.92,
                   "RiverSeamFillStrength":  0.80,
                   "RiverNoiseScale":  0.0145,
                   "RiverDepth":  9,
@@ -98,9 +98,9 @@
                   "HydrologyReservoirIterations":  6,
                   "HydrologyReservoirBlend":  0.5,
                   "RiverConfluenceBoost":  1.12,
-                  "RiverTributaryCaptureWeight":  0.79,
-                  "RiverAvulsionResistance":  0.74,
-                  "RiverBraidingWeight":  0.68,
+                  "RiverTributaryCaptureWeight":  0.84,
+                  "RiverAvulsionResistance":  0.79,
+                  "RiverBraidingWeight":  0.74,
                   "EnableOceans":  true,
                   "EnableRivers":  true,
                   "EnableLakes":  true,
@@ -154,8 +154,8 @@
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
                   "CaveEntranceFlowDampening":  0.86,
-                  "GroundwaterConnectivityWeight":  0.97,
-                  "CaveVentilationBias":  0.64
+                  "GroundwaterConnectivityWeight":  0.99,
+                  "CaveVentilationBias":  0.67
               },
     "Ores":  {
                  "EnableOreGeneration":  true,
@@ -217,13 +217,13 @@
                   "WetlandSaturationThreshold":  0.6,
                   "OutflowCarveDepth":  5,
                   "OutflowSealWeight":  0.6,
-                  "OutflowStabilityWeight":  0.98,
+                  "OutflowStabilityWeight":  0.99,
                   "WetlandBufferRadius":  6,
                   "FlowSeepageWeight":  0.88,
                   "LakeOutflowTaper":  0.78,
                   "SpillwayContinuityWeight":  1.12,
                   "TerraceBiasWeight":  0.48,
-                  "SpillRetentionWeight":  0.97
+                  "SpillRetentionWeight":  0.99
               }
 }
 

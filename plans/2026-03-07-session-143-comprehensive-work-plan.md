@@ -19,7 +19,7 @@
 - [x] Keep gameplay/content data handling data-driven via JSON manifests.
 - [x] Run compile/test/probe commands and confirm using/reference validity through build.
 - [x] Update README and docs/ markdown for session-143.
-- [ ] Finalize local commit and push to `origin/master`.
+- [x] Finalize local commit and push to `origin/master`.
 
 ## Execution Notes
 - Added `ApplyRiparianAquiferMomentumCoupling` in server/client terrain pipelines.
@@ -36,3 +36,4 @@
 - [x] Terrain/map-control algorithm and architecture updates implemented.
 - [x] Compile/probe/selftest commands executed.
 - [x] README/docs updated.
+- [x] Local commit and push completed.

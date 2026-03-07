@@ -54,17 +54,17 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-03
-        /// (river/lake/cave convergence bridges + profile parity hardening + map-control v68).
-        /// Session 140: Enhanced terrain algorithms, improved cave/river/lake generation,
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-07
+        /// (river/lake/cave continuity bridges + profile parity hardening + map-control v69).
+        /// Session 141: Enhanced terrain algorithms, improved cave/river/lake generation,
         /// protobuf protocol validation, and data-driven architecture refinements.
         /// </summary>
-        public const string HydrologySignature = "2026-03-03-hydrology-riverlake-cave-v64";
+        public const string HydrologySignature = "2026-03-07-hydrology-riverlake-cave-v65";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 68;
+        public const int MapControlProfileVersion = 69;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -90,7 +90,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S20-CORE-01",
-                "Hydrology WorldGen v63",
+                "Hydrology WorldGen v65",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -100,14 +100,14 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-03-session-140.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json"
                 },
                 new[]
                 {
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-03-session-140.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",
@@ -191,7 +191,7 @@ namespace GameCommon.World
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-03-session-140.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

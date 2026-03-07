@@ -75,7 +75,9 @@ namespace GameServerApp.World
             MapControlProfilePath = string.IsNullOrWhiteSpace(MapControlProfilePath)
                 ? "config/world_map_control_profile.json"
                 : MapControlProfilePath;
-            MapControlProfileVersion = Math.Max(1, MapControlProfileVersion);
+            MapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                Math.Max(1, MapControlProfileVersion));
         }
     }
 

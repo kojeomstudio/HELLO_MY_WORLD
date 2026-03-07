@@ -161,6 +161,7 @@ namespace GameServerApp
                 var manifestCandidates = DiscoverFeatureManifestCandidates().ToList();
                 if (manifestCandidates.Count == 0)
                 {
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json")));
                     manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-03-session-139.json")));
                     manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-01-session-138.json")));
                     manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json")));

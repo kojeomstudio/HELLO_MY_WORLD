@@ -23,7 +23,9 @@ namespace GameServerApp.World
 
             var profile = new WorldMapControlProfile
             {
-                Version = Math.Max(1, config.MapControlProfileVersion),
+                Version = Math.Max(
+                    SharedFeatureCatalog.MapControlProfileVersion,
+                    Math.Max(1, config.MapControlProfileVersion)),
                 SourceConfig = config.SourcePath,
                 GeneratedAtUtc = DateTime.UtcNow,
                 ChunkSize = chunkSize,
@@ -172,7 +174,9 @@ namespace GameServerApp.World
                 config.MapControlProfilePath,
                 () => Create(config, worldSettings),
                 profile => profile.ProfileHash,
-                Math.Max(1, config.MapControlProfileVersion));
+                Math.Max(
+                    SharedFeatureCatalog.MapControlProfileVersion,
+                    Math.Max(1, config.MapControlProfileVersion)));
         }
     }
 }

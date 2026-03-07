@@ -347,8 +347,100 @@ namespace GameServerApp.World.Generation
             ApplyGroundwaterExchangeBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplySpringFloodplainRelayBridge(mask, hydrologyMask, flowAccumulation, heightMap, seaLevel);
             ApplyBraidedDeltaConvergenceBridge(mask, hydrologyMask, flowAccumulation, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyFloodplainBackwaterAnchorBridge(mask, hydrologyMask, flowAccumulation, heightMap, chunkX, chunkZ, seaLevel);
             FeatherEdges(mask, config.RiverEdgeFeather, config.RiverSeamFillStrength);
             return mask;
+        }
+
+        private void ApplyFloodplainBackwaterAnchorBridge(
+            float[,] mask,
+            float[,] hydrology,
+            float[,] flow,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double anchorWeight = Math.Clamp(
+                config.RiverDeltaWetlandStrength * 0.38 +
+                config.RiverSeamFillStrength * 0.34 +
+                config.HydrologyFlowPersistence * 0.28,
+                0.0,
+                1.25);
+            if (anchorWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeZ = mask.GetLength(1);
+            int reliefRadius = Math.Max(2, config.HydrologyWatershedStitchRadius + 2);
+            double divergenceScale = Math.Max(0.12, config.HydrologyFlowDivergenceClamp * 0.6);
+            var copy = (float[,])mask.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = copy[x, z];
+                    if (river <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.HydrologyWaterTableClampRange + 8.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, config.RiverMouthSmoothRadius * 1.8),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double jitter = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0023 + 41.0,
+                        (chunkZ * sizeZ + z) * 0.0023 - 17.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 1093)));
+
+                    double anchorSignal = Math.Clamp(
+                        river * 0.34 +
+                        hydro * 0.2 +
+                        seamHydro * 0.17 +
+                        flowNode * 0.14 +
+                        seamFlow * 0.1 +
+                        floodplainBand * 0.05,
+                        0.0,
+                        1.35);
+
+                    anchorSignal *= 1.0 - Math.Clamp(
+                        slope * config.RiverGradientPenalty * 0.014 +
+                        relief * 0.32 +
+                        divergence * 0.24,
+                        0.0,
+                        0.82);
+                    anchorSignal *= 1.0 + Math.Clamp((jitter - 0.5) * config.RiverMeanderJitter * 0.14, -0.14, 0.14);
+
+                    if (anchorSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double stabilize = anchorSignal * anchorWeight;
+                    double floor = river * (0.84 + config.RiverBankStabilityClamp * 0.12);
+                    double target = river * (1.0 - stabilize * 0.1) +
+                                    (river + anchorSignal * 0.24 + seamHydro * 0.08) * stabilize * 0.1;
+                    mask[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplySpringFloodplainRelayBridge(

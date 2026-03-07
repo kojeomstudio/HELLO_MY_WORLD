@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GameCommon.World;
 using UnityEngine;
 
 namespace Minecraft.Core
@@ -81,7 +82,9 @@ namespace Minecraft.Core
             MapControlProfilePath = string.IsNullOrWhiteSpace(data.MapControlProfilePath)
                 ? "world-map-control.json"
                 : data.MapControlProfilePath;
-            MapControlProfileVersion = data.MapControlProfileVersion <= 0 ? 1 : data.MapControlProfileVersion;
+            MapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                data.MapControlProfileVersion <= 0 ? 1 : data.MapControlProfileVersion);
 
             Terrain = new TerrainConfig(data.TerrainGeneration ?? new TerrainGenerationData());
             Water = new WaterConfig(data.Water ?? new WaterData());
@@ -114,7 +117,7 @@ namespace Minecraft.Core
         public int RenderDistance = 10;
         public int SimulationDistance = 8;
         public string MapControlProfilePath = "world-map-control.json";
-        public int MapControlProfileVersion = 67;
+        public int MapControlProfileVersion = SharedFeatureCatalog.MapControlProfileVersion;
         public TerrainGenerationData TerrainGeneration = new TerrainGenerationData();
         public WaterData Water = new WaterData();
         public CaveData Caves = new CaveData();

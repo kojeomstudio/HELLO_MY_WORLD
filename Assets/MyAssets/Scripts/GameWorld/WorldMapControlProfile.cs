@@ -285,9 +285,10 @@ public sealed class WorldMapControlProfile
                     return FromConfig(fallback);
                 }
 
-                if (profile.Version < fallback.MapControlProfileVersion)
+                int requiredVersion = Math.Max(fallback.MapControlProfileVersion, SharedFeatureCatalog.MapControlProfileVersion);
+                if (profile.Version < requiredVersion)
                 {
-                    Debug.LogWarning($"[WorldMapControlProfile] Profile version {profile.Version} older than config requirement {fallback.MapControlProfileVersion}. Falling back to world config.");
+                    Debug.LogWarning($"[WorldMapControlProfile] Profile version {profile.Version} older than required version {requiredVersion}. Falling back to world config.");
                     return FromConfig(fallback);
                 }
 
@@ -472,7 +473,7 @@ public sealed class WorldMapControlProfile
 
             var data = new WorldMapControlProfileData
             {
-                version = config.MapControlProfileVersion > 0 ? config.MapControlProfileVersion : 1,
+                version = Math.Max(SharedFeatureCatalog.MapControlProfileVersion, config.MapControlProfileVersion > 0 ? config.MapControlProfileVersion : 1),
                 sourceConfig = string.IsNullOrEmpty(config.MapControlProfilePath) ? "WorldConfigData.json" : config.MapControlProfilePath,
                 generatedAtUtc = DateTime.UtcNow.ToString("o"),
                 hydrologySignature = SharedFeatureCatalog.HydrologySignature,

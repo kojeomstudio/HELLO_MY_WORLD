@@ -374,7 +374,107 @@ namespace GameServerApp.World.Generation
             ApplyGroundwaterPerchSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, seaLevel);
             ApplySubsurfaceConduitRelayBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyRiparianRoofButtressBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyLagoonKarstCeilingSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
+        }
+
+        private void ApplyLagoonKarstCeilingSealBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double sealWeight = Math.Clamp(
+                config.CeilingStabilityWeight * 0.36 +
+                config.MoistureRetentionWeight * 0.34 +
+                config.GroundwaterConnectivityWeight * 0.30,
+                0.0,
+                1.25);
+            if (sealWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 3);
+            double divergenceScale = Math.Max(0.12, config.MoistureFlowClamp * 0.6);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.RiparianPlugDepth + 14.0),
+                        0.0,
+                        1.0);
+                    double floodBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, config.RiparianPlugDepth + 8.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceScale);
+                    double jitter = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0023 + 47.0,
+                        (chunkZ * sizeZ + z) * 0.0023 - 19.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, seaLevel, 1087)));
+
+                    double wetSignal = Math.Clamp(
+                        hydro * 0.3 +
+                        seamHydro * 0.2 +
+                        flow * 0.15 +
+                        seamFlow * 0.13 +
+                        river * 0.12 +
+                        floodBand * 0.1,
+                        0.0,
+                        1.25);
+                    wetSignal *= 1.0 - Math.Clamp(
+                        slope * config.CeilingStabilityWeight * 0.014 +
+                        relief * 0.32 +
+                        divergence * 0.24,
+                        0.0,
+                        0.82);
+                    wetSignal *= 1.0 + Math.Clamp((jitter - 0.5) * config.CaveVentilationBias * 0.16, -0.14, 0.14);
+
+                    if (wetSignal <= 0.22)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 2, sizeY - 2);
+                    int top = Math.Min(surface - 1, seaLevel + Math.Max(3, config.RiparianPlugDepth + 3));
+                    int bottom = Math.Max(2, top - Math.Max(3, config.RiparianPlugDepth + 2));
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((double)(top - y) / Math.Max(1.0, top - bottom), 0.0, 1.0);
+                        double chance = wetSignal * sealWeight * (0.4 + depthFactor * 0.3);
+                        if (chance > 0.44)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyRiparianRoofButtressBridge(

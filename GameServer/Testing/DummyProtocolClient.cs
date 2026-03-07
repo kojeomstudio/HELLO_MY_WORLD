@@ -86,7 +86,9 @@ namespace GameServerApp.Testing
             ReceiveTimeoutMs = Math.Clamp(ReceiveTimeoutMs <= 0 ? 750 : ReceiveTimeoutMs, 100, 120000);
             RoundTripCount = Math.Clamp(RoundTripCount <= 0 ? 3 : RoundTripCount, 1, 64);
             MaxNetworkProbePackets = Math.Clamp(MaxNetworkProbePackets <= 0 ? 4 : MaxNetworkProbePackets, 1, 128);
-            MinMapControlProfileVersion = Math.Max(1, MinMapControlProfileVersion);
+            MinMapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                Math.Max(1, MinMapControlProfileVersion));
             MinDescriptorCoverageRatio = Math.Clamp(MinDescriptorCoverageRatio, 0.0, 1.0);
             OutputReportPath = string.IsNullOrWhiteSpace(OutputReportPath)
                 ? "reports/proto_probe_report.json"

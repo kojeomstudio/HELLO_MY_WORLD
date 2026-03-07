@@ -76,6 +76,9 @@ namespace GameServerApp.World
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
             this.generationConfig = generationConfig ?? throw new ArgumentNullException(nameof(generationConfig));
             this.worldSettings = worldSettings ?? throw new ArgumentNullException(nameof(worldSettings));
+            this.generationConfig.MapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                Math.Max(1, this.generationConfig.MapControlProfileVersion));
 
             pipeline = new EnhancedTerrainGenerationPipeline(generationConfig, this.worldSettings);
             controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, this.worldSettings);
@@ -327,6 +330,10 @@ namespace GameServerApp.World
         {
             profileChanged = false;
             MaybeReloadGenerationConfig(ref profileChanged);
+            generationConfig.MapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                Math.Max(1, generationConfig.MapControlProfileVersion));
+            int requiredProfileVersion = generationConfig.MapControlProfileVersion;
             var loaded = WorldMapControlProfileUtility.Load(generationConfig.MapControlProfilePath);
             if (loaded != null)
             {
@@ -344,7 +351,7 @@ namespace GameServerApp.World
             bool configNewerThanProfile = GetWriteTime(generationConfig.SourcePath) > GetWriteTime(generationConfig.MapControlProfilePath);
             bool profileHashDrift = loaded != null &&
                 !string.Equals(loaded.ProfileHash, WorldMapControlProfileUtility.ComputeHash(loaded), StringComparison.OrdinalIgnoreCase);
-            bool versionMismatch = loaded != null && generationConfig.MapControlProfileVersion > loaded.Version;
+            bool versionMismatch = loaded != null && requiredProfileVersion > loaded.Version;
             bool profileFileUpdated = GetWriteTime(generationConfig.MapControlProfilePath) > profileWriteTime;
             bool profileContentChanged = !string.IsNullOrWhiteSpace(profileContentHash) &&
                 !string.Equals(profileContentHash, currentProfileContentHash, StringComparison.OrdinalIgnoreCase);
@@ -356,6 +363,9 @@ namespace GameServerApp.World
             if (loaded == null || configNewerThanProfile || profileHashDrift || versionMismatch || profileFileUpdated || profileContentChanged || signatureMismatch || profileSignatureMismatch)
             {
                 controlProfile = WorldMapControlProfileUtility.LoadOrCreate(generationConfig, worldSettings);
+                controlProfile.Version = Math.Max(controlProfile.Version, requiredProfileVersion);
+                controlProfile.HydrologySignature = SharedFeatureCatalog.HydrologySignature;
+                controlProfile.ProfileHash = WorldMapControlProfileUtility.ComputeHash(controlProfile);
                 WorldMapControlProfileUtility.Save(controlProfile, generationConfig.MapControlProfilePath);
                 chunkCache.Clear();
                 chunkAccessTimes.Clear();
@@ -365,7 +375,7 @@ namespace GameServerApp.World
                 profileChanged = true;
                 RefreshGenerationSignature(rebuildPipeline: false);
                 profileWriteTime = GetWriteTime(generationConfig.MapControlProfilePath);
-                profileContentHash = currentProfileContentHash;
+                profileContentHash = ComputeFileHash(generationConfig.MapControlProfilePath);
                 return controlProfile;
             }
 
@@ -581,7 +591,9 @@ namespace GameServerApp.World
 
             var reloaded = WorldGenerationConfig.Load(generationConfig.SourcePath);
             reloaded.MapControlProfilePath = generationConfig.MapControlProfilePath;
-            reloaded.MapControlProfileVersion = Math.Max(generationConfig.MapControlProfileVersion, reloaded.MapControlProfileVersion);
+            reloaded.MapControlProfileVersion = Math.Max(
+                SharedFeatureCatalog.MapControlProfileVersion,
+                Math.Max(generationConfig.MapControlProfileVersion, reloaded.MapControlProfileVersion));
             generationConfig = reloaded;
             RecomputeQueuePolicy();
             worldConfigWriteTime = writeTime;

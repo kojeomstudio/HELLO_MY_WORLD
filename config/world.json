@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  67,
+    "MapControlProfileVersion":  69,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -56,7 +56,7 @@
                   "HydrologyWaterTableClampWeight":  0.69,
                   "HydrologyWaterTableClampRange":  26,
                   "HydrologyWaterTableSlopeWeight":  0.7,
-                  "HydrologyFlowPersistence":  0.99,
+                  "HydrologyFlowPersistence":  0.995,
                   "HydrologyCatchmentWeight":  0.6,
                   "HydrologyGradientWeight":  0.38,
                   "HydrologyGradientSlopeWeight":  0.5,
@@ -89,7 +89,7 @@
                   "RiverEdgeFeather":  0.66,
                   "RiverEdgeContinuityWeight":  1.03,
                   "RiverMouthSmoothRadius":  10,
-                  "RiverDeltaWetlandStrength":  0.92,
+                  "RiverDeltaWetlandStrength":  0.96,
                   "RiverSeamFillStrength":  0.80,
                   "RiverNoiseScale":  0.0145,
                   "RiverDepth":  9,
@@ -143,7 +143,7 @@
                   "FlowStabilityWeight":  0.39,
                   "RoughnessStabilityWeight":  0.14,
                   "RiverSuppressionWeight":  0.56,
-                  "MoistureRetentionWeight":  0.64,
+                  "MoistureRetentionWeight":  0.67,
                   "MoistureFlowClamp":  0.48,
                   "AquiferBarrierWeight":  0.82,
                   "RiparianCaveGuardWeight":  0.74,
@@ -154,7 +154,7 @@
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
                   "CaveEntranceFlowDampening":  0.86,
-                  "GroundwaterConnectivityWeight":  0.99,
+                  "GroundwaterConnectivityWeight":  1.0,
                   "CaveVentilationBias":  0.67
               },
     "Ores":  {
@@ -223,7 +223,7 @@
                   "LakeOutflowTaper":  0.78,
                   "SpillwayContinuityWeight":  1.12,
                   "TerraceBiasWeight":  0.48,
-                  "SpillRetentionWeight":  0.99
+                  "SpillRetentionWeight":  1.0
               }
 }
 

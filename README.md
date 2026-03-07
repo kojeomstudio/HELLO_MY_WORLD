@@ -32,6 +32,45 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-03-07: Session 141 - Hydrology v65 / Map-Control v69 / Cave-River-Lake Continuity Bridges
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-03-07-session-141-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifest (session-141):
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json`
+- Terrain generation improvements:
+  - Added `ApplyFloodplainBackwaterAnchorBridge` to `GameServer/World/Generation/ImprovedRiverGenerator.cs`
+  - Added `ApplyBackwaterLagoonExchangeBridge` to `GameServer/World/Generation/ImprovedLakeGenerator.cs`
+  - Added `ApplyLagoonKarstCeilingSealBridge` to `GameServer/World/Generation/ImprovedCaveGenerator.cs`
+- World-map control architecture improvements:
+  - Enforced shared minimum profile version in server/client profile loaders:
+    - `GameServer/World/WorldMapControlProfile.cs`
+    - `GameServer/World/WorldMapControlManager.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs`
+    - `Assets/Scripts/Minecraft/Core/WorldConfig.cs`
+  - Updated shared baseline:
+    - `HydrologySignature`: `2026-03-07-hydrology-riverlake-cave-v65`
+    - `MapControlProfileVersion`: `69`
+- JSON data/config updates:
+  - `config/world.json` (+ mirrored `GameServer/config/world.json`, `Assets/StreamingAssets/world-config.json`)
+  - `config/world_map_control_profile.json` (+ mirrored server/client profile JSON)
+  - `config/protocol_dummy_client.json` (`minMapControlProfileVersion=69`)
+  - `config/config_parity_manifest.json` now tracks session-141 feature manifest mirrors
+- Validation executed:
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet run --project GameServer -- --generate-map-profile` PASS
+  - `dotnet run --project GameServer -- --proto-probe` PASS (`RoundTrip=True`, descriptor coverage `0.259`)
+  - `dotnet test SharedProtocol/SharedProtocol.csproj --no-build` PASS
+  - `dotnet test GameServer/GameServer.csproj --no-build` PASS
+- Session docs:
+  - `docs/session-141-terrain-mapcontrol-proto-validation.md`
+
 ### 2026-03-03: Session 139 - Hydrology v63 / Map-Control v67 / River-Lake-Cave Convergence Bridges
 
 **Status:** COMPLETED

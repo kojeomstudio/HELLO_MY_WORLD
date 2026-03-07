@@ -1395,6 +1395,7 @@ namespace GameWorld
             ApplyRiparianCaveBuffer(erosionRisk, hydrology, flow, riverMask, lakeMask);
             ApplyFloodplainBasinPressureCoupling(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
             ApplyHyporheicExchangeRelay(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
+            ApplyRiparianAquiferMomentumCoupling(heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask);
             var caveMask = profile.EnableCaves ? BuildCaveMask(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask) : new bool[chunkSize, worldHeight, chunkSize];
             ApplySubsurfaceConduitExchangeBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
             ApplyRiparianAquiferContinuityBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
@@ -4932,6 +4933,102 @@ namespace GameWorld
             NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(profile.HydrologyEdgeNormalizationBlend * 0.58)), (float)varianceClamp);
             NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(profile.HydrologyEdgeNormalizationBlend * 0.46)), (float)(varianceClamp * 1.2));
             Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(profile.HydrologySmoothBlend * 0.24)));
+        }
+
+        private void ApplyRiparianAquiferMomentumCoupling(
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            float[,] riverMask,
+            float[,] lakeMask)
+        {
+            double couplingWeight = Math.Clamp(
+                profile.HydrologyContinuityWeight * 0.27 +
+                profile.HydrologyFlowMemoryWeight * 0.21 +
+                profile.RiverEdgeContinuityWeight * 0.18 +
+                profile.LakeSpillRetentionWeight * 0.18 +
+                profile.CaveGroundwaterConnectivityWeight * 0.16,
+                0.0,
+                1.2);
+            if (couplingWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int edgeRadius = Math.Max(2, profile.HydrologyEdgeBlendRadius);
+            double divergenceClamp = Math.Max(0.0001, profile.HydrologyFlowDivergenceClamp);
+            double varianceClamp = Math.Max(0.001, profile.HydrologyVarianceClamp);
+            double slopePenalty = Math.Max(0.0, profile.HydrologySlopePenalty);
+            double edgeLock = Math.Clamp(profile.HydrologyEdgeFlowLockWeight, 0.0, 1.0);
+            double lakeInflow = Math.Clamp(profile.LakeInflowBlendWeight, 0.0, 1.0);
+            double confluenceBoost = Math.Clamp(profile.RiverConfluenceBoost, 0.0, 2.0);
+            double caveGuard = Math.Clamp(profile.RiparianCaveGuardWeight, 0.0, 1.0);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 0; x < sizeX; x++)
+            {
+                for (int z = 0; z < sizeZ; z++)
+                {
+                    double river = Mathf.Clamp01(riverMask[x, z]);
+                    double lake = Mathf.Clamp01(lakeMask[x, z]);
+                    double wetness = Math.Max(river, lake);
+                    if (wetness <= 0.005)
+                    {
+                        continue;
+                    }
+
+                    double hydro = hydroCopy[x, z];
+                    double seamHydro = SampleInterior(hydroCopy, x, z);
+                    double flowNode = flowCopy[x, z];
+                    double seamFlow = SampleInterior(flowCopy, x, z);
+                    double erosion = erosionCopy[x, z];
+                    double slope = ComputeSlope(heightMap, x, z);
+                    double relief = ComputeLocalRelief(heightMap, x, z, edgeRadius);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceClamp);
+                    double nearbyRiver = SampleInterior(riverMask, x, z);
+                    double nearbyLake = SampleInterior(lakeMask, x, z);
+                    double confluence = Math.Clamp((nearbyRiver + nearbyLake) * 0.5, 0.0, 1.2);
+                    double continuity = Math.Clamp((hydro + seamHydro + flowNode + seamFlow) * 0.25, 0.0, 1.35);
+                    double aquiferSupport = 1.0 - Math.Clamp(
+                        divergence * 0.44 +
+                        slope * slopePenalty * 0.009 +
+                        relief / 38.0 +
+                        erosion * 0.34,
+                        0.0,
+                        0.9);
+                    if (aquiferSupport <= 0.0)
+                    {
+                        continue;
+                    }
+
+                    double momentum = Math.Clamp(
+                        wetness * (0.22 + continuity * 0.2 + confluence * 0.18) +
+                        (1.0 - Math.Abs(river - lake)) * 0.14,
+                        0.0,
+                        1.5);
+                    double coupling = momentum * couplingWeight * aquiferSupport;
+                    double lockedHydro = hydro * (1.0 - edgeLock * 0.35) + seamHydro * edgeLock * 0.35;
+                    double hydroTarget = lockedHydro + coupling * (0.15 + lakeInflow * 0.1 + caveGuard * 0.08) - erosion * 0.02;
+                    double flowTarget = flowNode * (1.0 - coupling * 0.09) +
+                        (seamFlow + continuity * 0.12 + confluence * 0.08 * confluenceBoost) * coupling * 0.1;
+                    double erosionTarget = erosion * (1.0 - coupling * 0.1) + wetness * 0.03 + Math.Max(0.0, confluence - 0.35) * 0.04;
+
+                    hydrology[x, z] = Mathf.Clamp01((float)Math.Clamp(hydroTarget, 0.0, varianceClamp + 1.0));
+                    flow[x, z] = Mathf.Clamp01((float)Math.Clamp(flowTarget, 0.0, 1.35));
+                    erosionRisk[x, z] = Mathf.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+                    riverMask[x, z] = Mathf.Clamp01((float)Math.Clamp(river + hydrology[x, z] * 0.008 + continuity * 0.006, 0.0, 1.0));
+                    lakeMask[x, z] = Mathf.Clamp01((float)Math.Clamp(lake + hydrology[x, z] * 0.007 + confluence * 0.005, 0.0, 1.0));
+                }
+            }
+
+            NormalizeEdges(hydrology, edgeRadius, Mathf.Clamp01((float)(profile.HydrologyEdgeNormalizationBlend * 0.54)), (float)varianceClamp);
+            NormalizeEdges(flow, edgeRadius, Mathf.Clamp01((float)(profile.HydrologyEdgeNormalizationBlend * 0.44)), (float)(varianceClamp * 1.2));
+            Smooth2D(erosionRisk, 1, Mathf.Clamp01((float)(profile.HydrologySmoothBlend * 0.22)));
         }
 
         private void ApplyFlowMemory(int[,] heightMap, float[,] hydrology, float[,] flow)

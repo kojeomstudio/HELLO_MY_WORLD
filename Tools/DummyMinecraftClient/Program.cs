@@ -185,6 +185,8 @@ public static class Program
         ProtoRuntime.EnsureInitialized();
         ProtoFingerprint.AssertDescriptorFingerprint();
         ProtocolRegistry.ValidateBindings();
+        ProtocolValidator.ValidateEnhancedContracts();
+        ProtoDiagnostics.AssertRegistryClean();
         var missingRequiredBindings = ProtocolRegistry.GetUnregisteredRequiredMessages().ToArray();
         var missingOptionalBindings = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
             .Select(type => type.ToString())

@@ -32,6 +32,59 @@ This project is an open-source voxel game that aims to mimic core mechanics of M
 
 ## Recent Updates
 
+### 2026-03-07: Session 143 - Hydrology v67 / Map-Control v71 / Riparian Aquifer Momentum Coupling
+
+**Status:** COMPLETED
+
+- Plan and tracking:
+  - `plans/2026-03-07-session-143-comprehensive-work-plan.md`
+- Core/Content/Utility classification manifest (session-143):
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json`
+- Terrain generation improvements:
+  - Added `ApplyRiparianAquiferMomentumCoupling` to:
+    - `GameServer/World/Generation/ImprovedTerrainCoordinator.cs`
+    - `Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs`
+- World-map control architecture improvements:
+  - Updated shared baseline in `GameCommon/World/SharedFeatureCatalog.cs`:
+    - `HydrologySignature`: `2026-03-07-hydrology-riverlake-cave-v67`
+    - `MapControlProfileVersion`: `71`
+  - Regenerated/synced map-control profile JSON mirrors:
+    - `config/world_map_control_profile.json`
+    - `GameServer/config/world_map_control_profile.json`
+    - `Assets/StreamingAssets/world-map-control.json`
+    - `GameServer/Assets/StreamingAssets/world-map-control.json`
+- Protobuf path improvements:
+  - Added stricter runtime checks in `Tools/DummyMinecraftClient/Program.cs`:
+    - `ProtocolValidator.ValidateEnhancedContracts()`
+    - `ProtoDiagnostics.AssertRegistryClean()`
+- Data-driven config updates:
+  - `MapControlProfileVersion=71` synced in:
+    - `config/world.json`
+    - `GameServer/config/world.json`
+    - `Assets/StreamingAssets/world-config.json`
+  - Probe guard uplift (`minMapControlProfileVersion=71`) synced in:
+    - `config/protocol_dummy_client.json`
+    - `GameServer/config/protocol_dummy_client.json`
+    - `config/dummy_minecraft_client.json`
+    - `GameServer/config/dummy_minecraft_client.json`
+  - Config parity manifest switched to session-143 feature manifest source:
+    - `config/config_parity_manifest.json`
+    - `GameServer/config/config_parity_manifest.json`
+    - `Assets/StreamingAssets/config_parity_manifest.json`
+- Validation executed:
+  - `dotnet build SharedProtocol/SharedProtocol.csproj` PASS
+  - `dotnet build GameCommon/GameCommon.csproj` PASS
+  - `dotnet build GameServer/GameServer.csproj` PASS
+  - `dotnet test SharedProtocol/SharedProtocol.csproj --no-build` PASS
+  - `dotnet test GameServer/GameServer.csproj --no-build` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --generate-map-profile` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --proto-probe` PASS
+  - `dotnet run --project GameServer/GameServer.csproj -- --selftest` PASS
+- Session docs:
+  - `docs/session-143-terrain-mapcontrol-proto-validation.md`
+
 ### 2026-03-07: Session 141 - Hydrology v65 / Map-Control v69 / Cave-River-Lake Continuity Bridges
 
 **Status:** COMPLETED

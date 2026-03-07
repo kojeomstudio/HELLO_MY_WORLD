@@ -55,16 +55,16 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-07
-        /// (river/lake/cave continuity bridges + profile parity hardening + map-control v69).
-        /// Session 141: Enhanced terrain algorithms, improved cave/river/lake generation,
-        /// protobuf protocol validation, and data-driven architecture refinements.
+        /// (river/lake/cave continuity bridges + profile parity hardening + map-control v70).
+        /// Session 142: Enhanced terrain algorithms with continuity bridges, improved cave/river/lake generation,
+        /// protobuf protocol validation, data-driven architecture refinements, and fixed terrain config.
         /// </summary>
-        public const string HydrologySignature = "2026-03-07-hydrology-riverlake-cave-v65";
+        public const string HydrologySignature = "2026-03-07-hydrology-riverlake-cave-v66";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 69;
+        public const int MapControlProfileVersion = 70;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

@@ -55,16 +55,16 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-07
-        /// (riparian aquifer momentum coupling + profile parity hardening + map-control v71).
-        /// Session 143: Added server/client riparian-aquifer momentum coupling pass, protobuf probe hardening,
-        /// and synchronized JSON config/profile baselines.
+        /// (riparian aquifer momentum coupling + profile parity hardening + map-control v72).
+        /// Session 144: Enhanced subsurface conduit bridge, karst coupling improvements,
+        /// improved lake generator with floodplain exchange, and synchronized JSON config/profile baselines.
         /// </summary>
-        public const string HydrologySignature = "2026-03-07-hydrology-riverlake-cave-v67";
+        public const string HydrologySignature = "2026-03-07-hydrology-riverlake-cave-v68";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 71;
+        public const int MapControlProfileVersion = 72;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

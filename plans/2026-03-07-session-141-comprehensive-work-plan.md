@@ -22,7 +22,7 @@
 - [x] Update README and add/update `docs/` markdown documentation
 - [x] Run compile/test/protocol validation commands
 - [x] Verify using/reference resolution through project builds
-- [ ] Finalize local commit and push to `origin`
+- [x] Finalize local commit and push to `origin`
 
 ## Completed (Session 141)
 - [x] Session work plan created first in `plans/`
@@ -32,6 +32,7 @@
 - [x] Regenerated world map control profile (v69, hydrology signature v65)
 - [x] Synced JSON parity mirrors across `config/`, `GameServer/config/`, `Assets/StreamingAssets/`
 - [x] Updated README and added session validation report in `docs/`
+- [x] Local commit and push completed (`master` -> `origin/master`)
 
 ## Execution Notes
 - Canonical feature classification file: `config/minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json`

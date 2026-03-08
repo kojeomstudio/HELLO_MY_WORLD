@@ -21,7 +21,7 @@
 - [x] Run compile/tests and protobuf verification scripts
 - [x] Verify `using` references resolve to existing namespaces/types via compile checks
 - [x] Update docs in `docs/` and keep `README.md` concise with links
-- [ ] Final commit and push to `origin/master`
+- [x] Final commit and push to `origin/master`
 
 ## In Progress
 - (none)
@@ -38,6 +38,7 @@
 - [x] Protobuf probe executed (`--proto-probe`) with required packet checks passing
 - [x] Build validation passed for `GameCommon`, `SharedProtocol`, and `GameServer`
 - [x] `README.md` compressed to essentials and detailed report added under `docs/`
+- [x] Final feature commit created and pushed (`23e90d08`)
 
 ## Notes
 - This session extends the previous hydrology/map-control baseline with deterministic parity hardening.

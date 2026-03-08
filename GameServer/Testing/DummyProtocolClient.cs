@@ -70,6 +70,12 @@ namespace GameServerApp.Testing
 
         public bool FailOnGeneratedRequiredDescriptorGap { get; set; } = true;
 
+        public bool FailOnGeneratedSourceTimestampDrift { get; set; } = true;
+
+        public string ProtoSourceDirectory { get; set; } = "proto";
+
+        public string GeneratedProtobufDirectory { get; set; } = "Assets/Generated/Protobuf";
+
         public string OutputReportPath { get; set; } = "reports/proto_probe_report.json";
 
         public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
@@ -90,6 +96,12 @@ namespace GameServerApp.Testing
                 SharedFeatureCatalog.MapControlProfileVersion,
                 Math.Max(1, MinMapControlProfileVersion));
             MinDescriptorCoverageRatio = Math.Clamp(MinDescriptorCoverageRatio, 0.0, 1.0);
+            ProtoSourceDirectory = string.IsNullOrWhiteSpace(ProtoSourceDirectory)
+                ? "proto"
+                : ProtoSourceDirectory;
+            GeneratedProtobufDirectory = string.IsNullOrWhiteSpace(GeneratedProtobufDirectory)
+                ? "Assets/Generated/Protobuf"
+                : GeneratedProtobufDirectory;
             OutputReportPath = string.IsNullOrWhiteSpace(OutputReportPath)
                 ? "reports/proto_probe_report.json"
                 : OutputReportPath;
@@ -215,6 +227,7 @@ namespace GameServerApp.Testing
             ProtocolStandardization.ValidateProtocolImplementation();
 
             ValidateProfileGuards();
+            ValidateGeneratedProtobufFreshnessGuard();
             ValidateReferenceReportGuard();
             var (boundDescriptors, generatedDescriptors) = ProtocolRegistry.GetBindingCoverage();
             result.DescriptorCoverageRatio = generatedDescriptors > 0
@@ -520,6 +533,9 @@ namespace GameServerApp.Testing
                     Settings.FailOnDescriptorCoverageRegression,
                     Settings.MinDescriptorCoverageRatio,
                     Settings.FailOnGeneratedRequiredDescriptorGap,
+                    Settings.FailOnGeneratedSourceTimestampDrift,
+                    Settings.ProtoSourceDirectory,
+                    Settings.GeneratedProtobufDirectory,
                     Settings.ProbeNetwork
                 },
                 totals = new
@@ -684,6 +700,73 @@ namespace GameServerApp.Testing
             {
                 throw new InvalidOperationException(
                     $"Failed to parse proto reference report '{resolvedReferencePath}': {ex.Message}", ex);
+            }
+        }
+
+        private void ValidateGeneratedProtobufFreshnessGuard()
+        {
+            string protoDirectory = ResolvePath(Settings.ProtoSourceDirectory);
+            string generatedDirectory = ResolvePath(Settings.GeneratedProtobufDirectory);
+            if (!Settings.FailOnGeneratedSourceTimestampDrift)
+            {
+                return;
+            }
+
+            if (!Directory.Exists(protoDirectory))
+            {
+                throw new InvalidOperationException(
+                    $"Proto source directory was not found: '{protoDirectory}'.");
+            }
+
+            if (!Directory.Exists(generatedDirectory))
+            {
+                throw new InvalidOperationException(
+                    $"Generated protobuf directory was not found: '{generatedDirectory}'.");
+            }
+
+            var protoFiles = Directory.GetFiles(protoDirectory, "*.proto", SearchOption.AllDirectories)
+                .Select(path => new FileInfo(path))
+                .ToArray();
+            var generatedFiles = Directory.GetFiles(generatedDirectory, "*.cs", SearchOption.AllDirectories)
+                .Select(path => new FileInfo(path))
+                .ToArray();
+            if (protoFiles.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"No .proto files were found under '{protoDirectory}'.");
+            }
+
+            if (generatedFiles.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"No generated protobuf C# files were found under '{generatedDirectory}'.");
+            }
+
+            DateTime newestProto = protoFiles.Max(file => file.LastWriteTimeUtc);
+            DateTime newestGenerated = generatedFiles.Max(file => file.LastWriteTimeUtc);
+            if (newestProto > newestGenerated)
+            {
+                throw new InvalidOperationException(
+                    $"Generated protobuf DTOs are stale (newest proto: {newestProto:o}, newest generated C#: {newestGenerated:o}).");
+            }
+
+            string[] requiredGeneratedFiles =
+            {
+                "Common.cs",
+                "EnhancedMinecraftGame.cs",
+                "GameAuth.cs"
+            };
+            var generatedFileNames = new HashSet<string>(
+                generatedFiles.Select(file => file.Name),
+                StringComparer.OrdinalIgnoreCase);
+            string[] missing = requiredGeneratedFiles
+                .Where(file => !generatedFileNames.Contains(file))
+                .ToArray();
+            if (missing.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    "Generated protobuf DTOs are missing required files: " +
+                    string.Join(", ", missing));
             }
         }
 

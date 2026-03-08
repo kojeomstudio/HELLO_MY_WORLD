@@ -1,48 +1,39 @@
-# HELLO MY WORLD
+﻿# HELLO MY WORLD
 
-Minecraft-style client/server sandbox game project with Unity client + .NET server.
+Unity 클라이언트 + .NET 서버 기반 Minecraft 스타일 샌드박스 프로젝트입니다.
 
 ## 핵심 구조
-- `Assets/`: Unity 클라이언트
-- `GameServer/`: .NET 서버 (`Program.cs` 진입점)
-- `SharedProtocol/`: 패킷/프로토콜 공통 계층
-- `GameCommon/`: 클라/서버 공통 타입을 제공하는 공유 DLL(`GameCommon.dll`)
-- `proto/`: Google Protobuf 원본 스키마
-- `config/`: 서버/클라이언트 데이터 드리븐 JSON 설정
-- `docs/`: 상세 설계/검증 문서
+- `Assets/`: Unity 클라이언트 코드/리소스
+- `GameServer/`: .NET 서버
+- `SharedProtocol/`: 프로토콜/직렬화 공용 코드
+- `GameCommon/`: 클라/서버 공용 DLL (`GameCommon.dll`)
+- `proto/`: Google Protobuf 스키마
+- `config/`: JSON 기반 설정/데이터
+- `docs/`: 상세 문서
 - `plans/`: 세션별 To Do / Completed 작업 계획
 
-## 빠른 시작
+## 빌드
 ```bash
 dotnet build GameCommon/GameCommon.csproj
 dotnet build SharedProtocol/SharedProtocol.csproj
 dotnet build GameServer/GameServer.csproj
-dotnet run --project GameServer -- --server
 ```
 
-## Protobuf 재생성/검증
+## 실행 / 검증
 ```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate_proto.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1
+dotnet run --project GameServer -- --server
 dotnet run --project GameServer -- --proto-probe
+dotnet run --project GameServer -- --generate-map-profile
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1
 ```
 
-## 월드맵 컨트롤/지형 생성
-- 하이드롤로지 시그니처: `2026-03-08-hydrology-riverlake-cave-v70`
-- 맵 컨트롤 최소 프로필 버전: `74`
-- 기준 프로필: `config/world_map_control_profile.json`
-- 서버/클라 스트리밍 미러:
-  - `GameServer/Assets/StreamingAssets/world-map-control.json`
-  - `Assets/StreamingAssets/world-map-control.json`
-
-## 데이터 드리븐 정책
-- 월드/지형 설정: `config/world.json`
-- 맵 런타임 정책: `config/enhanced_world_map_control_server.json`, `config/enhanced_world_map_control_client.json`
-- 더미 프로토콜 클라이언트 설정: `config/protocol_dummy_client.json`, `config/dummy_minecraft_client.json`
-- 세션 146 기능 분류(코어/콘텐츠/유틸):
-  - `config/minecraft_feature_client_server_core_content_util_2026-03-08-session-146.json`
+## 현재 기준 (Session 147)
+- Hydrology signature: `2026-03-08-hydrology-riverlake-cave-v71`
+- Map control profile version: `75`
+- Feature manifest:
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-08-session-147.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-08-session-147.json`
 
 ## 문서
-- Session 146 구현 보고서: `docs/2026-03-08-session-146-implementation-report.md`
-- 최신 작업 계획: `plans/2026-03-08-session-146-comprehensive-work-plan.md`
-
+- Session 147 상세 보고서: `docs/2026-03-08-session-147-implementation-report.md`
+- Session 147 작업 계획: `plans/2026-03-08-session-147-comprehensive-work-plan.md`

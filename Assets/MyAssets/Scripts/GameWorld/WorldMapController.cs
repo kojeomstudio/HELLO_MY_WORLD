@@ -868,6 +868,18 @@ namespace GameWorld
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(dynamicBudget);
             float loadTrend = (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
+            float volatilityRatio = (float)WorldMapQueuePolicy.ComputeVolatilityRatio(
+                load,
+                queueLoadEma,
+                loadTrend,
+                queueEmergencyBrakeLatched,
+                queueTrendBoostWeight,
+                queueShockAbsorberWeight);
+            float volatilityGuard = (float)WorldMapQueuePolicy.ComputeVolatilityGuardScale(
+                volatilityRatio,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.0);
             float shockScale = (float)WorldMapQueuePolicy.ComputeShockAbsorberScale(
                 load,
                 loadTrend,
@@ -878,7 +890,8 @@ namespace GameWorld
                 Mathf.Max(1.1f, queueSlackRatio),
                 6.0f);
             float stabilized = Mathf.Lerp(Mathf.Max(1.1f, queueSlackRatio), rawSlack, shockScale);
-            return Mathf.Clamp(stabilized, Mathf.Max(1.1f, queueSlackRatio), 6.0f);
+            float guarded = Mathf.Lerp(Mathf.Max(1.1f, queueSlackRatio), stabilized, volatilityGuard);
+            return Mathf.Clamp(guarded, Mathf.Max(1.1f, queueSlackRatio), 6.0f);
         }
 
         private int GetAdaptiveQueuePressureFactor()
@@ -886,6 +899,13 @@ namespace GameWorld
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(dynamicBudget);
             float loadTrend = (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
+            float volatilityRatio = (float)WorldMapQueuePolicy.ComputeVolatilityRatio(
+                load,
+                queueLoadEma,
+                loadTrend,
+                queueEmergencyBrakeLatched,
+                queueTrendBoostWeight,
+                queueShockAbsorberWeight);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
             int adaptive = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
                 Mathf.Clamp(queuePressureFactor, 1, 8),
@@ -895,6 +915,7 @@ namespace GameWorld
                 Mathf.Clamp(queueTrendBoostWeight, 0.0f, 1.5f),
                 1,
                 8);
+            adaptive = Mathf.Clamp(adaptive + Mathf.CeilToInt(volatilityRatio * 1.5f), 1, 8);
             return Mathf.Clamp(adaptive, 1, 8);
         }
 
@@ -905,6 +926,18 @@ namespace GameWorld
             float dynamicBudget = Mathf.Max(64, GetDynamicLoadedChunkBudget());
             float load = ComputeEffectiveQueueLoad(Mathf.CeilToInt(dynamicBudget));
             float loadTrend = (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma);
+            float volatilityRatio = (float)WorldMapQueuePolicy.ComputeVolatilityRatio(
+                load,
+                queueLoadEma,
+                loadTrend,
+                queueEmergencyBrakeLatched,
+                queueTrendBoostWeight,
+                queueShockAbsorberWeight);
+            float volatilityGuard = (float)WorldMapQueuePolicy.ComputeVolatilityGuardScale(
+                volatilityRatio,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.0);
             float shockScale = (float)WorldMapQueuePolicy.ComputeShockAbsorberScale(
                 load,
                 loadTrend,
@@ -917,7 +950,7 @@ namespace GameWorld
             int limit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
                 Mathf.CeilToInt(dynamicBudget),
                 Mathf.Max(1, adaptivePressure),
-                Mathf.Max(1.1f, adaptiveSlack),
+                Mathf.Max(1.1f, adaptiveSlack * Mathf.Max(0.8f, volatilityGuard)),
                 burstMultiplier,
                 load,
                 emergencyBrake,

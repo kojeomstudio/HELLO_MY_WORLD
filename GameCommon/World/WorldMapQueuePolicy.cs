@@ -82,6 +82,51 @@ namespace GameCommon.World
             return Math.Clamp(resolved, min, max);
         }
 
+        /// <summary>
+        /// Computes normalized queue-load volatility from instantaneous/EMA divergence and trend.
+        /// Shared by server/client to keep shock handling aligned.
+        /// </summary>
+        public static double ComputeVolatilityRatio(
+            double instantaneousLoad,
+            double emaLoad,
+            double loadTrend,
+            bool emergencyBrake,
+            double trendBoostWeight,
+            double shockAbsorberWeight)
+        {
+            double divergence = Math.Abs(instantaneousLoad - emaLoad);
+            double clampedTrend = Math.Abs(loadTrend);
+            double trendWeight = ClampTrendBoostWeight(trendBoostWeight);
+            double shockWeight = ClampShockAbsorberWeight(shockAbsorberWeight);
+            double overload = Math.Max(0.0, instantaneousLoad - 1.0);
+            double volatility = divergence * 0.55 +
+                                clampedTrend * trendWeight * 0.2 +
+                                overload * shockWeight * 0.25;
+            if (emergencyBrake)
+            {
+                volatility += 0.12 + shockWeight * 0.08;
+            }
+
+            return Math.Clamp(volatility, 0.0, 1.5);
+        }
+
+        /// <summary>
+        /// Converts volatility into a conservative queue-scaling guard.
+        /// Lower values indicate stronger queue throttling pressure.
+        /// </summary>
+        public static double ComputeVolatilityGuardScale(
+            double volatilityRatio,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.0)
+        {
+            minScale = Math.Clamp(minScale, 0.2, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+            double emergencyPenalty = emergencyBrake ? 0.08 : 0.0;
+            double damping = Math.Clamp(volatilityRatio * 0.35 + emergencyPenalty, 0.0, 0.45);
+            return Math.Clamp(1.0 - damping, minScale, maxScale);
+        }
+
         public static double ComputeLoadTrend(double instantaneousLoad, double emaLoad)
         {
             return Math.Clamp(instantaneousLoad - emaLoad, -2.0, 2.0);

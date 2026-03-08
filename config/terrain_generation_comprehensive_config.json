@@ -1,7 +1,7 @@
 {
   "version": "2026-03-07-session-143",
   "description": "Comprehensive terrain generation configuration for cave, river, and lake generation with hydrology coupling",
-  "signature": "2026-03-07-hydrology-riverlake-cave-v67",
+  "signature": "2026-03-08-hydrology-riverlake-cave-v69",
   "mapControlProfileVersion": 71,
   "worldGeneration": {
     "chunkSize": 16,

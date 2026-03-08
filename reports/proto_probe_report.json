@@ -1,5 +1,5 @@
 {
-  "timestampUtc": "2026-03-07T03:20:05.2134808Z",
+  "timestampUtc": "2026-03-08T01:17:36.1229885Z",
   "descriptor": "enhanced_minecraft_game.proto",
   "settings": {
     "Host": "127.0.0.1",
@@ -9,7 +9,7 @@
     "ValidateAllKnownPackets": true,
     "IncludeOptionalMessages": true,
     "RequireRequiredPacketCoverage": true,
-    "MinMapControlProfileVersion": 71,
+    "MinMapControlProfileVersion": 73,
     "FailOnReferenceReportDrift": true,
     "FailOnDescriptorCoverageRegression": true,
     "MinDescriptorCoverageRatio": 0.25,

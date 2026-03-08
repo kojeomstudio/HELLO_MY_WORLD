@@ -55,16 +55,16 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-08
-        /// (spillway conduit stabilization + queue volatility guard hardening + map-control v75).
-        /// Session 147 extends cave/river/lake coupling with spillway conduit stabilization,
-        /// shared queue-volatility guard policy, and synchronized JSON profile/config baselines for server + Unity parity.
+        /// (enhanced cross-chunk hydrology + thalweg relay stabilization + map-control v76).
+        /// Session 148 extends cave/river/lake coupling with cross-chunk hydrology stitching,
+        /// thalweg relay stabilization bridge, and improved queue volatility guard.
         /// </summary>
-        public const string HydrologySignature = "2026-03-08-hydrology-riverlake-cave-v71";
+        public const string HydrologySignature = "2026-03-08-hydrology-riverlake-cave-v72";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 75;
+        public const int MapControlProfileVersion = 76;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

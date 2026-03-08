@@ -7,6 +7,7 @@ namespace GameCommon.World
     /// <summary>
     /// Shared queue pressure utilities so server and client apply the same
     /// load classification / emergency latch semantics.
+    /// Session 148 (v76): Added thalweg relay stability helpers and cross-chunk coherence utilities.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -593,6 +594,61 @@ namespace GameCommon.World
             return deduplicated
                 .Select(entry => entry.Coordinate)
                 .ToArray();
+        }
+
+        /// <summary>
+        /// v76: Computes cross-chunk coherence factor for hydrology-aware chunk prioritization.
+        /// Used to prioritize chunks that maintain terrain continuity across boundaries.
+        /// </summary>
+        public static double ComputeCrossChunkCoherence(
+            int chunkX,
+            int chunkZ,
+            int centerX,
+            int centerZ,
+            double hydrologyWeight = 0.25)
+        {
+            int dx = chunkX - centerX;
+            int dz = chunkZ - centerZ;
+            int manhattan = Math.Abs(dx) + Math.Abs(dz);
+            double distanceFactor = 1.0 / (1.0 + manhattan * 0.1);
+            double neighborBonus = (dx == 0 || dz == 0) ? 0.15 : 0.0;
+            double coherence = distanceFactor + neighborBonus + hydrologyWeight * 0.1;
+            return Math.Clamp(coherence, 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// v76: Computes thalweg relay stability score for terrain continuity.
+        /// Higher scores indicate chunks more likely to maintain river/cave continuity.
+        /// </summary>
+        public static double ComputeThalwegRelayStability(
+            int chunkX,
+            int chunkZ,
+            double flowAccumulation,
+            double hydrologyValue,
+            double erosionRisk)
+        {
+            double flowScore = Math.Clamp(flowAccumulation / 10.0, 0.0, 1.0) * 0.4;
+            double hydroScore = Math.Clamp(hydrologyValue, 0.0, 1.0) * 0.35;
+            double erosionPenalty = Math.Clamp(erosionRisk, 0.0, 1.0) * 0.2;
+            double stability = flowScore + hydroScore - erosionPenalty;
+            return Math.Clamp(stability, 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// v76: Computes burst admission damping factor based on queue volatility.
+        /// Returns a factor (0-1) to scale burst admission rates.
+        /// </summary>
+        public static double ComputeBurstAdmissionDamping(
+            double volatilityRatio,
+            double loadTrend,
+            bool emergencyBrake,
+            double dampingStrength = 0.5)
+        {
+            double baseDamping = Math.Clamp(volatilityRatio * dampingStrength, 0.0, 0.6);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.15;
+            double emergencyPenalty = emergencyBrake ? 0.2 : 0.0;
+            double totalDamping = baseDamping + trendPenalty + emergencyPenalty;
+            return Math.Clamp(1.0 - totalDamping, 0.4, 1.0);
         }
     }
 }

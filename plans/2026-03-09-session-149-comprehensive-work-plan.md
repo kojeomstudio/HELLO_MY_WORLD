@@ -21,7 +21,7 @@
 - [x] Ensure gameplay/external data remains data-driven JSON and update related manifests if changed
 - [x] Update docs under `docs/` and keep README concise with links to detailed docs
 - [x] Run compile/tests and protobuf handling validations (`dotnet build`, `dotnet test`, server proto probe)
-- [ ] Commit all final changes and push to `origin/master`
+- [x] Commit all final changes and push to `origin/master`
 
 ## In Progress
 - (none)
@@ -36,4 +36,4 @@
 - [x] Updated JSON runtime/probe/queue/profile configs and regenerated world map control profile parity
 - [x] Completed build/test/proto-probe validation runs
 - [x] Updated README and created session 149 implementation report under docs
-- [ ] Commit and push are pending final validation in this session
+- [x] Committed final session changes and pushed to origin/master

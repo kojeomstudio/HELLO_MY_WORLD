@@ -2,7 +2,7 @@
     "worldMapControl":  {
                             "enabled":  true,
                             "profilePath":  "config/world_map_control_profile.json",
-                             "profileVersion":  75,
+                             "profileVersion":  77,
                             "defaults":  {
                                              "renderDistance":  12,
                                              "mapScale":  1.0,
@@ -75,4 +75,5 @@
                                                   }
                         }
 }
+
 

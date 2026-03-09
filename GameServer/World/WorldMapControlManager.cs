@@ -681,17 +681,39 @@ namespace GameServerApp.World
                 ? Math.Min(queueOverloadTicks + 1, 128)
                 : Math.Max(0, queueOverloadTicks - 1);
             double overloadBias = Math.Clamp(queueOverloadTicks / 24.0, 0.0, 0.45);
+            double volatilityRatio = WorldMapQueuePolicy.ComputeVolatilityRatio(
+                instantaneousLoad,
+                queueLoadEma,
+                loadTrend,
+                queueEmergencyBrakeLatched,
+                configuredQueueTrendBoostWeight,
+                configuredQueueShockAbsorberWeight);
             double shockScale = WorldMapQueuePolicy.ComputeShockAbsorberScale(
                 load,
                 loadTrend + overloadBias * 0.5,
                 queueEmergencyBrakeLatched,
                 configuredQueueShockAbsorberWeight);
+            double hydrologyQueueScale = WorldMapQueuePolicy.ComputeHydrologyQueueStabilityScale(
+                load,
+                loadTrend + overloadBias * 0.25,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologyThalwegStabilityWeight,
+                configuredQueueBurstSlackMultiplier,
+                queueEmergencyBrakeLatched,
+                0.6,
+                1.18);
 
             dynamicQueueSlackRatio = Math.Clamp(
                 configuredQueueSlackRatio +
                 load * 0.6 * shockScale +
                 overloadBias * 0.35 +
                 Math.Max(0.0, loadTrend) * configuredQueueTrendBoostWeight * 0.75 * shockScale,
+                configuredQueueSlackRatio,
+                6.0);
+            dynamicQueueSlackRatio = Math.Clamp(
+                configuredQueueSlackRatio +
+                (dynamicQueueSlackRatio - configuredQueueSlackRatio) * hydrologyQueueScale,
                 configuredQueueSlackRatio,
                 6.0);
             bool emergencyBrake = queueEmergencyBrakeLatched;
@@ -711,7 +733,7 @@ namespace GameServerApp.World
             int candidateQueueLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
                 cacheBudget,
                 1,
-                dynamicQueueSlackRatio,
+                Math.Max(1.1, dynamicQueueSlackRatio * Math.Clamp(hydrologyQueueScale, 0.72, 1.18)),
                 burstMultiplier,
                 load,
                 emergencyBrake: false,
@@ -787,6 +809,10 @@ namespace GameServerApp.World
                 loadTrend * shockScale + overloadBias * configuredQueueTrendBoostWeight * shockScale,
                 emergencyBrake,
                 configuredQueueTrendBoostWeight);
+            if (hydrologyQueueScale < 0.9)
+            {
+                pressure = Math.Clamp(pressure + 1, 1, 8);
+            }
             if (overloadBias >= 0.35)
             {
                 pressure = Math.Max(pressure, 4);

@@ -54,17 +54,16 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-08
-        /// (enhanced cross-chunk hydrology + thalweg relay stabilization + map-control v76).
-        /// Session 148 extends cave/river/lake coupling with cross-chunk hydrology stitching,
-        /// thalweg relay stabilization bridge, and improved queue volatility guard.
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-09.
+        /// Session 149 extends cave/river/lake coupling with floodplain-karst relay bridges,
+        /// aquifer confluence resilience, and hydrology-aware queue stabilization (v77).
         /// </summary>
-        public const string HydrologySignature = "2026-03-08-hydrology-riverlake-cave-v72";
+        public const string HydrologySignature = "2026-03-09-hydrology-riverlake-cave-v73";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 76;
+        public const int MapControlProfileVersion = 77;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -89,8 +88,8 @@ namespace GameCommon.World
         private static readonly List<SharedFeatureDescriptor> features = new()
         {
             new SharedFeatureDescriptor(
-                "S20-CORE-01",
-                "Hydrology WorldGen v71",
+                "S21-CORE-01",
+                "Hydrology WorldGen v73",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -100,20 +99,20 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-08-session-147.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json"
                 },
                 new[]
                 {
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-08-session-147.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S20-CORE-02",
+                "S21-CORE-02",
                 "Shared DLL + Proto Contracts",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
@@ -127,8 +126,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S20-CONTENT-01",
-                "Hydrology-Aware Caves + Spillway Conduit Stability",
+                "S21-CONTENT-01",
+                "Hydrology-Aware Caves + Floodplain Groundwater Vault Bridge",
                 FeatureCategory.Content,
                 FeatureLayer.Server,
                 new[]
@@ -141,8 +140,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S20-CONTENT-02",
-                "River Delta Convergence + Queue-Stable Riparian Exchange",
+                "S21-CONTENT-02",
+                "River Delta Convergence + Aquifer Confluence Resilience",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -155,8 +154,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S20-CONTENT-03",
-                "Lake Floodplain Link + Karst Outlet Stabilization v71",
+                "S21-CONTENT-03",
+                "Lake Floodplain Link + Karst Retention Relay v73",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -169,7 +168,7 @@ namespace GameCommon.World
                 "implemented",
                 "medium"),
             new SharedFeatureDescriptor(
-                "S20-UTIL-01",
+                "S21-UTIL-01",
                 "Proto Registry + Fingerprint Validation + Source Freshness Guard",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
@@ -182,22 +181,23 @@ namespace GameCommon.World
                 new[] { HydrologySignature },
                 "implemented",
                 "high"),
-                new SharedFeatureDescriptor(
-                "S20-UTIL-02",
-                "Data-Driven Config Parity + Map-Control v75",
+            new SharedFeatureDescriptor(
+                "S21-UTIL-02",
+                "Data-Driven Config Parity + Map-Control v77",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
                 {
                     "config/world.json",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-08-session-146.json"
+                    "config/world_map_control_queue_policy.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S20-UTIL-03",
+                "S21-UTIL-03",
                 "Dummy Protocol Client Round-Trip + Generated DTO Drift Guard",
                 FeatureCategory.Utility,
                 FeatureLayer.Server,
@@ -207,6 +207,21 @@ namespace GameCommon.World
                     "config/protocol_dummy_client.json"
                 },
                 new[] { "SharedProtocol", "EnhancedMinecraftProtocol" },
+                "implemented",
+                "medium"),
+            new SharedFeatureDescriptor(
+                "S21-UTIL-04",
+                "Hydrology Queue Stability Scale (Server/Client Parity)",
+                FeatureCategory.Utility,
+                FeatureLayer.Shared,
+                new[]
+                {
+                    "GameCommon/World/WorldMapQueuePolicy.cs",
+                    "GameServer/World/WorldMapController.cs",
+                    "GameServer/World/WorldMapControlManager.cs",
+                    "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+                },
+                new[] { HydrologySignature, "config/world_map_control_queue_policy.json" },
                 "implemented",
                 "medium")
         };

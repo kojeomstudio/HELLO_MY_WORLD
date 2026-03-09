@@ -1,4 +1,4 @@
-{
+﻿{
     "version": 1,
     "description": "Canonical JSON config parity map for server/client/tooling synchronization.",
     "groups": [
@@ -55,11 +55,11 @@
             ]
         },
         {
-            "name": "feature-manifest-session-143",
-            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json",
+            "name": "feature-manifest-session-149",
+            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json",
             "mirrors": [
-                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json",
-                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-07-session-143.json"
+                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json",
+                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json"
             ]
         },
         {
@@ -72,3 +72,4 @@
         }
     ]
 }
+

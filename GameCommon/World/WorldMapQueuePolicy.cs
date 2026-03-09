@@ -7,7 +7,7 @@ namespace GameCommon.World
     /// <summary>
     /// Shared queue pressure utilities so server and client apply the same
     /// load classification / emergency latch semantics.
-    /// Session 148 (v76): Added thalweg relay stability helpers and cross-chunk coherence utilities.
+    /// Session 149 (v77): Added hydrology-aware queue stability scaling for map-control parity.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -649,6 +649,38 @@ namespace GameCommon.World
             double emergencyPenalty = emergencyBrake ? 0.2 : 0.0;
             double totalDamping = baseDamping + trendPenalty + emergencyPenalty;
             return Math.Clamp(1.0 - totalDamping, 0.4, 1.0);
+        }
+
+        /// <summary>
+        /// v77: Computes hydrology-aware queue stability scaling shared by server/client map-control.
+        /// Higher continuity/thalweg values soften queue pressure changes while volatility and emergency
+        /// states dampen scaling to avoid burst thrashing.
+        /// </summary>
+        public static double ComputeHydrologyQueueStabilityScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double thalwegWeight,
+            double burstSlackMultiplier,
+            bool emergencyBrake,
+            double minScale = 0.55,
+            double maxScale = 1.15)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double continuity = Math.Clamp(continuityWeight, 0.0, 1.5);
+            double thalweg = Math.Clamp(thalwegWeight, 0.0, 1.5);
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.85) * 0.24, 0.0, 0.35);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.18;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.22, 0.0, 0.3);
+            double burstAssist = Math.Clamp((burstSlackMultiplier - 1.0) * 0.18, 0.0, 0.12);
+            double hydroAssist = continuity * 0.12 + thalweg * 0.10 + burstAssist;
+            double emergencyPenalty = emergencyBrake ? 0.12 : 0.0;
+
+            double scale = 1.0 + hydroAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
         }
     }
 }

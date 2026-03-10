@@ -9,6 +9,7 @@ using Google.Protobuf;
 using SharedProtocol;
 using GameServerApp.Models;
 using GameServerApp.Rooms;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
 
 namespace GameServerApp;
 

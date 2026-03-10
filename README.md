@@ -27,14 +27,21 @@ dotnet run --project GameServer -- --generate-map-profile
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1
 ```
 
-## 현재 기준 (Session 151)
-- Hydrology signature: `2026-03-10-hydrology-riverlake-cave-v74`
-- Map control profile version: `78`
-- Queue policy version: `32`
+## 현재 기준 (Session 152)
+- Hydrology signature: `2026-03-10-hydrology-riverlake-cave-v75`
+- Map control profile version: `79`
+- Queue policy version: `33`
 - Feature manifest:
-  - `config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json`
-  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json`
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-10-session-152.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-10-session-152.json`
 
 ## 문서
-- Session 151 상세 보고서: `docs/2026-03-10-session-151-implementation-report.md`
-- Session 151 작업 계획: `plans/2026-03-10-session-151-comprehensive-work-plan.md`
+- Session 152 상세 보고서: `docs/2026-03-10-session-152-implementation-report.md`
+- Session 152 작업 계획: `plans/2026-03-10-session-152-comprehensive-work-plan.md`
+
+## 기능 카테고리 (85개 기능)
+- **Core (32개)**: 청크 로딩, 블록 배치, 이동, 네트워킹, 인증, 전투 등
+- **Content (27개)**: 바이옴, 블록, 아이템, 엔티티, 제작, 동굴/강/호수 생성 등
+- **Utility (26개)**: 로깅, 설정, 성능 모니터링, 안티치트, 경로 찾기 등
+
+자세한 내용은 `config/minecraft_feature_client_server_core_content_util_2026-03-10-session-152.json` 참조.

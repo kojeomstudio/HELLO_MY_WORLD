@@ -1,4 +1,7 @@
 using ProtoBuf;
+using RoomVisibility = SharedProtocol.Common.Enums.CoreEnums.RoomVisibility;
+using RoomStatus = SharedProtocol.Common.Enums.CoreEnums.RoomStatus;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
 
 namespace SharedProtocol;
 
@@ -534,30 +537,6 @@ public class RoomPromotionMessage
     [ProtoMember(2)] public bool IsNowActive { get; set; }
     [ProtoMember(3)] public RoomMemberInfo? Member { get; set; }
     [ProtoMember(4)] public RoomInfo? Room { get; set; }
-}
-
-public enum RoomVisibility
-{
-    Public = 0,
-    FriendsOnly = 1,
-    Private = 2
-}
-
-public enum RoomStatus
-{
-    Waiting = 0,
-    InGame = 1,
-    Completed = 2,
-    Locked = 3
-}
-
-public enum RoomRole
-{
-    Player = 0,
-    Host = 1,
-    Moderator = 2,
-    Spectator = 3,
-    Queue = 4
 }
 
 // 체력 및 허기 관련 메시지

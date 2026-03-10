@@ -7,6 +7,7 @@ namespace GameCommon.World
     /// <summary>
     /// Shared queue pressure utilities so server and client apply the same
     /// load classification / emergency latch semantics.
+    /// Session 152 (v79): Enhanced enum consolidation and improved protobuf registry coverage.
     /// Session 151 (v78): Added hydrology seam-resilience scaling for map-control parity.
     /// </summary>
     public enum QueuePressureBand
@@ -711,6 +712,37 @@ namespace GameCommon.World
             double emergencyPenalty = emergencyBrake ? 0.1 : 0.0;
 
             double scale = 1.0 + seamAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
+
+        /// <summary>
+        /// v79: Computes alluvial relay stability scaling for enhanced terrain continuity.
+        /// Combines seam resilience with alluvial flow persistence for smoother chunk transitions.
+        /// </summary>
+        public static double ComputeAlluvialRelayStabilityScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.25)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double baseSeamScale = ComputeHydrologySeamResilienceScale(
+                effectiveLoad, loadTrend, volatilityRatio,
+                continuityWeight, seamRelaxBlend, edgeFluxBlend,
+                emergencyBrake, minScale, maxScale);
+
+            double alluvial = Math.Clamp(alluvialPersistence, 0.0, 1.2);
+            double alluvialAssist = alluvial * 0.08;
+            double scale = baseSeamScale + alluvialAssist;
+
             return Math.Clamp(scale, minScale, maxScale);
         }
     }

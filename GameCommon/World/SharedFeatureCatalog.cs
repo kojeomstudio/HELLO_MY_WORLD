@@ -58,12 +58,12 @@ namespace GameCommon.World
         /// Session 153 extends v75 with improved cave/river/lake relay bridges and
         /// map-control queue alluvial relay stabilization (v80).
         /// </summary>
-        public const string HydrologySignature = "2026-03-10-hydrology-riverlake-cave-v76";
+        public const string HydrologySignature = "2026-03-10-hydrology-riverlake-cave-v77";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 80;
+        public const int MapControlProfileVersion = 81;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -183,7 +183,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S21-UTIL-02",
-                "Data-Driven Config Parity + Map-Control v80",
+                "Data-Driven Config Parity + Map-Control v81",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
@@ -191,7 +191,7 @@ namespace GameCommon.World
                     "config/world.json",
                     "config/world_map_control_profile.json",
                     "config/world_map_control_queue_policy.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-154.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

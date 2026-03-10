@@ -38,6 +38,7 @@ namespace GameWorld
         [SerializeField] private float queueEmergencyReleaseRatio = 0.84f;
         [SerializeField] private float queueTrendBoostWeight = 0.22f;
         [SerializeField] private float queueShockAbsorberWeight = 0.24f;
+        [SerializeField] private float queueAlluvialRelayWeight = 0.82f;
         [SerializeField] private int queueOverloadDrainFactor = 2;
         [SerializeField] private int queueBackoffDelayMs = 4;
         [SerializeField] private int queueEmergencyHoldTicks = 8;
@@ -185,6 +186,11 @@ namespace GameWorld
                     queueShockAbsorberWeight = Mathf.Clamp(runtime.worldMapControl.performance.queueShockAbsorberWeight, 0.0f, 1.5f);
                 }
 
+                if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueAlluvialRelayWeight > 0f)
+                {
+                    queueAlluvialRelayWeight = Mathf.Clamp(runtime.worldMapControl.performance.queueAlluvialRelayWeight, 0.0f, 1.5f);
+                }
+
                 if (runtime.worldMapControl.performance != null && runtime.worldMapControl.performance.queueOverloadDrainFactor > 0)
                 {
                     queueOverloadDrainFactor = Mathf.Clamp(runtime.worldMapControl.performance.queueOverloadDrainFactor, 1, 16);
@@ -246,7 +252,7 @@ namespace GameWorld
                         $"[WorldMapController] Applied runtime streaming config from {runtimePath} " +
                         $"(viewRadiusChunks={viewRadiusChunks}, maxConcurrentChunkBuilds={maxConcurrentChunkBuilds}, " +
                         $"maxQueuedChunkRequests={maxQueuedChunkRequests}, maxLoadedPreviewChunks={maxLoadedPreviewChunks}, " +
-                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, hotspotBias={queueHotspotBias:F2}, hotspotEmergencyPenalty={queueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={queueHotspotRetentionSeconds}, nearKeep={queueNearChunkKeepCount}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds}, stalePruneMax={queueStalePruneMax}, stalePruneEmergencyMultiplier={queueStalePruneEmergencyMultiplier:F2})");
+                        $"queuePressureFactor={queuePressureFactor}, queueSlackRatio={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, queueLoadSheddingThreshold={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, alluvialRelay={queueAlluvialRelayWeight:F2}, hotspotBias={queueHotspotBias:F2}, hotspotEmergencyPenalty={queueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={queueHotspotRetentionSeconds}, nearKeep={queueNearChunkKeepCount}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds}, stalePruneMax={queueStalePruneMax}, stalePruneEmergencyMultiplier={queueStalePruneEmergencyMultiplier:F2})");
                 }
             }
             catch (Exception ex)
@@ -330,6 +336,11 @@ namespace GameWorld
                     queueShockAbsorberWeight = Mathf.Clamp(policy.client.queueShockAbsorberWeight, 0.0f, 1.5f);
                 }
 
+                if (policy.client.queueAlluvialRelayWeight > 0f)
+                {
+                    queueAlluvialRelayWeight = Mathf.Clamp(policy.client.queueAlluvialRelayWeight, 0.0f, 1.5f);
+                }
+
                 if (policy.client.queueOverloadDrainFactor > 0)
                 {
                     queueOverloadDrainFactor = Mathf.Clamp(policy.client.queueOverloadDrainFactor, 1, 16);
@@ -397,7 +408,7 @@ namespace GameWorld
 
                 if (enableDebugLogging)
                 {
-                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, hotspotBias={queueHotspotBias:F2}, hotspotEmergencyPenalty={queueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={queueHotspotRetentionSeconds}, nearKeep={queueNearChunkKeepCount}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds}, stalePruneMax={queueStalePruneMax}, stalePruneEmergencyMultiplier={queueStalePruneEmergencyMultiplier:F2}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
+                    Debug.Log($"[WorldMapController] Applied shared queue policy from {queuePolicyPath} (queue={maxQueuedChunkRequests}, pressure={queuePressureFactor}, slack={queueSlackRatio:F2}, burstSlack={queueBurstSlackMultiplier:F2}, shed={queueLoadSheddingThreshold:F2}, emergencyBrake={queueEmergencyBrakeThreshold:F2}, emaBlend={queueLoadEmaBlend:F2}, releaseRatio={queueEmergencyReleaseRatio:F2}, trend={queueTrendBoostWeight:F2}, shock={queueShockAbsorberWeight:F2}, alluvialRelay={queueAlluvialRelayWeight:F2}, hotspotBias={queueHotspotBias:F2}, hotspotEmergencyPenalty={queueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={queueHotspotRetentionSeconds}, nearKeep={queueNearChunkKeepCount}, drain={queueOverloadDrainFactor}, backoffMs={queueBackoffDelayMs}, holdTicks={queueEmergencyHoldTicks}, recoveryRampTicks={queueRecoveryRampTicks}, queueTtlSec={queueRequestTtlSeconds}, stalePruneMax={queueStalePruneMax}, stalePruneEmergencyMultiplier={queueStalePruneEmergencyMultiplier:F2}, loaded={maxLoadedPreviewChunks}, concurrent={maxConcurrentChunkBuilds})");
                 }
             }
             catch (Exception ex)
@@ -896,6 +907,30 @@ namespace GameWorld
                 1.2);
         }
 
+        private float ComputeAlluvialAquiferRelayScale(float effectiveLoad, float loadTrend, float volatilityRatio)
+        {
+            float continuityWeight = profile != null ? profile.HydrologyContinuityWeight : 0.45f;
+            float seamRelaxBlend = profile != null ? (float)profile.HydrologySeamRelaxBlend : 0.5f;
+            float edgeFluxBlend = profile != null ? (float)profile.HydrologyEdgeFluxBlend : 0.5f;
+            float flowPersistence = profile != null ? profile.HydrologyFlowPersistence : 0.8f;
+            float aquiferConnectivity = worldConfig != null ? worldConfig.Caves.GroundwaterConnectivityWeight : 0.75f;
+            float rechargeSignal = worldConfig != null ? worldConfig.Lakes.FlowSeepageWeight : 0.65f;
+            float alluvialWeight = Mathf.Clamp(queueAlluvialRelayWeight, 0.0f, 1.5f);
+            return (float)WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                flowPersistence * alluvialWeight,
+                aquiferConnectivity * alluvialWeight,
+                rechargeSignal * alluvialWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.24);
+        }
+
         private float GetAdaptiveQueueSlackRatio()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
@@ -920,7 +955,8 @@ namespace GameWorld
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
+            float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
             float rawSlack = Mathf.Clamp(
                 queueSlackRatio + load * 0.55f + Mathf.Max(0f, loadTrend) * queueTrendBoostWeight * 0.75f,
                 Mathf.Max(1.1f, queueSlackRatio),
@@ -944,7 +980,8 @@ namespace GameWorld
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
+            float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
             int adaptive = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
                 Mathf.Clamp(queuePressureFactor, 1, 8),
@@ -988,7 +1025,8 @@ namespace GameWorld
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
+            float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
             bool emergencyBrake = queueEmergencyBrakeLatched;
             float burstMultiplier = !emergencyBrake && load >= 0.9f
                 ? 1.0f + (Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) - 1.0f) * shockScale
@@ -1151,6 +1189,10 @@ namespace GameWorld
                 load,
                 (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
                 Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
+            float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(
+                load,
+                (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
+                Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
             int nearKeepBudget = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
                 queueNearChunkKeepCount,
                 Mathf.Max(16, viewRadiusChunks * 2),
@@ -1162,7 +1204,7 @@ namespace GameWorld
                 8,
                 512);
             nearKeepBudget = Mathf.Clamp(
-                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale, 0.8f, 1.2f)),
+                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale * alluvialRelayScale, 0.78f, 1.24f)),
                 8,
                 512);
             int protectedNearCount = 0;
@@ -1365,6 +1407,7 @@ namespace GameWorld
             public float queueEmergencyReleaseRatio = 0.84f;
             public float queueTrendBoostWeight = 0.22f;
             public float queueShockAbsorberWeight = 0.24f;
+            public float queueAlluvialRelayWeight = 0.82f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
             public int queueEmergencyHoldTicks = 8;
@@ -1397,6 +1440,7 @@ namespace GameWorld
             public float queueEmergencyReleaseRatio = 0.84f;
             public float queueTrendBoostWeight = 0.22f;
             public float queueShockAbsorberWeight = 0.24f;
+            public float queueAlluvialRelayWeight = 0.82f;
             public int queueOverloadDrainFactor = 2;
             public int queueBackoffDelayMs = 4;
             public int queueEmergencyHoldTicks = 8;

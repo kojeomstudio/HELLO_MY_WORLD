@@ -212,6 +212,17 @@ namespace GameServerApp.World.Generation
                         1.0);
                     weight *= 1.0 + spillRetention * spillRetentionWeight * 0.08;
                     weight *= 1.0 - divergencePenalty * spillRetentionWeight * 0.06;
+                    double alluvialRechargeRelay = Math.Clamp(
+                        (catchmentConnectivity + seamMemory + spillRetention) * 0.333,
+                        0.0,
+                        1.2);
+                    double aquiferLatch = Math.Clamp(
+                        (hydrology + seamHydro + flowMemory) * lakeConfig.FlowSeepageWeight * 0.18,
+                        0.0,
+                        0.3);
+                    weight *= 1.0 + alluvialRechargeRelay * spillRetentionWeight * 0.06;
+                    weight *= 1.0 - aquiferLatch * Math.Clamp(erosion + slope * 0.1, 0.0, 1.0) * 0.2;
+                    weight += alluvialRechargeRelay * (1.0 - flowShadow) * 0.02;
                     weight *= 1.0 - flowShadow * Math.Clamp(0.35 - outflowSealWeight * 0.1, 0.05, 0.35);
                     weight *= 1.0 + riparianCohesion * 0.15;
                     double flowBridge = (hydrology + seamHydro + flowMemory) * waterConfig.HydrologyEdgeFlowBias * 0.1;

@@ -215,6 +215,12 @@ namespace GameServerApp.World.Generation
                         0.0,
                         1.0);
                     stability *= 1.0 - (1.0 - seamVaultStability) * seamVaultWeight * 0.22;
+                    double alluvialAquiferRelay = Math.Clamp(
+                        (hydrologyEnvelope + groundwaterConnectivity + flowMemoryClamped) * 0.333,
+                        0.0,
+                        1.0);
+                    stability *= 1.0 - alluvialAquiferRelay * (groundwaterConnectivityWeight * 0.08 + aquiferBarrierWeight * 0.04);
+                    stability += ventilationPotential * caveVentilationBias * 0.015 * (1.0 - alluvialAquiferRelay);
 
                     for (int y = 1; y < Math.Min(surface - 1, worldHeight - 2); y++)
                     {

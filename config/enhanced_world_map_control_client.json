@@ -38,7 +38,8 @@
                                                 "queueHotspotRetentionSeconds":  20,
                                                 "queueNearChunkKeepCount":  38,
                                                 "queueStalePruneMax":  120,
-                                                "queueStalePruneEmergencyMultiplier":  1.38
+                                                "queueStalePruneEmergencyMultiplier":  1.38,
+                                                "queueAlluvialRelayWeight":  0.82
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

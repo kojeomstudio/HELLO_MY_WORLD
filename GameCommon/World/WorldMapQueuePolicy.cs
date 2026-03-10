@@ -745,5 +745,49 @@ namespace GameCommon.World
 
             return Math.Clamp(scale, minScale, maxScale);
         }
+
+        /// <summary>
+        /// v80: Computes alluvial-aquifer relay scaling for map-control queue stabilization.
+        /// Extends v79 with groundwater/aquifer continuity so burst admission and near-chunk
+        /// retention remain stable around cave-river-lake coupling hotspots.
+        /// </summary>
+        public static double ComputeAlluvialAquiferRelayScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double rechargeSignal,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.3)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double alluvialScale = ComputeAlluvialRelayStabilityScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double aquifer = Math.Clamp(aquiferConnectivity, 0.0, 1.4);
+            double recharge = Math.Clamp(rechargeSignal, 0.0, 1.2);
+            double assist = aquifer * 0.06 + recharge * 0.05;
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.05;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.04, 0.0, 0.08);
+            double emergencyPenalty = emergencyBrake ? 0.03 : 0.0;
+            double scale = alluvialScale + assist - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
     }
 }

@@ -255,6 +255,14 @@ namespace GameServerApp.World.Generation
                     pressure *= 1.0 - avulsionRisk * avulsionResistance * 0.22;
                     pressure += tributaryCapture * tributaryCaptureWeight * 0.03 * (1.0 - avulsionRisk);
                     pressure *= bankCohesion;
+                    double alluvialRelay = Math.Clamp(
+                        (flowMemoryContinuity + tributaryCapture + floodplainAnchor) * 0.333,
+                        0.0,
+                        1.2);
+                    double aquiferExchange = Math.Clamp((hydrology + seamHydro + interiorFlow) * 0.333, 0.0, 1.0);
+                    pressure *= 1.0 + alluvialRelay * tributaryCaptureWeight * 0.08;
+                    pressure *= 1.0 - aquiferExchange * avulsionResistance * divergencePenalty * 0.06;
+                    pressure += alluvialRelay * (1.0 - avulsionRisk) * 0.02;
 
                     double flowBridge = (hydrology + seamHydro + flowMemory) * config.HydrologyEdgeFlowBias * 0.15;
                     double flowLockWeight = Math.Clamp(config.HydrologyEdgeFlowLockWeight, 0.0, 1.0);

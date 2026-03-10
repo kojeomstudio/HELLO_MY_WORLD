@@ -50,6 +50,7 @@ namespace GameServerApp.World
         private readonly int configuredQueueRecoveryRampTicks;
         private readonly int configuredQueueStalePruneMax;
         private readonly double configuredQueueStalePruneEmergencyMultiplier;
+        private readonly double configuredQueueAlluvialRelayWeight;
         private readonly double configuredQueueHotspotBias;
         private readonly double configuredQueueHotspotEmergencyPenalty;
         private readonly TimeSpan queueHotspotRetention;
@@ -116,6 +117,10 @@ namespace GameServerApp.World
                 this.settings.QueueStalePruneEmergencyMultiplier <= 0.0 ? 1.35 : this.settings.QueueStalePruneEmergencyMultiplier,
                 1.0,
                 3.0);
+            configuredQueueAlluvialRelayWeight = Math.Clamp(
+                this.settings.QueueAlluvialRelayWeight <= 0.0 ? 0.82 : this.settings.QueueAlluvialRelayWeight,
+                0.0,
+                1.5);
             configuredQueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(this.settings.QueueHotspotBias, 0.42);
             configuredQueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(this.settings.QueueHotspotEmergencyPenalty, 1.0);
             int hotspotRetentionSeconds = Math.Clamp(Math.Max(0, this.settings.QueueHotspotRetentionSeconds), 0, 300);
@@ -713,7 +718,20 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.62,
                 1.2);
-            double combinedHydrologyScale = Math.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58, 1.25);
+            double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
+                load,
+                loadTrend + overloadBias * 0.18,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Lakes.FlowSeepageWeight * configuredQueueAlluvialRelayWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.24);
+            double combinedHydrologyScale = Math.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58, 1.25);
 
             dynamicQueueSlackRatio = Math.Clamp(
                 configuredQueueSlackRatio +
@@ -901,7 +919,20 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.72,
                 1.18);
-            int seamAdjusted = (int)Math.Round(nearKeep * Math.Clamp(seamResilienceScale, 0.8, 1.2));
+            double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
+                queueLoadSnapshot,
+                loadTrend,
+                Math.Abs(loadTrend),
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Lakes.FlowSeepageWeight * configuredQueueAlluvialRelayWeight,
+                queueEmergencyBrakeLatched,
+                0.76,
+                1.2);
+            int seamAdjusted = (int)Math.Round(nearKeep * Math.Clamp(seamResilienceScale * alluvialRelayScale, 0.78, 1.24));
             return Math.Clamp(seamAdjusted, 8, 512);
         }
 

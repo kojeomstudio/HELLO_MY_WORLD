@@ -879,6 +879,23 @@ namespace GameWorld
                 1.18);
         }
 
+        private float ComputeHydrologySeamResilienceScale(float effectiveLoad, float loadTrend, float volatilityRatio)
+        {
+            float continuityWeight = profile != null ? profile.HydrologyContinuityWeight : 0.45f;
+            float seamRelaxBlend = profile != null ? (float)profile.HydrologySeamRelaxBlend : 0.5f;
+            float edgeFluxBlend = profile != null ? (float)profile.HydrologyEdgeFluxBlend : 0.5f;
+            return (float)WorldMapQueuePolicy.ComputeHydrologySeamResilienceScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.2);
+        }
+
         private float GetAdaptiveQueueSlackRatio()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
@@ -902,12 +919,14 @@ namespace GameWorld
                 queueEmergencyBrakeLatched,
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
+            float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
             float rawSlack = Mathf.Clamp(
                 queueSlackRatio + load * 0.55f + Mathf.Max(0f, loadTrend) * queueTrendBoostWeight * 0.75f,
                 Mathf.Max(1.1f, queueSlackRatio),
                 6.0f);
             float stabilized = Mathf.Lerp(Mathf.Max(1.1f, queueSlackRatio), rawSlack, shockScale);
-            float guarded = Mathf.Lerp(Mathf.Max(1.1f, queueSlackRatio), stabilized, volatilityGuard * hydrologyQueueScale);
+            float guarded = Mathf.Lerp(Mathf.Max(1.1f, queueSlackRatio), stabilized, volatilityGuard * combinedHydrologyScale);
             return Mathf.Clamp(guarded, Mathf.Max(1.1f, queueSlackRatio), 6.0f);
         }
 
@@ -924,6 +943,8 @@ namespace GameWorld
                 queueTrendBoostWeight,
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
+            float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
             int adaptive = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
                 Mathf.Clamp(queuePressureFactor, 1, 8),
@@ -934,7 +955,7 @@ namespace GameWorld
                 1,
                 8);
             adaptive = Mathf.Clamp(adaptive + Mathf.CeilToInt(volatilityRatio * 1.5f), 1, 8);
-            if (hydrologyQueueScale < 0.9f)
+            if (combinedHydrologyScale < 0.9f)
             {
                 adaptive = Mathf.Clamp(adaptive + 1, 1, 8);
             }
@@ -966,6 +987,8 @@ namespace GameWorld
                 queueEmergencyBrakeLatched,
                 queueShockAbsorberWeight);
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
+            float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58f, 1.24f);
             bool emergencyBrake = queueEmergencyBrakeLatched;
             float burstMultiplier = !emergencyBrake && load >= 0.9f
                 ? 1.0f + (Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) - 1.0f) * shockScale
@@ -973,7 +996,7 @@ namespace GameWorld
             int limit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
                 Mathf.CeilToInt(dynamicBudget),
                 Mathf.Max(1, adaptivePressure),
-                Mathf.Max(1.1f, adaptiveSlack * Mathf.Max(0.8f, volatilityGuard) * Mathf.Clamp(hydrologyQueueScale, 0.72f, 1.18f)),
+                Mathf.Max(1.1f, adaptiveSlack * Mathf.Max(0.8f, volatilityGuard) * Mathf.Clamp(combinedHydrologyScale, 0.72f, 1.2f)),
                 burstMultiplier,
                 load,
                 emergencyBrake,
@@ -1124,6 +1147,10 @@ namespace GameWorld
                 load,
                 1,
                 effectiveStalePruneMax);
+            float seamResilienceScale = ComputeHydrologySeamResilienceScale(
+                load,
+                (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
+                Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
             int nearKeepBudget = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
                 queueNearChunkKeepCount,
                 Mathf.Max(16, viewRadiusChunks * 2),
@@ -1132,6 +1159,10 @@ namespace GameWorld
                 queueEmergencyBrakeLatched || forceAggressive,
                 queueHotspotBias,
                 queueHotspotEmergencyPenalty,
+                8,
+                512);
+            nearKeepBudget = Mathf.Clamp(
+                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale, 0.8f, 1.2f)),
                 8,
                 512);
             int protectedNearCount = 0;

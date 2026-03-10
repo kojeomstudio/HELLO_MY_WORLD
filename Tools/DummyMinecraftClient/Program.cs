@@ -36,6 +36,9 @@ public sealed class DummyClientConfig
     public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
     public bool FailOnReferenceReportDrift { get; set; } = true;
     public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
+    public bool FailOnGeneratedSourceTimestampDrift { get; set; } = true;
+    public string ProtoSourceDirectory { get; set; } = "proto";
+    public string GeneratedProtobufDirectory { get; set; } = "Assets/Generated/Protobuf";
     public bool IncludeOptionalMessages { get; set; } = false;
     public bool PrintBindingDiagnostics { get; set; } = true;
     public string[] Packets { get; set; } = DefaultPackets;
@@ -54,6 +57,12 @@ public sealed class DummyClientConfig
         ReferenceReportPath = string.IsNullOrWhiteSpace(ReferenceReportPath)
             ? "config/proto_reference_report.json"
             : ReferenceReportPath;
+        ProtoSourceDirectory = string.IsNullOrWhiteSpace(ProtoSourceDirectory)
+            ? "proto"
+            : ProtoSourceDirectory;
+        GeneratedProtobufDirectory = string.IsNullOrWhiteSpace(GeneratedProtobufDirectory)
+            ? "Assets/Generated/Protobuf"
+            : GeneratedProtobufDirectory;
 
         Packets = (Packets ?? Array.Empty<string>())
             .Where(packet => !string.IsNullOrWhiteSpace(packet))
@@ -254,6 +263,24 @@ public static class Program
         {
             Console.WriteLine("[ERROR] Proto reference report drift detected: " + referenceError);
             return 1;
+        }
+
+        if (config.FailOnGeneratedSourceTimestampDrift)
+        {
+            try
+            {
+                string protoDirectory = Path.GetFullPath(config.ProtoSourceDirectory);
+                string generatedDirectory = Path.GetFullPath(config.GeneratedProtobufDirectory);
+                ProtoDiagnostics.AssertGeneratedSourceFreshness(
+                    protoDirectory,
+                    generatedDirectory,
+                    new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[ERROR] Generated protobuf freshness check failed: " + ex.Message);
+                return 1;
+            }
         }
 
         var packetTypes = ResolvePackets(config.Packets);

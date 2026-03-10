@@ -146,6 +146,68 @@ public static class ProtoDiagnostics
     }
 
     /// <summary>
+    /// Validates that generated protobuf C# files are newer than source .proto files and
+    /// that required generated files are present.
+    /// </summary>
+    public static void AssertGeneratedSourceFreshness(
+        string protoDirectory,
+        string generatedDirectory,
+        IEnumerable<string>? requiredGeneratedFiles = null)
+    {
+        if (string.IsNullOrWhiteSpace(protoDirectory) || !Directory.Exists(protoDirectory))
+        {
+            throw new InvalidOperationException($"Proto source directory was not found: '{protoDirectory}'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(generatedDirectory) || !Directory.Exists(generatedDirectory))
+        {
+            throw new InvalidOperationException($"Generated protobuf directory was not found: '{generatedDirectory}'.");
+        }
+
+        var protoFiles = Directory.GetFiles(protoDirectory, "*.proto", SearchOption.AllDirectories)
+            .Select(path => new FileInfo(path))
+            .ToArray();
+        var generatedFiles = Directory.GetFiles(generatedDirectory, "*.cs", SearchOption.AllDirectories)
+            .Select(path => new FileInfo(path))
+            .ToArray();
+
+        if (protoFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No .proto files were found under '{protoDirectory}'.");
+        }
+
+        if (generatedFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No generated protobuf C# files were found under '{generatedDirectory}'.");
+        }
+
+        DateTime newestProto = protoFiles.Max(file => file.LastWriteTimeUtc);
+        DateTime newestGenerated = generatedFiles.Max(file => file.LastWriteTimeUtc);
+        if (newestProto > newestGenerated)
+        {
+            throw new InvalidOperationException(
+                $"Generated protobuf DTOs are stale (newest proto: {newestProto:o}, newest generated C#: {newestGenerated:o}).");
+        }
+
+        string[] required = (requiredGeneratedFiles ?? new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" })
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var generatedFileNames = generatedFiles
+            .Select(file => file.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string[] missing = required
+            .Where(file => !generatedFileNames.Contains(file))
+            .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "Generated protobuf DTOs are missing required files: " + string.Join(", ", missing));
+        }
+    }
+
+    /// <summary>
     /// Writes the current registry/fingerprint snapshot to disk so CI and manual audits can diff protobuf usage.
     /// </summary>
     public static void WriteReportToFile(string path)

@@ -703,6 +703,17 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.6,
                 1.18);
+            double seamResilienceScale = WorldMapQueuePolicy.ComputeHydrologySeamResilienceScale(
+                load,
+                loadTrend + overloadBias * 0.2,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.2);
+            double combinedHydrologyScale = Math.Clamp(hydrologyQueueScale * seamResilienceScale, 0.58, 1.25);
 
             dynamicQueueSlackRatio = Math.Clamp(
                 configuredQueueSlackRatio +
@@ -713,7 +724,7 @@ namespace GameServerApp.World
                 6.0);
             dynamicQueueSlackRatio = Math.Clamp(
                 configuredQueueSlackRatio +
-                (dynamicQueueSlackRatio - configuredQueueSlackRatio) * hydrologyQueueScale,
+                (dynamicQueueSlackRatio - configuredQueueSlackRatio) * combinedHydrologyScale,
                 configuredQueueSlackRatio,
                 6.0);
             bool emergencyBrake = queueEmergencyBrakeLatched;
@@ -733,7 +744,7 @@ namespace GameServerApp.World
             int candidateQueueLimit = WorldMapQueuePolicy.ComputeQueueLimitFromBudget(
                 cacheBudget,
                 1,
-                Math.Max(1.1, dynamicQueueSlackRatio * Math.Clamp(hydrologyQueueScale, 0.72, 1.18)),
+                Math.Max(1.1, dynamicQueueSlackRatio * Math.Clamp(combinedHydrologyScale, 0.72, 1.2)),
                 burstMultiplier,
                 load,
                 emergencyBrake: false,
@@ -809,7 +820,7 @@ namespace GameServerApp.World
                 loadTrend * shockScale + overloadBias * configuredQueueTrendBoostWeight * shockScale,
                 emergencyBrake,
                 configuredQueueTrendBoostWeight);
-            if (hydrologyQueueScale < 0.9)
+            if (combinedHydrologyScale < 0.9)
             {
                 pressure = Math.Clamp(pressure + 1, 1, 8);
             }
@@ -869,7 +880,7 @@ namespace GameServerApp.World
         private int ComputeNearChunkKeepCount(int fallbackBase, QueuePressureBand pressureBand, double queueLoadSnapshot)
         {
             int updateDriven = Math.Max(fallbackBase, settings.UpdateBatchSize / 2);
-            return WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
+            int nearKeep = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
                 settings.QueueNearChunkKeepCount,
                 updateDriven,
                 pressureBand,
@@ -879,6 +890,19 @@ namespace GameServerApp.World
                 configuredQueueHotspotEmergencyPenalty,
                 8,
                 512);
+            double loadTrend = WorldMapQueuePolicy.ComputeLoadTrend(queueLoadSnapshot, queueLoadEma);
+            double seamResilienceScale = WorldMapQueuePolicy.ComputeHydrologySeamResilienceScale(
+                queueLoadSnapshot,
+                loadTrend,
+                Math.Abs(loadTrend),
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                queueEmergencyBrakeLatched,
+                0.72,
+                1.18);
+            int seamAdjusted = (int)Math.Round(nearKeep * Math.Clamp(seamResilienceScale, 0.8, 1.2));
+            return Math.Clamp(seamAdjusted, 8, 512);
         }
 
         private double ComputeQueueLoadSnapshot()

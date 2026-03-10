@@ -7,7 +7,7 @@
     "strictRequiredBindings":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  77,
+    "minMapControlProfileVersion":  78,
     "failOnMapControlVersionRegression":  true,
     "worldMapControlProfilePath":  "config/world_map_control_profile.json",
     "includeOptionalMessages":  true,
@@ -30,7 +30,8 @@
                     "EntityDespawn"
                 ],
     "failOnReferenceReportDrift":  true,
-    "referenceReportPath":  "config/proto_reference_report.json"
+    "referenceReportPath":  "config/proto_reference_report.json",
+    "failOnGeneratedSourceTimestampDrift":  true,
+    "protoSourceDirectory":  "proto",
+    "generatedProtobufDirectory":  "Assets/Generated/Protobuf"
 }
-
-

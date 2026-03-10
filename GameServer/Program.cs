@@ -406,6 +406,7 @@ namespace GameServerApp
         {
             try
             {
+                string protoDirectory = ResolveRepoPath("proto");
                 string generatedDirectory = ResolveRepoPath(Path.Combine("Assets", "Generated", "Protobuf"));
                 string[] expectedFiles =
                 {
@@ -418,6 +419,7 @@ namespace GameServerApp
                     "GameMove.cs",
                     "GameWorld.cs"
                 };
+                ProtoDiagnostics.AssertGeneratedSourceFreshness(protoDirectory, generatedDirectory, expectedFiles);
 
                 var missing = expectedFiles
                     .Where(file => !File.Exists(Path.Combine(generatedDirectory, file)))

@@ -2,7 +2,7 @@
     "worldMapControl":  {
                             "enabled":  true,
                             "profilePath":  "config/world_map_control_profile.json",
-                             "profileVersion":  77,
+                            "profileVersion":  78,
                             "defaults":  {
                                              "renderDistance":  12,
                                              "mapScale":  1.0,
@@ -16,15 +16,15 @@
                                           "maxCachedChunks":  768,
                                           "maxQueuedChunkRequests":  3968,
                                           "queuePressureFactor":  4,
-                                          "queueSlackRatio":  3.2,
-                                          "queueBurstSlackMultiplier":  1.22,
-                                          "queueLoadSheddingThreshold":  0.77,
-                                          "queueEmergencyBrakeThreshold":  0.93,
-                                          "queueLoadEmaBlend":  0.32,
-                                          "queueEmergencyReleaseRatio":  0.74,
-                                          "queueTrendBoostWeight":  0.38,
-                                          "queueShockAbsorberWeight":  0.4,
-                                          "queueOverloadDrainFactor":  10,
+                                          "queueSlackRatio":  3.36,
+                                          "queueBurstSlackMultiplier":  1.28,
+                                          "queueLoadSheddingThreshold":  0.73,
+                                          "queueEmergencyBrakeThreshold":  0.89,
+                                          "queueLoadEmaBlend":  0.36,
+                                          "queueEmergencyReleaseRatio":  0.7,
+                                          "queueTrendBoostWeight":  0.42,
+                                          "queueShockAbsorberWeight":  0.42,
+                                          "queueOverloadDrainFactor":  11,
                                           "queueBackoffDelayMs":  3,
                                           "queueEmergencyHoldTicks":  12,
                                           "queueRecoveryRampTicks":  16,
@@ -35,9 +35,9 @@
                                           "queueHotspotBias":  0.62,
                                           "queueHotspotEmergencyPenalty":  1.16,
                                           "queueHotspotRetentionSeconds":  26,
-                                          "queueNearChunkKeepCount":  38,
-                                          "queueStalePruneMax":  56,
-                                          "queueStalePruneEmergencyMultiplier":  1.45
+                                          "queueNearChunkKeepCount":  40,
+                                          "queueStalePruneMax":  60,
+                                          "queueStalePruneEmergencyMultiplier":  1.48
                                       },
                             "realTimeUpdates":  {
                                                     "enabled":  true,
@@ -52,15 +52,15 @@
                                                       "updateIntervalMs":  100,
                                                       "maxQueuedChunkRequests":  3968,
                                                       "queuePressureFactor":  4,
-                                                      "queueSlackRatio":  3.2,
-                                                      "queueBurstSlackMultiplier":  1.22,
-                                                      "queueLoadSheddingThreshold":  0.77,
-                                                      "queueEmergencyBrakeThreshold":  0.93,
-                                                      "queueLoadEmaBlend":  0.32,
-                                                      "queueEmergencyReleaseRatio":  0.74,
-                                                      "queueTrendBoostWeight":  0.38,
-                                                      "queueShockAbsorberWeight":  0.4,
-                                                      "queueOverloadDrainFactor":  10,
+                                                      "queueSlackRatio":  3.36,
+                                                      "queueBurstSlackMultiplier":  1.28,
+                                                      "queueLoadSheddingThreshold":  0.73,
+                                                      "queueEmergencyBrakeThreshold":  0.89,
+                                                      "queueLoadEmaBlend":  0.36,
+                                                      "queueEmergencyReleaseRatio":  0.7,
+                                                      "queueTrendBoostWeight":  0.42,
+                                                      "queueShockAbsorberWeight":  0.42,
+                                                      "queueOverloadDrainFactor":  11,
                                                       "queueBackoffDelayMs":  3,
                                                       "queueEmergencyHoldTicks":  12,
                                                       "queueRecoveryRampTicks":  16,
@@ -69,11 +69,9 @@
                                                       "queueHotspotBias":  0.62,
                                                       "queueHotspotEmergencyPenalty":  1.16,
                                                       "queueHotspotRetentionSeconds":  26,
-                                                      "queueNearChunkKeepCount":  38,
-                                                      "queueStalePruneMax":  56,
-                                                      "queueStalePruneEmergencyMultiplier":  1.45
+                                                      "queueNearChunkKeepCount":  40,
+                                                      "queueStalePruneMax":  60,
+                                                      "queueStalePruneEmergencyMultiplier":  1.48
                                                   }
                         }
 }
-
-

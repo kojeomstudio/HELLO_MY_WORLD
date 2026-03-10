@@ -7,7 +7,7 @@ namespace GameCommon.World
     /// <summary>
     /// Shared queue pressure utilities so server and client apply the same
     /// load classification / emergency latch semantics.
-    /// Session 149 (v77): Added hydrology-aware queue stability scaling for map-control parity.
+    /// Session 151 (v78): Added hydrology seam-resilience scaling for map-control parity.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -680,6 +680,37 @@ namespace GameCommon.World
             double emergencyPenalty = emergencyBrake ? 0.12 : 0.0;
 
             double scale = 1.0 + hydroAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
+
+        /// <summary>
+        /// v78: Computes seam-resilience scaling using hydrology seam relax/edge-flux signals.
+        /// Higher seam resilience preserves near-chunk admission and dampens abrupt queue throttling.
+        /// </summary>
+        public static double ComputeHydrologySeamResilienceScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.2)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double continuity = Math.Clamp(continuityWeight, 0.0, 1.5);
+            double seamRelax = Math.Clamp(seamRelaxBlend, 0.0, 1.0);
+            double edgeFlux = Math.Clamp(edgeFluxBlend, 0.0, 1.2);
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.85) * 0.2, 0.0, 0.32);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.14;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.18, 0.0, 0.28);
+            double seamAssist = seamRelax * 0.14 + edgeFlux * 0.12 + continuity * 0.08;
+            double emergencyPenalty = emergencyBrake ? 0.1 : 0.0;
+
+            double scale = 1.0 + seamAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
     }

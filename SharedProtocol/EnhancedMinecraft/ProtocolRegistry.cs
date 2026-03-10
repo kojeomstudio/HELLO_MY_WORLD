@@ -363,6 +363,14 @@ public static class ProtocolRegistry
         }
 
         EnsureRequiredBindings();
+        var missingRequiredDescriptors = GetGeneratedRequiredDescriptorsWithoutBindings().ToArray();
+        if (missingRequiredDescriptors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "EnhancedMinecraft protocol registry is missing required generated descriptor bindings: " +
+                string.Join(", ", missingRequiredDescriptors) +
+                ". Update ProtocolRegistry to bind required generated DTOs.");
+        }
 
         var optionalMissing = GetUnregisteredOptionalTypes().ToArray();
         if (optionalMissing.Length > 0)

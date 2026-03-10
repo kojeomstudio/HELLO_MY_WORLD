@@ -309,6 +309,7 @@ namespace GameServerApp.World.Generation
             ApplyRiparianFloodplainLinkBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyBackwaterLagoonExchangeBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyKarstFloodplainRetentionRelayBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyAlluvialGroundwaterExchangeBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return lakes;
         }
 
@@ -2365,6 +2366,85 @@ namespace GameServerApp.World.Generation
 
                     double floor = Math.Max(lake * (0.85 + lakeConfig.OutflowStabilityWeight * 0.09), continuity * 0.16);
                     double target = lake * (1.0 - relayWeight * 0.12) + (lake + relay) * relayWeight * 0.12;
+                    lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Max(target, floor));
+                }
+            }
+        }
+
+        private void ApplyAlluvialGroundwaterExchangeBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double exchangeWeight = Math.Clamp(
+                lakeConfig.OutflowStabilityWeight * 0.36 +
+                lakeConfig.FlowSeepageWeight * 0.34 +
+                waterConfig.HydrologyFlowPersistence * 0.30,
+                0.0,
+                1.25);
+            if (exchangeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int reliefRadius = Math.Max(2, waterConfig.HydrologyWatershedStitchRadius + 2);
+            double divergenceScale = Math.Max(0.12, waterConfig.HydrologyFlowDivergenceClamp * 0.6);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.03)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.25);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.25);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) /
+                        Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange + 8.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, lakeConfig.MaxRadius + 7.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double exchangeNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0023 + 83.0,
+                        (chunkZ * sizeZ + z) * 0.0023 - 47.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 1381)));
+                    double continuity = Math.Clamp((hydro + seamHydro + flowNode + seamFlow) * 0.25, 0.0, 1.2);
+                    double exchange = continuity * (0.24 + floodplainBand * 0.24 + river * 0.16 + exchangeNoise * 0.14);
+                    exchange *= 1.0 - Math.Clamp(
+                        slope * waterConfig.HydrologySlopePenalty * 0.014 + relief * 0.3 + divergence * 0.24,
+                        0.0,
+                        0.85);
+                    if (exchange <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(lake * (0.85 + lakeConfig.OutflowSealWeight * 0.09), continuity * 0.16);
+                    double target = lake * (1.0 - exchangeWeight * 0.12) + (lake + exchange) * exchangeWeight * 0.12;
                     lakes[x, z] = TerrainMaskUtility.Clamp01((float)Math.Max(target, floor));
                 }
             }

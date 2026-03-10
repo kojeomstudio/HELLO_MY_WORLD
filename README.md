@@ -27,14 +27,14 @@ dotnet run --project GameServer -- --generate-map-profile
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1
 ```
 
-## 현재 기준 (Session 149)
-- Hydrology signature: `2026-03-09-hydrology-riverlake-cave-v73`
-- Map control profile version: `77`
-- Queue policy version: `31`
+## 현재 기준 (Session 151)
+- Hydrology signature: `2026-03-10-hydrology-riverlake-cave-v74`
+- Map control profile version: `78`
+- Queue policy version: `32`
 - Feature manifest:
-  - `config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json`
-  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json`
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json`
 
 ## 문서
-- Session 149 상세 보고서: `docs/2026-03-09-session-149-implementation-report.md`
-- Session 149 작업 계획: `plans/2026-03-09-session-149-comprehensive-work-plan.md`
+- Session 151 상세 보고서: `docs/2026-03-10-session-151-implementation-report.md`
+- Session 151 작업 계획: `plans/2026-03-10-session-151-comprehensive-work-plan.md`

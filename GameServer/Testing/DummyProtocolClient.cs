@@ -705,69 +705,17 @@ namespace GameServerApp.Testing
 
         private void ValidateGeneratedProtobufFreshnessGuard()
         {
-            string protoDirectory = ResolvePath(Settings.ProtoSourceDirectory);
-            string generatedDirectory = ResolvePath(Settings.GeneratedProtobufDirectory);
             if (!Settings.FailOnGeneratedSourceTimestampDrift)
             {
                 return;
             }
 
-            if (!Directory.Exists(protoDirectory))
-            {
-                throw new InvalidOperationException(
-                    $"Proto source directory was not found: '{protoDirectory}'.");
-            }
-
-            if (!Directory.Exists(generatedDirectory))
-            {
-                throw new InvalidOperationException(
-                    $"Generated protobuf directory was not found: '{generatedDirectory}'.");
-            }
-
-            var protoFiles = Directory.GetFiles(protoDirectory, "*.proto", SearchOption.AllDirectories)
-                .Select(path => new FileInfo(path))
-                .ToArray();
-            var generatedFiles = Directory.GetFiles(generatedDirectory, "*.cs", SearchOption.AllDirectories)
-                .Select(path => new FileInfo(path))
-                .ToArray();
-            if (protoFiles.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    $"No .proto files were found under '{protoDirectory}'.");
-            }
-
-            if (generatedFiles.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    $"No generated protobuf C# files were found under '{generatedDirectory}'.");
-            }
-
-            DateTime newestProto = protoFiles.Max(file => file.LastWriteTimeUtc);
-            DateTime newestGenerated = generatedFiles.Max(file => file.LastWriteTimeUtc);
-            if (newestProto > newestGenerated)
-            {
-                throw new InvalidOperationException(
-                    $"Generated protobuf DTOs are stale (newest proto: {newestProto:o}, newest generated C#: {newestGenerated:o}).");
-            }
-
-            string[] requiredGeneratedFiles =
-            {
-                "Common.cs",
-                "EnhancedMinecraftGame.cs",
-                "GameAuth.cs"
-            };
-            var generatedFileNames = new HashSet<string>(
-                generatedFiles.Select(file => file.Name),
-                StringComparer.OrdinalIgnoreCase);
-            string[] missing = requiredGeneratedFiles
-                .Where(file => !generatedFileNames.Contains(file))
-                .ToArray();
-            if (missing.Length > 0)
-            {
-                throw new InvalidOperationException(
-                    "Generated protobuf DTOs are missing required files: " +
-                    string.Join(", ", missing));
-            }
+            string protoDirectory = ResolvePath(Settings.ProtoSourceDirectory);
+            string generatedDirectory = ResolvePath(Settings.GeneratedProtobufDirectory);
+            ProtoDiagnostics.AssertGeneratedSourceFreshness(
+                protoDirectory,
+                generatedDirectory,
+                new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
         }
 
         private sealed class ProtoReferenceReportSnapshot

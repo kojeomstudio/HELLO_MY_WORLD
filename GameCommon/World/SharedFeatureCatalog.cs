@@ -54,16 +54,16 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-09.
-        /// Session 149 extends cave/river/lake coupling with floodplain-karst relay bridges,
-        /// aquifer confluence resilience, and hydrology-aware queue stabilization (v77).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-10.
+        /// Session 151 extends cave/river/lake coupling with alluvial relay bridges,
+        /// seam-resilience queue stabilization, and stronger protobuf drift guards (v78).
         /// </summary>
-        public const string HydrologySignature = "2026-03-09-hydrology-riverlake-cave-v73";
+        public const string HydrologySignature = "2026-03-10-hydrology-riverlake-cave-v74";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 77;
+        public const int MapControlProfileVersion = 78;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -89,7 +89,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S21-CORE-01",
-                "Hydrology WorldGen v73",
+                "Hydrology WorldGen v74",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -99,14 +99,14 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json"
                 },
                 new[]
                 {
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",
@@ -155,7 +155,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S21-CONTENT-03",
-                "Lake Floodplain Link + Karst Retention Relay v73",
+                "Lake Floodplain Link + Karst Retention Relay v74",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -183,7 +183,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S21-UTIL-02",
-                "Data-Driven Config Parity + Map-Control v77",
+                "Data-Driven Config Parity + Map-Control v78",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
@@ -191,7 +191,7 @@ namespace GameCommon.World
                     "config/world.json",
                     "config/world_map_control_profile.json",
                     "config/world_map_control_queue_policy.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-09-session-149.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",
@@ -211,7 +211,7 @@ namespace GameCommon.World
                 "medium"),
             new SharedFeatureDescriptor(
                 "S21-UTIL-04",
-                "Hydrology Queue Stability Scale (Server/Client Parity)",
+                "Hydrology Queue + Seam Resilience Scale (Server/Client Parity)",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]

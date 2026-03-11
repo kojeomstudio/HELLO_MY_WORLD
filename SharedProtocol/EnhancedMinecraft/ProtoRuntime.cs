@@ -27,6 +27,9 @@ public static class ProtoRuntime
             }
 
             ProtocolValidator.ValidateEnhancedContracts();
+            ProtocolRegistry.ValidateBindings();
+            ProtocolRegistry.ValidateTypeConsistency();
+            ProtocolStandardization.ValidateProtocolImplementation();
             ProtoFingerprint.AssertDescriptorFingerprint();
             ProtoDiagnostics.LogSummary();
             _initialized = true;

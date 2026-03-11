@@ -50,7 +50,9 @@ public sealed class DummyClientConfig
         ConnectTimeoutMs = Math.Clamp(ConnectTimeoutMs <= 0 ? 1500 : ConnectTimeoutMs, 100, 120000);
         ReceiveTimeoutMs = Math.Clamp(ReceiveTimeoutMs <= 0 ? 1500 : ReceiveTimeoutMs, 100, 120000);
         MaxPacketsToSend = Math.Clamp(MaxPacketsToSend <= 0 ? 6 : MaxPacketsToSend, 1, 128);
-        MinMapControlProfileVersion = Math.Max(1, MinMapControlProfileVersion);
+        MinMapControlProfileVersion = Math.Max(
+            SharedFeatureCatalog.MapControlProfileVersion,
+            Math.Max(1, MinMapControlProfileVersion));
         WorldMapControlProfilePath = string.IsNullOrWhiteSpace(WorldMapControlProfilePath)
             ? "config/world_map_control_profile.json"
             : WorldMapControlProfilePath;

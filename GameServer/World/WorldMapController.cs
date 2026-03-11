@@ -439,6 +439,7 @@ namespace GameServerApp.World
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
             queueSlackRatio = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 84 ? 4.08 :
                 generationConfig.MapControlProfileVersion >= 82 ? 4.02 :
                 generationConfig.MapControlProfileVersion >= 81 ? 3.96 :
                 generationConfig.MapControlProfileVersion >= 80 ? 3.9 :
@@ -455,6 +456,7 @@ namespace GameServerApp.World
                 1.1,
                 6.0);
             queueBurstSlackMultiplier = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 84 ? 1.53 :
                 generationConfig.MapControlProfileVersion >= 82 ? 1.5 :
                 generationConfig.MapControlProfileVersion >= 81 ? 1.47 :
                 generationConfig.MapControlProfileVersion >= 80 ? 1.45 :
@@ -470,7 +472,8 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0,
                 1.0,
                 3.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 82 ? 14 :
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 84 ? 15 :
+                generationConfig.MapControlProfileVersion >= 82 ? 14 :
                 generationConfig.MapControlProfileVersion >= 81 ? 13 :
                 generationConfig.MapControlProfileVersion >= 80 ? 13 :
                 generationConfig.MapControlProfileVersion >= 79 ? 12 :
@@ -483,7 +486,8 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 45 ? 6 :
                 generationConfig.MapControlProfileVersion >= 40 ? 5 :
                 generationConfig.MapControlProfileVersion >= 34 ? 4 : 3;
-            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 82 ? 1 :
+            queueBackoffDelayMs = generationConfig.MapControlProfileVersion >= 84 ? 1 :
+                generationConfig.MapControlProfileVersion >= 82 ? 1 :
                 generationConfig.MapControlProfileVersion >= 81 ? 1 :
                 generationConfig.MapControlProfileVersion >= 80 ? 1 :
                 generationConfig.MapControlProfileVersion >= 79 ? 1 :
@@ -497,6 +501,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 40 ? 6 :
                 generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
             queueLoadSheddingThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.67 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.68 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.69 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.70 :
@@ -513,6 +518,7 @@ namespace GameServerApp.World
                 0.5,
                 0.98);
             queueEmergencyBrakeThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.83 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.84 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.85 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.86 :
@@ -529,6 +535,7 @@ namespace GameServerApp.World
                 0.75,
                 4.0);
             queueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.43 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.42 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.41 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.40 :
@@ -543,6 +550,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.24 : 0.18,
                 0.18);
             queueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.63 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.64 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.65 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.66 :
@@ -557,6 +565,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.82 : 0.84,
                 0.84);
             queueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.49 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.48 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.47 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.46 :
@@ -572,6 +581,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.22 : 0.18,
                 0.2);
             queueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(
+                generationConfig.MapControlProfileVersion >= 84 ? 0.48 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.47 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.46 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.45 :
@@ -587,6 +597,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.2 : 0.16,
                 0.24);
             queueAlluvialRelayWeight = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 84 ? 1.02 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.98 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.95 :
                 generationConfig.MapControlProfileVersion >= 80 ? 0.92 :

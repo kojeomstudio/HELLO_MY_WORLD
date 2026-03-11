@@ -1,17 +1,17 @@
 ﻿{
-    "version":  34,
-    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v80 hydrology seam-resilience stabilization + alluvial-aquifer relay guard).",
+    "version":  36,
+    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v82 hydrology seam-resilience + karst-floodplain relay guard).",
     "server":  {
                    "maxQueuedChunkRequests":  4096,
                    "queuePressureFactor":  5,
-                   "queueSlackRatio":  3.42,
+                   "queueSlackRatio":  3.56,
                    "queueBurstSlackMultiplier":  1.3,
-                   "queueLoadSheddingThreshold":  0.71,
-                   "queueEmergencyBrakeThreshold":  0.87,
-                   "queueLoadEmaBlend":  0.39,
-                   "queueEmergencyReleaseRatio":  0.67,
-                   "queueTrendBoostWeight":  0.45,
-                   "queueShockAbsorberWeight":  0.44,
+                   "queueLoadSheddingThreshold":  0.69,
+                   "queueEmergencyBrakeThreshold":  0.85,
+                   "queueLoadEmaBlend":  0.41,
+                   "queueEmergencyReleaseRatio":  0.65,
+                   "queueTrendBoostWeight":  0.47,
+                   "queueShockAbsorberWeight":  0.46,
                    "queueOverloadDrainFactor":  13,
                    "queueBackoffDelayMs":  2,
                    "queueEmergencyHoldTicks":  12,
@@ -27,19 +27,19 @@
                    "queueNearChunkKeepCount":  44,
                    "queueStalePruneMax":  60,
                    "queueStalePruneEmergencyMultiplier":  1.48,
-                   "queueAlluvialRelayWeight":  0.9
+                   "queueAlluvialRelayWeight":  0.98
                },
     "client":  {
                    "maxQueuedChunkRequests":  3968,
                    "queuePressureFactor":  5,
-                   "queueSlackRatio":  3.2,
+                   "queueSlackRatio":  3.38,
                    "queueBurstSlackMultiplier":  1.3,
-                   "queueLoadSheddingThreshold":  0.72,
-                   "queueEmergencyBrakeThreshold":  0.88,
-                   "queueLoadEmaBlend":  0.37,
-                   "queueEmergencyReleaseRatio":  0.69,
-                   "queueTrendBoostWeight":  0.43,
-                   "queueShockAbsorberWeight":  0.41,
+                   "queueLoadSheddingThreshold":  0.7,
+                   "queueEmergencyBrakeThreshold":  0.86,
+                   "queueLoadEmaBlend":  0.39,
+                   "queueEmergencyReleaseRatio":  0.67,
+                   "queueTrendBoostWeight":  0.45,
+                   "queueShockAbsorberWeight":  0.43,
                    "queueOverloadDrainFactor":  11,
                    "queueBackoffDelayMs":  4,
                    "queueEmergencyHoldTicks":  10,
@@ -53,6 +53,6 @@
                    "queueNearChunkKeepCount":  40,
                    "queueStalePruneMax":  120,
                    "queueStalePruneEmergencyMultiplier":  1.38,
-                   "queueAlluvialRelayWeight":  0.84
+                   "queueAlluvialRelayWeight":  0.9
                }
 }

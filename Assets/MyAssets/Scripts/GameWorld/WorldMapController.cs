@@ -931,6 +931,32 @@ namespace GameWorld
                 1.24);
         }
 
+        private float ComputeKarstFloodplainRelayScale(float effectiveLoad, float loadTrend, float volatilityRatio)
+        {
+            float continuityWeight = profile != null ? profile.HydrologyContinuityWeight : 0.45f;
+            float seamRelaxBlend = profile != null ? (float)profile.HydrologySeamRelaxBlend : 0.5f;
+            float edgeFluxBlend = profile != null ? (float)profile.HydrologyEdgeFluxBlend : 0.5f;
+            float flowPersistence = profile != null ? profile.HydrologyFlowPersistence : 0.8f;
+            float aquiferConnectivity = worldConfig != null ? worldConfig.Caves.GroundwaterConnectivityWeight : 0.75f;
+            float spillwayContinuity = worldConfig != null ? worldConfig.Lakes.SpillwayContinuityWeight : 0.7f;
+            float caveVentilationBias = worldConfig != null ? worldConfig.Caves.CaveVentilationBias : 0.6f;
+            float alluvialWeight = Mathf.Clamp(queueAlluvialRelayWeight, 0.0f, 1.5f);
+            return (float)WorldMapQueuePolicy.ComputeKarstFloodplainRelayScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                flowPersistence * alluvialWeight,
+                aquiferConnectivity * alluvialWeight,
+                spillwayContinuity * alluvialWeight,
+                caveVentilationBias * alluvialWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.26);
+        }
+
         private float GetAdaptiveQueueSlackRatio()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
@@ -956,7 +982,11 @@ namespace GameWorld
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
+            float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale,
+                0.56f,
+                1.26f);
             float rawSlack = Mathf.Clamp(
                 queueSlackRatio + load * 0.55f + Mathf.Max(0f, loadTrend) * queueTrendBoostWeight * 0.75f,
                 Mathf.Max(1.1f, queueSlackRatio),
@@ -981,7 +1011,11 @@ namespace GameWorld
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
+            float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale,
+                0.56f,
+                1.26f);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
             int adaptive = WorldMapQueuePolicy.ComputeAdaptivePressureFactor(
                 Mathf.Clamp(queuePressureFactor, 1, 8),
@@ -1026,7 +1060,11 @@ namespace GameWorld
             float hydrologyQueueScale = ComputeHydrologyQueueScale(load, loadTrend, volatilityRatio);
             float seamResilienceScale = ComputeHydrologySeamResilienceScale(load, loadTrend, volatilityRatio);
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
-            float combinedHydrologyScale = Mathf.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58f, 1.24f);
+            float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
+            float combinedHydrologyScale = Mathf.Clamp(
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale,
+                0.56f,
+                1.26f);
             bool emergencyBrake = queueEmergencyBrakeLatched;
             float burstMultiplier = !emergencyBrake && load >= 0.9f
                 ? 1.0f + (Mathf.Clamp(queueBurstSlackMultiplier, 1.0f, 3.0f) - 1.0f) * shockScale
@@ -1193,6 +1231,10 @@ namespace GameWorld
                 load,
                 (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
                 Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
+            float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(
+                load,
+                (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
+                Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
             int nearKeepBudget = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
                 queueNearChunkKeepCount,
                 Mathf.Max(16, viewRadiusChunks * 2),
@@ -1204,7 +1246,7 @@ namespace GameWorld
                 8,
                 512);
             nearKeepBudget = Mathf.Clamp(
-                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale * alluvialRelayScale, 0.78f, 1.24f)),
+                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale, 0.76f, 1.26f)),
                 8,
                 512);
             int protectedNearCount = 0;

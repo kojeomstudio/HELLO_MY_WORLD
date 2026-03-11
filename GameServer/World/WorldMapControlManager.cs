@@ -731,7 +731,24 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.62,
                 1.24);
-            double combinedHydrologyScale = Math.Clamp(hydrologyQueueScale * seamResilienceScale * alluvialRelayScale, 0.58, 1.25);
+            double karstFloodplainRelayScale = WorldMapQueuePolicy.ComputeKarstFloodplainRelayScale(
+                load,
+                loadTrend + overloadBias * 0.16,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.CaveVentilationBias * configuredQueueAlluvialRelayWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.26);
+            double combinedHydrologyScale = Math.Clamp(
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale,
+                0.56,
+                1.26);
 
             dynamicQueueSlackRatio = Math.Clamp(
                 configuredQueueSlackRatio +
@@ -932,7 +949,22 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.76,
                 1.2);
-            int seamAdjusted = (int)Math.Round(nearKeep * Math.Clamp(seamResilienceScale * alluvialRelayScale, 0.78, 1.24));
+            double karstFloodplainRelayScale = WorldMapQueuePolicy.ComputeKarstFloodplainRelayScale(
+                queueLoadSnapshot,
+                loadTrend,
+                Math.Abs(loadTrend),
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * configuredQueueAlluvialRelayWeight,
+                generationConfig.Caves.CaveVentilationBias * configuredQueueAlluvialRelayWeight,
+                queueEmergencyBrakeLatched,
+                0.76,
+                1.22);
+            int seamAdjusted = (int)Math.Round(
+                nearKeep * Math.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale, 0.76, 1.26));
             return Math.Clamp(seamAdjusted, 8, 512);
         }
 

@@ -383,7 +383,141 @@ namespace GameServerApp.World.Generation
             ApplyLagoonKarstCeilingSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyFloodplainGroundwaterVaultBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyAlluvialAquiferButtressBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyKarstFloodplainConduitVaultBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
+        }
+
+        private void ApplyKarstFloodplainConduitVaultBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.GroundwaterConnectivityWeight * 0.36 +
+                config.RiparianCaveGuardWeight * 0.34 +
+                config.CaveVentilationBias * 0.30,
+                0.0,
+                1.25);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 3);
+            int floorY = Math.Max(2, config.RegionalMainCaveMinY);
+            double divergenceScale = Math.Max(0.12, config.MoistureFlowClamp * 0.62);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) / Math.Max(1.0, config.RiparianPlugDepth + 16.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, config.RiparianPlugDepth + 8.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceScale);
+                    double relayNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0021 + 73.0,
+                        (chunkZ * sizeZ + z) * 0.0021 - 47.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, seaLevel, 1523)));
+
+                    double vaultSignal = Math.Clamp(
+                        hydro * 0.28 +
+                        seamHydro * 0.2 +
+                        flow * 0.14 +
+                        seamFlow * 0.12 +
+                        river * 0.14 +
+                        floodplainBand * 0.12,
+                        0.0,
+                        1.25);
+                    vaultSignal *= 1.0 + Math.Clamp((relayNoise - 0.5) * config.CaveVentilationBias * 0.22, -0.16, 0.16);
+                    vaultSignal *= 1.0 - Math.Clamp(
+                        slope * 0.02 + relief * 0.32 + divergence * 0.24,
+                        0.0,
+                        0.85);
+                    if (vaultSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Max(floorY + 12, Math.Min(sizeY - 2, heightMap[x, z]));
+                    int sealTop = Math.Clamp(seaLevel - 3, floorY + 6, Math.Max(floorY + 6, surface - 4));
+                    int sealBottom = Math.Max(floorY + 3, sealTop - 5);
+                    int conduitBottom = Math.Max(floorY + 1, sealBottom - 4);
+                    int conduitTop = Math.Max(conduitBottom, sealBottom - 1);
+
+                    for (int y = sealBottom; y <= sealTop; y++)
+                    {
+                        if (y < 0 || y >= sizeY || !mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double sealPulse = Math.Abs(SimplexNoise.Generate(
+                            (chunkX * sizeX + x) * 0.0031 + y * 0.0061,
+                            (chunkZ * sizeZ + z) * 0.0031 - y * 0.0047,
+                            1.0,
+                            2,
+                            1.0,
+                            0.55,
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 1531)));
+                        double sealThreshold = 0.82 - vaultSignal * bridgeWeight * 0.2;
+                        if (sealPulse > sealThreshold)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+
+                    if (vaultSignal <= 0.28)
+                    {
+                        continue;
+                    }
+
+                    for (int y = conduitBottom; y <= conduitTop; y++)
+                    {
+                        if (y < 0 || y >= sizeY || mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double conduitPulse = Math.Abs(SimplexNoise.Generate(
+                            (chunkX * sizeX + x) * 0.0027 + y * 0.0051,
+                            (chunkZ * sizeZ + z) * 0.0027 - y * 0.0039,
+                            1.0,
+                            2,
+                            1.0,
+                            0.55,
+                            CreateNoiseSeed(chunkX, chunkZ, x, z, y, 1543)));
+                        double conduitThreshold = 0.86 - vaultSignal * bridgeWeight * 0.22;
+                        if (conduitPulse > conduitThreshold)
+                        {
+                            mask[x, y, z] = true;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplyLagoonKarstCeilingSealBridge(

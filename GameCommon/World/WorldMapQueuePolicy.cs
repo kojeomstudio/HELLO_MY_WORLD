@@ -789,5 +789,53 @@ namespace GameCommon.World
             double scale = alluvialScale + assist - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
+
+        /// <summary>
+        /// v82: Computes karst-floodplain relay scaling for cave/river/lake queue stabilization.
+        /// Extends alluvial-aquifer scaling with spillway continuity and cave ventilation signals
+        /// so map-control admission remains stable at floodplain-karst transition hotspots.
+        /// </summary>
+        public static double ComputeKarstFloodplainRelayScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double spillwayContinuity,
+            double caveVentilationBias,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.32)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double spillway = Math.Clamp(spillwayContinuity, 0.0, 1.4);
+            double ventilation = Math.Clamp(caveVentilationBias, 0.0, 1.2);
+            double rechargeSignal = Math.Clamp(spillway * 0.6 + ventilation * 0.4, 0.0, 1.2);
+            double baseScale = ComputeAlluvialAquiferRelayScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                aquiferConnectivity,
+                rechargeSignal,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double karstAssist = spillway * 0.06 + ventilation * 0.05 + Math.Clamp(aquiferConnectivity, 0.0, 1.4) * 0.04;
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.06;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.05, 0.0, 0.1);
+            double emergencyPenalty = emergencyBrake ? 0.04 : 0.0;
+            double scale = baseScale + karstAssist - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
     }
 }

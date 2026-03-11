@@ -55,15 +55,15 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-11.
-        /// Session 155 extends v77 with karst-floodplain relay bridges and
-        /// map-control queue karst/floodplain stabilization (v82).
+        /// Session 156 extends v78 with improved cave connectivity and
+        /// map-control queue floodplain stabilization (v83).
         /// </summary>
-        public const string HydrologySignature = "2026-03-11-hydrology-riverlake-cave-v78";
+        public const string HydrologySignature = "2026-03-11-hydrology-riverlake-cave-v79";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 82;
+        public const int MapControlProfileVersion = 83;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.

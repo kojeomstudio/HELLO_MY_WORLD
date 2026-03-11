@@ -2,6 +2,7 @@
 
 ## Reference: Recent Git History
 - `dca823c3` docs(session-157): mark work plan as completed
+- `0aacb501` feat(session-158): apply hydrology v81 map-control v85 feature categorization + docs
 - `4d572a7c` feat(session-157): apply hydrology v80 map-control v84 terrain bridge + proto validation
 - `05177f87` docs(session-156): update work plan to completed status
 
@@ -11,17 +12,7 @@
 - Baseline: Hydrology signature v80, map-control profile version v84, queue policy version v37
 
 ## To Do (Session 158)
-- [x] Create/update session 158 work-plan document in `plans/`
-- [x] Create comprehensive Minecraft feature categorization (core/content/util)
-- [x] Improve cave/river/lake terrain generation algorithms (v81 uplift)
-- [x] Improve server/client world-map control architecture and queue policy (v85)
-- [x] Re-validate protobuf generated packet references/usages
-- [x] Verify `using` references and type existence via build + targeted scans
-- [x] Update JSON config/data-driven artifacts
-- [x] Verify dummy protocol clients and shared DLL contracts
-- [x] Update docs under `docs/` and keep `README.md` concise
-- [x] Run compile/proto validation tests
-- [ ] Commit and push all staged/modified changes to `origin/master`
+All tasks completed.
 
 ## Completed (Session 158)
 - [x] Verified pre-work git status and recent commit history
@@ -41,9 +32,7 @@
   - DummyMinecraftClient: Built successfully
 - [x] Created implementation report in docs/
 - [x] Updated README.md with Session 158 references
-
-## In Progress
-- Committing and pushing changes to origin
+- [x] Committed and pushed changes to origin (`0aacb501`)
 
 ## Artifacts Created/Modified
 - `plans/2026-03-11-session-158-comprehensive-work-plan.md`
@@ -52,3 +41,9 @@
 - `config/world.json` (MapControlProfileVersion: 84 -> 85)
 - `README.md` (Session 158 references)
 - `docs/2026-03-11-session-158-implementation-report.md`
+
+## Session Statistics
+- Commit: `0aacb501`
+- Files changed: 6
+- Insertions: 1076
+- Deletions: 14

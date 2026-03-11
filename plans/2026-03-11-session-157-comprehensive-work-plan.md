@@ -21,7 +21,7 @@
 - [x] Verify dummy protocol clients and shared DLL contracts (`GameCommon`, `SharedProtocol`)
 - [x] Update docs under `docs/` and keep `README.md` concise
 - [x] Run compile/proto validation tests
-- [ ] Commit and push all staged/modified changes to `origin/master`
+- [x] Commit and push all staged/modified changes to `origin/master`
 
 ## Completed (Session 157)
 - [x] Verified pre-work git status and recent commit history
@@ -30,6 +30,7 @@
 - [x] Added and mirrored session 157 feature catalog JSON across root/server/client streaming assets
 - [x] Hardened protobuf runtime startup validation and dummy probe profile floor checks
 - [x] Re-ran compile/protobuf/selftest validation command set and captured outcomes
+- [x] Pushed session 157 commits to `origin/master` (`4d572a7c`)
 
 ## In Progress
-- Final git commit + push to `origin/master`
+- None

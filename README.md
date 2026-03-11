@@ -29,18 +29,18 @@ dotnet run --project Tools/DummyMinecraftClient/DummyMinecraftClient.csproj -- -
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_protobuf.ps1
 ```
 
-## 현재 기준 (Session 157)
-- Hydrology signature: `2026-03-11-hydrology-riverlake-cave-v80`
-- Map control profile version: `84`
-- Queue policy version: `37`
+## 현재 기준 (Session 158)
+- Hydrology signature: `2026-03-11-hydrology-riverlake-cave-v81`
+- Map control profile version: `85`
+- Queue policy version: `38`
 - Feature manifest:
-  - `config/minecraft_feature_client_server_core_content_util_2026-03-11-session-157.json`
-  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-11-session-157.json`
-  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-11-session-157.json`
+  - `config/minecraft_feature_client_server_core_content_util_2026-03-11-session-158.json`
+  - `GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-11-session-158.json`
+  - `Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-11-session-158.json`
 
 ## 문서
-- Session 157 상세 보고서: `docs/2026-03-11-session-157-implementation-report.md`
-- Session 157 작업 계획: `plans/2026-03-11-session-157-comprehensive-work-plan.md`
+- Session 158 상세 보고서: `docs/2026-03-11-session-158-implementation-report.md`
+- Session 158 작업 계획: `plans/2026-03-11-session-158-comprehensive-work-plan.md`
 
 ## 기능 카테고리 (85개 기능)
 - **Core (32개)**: 청크 로딩, 블록 배치, 이동, 네트워킹, 인증, 전투 등

@@ -1,4 +1,4 @@
-{
+﻿{
     "WorldName":  "HELLO_MY_WORLD",
     "Seed":  0,
     "GameMode":  "survival",
@@ -7,7 +7,7 @@
     "RenderDistance":  10,
     "SimulationDistance":  12,
     "MapControlProfilePath":  "config/world_map_control_profile.json",
-    "MapControlProfileVersion":  86,
+    "MapControlProfileVersion":  87,
     "TerrainGeneration":  {
                               "SeaLevel":  62,
                               "BedrockLevel":  5,
@@ -34,7 +34,7 @@
                   "HydrologyFlowGain":  0.72,
                   "HydrologyFlowShadowWeight":  0.68,
                   "HydrologyFlowShadowSlopeWeight":  0.52,
-                  "HydrologyContinuityWeight":  0.76,
+                  "HydrologyContinuityWeight":  0.78,
                   "HydrologyThalwegStabilityWeight":  0.58,
                   "HydrologyPressureBlend":  0.55,
                   "HydrologyPressureGradientClamp":  0.26,
@@ -153,9 +153,9 @@
                   "CeilingStabilityWeight":  0.52,
                   "CeilingMoistureWeight":  0.46,
                   "CeilingMoistureClamp":  0.44,
-                  "CaveEntranceFlowDampening":  0.88,
-                  "GroundwaterConnectivityWeight":  1.08,
-                  "CaveVentilationBias":  0.74
+                  "CaveEntranceFlowDampening":  0.90,
+                  "GroundwaterConnectivityWeight":  1.12,
+                  "CaveVentilationBias":  0.76
               },
     "Ores":  {
                  "EnableOreGeneration":  true,
@@ -221,8 +221,10 @@
                   "WetlandBufferRadius":  6,
                   "FlowSeepageWeight":  0.86,
                   "LakeOutflowTaper":  0.78,
-                  "SpillwayContinuityWeight":  1.05,
+                  "SpillwayContinuityWeight":  1.08,
                   "TerraceBiasWeight":  0.48,
-                  "SpillRetentionWeight":  1.0
+                  "SpillRetentionWeight":  1.04
               }
 }
+
+

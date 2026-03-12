@@ -731,8 +731,23 @@ namespace GameServerApp.World
                 emergencyBrake,
                 0.62,
                 1.28);
+            double aquiferConduitQueueScale = WorldMapQueuePolicy.ComputeAquiferConduitExchangeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
+                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                emergencyBrake,
+                0.62,
+                1.3);
             double combinedHydrologyScale = Math.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale,
                 0.56,
                 1.3);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);

@@ -997,6 +997,35 @@ namespace GameWorld
                 1.28);
         }
 
+        private float ComputeAquiferConduitQueueScale(float effectiveLoad, float loadTrend, float volatilityRatio)
+        {
+            float continuityWeight = profile != null ? profile.HydrologyContinuityWeight : 0.45f;
+            float seamRelaxBlend = profile != null ? (float)profile.HydrologySeamRelaxBlend : 0.5f;
+            float edgeFluxBlend = profile != null ? (float)profile.HydrologyEdgeFluxBlend : 0.5f;
+            float flowPersistence = profile != null ? profile.HydrologyFlowPersistence : 0.8f;
+            float aquiferConnectivity = worldConfig != null ? worldConfig.Caves.GroundwaterConnectivityWeight : 0.75f;
+            float spillwayContinuity = worldConfig != null ? worldConfig.Lakes.SpillwayContinuityWeight : 0.7f;
+            float spillRetention = worldConfig != null ? worldConfig.Lakes.SpillRetentionWeight : 0.68f;
+            float caveVentilationBias = worldConfig != null ? worldConfig.Caves.CaveVentilationBias : 0.6f;
+            float alluvialWeight = Mathf.Clamp(queueAlluvialRelayWeight, 0.0f, 1.5f);
+            float spillwayWeight = Mathf.Clamp(queueKarstSpillwayWeight, 0.0f, 1.5f);
+            return (float)WorldMapQueuePolicy.ComputeAquiferConduitExchangeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                flowPersistence * alluvialWeight,
+                aquiferConnectivity * alluvialWeight,
+                spillwayContinuity * spillwayWeight,
+                spillRetention * spillwayWeight,
+                caveVentilationBias * spillwayWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.3);
+        }
+
         private float GetAdaptiveQueueSlackRatio()
         {
             int dynamicBudget = Math.Max(64, GetDynamicLoadedChunkBudget());
@@ -1024,8 +1053,9 @@ namespace GameWorld
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
             float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
             float spillwayQueueScale = ComputeFloodplainSpillwayQueueScale(load, loadTrend, volatilityRatio);
+            float aquiferConduitQueueScale = ComputeAquiferConduitQueueScale(load, loadTrend, volatilityRatio);
             float combinedHydrologyScale = Mathf.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale,
                 0.56f,
                 1.3f);
             float rawSlack = Mathf.Clamp(
@@ -1054,8 +1084,9 @@ namespace GameWorld
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
             float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
             float spillwayQueueScale = ComputeFloodplainSpillwayQueueScale(load, loadTrend, volatilityRatio);
+            float aquiferConduitQueueScale = ComputeAquiferConduitQueueScale(load, loadTrend, volatilityRatio);
             float combinedHydrologyScale = Mathf.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale,
                 0.56f,
                 1.3f);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(load);
@@ -1104,8 +1135,9 @@ namespace GameWorld
             float alluvialRelayScale = ComputeAlluvialAquiferRelayScale(load, loadTrend, volatilityRatio);
             float karstFloodplainRelayScale = ComputeKarstFloodplainRelayScale(load, loadTrend, volatilityRatio);
             float spillwayQueueScale = ComputeFloodplainSpillwayQueueScale(load, loadTrend, volatilityRatio);
+            float aquiferConduitQueueScale = ComputeAquiferConduitQueueScale(load, loadTrend, volatilityRatio);
             float combinedHydrologyScale = Mathf.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale,
                 0.56f,
                 1.3f);
             bool emergencyBrake = queueEmergencyBrakeLatched;
@@ -1282,6 +1314,10 @@ namespace GameWorld
                 load,
                 (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
                 Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
+            float aquiferConduitQueueScale = ComputeAquiferConduitQueueScale(
+                load,
+                (float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma),
+                Mathf.Abs((float)WorldMapQueuePolicy.ComputeLoadTrend(load, queueLoadEma)));
             int nearKeepBudget = WorldMapQueuePolicy.ComputeAdaptiveNearChunkKeepCount(
                 queueNearChunkKeepCount,
                 Mathf.Max(16, viewRadiusChunks * 2),
@@ -1293,7 +1329,7 @@ namespace GameWorld
                 8,
                 512);
             nearKeepBudget = Mathf.Clamp(
-                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale, 0.76f, 1.3f)),
+                Mathf.RoundToInt(nearKeepBudget * Mathf.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale, 0.76f, 1.3f)),
                 8,
                 512);
             int protectedNearCount = 0;
@@ -1623,6 +1659,7 @@ namespace GameWorld
             ApplySubsurfaceConduitExchangeBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
             ApplyRiparianAquiferContinuityBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
             ApplyRiparianKarstExchangeBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
+            ApplyAquiferConduitExchangeBridge(chunkPos, heightMap, hydrology, flow, erosionRisk, riverMask, lakeMask, caveMask);
 
             ApplyHydrologyToHeight(heightMap, riverMask, lakeMask, hydrology, flow);
 
@@ -1946,6 +1983,124 @@ namespace GameWorld
 
                         float pulse = ComputeSubsurfacePulse(worldX - 23, worldZ + 29, y + 11);
                         float carveThreshold = 0.84f - recharge * 0.24f - karstPocket * 0.11f;
+                        if (pulse > carveThreshold)
+                        {
+                            caveMask[x, y, z] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyAquiferConduitExchangeBridge(
+            Vector2Int chunkPos,
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            float[,] riverMask,
+            float[,] lakeMask,
+            bool[,,] caveMask)
+        {
+            float bridgeWeight = Mathf.Clamp(
+                worldConfig.Water.HydrologyContinuityWeight * 0.24f +
+                worldConfig.Caves.GroundwaterConnectivityWeight * 0.24f +
+                worldConfig.Lakes.SpillwayContinuityWeight * 0.2f +
+                worldConfig.Lakes.SpillRetentionWeight * 0.18f +
+                worldConfig.Caves.CaveEntranceFlowDampening * 0.14f,
+                0f,
+                1.45f);
+            if (bridgeWeight <= 0.01f)
+            {
+                return;
+            }
+
+            int bedrockLevel = Mathf.Max(1, worldConfig.Terrain.BedrockLevel);
+            int edgeRadius = Mathf.Max(2, profile.HydrologyEdgeBlendRadius + 2);
+            float slopePenalty = Mathf.Max(0f, worldConfig.Water.HydrologySlopePenalty);
+            float divergenceClamp = Mathf.Max(0.0001f, worldConfig.Water.HydrologyFlowDivergenceClamp);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+
+            for (int x = 1; x < chunkSize - 1; x++)
+            {
+                for (int z = 1; z < chunkSize - 1; z++)
+                {
+                    float river = Mathf.Clamp01(riverMask[x, z]);
+                    float lake = Mathf.Clamp01(lakeMask[x, z]);
+                    float channelSignal = Mathf.Clamp(river * 0.56f + lake * 0.44f, 0f, 1.2f);
+                    if (channelSignal <= 0.01f)
+                    {
+                        continue;
+                    }
+
+                    float hydro = Mathf.Clamp01(hydroCopy[x, z]);
+                    float seamHydro = SampleInterior(hydroCopy, x, z);
+                    float flowNodeRaw = Mathf.Max(0f, flowCopy[x, z]);
+                    float seamFlowRaw = Mathf.Max(0f, SampleInterior(flowCopy, x, z));
+                    float flowNode = Mathf.Clamp(flowNodeRaw / 6f, 0f, 1.3f);
+                    float seamFlow = Mathf.Clamp(seamFlowRaw / 6f, 0f, 1.3f);
+                    float continuity = Mathf.Clamp((hydro + seamHydro + flowNode + seamFlow) * 0.25f, 0f, 1.25f);
+                    float slope = ComputeSlope(heightMap, x, z);
+                    float relief = Mathf.Clamp01(
+                        ComputeLocalRelief(heightMap, x, z, edgeRadius) /
+                        Mathf.Max(1f, worldConfig.Water.HydrologyWaterTableClampRange + 10f));
+                    float floodplainBand = Mathf.Clamp01(
+                        1f - Mathf.Abs(heightMap[x, z] - seaLevel) / Mathf.Max(5f, worldConfig.Water.RiverMouthSmoothRadius * 1.9f));
+                    float divergence = Mathf.Clamp01(Mathf.Abs(flowNodeRaw - seamFlowRaw) / Mathf.Max(1f, divergenceClamp * 10f));
+                    float relayNoise = ComputeSubsurfacePulse(
+                        chunkPos.x * chunkSize + x + 89,
+                        chunkPos.y * chunkSize + z - 71,
+                        seaLevel + 31);
+                    float coupling = channelSignal * bridgeWeight *
+                                     (0.22f + continuity * 0.28f + floodplainBand * 0.22f + relayNoise * 0.14f);
+                    coupling *= 1f - Mathf.Clamp01(
+                        slope * slopePenalty * 0.011f +
+                        relief * 0.33f +
+                        divergence * 0.23f);
+                    if (coupling <= 0.0005f)
+                    {
+                        continue;
+                    }
+
+                    float hydroTarget = hydro + coupling * 0.076f + seamHydro * coupling * 0.022f;
+                    float flowTarget = flowNodeRaw * (1f - coupling * 0.052f) + seamFlowRaw * coupling * 0.078f + channelSignal * 0.028f;
+                    hydrology[x, z] = Mathf.Clamp(hydroTarget, 0f, 1.2f);
+                    flow[x, z] = Mathf.Clamp(
+                        flowTarget,
+                        0f,
+                        Mathf.Max(flowNodeRaw + 1.75f, worldConfig.Water.HydrologyFlowDivergenceClamp * 12f));
+                    erosionRisk[x, z] = Mathf.Clamp01(
+                        erosionRisk[x, z] * (1f - coupling * 0.085f) +
+                        channelSignal * 0.031f +
+                        continuity * 0.024f);
+
+                    riverMask[x, z] = Mathf.Clamp01(river + coupling * 0.021f + floodplainBand * 0.012f);
+                    lakeMask[x, z] = Mathf.Clamp01(lake + coupling * 0.018f + continuity * 0.010f);
+
+                    if (coupling <= 0.29f)
+                    {
+                        continue;
+                    }
+
+                    int surface = Mathf.Max(bedrockLevel + 9, heightMap[x, z]);
+                    int conduitTop = Mathf.Clamp(
+                        seaLevel - 4 + Mathf.RoundToInt((hydrology[x, z] - 0.5f) * 6f),
+                        bedrockLevel + 5,
+                        Mathf.Max(bedrockLevel + 5, surface - 8));
+                    int conduitBottom = Mathf.Max(bedrockLevel + 2, conduitTop - 3 - Mathf.RoundToInt(coupling * 3f));
+                    int worldX = chunkPos.x * chunkSize + x;
+                    int worldZ = chunkPos.y * chunkSize + z;
+
+                    for (int y = conduitBottom; y <= conduitTop; y++)
+                    {
+                        if (y < 0 || y >= worldHeight || caveMask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        float pulse = ComputeSubsurfacePulse(worldX + 37, worldZ - 41, y + 23);
+                        float carveThreshold = 0.87f - coupling * 0.2f - continuity * 0.09f;
                         if (pulse > carveThreshold)
                         {
                             caveMask[x, y, z] = true;

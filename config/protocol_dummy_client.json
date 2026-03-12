@@ -1,4 +1,4 @@
-{
+﻿{
     "host":  "127.0.0.1",
     "port":  9000,
     "connectTimeoutMs":  750,
@@ -10,7 +10,7 @@
     "includeOptionalMessages":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  84,
+    "minMapControlProfileVersion":  87,
     "failOnMapControlVersionRegression":  true,
     "failOnGeneratedSourceTimestampDrift":  true,
     "protoSourceDirectory":  "proto",
@@ -51,3 +51,5 @@
                 ],
     "comment":  "Used by GameServer/Testing/DummyProtocolClient for packet encode/decode probes."
 }
+
+

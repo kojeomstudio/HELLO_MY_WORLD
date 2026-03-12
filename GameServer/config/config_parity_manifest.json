@@ -55,11 +55,11 @@
             ]
         },
         {
-            "name": "feature-manifest-session-151",
-            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json",
+            "name": "feature-manifest-session-159",
+            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json",
             "mirrors": [
-                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json",
-                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-10-session-151.json"
+                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json",
+                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json"
             ]
         },
         {

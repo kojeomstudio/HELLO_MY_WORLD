@@ -39,7 +39,8 @@
                                                 "queueNearChunkKeepCount":  38,
                                                 "queueStalePruneMax":  120,
                                                 "queueStalePruneEmergencyMultiplier":  1.38,
-                                                "queueAlluvialRelayWeight":  0.82
+                                                "queueAlluvialRelayWeight":  0.86,
+                                                "queueKarstSpillwayWeight":  0.92
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

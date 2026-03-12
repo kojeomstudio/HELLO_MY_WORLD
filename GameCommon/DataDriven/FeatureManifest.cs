@@ -51,8 +51,7 @@ namespace GameCommon.DataDriven
         public static FeatureManifest Load(string path)
         {
             var json = File.ReadAllText(path);
-            var manifest = JsonSerializer.Deserialize<FeatureManifest>(json, JsonOptions)
-                           ?? new FeatureManifest();
+            var manifest = TryLoadLegacyFeatureArray(json) ?? TryLoadCategorizedFeatureMap(json) ?? new FeatureManifest();
 
             if (string.IsNullOrWhiteSpace(manifest.GeneratedAtUtc))
             {
@@ -79,6 +78,191 @@ namespace GameCommon.DataDriven
             AllowTrailingCommas = true,
             Converters = { new JsonStringEnumConverter() }
         };
+
+        private static FeatureManifest? TryLoadLegacyFeatureArray(string json)
+        {
+            try
+            {
+                var manifest = JsonSerializer.Deserialize<FeatureManifest>(json, JsonOptions);
+                if (manifest?.Features?.Count > 0 || !string.IsNullOrWhiteSpace(manifest?.Version))
+                {
+                    return manifest;
+                }
+            }
+            catch
+            {
+                // Fallback handled by categorized parser.
+            }
+
+            return null;
+        }
+
+        private static FeatureManifest? TryLoadCategorizedFeatureMap(string json)
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(json);
+                JsonElement root = document.RootElement;
+                if (!TryGetPropertyIgnoreCase(root, "categories", out JsonElement categories) || categories.ValueKind != JsonValueKind.Object)
+                {
+                    return null;
+                }
+
+                var manifest = new FeatureManifest
+                {
+                    Version = ReadString(root, "version", ReadString(root, "session", string.Empty)),
+                    GeneratedAtUtc = ReadString(root, "generated_at_utc", ReadString(root, "generatedAt", string.Empty)),
+                    Features = new List<FeatureManifestEntry>()
+                };
+
+                int order = 1;
+                foreach (JsonProperty categoryNode in categories.EnumerateObject())
+                {
+                    FeatureCategory category = ParseCategory(categoryNode.Name);
+                    if (!TryGetPropertyIgnoreCase(categoryNode.Value, "features", out JsonElement featureArray) || featureArray.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (JsonElement featureNode in featureArray.EnumerateArray())
+                    {
+                        string side = ReadString(featureNode, "side", "shared");
+                        manifest.Features.Add(new FeatureManifestEntry
+                        {
+                            Id = ReadString(featureNode, "id", string.Empty),
+                            Name = ReadString(featureNode, "name", string.Empty),
+                            Category = category,
+                            Layer = ParseLayer(side),
+                            Side = side,
+                            Description = ReadString(featureNode, "description", string.Empty),
+                            Order = ReadInt(featureNode, "order", order),
+                            Status = ReadString(featureNode, "status", "planned"),
+                            Artifacts = ReadStringArray(featureNode, "artifacts"),
+                            Dependencies = ReadStringArray(featureNode, "dependencies")
+                        });
+
+                        order++;
+                    }
+                }
+
+                return manifest;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static FeatureCategory ParseCategory(string value)
+        {
+            if (string.Equals(value, "core", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureCategory.Core;
+            }
+
+            if (string.Equals(value, "content", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureCategory.Content;
+            }
+
+            if (string.Equals(value, "utility", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "util", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureCategory.Utility;
+            }
+
+            return FeatureCategory.Core;
+        }
+
+        private static FeatureLayer ParseLayer(string side)
+        {
+            if (string.IsNullOrWhiteSpace(side))
+            {
+                return FeatureLayer.Shared;
+            }
+
+            if (side.Contains("server+client", StringComparison.OrdinalIgnoreCase) ||
+                side.Contains("client+server", StringComparison.OrdinalIgnoreCase) ||
+                side.Contains("shared", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureLayer.Shared;
+            }
+
+            if (side.Contains("server", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureLayer.Server;
+            }
+
+            if (side.Contains("client", StringComparison.OrdinalIgnoreCase))
+            {
+                return FeatureLayer.Client;
+            }
+
+            return FeatureLayer.Shared;
+        }
+
+        private static bool TryGetPropertyIgnoreCase(JsonElement element, string propertyName, out JsonElement value)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static string ReadString(JsonElement element, string propertyName, string fallback)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out JsonElement value) || value.ValueKind != JsonValueKind.String)
+            {
+                return fallback;
+            }
+
+            return value.GetString() ?? fallback;
+        }
+
+        private static int ReadInt(JsonElement element, string propertyName, int fallback)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out JsonElement value))
+            {
+                return fallback;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int parsed))
+            {
+                return parsed;
+            }
+
+            return fallback;
+        }
+
+        private static string[] ReadStringArray(JsonElement element, string propertyName)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out JsonElement value) || value.ValueKind != JsonValueKind.Array)
+            {
+                return Array.Empty<string>();
+            }
+
+            var list = new List<string>();
+            foreach (JsonElement item in value.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                {
+                    string? text = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        list.Add(text);
+                    }
+                }
+            }
+
+            return list.ToArray();
+        }
     }
 
     public sealed class FeatureManifestEntry

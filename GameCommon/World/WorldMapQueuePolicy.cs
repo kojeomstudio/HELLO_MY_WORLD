@@ -837,5 +837,56 @@ namespace GameCommon.World
             double scale = baseScale + karstAssist - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
+
+        /// <summary>
+        /// v83: Computes spillway-aware floodplain queue scaling for world-map admission control.
+        /// Extends karst-floodplain relay scaling with spill retention and cave ventilation coupling
+        /// so server/client chunk queues remain stable during cave-river-lake pressure spikes.
+        /// </summary>
+        public static double ComputeFloodplainSpillwayQueueScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double spillwayContinuity,
+            double spillRetention,
+            double caveVentilationBias,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.34)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double baseScale = ComputeKarstFloodplainRelayScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                aquiferConnectivity,
+                spillwayContinuity,
+                caveVentilationBias,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double retention = Math.Clamp(spillRetention, 0.0, 1.4);
+            double ventilation = Math.Clamp(caveVentilationBias, 0.0, 1.2);
+            double spillway = Math.Clamp(spillwayContinuity, 0.0, 1.4);
+            double stabilityAssist = retention * 0.065 + spillway * 0.045 + ventilation * 0.035;
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.9) * 0.06, 0.0, 0.1);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.06;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.055, 0.0, 0.11);
+            double emergencyPenalty = emergencyBrake ? 0.045 : 0.0;
+            double scale = baseScale + stabilityAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
     }
 }

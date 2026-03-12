@@ -439,6 +439,7 @@ namespace GameServerApp.World
             int simulationWindow = Math.Max(1, controlProfile.SimulationDistance * 2 + 1);
             int profileBudget = Math.Max(renderWindow * renderWindow, simulationWindow * simulationWindow);
             queueSlackRatio = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 86 ? 4.16 :
                 generationConfig.MapControlProfileVersion >= 84 ? 4.08 :
                 generationConfig.MapControlProfileVersion >= 82 ? 4.02 :
                 generationConfig.MapControlProfileVersion >= 81 ? 3.96 :
@@ -456,6 +457,7 @@ namespace GameServerApp.World
                 1.1,
                 6.0);
             queueBurstSlackMultiplier = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 86 ? 1.56 :
                 generationConfig.MapControlProfileVersion >= 84 ? 1.53 :
                 generationConfig.MapControlProfileVersion >= 82 ? 1.5 :
                 generationConfig.MapControlProfileVersion >= 81 ? 1.47 :
@@ -472,7 +474,8 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 35 ? 1.15 : 1.0,
                 1.0,
                 3.0);
-            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 84 ? 15 :
+            queueOverloadDrainFactor = generationConfig.MapControlProfileVersion >= 86 ? 16 :
+                generationConfig.MapControlProfileVersion >= 84 ? 15 :
                 generationConfig.MapControlProfileVersion >= 82 ? 14 :
                 generationConfig.MapControlProfileVersion >= 81 ? 13 :
                 generationConfig.MapControlProfileVersion >= 80 ? 13 :
@@ -501,6 +504,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 40 ? 6 :
                 generationConfig.MapControlProfileVersion >= 34 ? 8 : 6;
             queueLoadSheddingThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.66 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.67 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.68 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.69 :
@@ -518,6 +522,7 @@ namespace GameServerApp.World
                 0.5,
                 0.98);
             queueEmergencyBrakeThreshold = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.82 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.83 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.84 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.85 :
@@ -535,6 +540,7 @@ namespace GameServerApp.World
                 0.75,
                 4.0);
             queueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.44 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.43 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.42 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.41 :
@@ -550,6 +556,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.24 : 0.18,
                 0.18);
             queueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.62 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.63 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.64 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.65 :
@@ -565,6 +572,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.82 : 0.84,
                 0.84);
             queueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.50 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.49 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.48 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.47 :
@@ -581,6 +589,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.22 : 0.18,
                 0.2);
             queueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(
+                generationConfig.MapControlProfileVersion >= 86 ? 0.50 :
                 generationConfig.MapControlProfileVersion >= 84 ? 0.48 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.47 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.46 :
@@ -597,6 +606,7 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 43 ? 0.2 : 0.16,
                 0.24);
             queueAlluvialRelayWeight = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 86 ? 1.06 :
                 generationConfig.MapControlProfileVersion >= 84 ? 1.02 :
                 generationConfig.MapControlProfileVersion >= 82 ? 0.98 :
                 generationConfig.MapControlProfileVersion >= 81 ? 0.95 :
@@ -706,10 +716,25 @@ namespace GameServerApp.World
                 emergencyBrake,
                 0.62,
                 1.26);
+            double spillwayQueueScale = WorldMapQueuePolicy.ComputeFloodplainSpillwayQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
+                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                emergencyBrake,
+                0.62,
+                1.28);
             double combinedHydrologyScale = Math.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale,
                 0.56,
-                1.26);
+                1.3);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);
             double adaptiveSlack = Math.Clamp(
                 queueSlackRatio + effectiveLoad * 0.6 * shockScale + Math.Max(0.0, loadTrend) * queueTrendBoostWeight * 0.75 * shockScale,

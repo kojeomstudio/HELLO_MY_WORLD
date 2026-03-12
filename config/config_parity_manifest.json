@@ -63,6 +63,14 @@
             ]
         },
         {
+            "name": "feature-manifest-session-162",
+            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json",
+            "mirrors": [
+                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json",
+                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json"
+            ]
+        },
+        {
             "name": "parity-manifest-self",
             "source": "config/config_parity_manifest.json",
             "mirrors": [

@@ -18,7 +18,7 @@ Unity 클라이언트 + .NET 서버 기반의 Minecraft 스타일 프로젝트�
 - Runtime configs(JSON): `config/`, `GameServer/config/`, `Assets/StreamingAssets/`
 
 ## Documentation
-- Session 161 변경 보고서: `docs/2026-03-12-session-161-implementation-report.md`
-- 작업 계획: `plans/2026-03-12-session-161-comprehensive-work-plan.md`
+- Session 162 변경 보고서: `docs/2026-03-12-session-162-implementation-report.md`
+- 작업 계획: `plans/2026-03-12-session-162-comprehensive-work-plan.md`
 - 기존 분석/설계 문서: `docs/`
 

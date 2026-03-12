@@ -9,6 +9,7 @@ namespace GameCommon.World
     /// load classification / emergency latch semantics.
     /// Session 152 (v79): Enhanced enum consolidation and improved protobuf registry coverage.
     /// Session 161 (v84): Added aquifer-conduit exchange queue scaling for map-control parity.
+    /// Session 162 (v85/v88): Added subterranean-flow conduit queue scaling for terrain continuity.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -940,6 +941,62 @@ namespace GameCommon.World
             double volatilityPenalty = Math.Clamp(volatilityRatio * 0.05, 0.0, 0.11);
             double emergencyPenalty = emergencyBrake ? 0.045 : 0.0;
             double scale = baseScale + exchangeAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
+
+        /// <summary>
+        /// v85: Computes subterranean-flow conduit queue scaling for world-map admission control.
+        /// Session 162 (v88): Adds subterranean-flow conduit relay for enhanced terrain continuity
+        /// around cave-river-lake transition boundaries with improved groundwater coupling.
+        /// </summary>
+        public static double ComputeSubterraneanFlowConduitQueueScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double spillwayContinuity,
+            double spillRetention,
+            double caveVentilationBias,
+            double subterraneanFlowWeight,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.38)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.5);
+
+            double baseScale = ComputeAquiferConduitExchangeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                aquiferConnectivity,
+                spillwayContinuity,
+                spillRetention,
+                caveVentilationBias,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double subterranean = Math.Clamp(subterraneanFlowWeight, 0.0, 1.4);
+            double aquifer = Math.Clamp(aquiferConnectivity, 0.0, 1.4);
+            double spillway = Math.Clamp(spillwayContinuity, 0.0, 1.4);
+            double retention = Math.Clamp(spillRetention, 0.0, 1.4);
+            double ventilation = Math.Clamp(caveVentilationBias, 0.0, 1.2);
+            double continuity = Math.Clamp(continuityWeight, 0.0, 1.5);
+            double conduitAssist = subterranean * 0.055 + aquifer * 0.04 + spillway * 0.03 + retention * 0.035 + ventilation * 0.025 + continuity * 0.015;
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.9) * 0.05, 0.0, 0.1);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.05;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.045, 0.0, 0.1);
+            double emergencyPenalty = emergencyBrake ? 0.04 : 0.0;
+            double scale = baseScale + conduitAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
     }

@@ -20,7 +20,7 @@
 - [x] JSON 기반 설정/데이터 드리븐 파일(`world.json`, map profile, queue policy, feature catalog)을 동기화한다.
 - [x] 문서(`README.md`, `docs/`)를 최신 변경 기준으로 갱신한다.
 - [x] 빌드/테스트(`dotnet build`, proto probe)를 수행해 컴파일 및 프로토콜 동작을 검증한다.
-- [ ] 종료 시 변경 파일을 커밋하고 `origin/master`에 push 한다.
+- [x] 종료 시 변경 파일을 커밋하고 `origin/master`에 push 한다.
 
 ## COMPLETED
 - [x] 저장소 상태/최근 커밋 이력 확인.
@@ -29,4 +29,5 @@
 - [x] Aquifer Conduit Exchange terrain bridge(서버/클라) 적용.
 - [x] WorldMapQueuePolicy v84 queue scale + map-control queue policy v40 동기화.
 - [x] Proto probe + dummy client required round-trip 검증 완료(옵션 패킷은 warning 유지).
+
 

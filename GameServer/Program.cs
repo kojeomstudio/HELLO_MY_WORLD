@@ -408,17 +408,9 @@ namespace GameServerApp
             {
                 string protoDirectory = ResolveRepoPath("proto");
                 string generatedDirectory = ResolveRepoPath(Path.Combine("Assets", "Generated", "Protobuf"));
-                string[] expectedFiles =
-                {
-                    "Common.cs",
-                    "EnhancedMinecraftGame.cs",
-                    "GameAuth.cs",
-                    "GameChat.cs",
-                    "GameCore.cs",
-                    "GameDiag.cs",
-                    "GameMove.cs",
-                    "GameWorld.cs"
-                };
+                string[] expectedFiles = ProtoDiagnostics.BuildExpectedGeneratedFileNames(
+                    protoDirectory,
+                    new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
                 ProtoDiagnostics.AssertGeneratedSourceFreshness(protoDirectory, generatedDirectory, expectedFiles);
 
                 var missing = expectedFiles
@@ -959,6 +951,11 @@ namespace GameServerApp
                     {
                         mapSettings.QueueAlluvialRelayWeight = Math.Clamp(section.TerrainGeneration.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
                     }
+
+                    if (section.TerrainGeneration.QueueKarstSpillwayWeight is > 0)
+                    {
+                        mapSettings.QueueKarstSpillwayWeight = Math.Clamp(section.TerrainGeneration.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                    }
                 }
 
                 if (section.Cache?.MaxCachedChunks > 0)
@@ -1084,6 +1081,11 @@ namespace GameServerApp
                     mapSettings.QueueAlluvialRelayWeight = Math.Clamp(section.Cache.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
                 }
 
+                if (section.Cache?.QueueKarstSpillwayWeight is > 0)
+                {
+                    mapSettings.QueueKarstSpillwayWeight = Math.Clamp(section.Cache.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                }
+
                 mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
                     ? Math.Max(3, mapSettings.QueuePressureFactor)
                     : Math.Max(2, mapSettings.QueuePressureFactor);
@@ -1097,7 +1099,7 @@ namespace GameServerApp
                 mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
                 Console.WriteLine(
                     $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
-                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, karstSpillway={mapSettings.QueueKarstSpillwayWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
             }
             catch (Exception ex)
             {
@@ -1254,10 +1256,15 @@ namespace GameServerApp
                     mapSettings.QueueAlluvialRelayWeight = Math.Clamp(server.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
                 }
 
+                if (server.QueueKarstSpillwayWeight is > 0)
+                {
+                    mapSettings.QueueKarstSpillwayWeight = Math.Clamp(server.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                }
+
                 Console.WriteLine(
                     $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
                     $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
-                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, karstSpillway={mapSettings.QueueKarstSpillwayWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, " +
                     $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
             }
             catch (Exception ex)
@@ -1482,6 +1489,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueAlluvialRelayWeight")]
             public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
         }
 
         private sealed class WorldMapRuntimeTerrainGeneration
@@ -1563,6 +1573,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueAlluvialRelayWeight")]
             public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
         }
 
         private sealed class WorldMapQueuePolicyConfig
@@ -1653,6 +1666,9 @@ namespace GameServerApp
 
             [JsonPropertyName("queueAlluvialRelayWeight")]
             public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
         }
     }
 }

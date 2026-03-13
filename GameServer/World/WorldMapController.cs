@@ -61,6 +61,7 @@ namespace GameServerApp.World
         private double queueTrendBoostWeight;
         private double queueShockAbsorberWeight;
         private double queueAlluvialRelayWeight;
+        private double queueKarstSpillwayWeight;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
         private double queueLoadEma;
@@ -619,6 +620,19 @@ namespace GameServerApp.World
                 0.68,
                 0.0,
                 1.5);
+            queueKarstSpillwayWeight = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 90 ? 1.24 :
+                generationConfig.MapControlProfileVersion >= 89 ? 1.2 :
+                generationConfig.MapControlProfileVersion >= 86 ? 1.16 :
+                generationConfig.MapControlProfileVersion >= 84 ? 1.1 :
+                generationConfig.MapControlProfileVersion >= 82 ? 1.05 :
+                generationConfig.MapControlProfileVersion >= 80 ? 1.0 :
+                generationConfig.MapControlProfileVersion >= 78 ? 0.96 :
+                generationConfig.MapControlProfileVersion >= 76 ? 0.92 :
+                generationConfig.MapControlProfileVersion >= 75 ? 0.88 :
+                0.84,
+                0.0,
+                1.5);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
 
             double ratio = queueLimit / Math.Max(1.0, maxLoadedChunks);
@@ -689,6 +703,11 @@ namespace GameServerApp.World
                 emergencyBrake,
                 0.62,
                 1.2);
+            double alluvialWeight = queueAlluvialRelayWeight;
+            double karstWeight = Math.Clamp(
+                queueAlluvialRelayWeight * (0.55 + queueKarstSpillwayWeight * 0.45),
+                0.0,
+                1.5);
             double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
                 effectiveLoad,
                 loadTrend,
@@ -696,9 +715,9 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyContinuityWeight,
                 generationConfig.Water.HydrologySeamRelaxBlend,
                 generationConfig.Water.HydrologyEdgeFluxBlend,
-                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
-                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.FlowSeepageWeight * queueAlluvialRelayWeight,
+                generationConfig.Water.HydrologyFlowPersistence * alluvialWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * alluvialWeight,
+                generationConfig.Lakes.FlowSeepageWeight * alluvialWeight,
                 emergencyBrake,
                 0.62,
                 1.24);
@@ -709,10 +728,10 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyContinuityWeight,
                 generationConfig.Water.HydrologySeamRelaxBlend,
                 generationConfig.Water.HydrologyEdgeFluxBlend,
-                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
-                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
-                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                generationConfig.Water.HydrologyFlowPersistence * karstWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * karstWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * karstWeight,
+                generationConfig.Caves.CaveVentilationBias * karstWeight,
                 emergencyBrake,
                 0.62,
                 1.26);
@@ -723,11 +742,11 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyContinuityWeight,
                 generationConfig.Water.HydrologySeamRelaxBlend,
                 generationConfig.Water.HydrologyEdgeFluxBlend,
-                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
-                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
-                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                generationConfig.Water.HydrologyFlowPersistence * karstWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * karstWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * karstWeight,
+                generationConfig.Lakes.SpillRetentionWeight * karstWeight,
+                generationConfig.Caves.CaveVentilationBias * karstWeight,
                 emergencyBrake,
                 0.62,
                 1.28);
@@ -738,11 +757,11 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyContinuityWeight,
                 generationConfig.Water.HydrologySeamRelaxBlend,
                 generationConfig.Water.HydrologyEdgeFluxBlend,
-                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
-                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
-                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                generationConfig.Water.HydrologyFlowPersistence * karstWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * karstWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * karstWeight,
+                generationConfig.Lakes.SpillRetentionWeight * karstWeight,
+                generationConfig.Caves.CaveVentilationBias * karstWeight,
                 emergencyBrake,
                 0.62,
                 1.3);
@@ -753,23 +772,23 @@ namespace GameServerApp.World
                 generationConfig.Water.HydrologyContinuityWeight,
                 generationConfig.Water.HydrologySeamRelaxBlend,
                 generationConfig.Water.HydrologyEdgeFluxBlend,
-                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
-                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
-                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
-                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                generationConfig.Water.HydrologyFlowPersistence * karstWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * karstWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * karstWeight,
+                generationConfig.Lakes.SpillRetentionWeight * karstWeight,
+                generationConfig.Caves.CaveVentilationBias * karstWeight,
                 Math.Clamp(
                     generationConfig.Caves.GroundwaterConnectivityWeight * 0.4 +
                     generationConfig.Water.HydrologyFlowPersistence * 0.35 +
                     generationConfig.Water.RiverConfluenceBoost * 0.25,
                     0.0,
-                    1.4) * queueAlluvialRelayWeight,
+                    1.4) * karstWeight,
                 Math.Clamp(
                     generationConfig.Water.RiverConfluenceBoost * 0.38 +
                     generationConfig.Lakes.FlowSeepageWeight * 0.34 +
                     generationConfig.Caves.CaveVentilationBias * 0.28,
                     0.0,
-                    1.4) * queueAlluvialRelayWeight,
+                    1.4) * karstWeight,
                 emergencyBrake,
                 0.62,
                 1.32);

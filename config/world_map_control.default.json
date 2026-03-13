@@ -18,5 +18,6 @@
     "DefaultUnloadDistance":  12,
     "QueueShockAbsorberWeight":  0.24,
     "QueueHotspotRetentionSeconds":  18,
-    "QueueAlluvialRelayWeight":  0.82
+    "QueueAlluvialRelayWeight":  0.82,
+    "QueueKarstSpillwayWeight":  0.92
 }

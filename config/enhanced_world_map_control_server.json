@@ -2,7 +2,7 @@
     "worldMapControl":  {
                             "enabled":  true,
                             "profilePath":  "config/world_map_control_profile.json",
-                            "profileVersion":  80,
+                            "profileVersion":  90,
                             "defaults":  {
                                              "renderDistance":  12,
                                              "mapScale":  1.0,
@@ -38,7 +38,8 @@
                                           "queueNearChunkKeepCount":  40,
                                           "queueStalePruneMax":  60,
                                           "queueStalePruneEmergencyMultiplier":  1.48,
-                                          "queueAlluvialRelayWeight":  0.86
+                                          "queueAlluvialRelayWeight":  0.86,
+                                          "queueKarstSpillwayWeight":  0.96
                                       },
                             "realTimeUpdates":  {
                                                     "enabled":  true,
@@ -73,7 +74,8 @@
                                                       "queueNearChunkKeepCount":  40,
                                                       "queueStalePruneMax":  60,
                                                       "queueStalePruneEmergencyMultiplier":  1.48,
-                                                      "queueAlluvialRelayWeight":  0.86
+                                                      "queueAlluvialRelayWeight":  0.86,
+                                                      "queueKarstSpillwayWeight":  0.96
                                                   }
                         }
 }

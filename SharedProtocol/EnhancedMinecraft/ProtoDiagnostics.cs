@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using EnhancedMinecraftProtocol;
 using Google.Protobuf;
@@ -149,6 +150,47 @@ public static class ProtoDiagnostics
     /// Validates that generated protobuf C# files are newer than source .proto files and
     /// that required generated files are present.
     /// </summary>
+    public static string[] BuildExpectedGeneratedFileNames(
+        string protoDirectory,
+        IEnumerable<string>? additionalRequiredFiles = null)
+    {
+        if (string.IsNullOrWhiteSpace(protoDirectory) || !Directory.Exists(protoDirectory))
+        {
+            return (additionalRequiredFiles ?? Array.Empty<string>())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var protoPath in Directory.GetFiles(protoDirectory, "*.proto", SearchOption.TopDirectoryOnly))
+        {
+            string fileName = Path.GetFileNameWithoutExtension(protoPath);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                continue;
+            }
+
+            expected.Add(ToGeneratedClassName(fileName) + ".cs");
+        }
+
+        if (additionalRequiredFiles != null)
+        {
+            foreach (var required in additionalRequiredFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(required))
+                {
+                    expected.Add(required);
+                }
+            }
+        }
+
+        return expected
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public static void AssertGeneratedSourceFreshness(
         string protoDirectory,
         string generatedDirectory,
@@ -189,7 +231,9 @@ public static class ProtoDiagnostics
                 $"Generated protobuf DTOs are stale (newest proto: {newestProto:o}, newest generated C#: {newestGenerated:o}).");
         }
 
-        string[] required = (requiredGeneratedFiles ?? new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" })
+        string[] required = (requiredGeneratedFiles ?? BuildExpectedGeneratedFileNames(
+            protoDirectory,
+            new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" }))
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -205,6 +249,36 @@ public static class ProtoDiagnostics
             throw new InvalidOperationException(
                 "Generated protobuf DTOs are missing required files: " + string.Join(", ", missing));
         }
+    }
+
+    private static string ToGeneratedClassName(string protoFileName)
+    {
+        string[] tokens = protoFileName
+            .Split(new[] { '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+        {
+            return protoFileName;
+        }
+
+        var builder = new StringBuilder(protoFileName.Length);
+        foreach (string token in tokens)
+        {
+            if (token.Length == 0)
+            {
+                continue;
+            }
+
+            if (token.Length == 1)
+            {
+                builder.Append(char.ToUpperInvariant(token[0]));
+                continue;
+            }
+
+            builder.Append(char.ToUpperInvariant(token[0]));
+            builder.Append(token.AsSpan(1));
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>

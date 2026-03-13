@@ -11,6 +11,7 @@ namespace GameCommon.World
     /// Session 161 (v84): Added aquifer-conduit exchange queue scaling for map-control parity.
     /// Session 162 (v85/v88): Added subterranean-flow conduit queue scaling for terrain continuity.
     /// Session 163 (v86/v89): Added subterranean recharge-cascade queue scaling for cave-river-lake stability.
+    /// Session 165 (v86/v90): Added karst-spillway queue coupling weight for server/client parity.
     /// </summary>
     public enum QueuePressureBand
     {

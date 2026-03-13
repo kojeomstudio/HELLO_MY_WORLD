@@ -712,10 +712,13 @@ namespace GameServerApp.Testing
 
             string protoDirectory = ResolvePath(Settings.ProtoSourceDirectory);
             string generatedDirectory = ResolvePath(Settings.GeneratedProtobufDirectory);
+            string[] expectedFiles = ProtoDiagnostics.BuildExpectedGeneratedFileNames(
+                protoDirectory,
+                new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
             ProtoDiagnostics.AssertGeneratedSourceFreshness(
                 protoDirectory,
                 generatedDirectory,
-                new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
+                expectedFiles);
         }
 
         private sealed class ProtoReferenceReportSnapshot

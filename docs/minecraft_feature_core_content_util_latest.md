@@ -1,19 +1,21 @@
-## Minecraft core/content/util rollout (2026-02-18)
-- Source of truth: `config/minecraft_feature_core_content_util_2026-02-18.json` (ordered phases + owners).
-- Data-driven: JSON configs mirrored between `config/` and StreamingAssets (world/map-control/enhanced terrain) with generation signatures to protect caches.
-- Focus: flow-memory hydrology seams, seepage/outflow-friendly lakes, moisture-aware cave ceilings, refreshed world-map generation signature, and descriptor-origin protobuf guards.
+# Minecraft Core/Content/Util Latest (2026-03-13, Session 165)
 
-### Core (order)
-1. `core.flow_memory_hydrology` ??Hydrology + flow memory stitched across chunk edges so river/lake/cave masks stay continuous in server and Unity previews.
-2. `core.worldmap_signature_sync` ??Generation signature blends world-config + map-control inputs so previews reload when configs drift.
-3. `core.protocol_descriptor_origin` ??Validate EnhancedMinecraft bindings resolve from the generated descriptor/assembly and surface stale using directives early.
+## Source of Truth
+- `config/minecraft_feature_client_server_core_content_util_2026-03-13-session-165.json`
+- `config/minecraft_features_client_server_core_content_util_2026-03-13-session-165.json`
 
-### Content (order)
-1. `content.river_edge_repair` ??Flow-shadowed meanders and watershed edge blending keep river banks stable and stitched.
-2. `content.lake_seepage_outflow` ??Lake basins use seepage + rim erosion + outflow channels guided by flow/hydrology gradients.
-3. `content.cave_moisture_ceiling` ??Cave thresholds factor flow shadow and ceiling moisture clamps to seal seams under rivers/lakes.
+## Core (v86/v90 baseline)
+1. Shared DLL contracts (`GameCommon.dll`, `SharedProtocol.dll`) and shared enum/code boundary.
+2. Protobuf registry, descriptor fingerprint, and generated source freshness validation.
+3. World map control profile/version synchronization (`MapControlProfileVersion=90`).
+4. Queue-policy runtime controls including `queueAlluvialRelayWeight` + `queueKarstSpillwayWeight`.
 
-### Utility (order)
-1. `util.config_json_alignment` ??JSON parity for world + map-control configs shared by server and StreamingAssets with signatures.
-2. `util.data_driven_worldgen` ??Hydrology/flow/cave/lake seam tuning exposed via JSON knobs.
-3. `util.build_proto_validation` ??`dotnet build` for SharedProtocol/GameServer plus protobuf descriptor/handler validation.
+## Content (terrain)
+1. Cave generation v86: subsurface spillway convergence bridge applied.
+2. River generation v86: subsurface confluence stability bridge applied.
+3. Lake generation v86: subsurface overflow balancing bridge applied.
+
+## Utility (operations)
+1. Data-driven JSON parity across `config/`, `GameServer/config/`, `Assets/StreamingAssets/`.
+2. Dummy protocol probe client for required packet round-trip verification.
+3. Build/test/proto-probe validation workflow for session delivery.

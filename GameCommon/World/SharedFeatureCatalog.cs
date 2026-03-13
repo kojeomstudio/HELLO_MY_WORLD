@@ -55,8 +55,7 @@ namespace GameCommon.World
     {
         /// <summary>
         /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-13.
-        /// Session 163 extends v84 with subterranean recharge-cascade coupling and
-        /// map-control queue resilience uplift (v89).
+        /// Session 164 validates v85 terrain algorithms and v89 map-control queue policy.
         /// </summary>
         public const string HydrologySignature = "2026-03-13-hydrology-riverlake-cave-v85";
 

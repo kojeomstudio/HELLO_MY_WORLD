@@ -199,6 +199,16 @@ namespace GameServerApp.World.Generation
                 riverMask,
                 lakeMask,
                 caveMask);
+            ApplySubterraneanConfluenceCascadeBridge(
+                chunkX,
+                chunkZ,
+                heightMap,
+                hydrology,
+                flow,
+                erosionRisk,
+                riverMask,
+                lakeMask,
+                caveMask);
 
             return new TerrainMaskResult
             {
@@ -1353,6 +1363,155 @@ namespace GameServerApp.World.Generation
 
                         double pulse = ComputeSubsurfacePulse(worldX + 37, worldZ - 41, y + 23);
                         double carveThreshold = 0.87 - coupling * 0.2 - continuity * 0.09;
+                        if (pulse > carveThreshold)
+                        {
+                            caveMask[x, y, z] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplySubterraneanConfluenceCascadeBridge(
+            int chunkX,
+            int chunkZ,
+            int[,] heightMap,
+            float[,] hydrology,
+            float[,] flow,
+            float[,] erosionRisk,
+            float[,]? riverMask,
+            float[,]? lakeMask,
+            bool[,,]? caveMask)
+        {
+            if (riverMask == null && lakeMask == null && caveMask == null)
+            {
+                return;
+            }
+
+            double bridgeWeight = Math.Clamp(
+                config.Water.HydrologyFlowPersistence * 0.24 +
+                config.Caves.GroundwaterConnectivityWeight * 0.22 +
+                config.Lakes.SpillwayContinuityWeight * 0.2 +
+                config.Lakes.FlowSeepageWeight * 0.18 +
+                config.Water.RiverConfluenceBoost * 0.16,
+                0.0,
+                1.5);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int bedrockLevel = Math.Max(1, config.TerrainGeneration.BedrockLevel);
+            int sizeX = hydrology.GetLength(0);
+            int sizeZ = hydrology.GetLength(1);
+            int reliefRadius = Math.Max(2, config.Water.HydrologyWatershedStitchRadius + 4);
+            double divergenceScale = Math.Max(0.08, config.Water.HydrologyFlowDivergenceClamp);
+            double slopePenalty = Math.Max(0.0, config.Water.HydrologySlopePenalty);
+            double waterTableRange = Math.Max(6.0, config.Water.HydrologyWaterTableClampRange);
+            var hydroCopy = (float[,])hydrology.Clone();
+            var flowCopy = (float[,])flow.Clone();
+            var erosionCopy = (float[,])erosionRisk.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double lake = lakeMask != null ? TerrainMaskUtility.Clamp01(lakeMask[x, z]) : 0.0;
+                    double channelSignal = Math.Clamp(river * 0.54 + lake * 0.46, 0.0, 1.2);
+                    if (channelSignal <= 0.01 && caveMask == null)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydroCopy[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydroCopy, x, z);
+                    double flowNode = Math.Max(0.0, flowCopy[x, z]);
+                    double seamFlow = Math.Max(0.0, TerrainMaskUtility.SampleInterior(flowCopy, x, z));
+                    double flowNorm = Math.Clamp(flowNode / 6.0, 0.0, 1.3);
+                    double seamFlowNorm = Math.Clamp(seamFlow / 6.0, 0.0, 1.3);
+                    double continuity = Math.Clamp((hydro + seamHydro + flowNorm + seamFlowNorm) * 0.25, 0.0, 1.25);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) /
+                        Math.Max(1.0, waterTableRange + 10.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(6.0, config.Water.RiverMouthSmoothRadius * 2.0),
+                        0.0,
+                        1.0);
+                    double groundwaterBand = Math.Clamp(
+                        (seaLevel + config.Lakes.MaxDepth - heightMap[x, z]) / waterTableRange,
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double cascadeNoise = ComputeSubsurfacePulse(
+                        chunkX * chunkSize + x + 131,
+                        chunkZ * chunkSize + z - 109,
+                        seaLevel + 37);
+                    double coupling = (channelSignal + groundwaterBand * 0.4) * bridgeWeight *
+                                      (0.18 + continuity * 0.26 + floodplainBand * 0.22 + cascadeNoise * 0.18);
+                    coupling *= 1.0 - Math.Clamp(
+                        slope * slopePenalty * 0.0105 +
+                        relief * 0.32 +
+                        divergence * 0.22,
+                        0.0,
+                        0.86);
+                    if (coupling <= 0.0005)
+                    {
+                        continue;
+                    }
+
+                    double hydroTarget = hydro + coupling * 0.072 + seamHydro * coupling * 0.024 + groundwaterBand * 0.015;
+                    double flowTarget = flowNode * (1.0 - coupling * 0.051) + seamFlow * coupling * 0.079 + channelSignal * 0.026;
+                    double erosionTarget = erosionCopy[x, z] * (1.0 - coupling * 0.083) + continuity * 0.022 + channelSignal * 0.03;
+
+                    hydrology[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(hydroTarget, 0.0, 1.22));
+                    flow[x, z] = (float)Math.Clamp(
+                        flowTarget,
+                        0.0,
+                        Math.Max(flowNode + 1.8, config.Water.HydrologyFlowDivergenceClamp * 12.0));
+                    erosionRisk[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(erosionTarget, 0.0, 1.0));
+
+                    if (riverMask != null)
+                    {
+                        riverMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                            river + coupling * 0.02 + floodplainBand * 0.009,
+                            0.0,
+                            1.0));
+                    }
+
+                    if (lakeMask != null)
+                    {
+                        lakeMask[x, z] = TerrainMaskUtility.Clamp01((float)Math.Clamp(
+                            lake + coupling * 0.018 + groundwaterBand * 0.01,
+                            0.0,
+                            1.0));
+                    }
+
+                    if (caveMask == null || coupling <= 0.24)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Max(bedrockLevel + 10, heightMap[x, z]);
+                    int centerY = Math.Clamp(
+                        seaLevel - 6 + (int)Math.Round((hydrology[x, z] - 0.5f) * 8.0f),
+                        bedrockLevel + 4,
+                        Math.Max(bedrockLevel + 4, surface - 7));
+                    int worldX = chunkX * chunkSize + x;
+                    int worldZ = chunkZ * chunkSize + z;
+
+                    for (int y = centerY - 1; y <= centerY + 1; y++)
+                    {
+                        if (y < 0 || y >= worldHeight || caveMask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double pulse = ComputeSubsurfacePulse(worldX + 47, worldZ - 53, y + 29);
+                        double carveThreshold = 0.89 - coupling * 0.22 - continuity * 0.08 - groundwaterBand * 0.05;
                         if (pulse > carveThreshold)
                         {
                             caveMask[x, y, z] = true;

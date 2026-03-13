@@ -54,16 +54,16 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-12.
-        /// Session 162 extends v83 with subterranean-flow conduit coupling and
-        /// map-control queue resilience uplift (v88).
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-13.
+        /// Session 163 extends v84 with subterranean recharge-cascade coupling and
+        /// map-control queue resilience uplift (v89).
         /// </summary>
-        public const string HydrologySignature = "2026-03-12-hydrology-riverlake-cave-v84";
+        public const string HydrologySignature = "2026-03-13-hydrology-riverlake-cave-v85";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 88;
+        public const int MapControlProfileVersion = 89;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -88,8 +88,8 @@ namespace GameCommon.World
         private static readonly List<SharedFeatureDescriptor> features = new()
         {
             new SharedFeatureDescriptor(
-                "S21-CORE-01",
-                "Hydrology WorldGen v84",
+                "S22-CORE-01",
+                "Hydrology WorldGen v85",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -99,20 +99,20 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-13-session-163.json"
                 },
                 new[]
                 {
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json",
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-13-session-163.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-CORE-02",
+                "S22-CORE-02",
                 "Shared DLL + Proto Contracts",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
@@ -126,8 +126,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-CONTENT-01",
-                "Hydrology-Aware Caves + Subterranean Flow Conduit Bridge v84",
+                "S22-CONTENT-01",
+                "Hydrology-Aware Caves + Subterranean Recharge Cascade Bridge v85",
                 FeatureCategory.Content,
                 FeatureLayer.Server,
                 new[]
@@ -140,8 +140,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-CONTENT-02",
-                "River Delta Convergence + Floodplain Spring Pulse Anchor",
+                "S22-CONTENT-02",
+                "River Delta Convergence + Floodplain Spring Pulse + Recharge Cascade Anchor",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -154,8 +154,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-CONTENT-03",
-                "Lake Floodplain Spillway + Subterranean Conduit Relay v84",
+                "S22-CONTENT-03",
+                "Lake Floodplain Spillway + Subterranean Conduit Relay v85",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -168,7 +168,7 @@ namespace GameCommon.World
                 "implemented",
                 "medium"),
             new SharedFeatureDescriptor(
-                "S21-UTIL-01",
+                "S22-UTIL-01",
                 "Proto Registry + Fingerprint Validation + Source Freshness Guard",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
@@ -182,8 +182,8 @@ namespace GameCommon.World
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-UTIL-02",
-                "Data-Driven Config Parity + Map-Control v88",
+                "S22-UTIL-02",
+                "Data-Driven Config Parity + Map-Control v89",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
@@ -191,13 +191,13 @@ namespace GameCommon.World
                     "config/world.json",
                     "config/world_map_control_profile.json",
                     "config/world_map_control_queue_policy.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-162.json"
+                    "config/minecraft_feature_client_server_core_content_util_2026-03-13-session-163.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",
                 "high"),
             new SharedFeatureDescriptor(
-                "S21-UTIL-03",
+                "S22-UTIL-03",
                 "Dummy Protocol Client Round-Trip + Generated DTO Drift Guard",
                 FeatureCategory.Utility,
                 FeatureLayer.Server,
@@ -210,8 +210,8 @@ namespace GameCommon.World
                 "implemented",
                 "medium"),
             new SharedFeatureDescriptor(
-                "S21-UTIL-04",
-                "Hydrology Queue + Spillway + Subterranean Conduit Queue Scale (Server/Client Parity)",
+                "S22-UTIL-04",
+                "Hydrology Queue + Spillway + Subterranean Recharge Cascade Queue Scale (Server/Client Parity)",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]

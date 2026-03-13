@@ -746,8 +746,35 @@ namespace GameServerApp.World
                 emergencyBrake,
                 0.62,
                 1.3);
+            double subterraneanRechargeQueueScale = WorldMapQueuePolicy.ComputeSubterraneanRechargeCascadeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * queueAlluvialRelayWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * queueAlluvialRelayWeight,
+                generationConfig.Lakes.SpillRetentionWeight * queueAlluvialRelayWeight,
+                generationConfig.Caves.CaveVentilationBias * queueAlluvialRelayWeight,
+                Math.Clamp(
+                    generationConfig.Caves.GroundwaterConnectivityWeight * 0.4 +
+                    generationConfig.Water.HydrologyFlowPersistence * 0.35 +
+                    generationConfig.Water.RiverConfluenceBoost * 0.25,
+                    0.0,
+                    1.4) * queueAlluvialRelayWeight,
+                Math.Clamp(
+                    generationConfig.Water.RiverConfluenceBoost * 0.38 +
+                    generationConfig.Lakes.FlowSeepageWeight * 0.34 +
+                    generationConfig.Caves.CaveVentilationBias * 0.28,
+                    0.0,
+                    1.4) * queueAlluvialRelayWeight,
+                emergencyBrake,
+                0.62,
+                1.32);
             double combinedHydrologyScale = Math.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale,
                 0.56,
                 1.3);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);

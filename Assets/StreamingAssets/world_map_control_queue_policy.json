@@ -1,6 +1,6 @@
 {
-    "version":  42,
-    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v90 karst spillway coupling + aquifer conduit + subterranean recharge-cascade queue scale + resilience guard).",
+    "version":  43,
+    "description":  "Server/client shared queue policy knobs for world-map preview/chunk control (v91 hyporheic exchange coupling + karst spillway + aquifer conduit + subterranean recharge-cascade queue scale + resilience guard).",
     "server":  {
                    "maxQueuedChunkRequests":  4096,
                    "queuePressureFactor":  5,
@@ -28,7 +28,8 @@
                    "queueStalePruneMax":  64,
                    "queueStalePruneEmergencyMultiplier":  1.56,
                    "queueAlluvialRelayWeight":  1.16,
-                   "queueKarstSpillwayWeight":  1.24
+                   "queueKarstSpillwayWeight":  1.24,
+                   "queueHyporheicExchangeWeight":  1.18
                },
     "client":  {
                    "maxQueuedChunkRequests":  3968,
@@ -55,8 +56,7 @@
                    "queueStalePruneMax":  128,
                    "queueStalePruneEmergencyMultiplier":  1.46,
                    "queueAlluvialRelayWeight":  1.08,
-                   "queueKarstSpillwayWeight":  1.14
+                   "queueKarstSpillwayWeight":  1.14,
+                   "queueHyporheicExchangeWeight":  1.1
                }
 }
-
-

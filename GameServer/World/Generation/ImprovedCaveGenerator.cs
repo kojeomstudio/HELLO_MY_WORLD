@@ -387,6 +387,7 @@ namespace GameServerApp.World.Generation
             ApplyAlluvialSpillConduitSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyFloodplainVentPressureBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplySubsurfaceSpillwayConvergenceBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyHyporheicExchangeSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
         }
 
@@ -491,6 +492,115 @@ namespace GameServerApp.World.Generation
 
                         double depthFactor = 1.0 - Math.Clamp((top - y) / (double)Math.Max(1, top - bottom), 0.0, 1.0);
                         double sealChance = bridgeWeight * sealSignal * (0.52 + depthFactor * 0.34 + roofThickness * 0.03);
+                        if (sealChance > 0.52 || (sealChance > 0.36 && floodplainBand > 0.42))
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyHyporheicExchangeSealBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.GroundwaterConnectivityWeight * 0.36 +
+                config.CaveVentilationBias * 0.34 +
+                config.MoistureRetentionWeight * 0.30,
+                0.0,
+                1.25);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 3);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(6, seaLevel + Math.Max(4, config.RiparianPlugDepth + 2)));
+            int bottomClamp = Math.Max(1, seaLevel - Math.Max(6, config.RiparianPlugDepth + 4));
+            double divergenceScale = Math.Max(0.12, config.MoistureFlowClamp * 0.62);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) /
+                        Math.Max(1.0, config.RiparianPlugDepth + 16.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, config.RiparianPlugDepth + 11.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceScale);
+                    double exchangeNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0022 + 137.0,
+                        (chunkZ * sizeZ + z) * 0.0022 - 93.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, seaLevel, 1879)));
+
+                    double exchangeSignal = Math.Clamp(
+                        hydro * 0.24 +
+                        seamHydro * 0.2 +
+                        flow * 0.18 +
+                        seamFlow * 0.16 +
+                        river * 0.12 +
+                        floodplainBand * 0.1,
+                        0.0,
+                        1.25);
+                    exchangeSignal *= 1.0 + Math.Clamp((exchangeNoise - 0.5) * 0.22, -0.16, 0.16);
+                    exchangeSignal *= 1.0 - Math.Clamp(
+                        slope * config.CeilingStabilityWeight * 0.018 + relief * 0.34 + divergence * 0.22,
+                        0.0,
+                        0.86);
+                    if (exchangeSignal <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 3, sizeY - 2);
+                    int top = Math.Min(topClamp, surface - 1);
+                    int bottom = Math.Max(bottomClamp, top - Math.Max(5, config.RiparianPlugDepth + 5));
+                    if (top <= bottom)
+                    {
+                        continue;
+                    }
+
+                    for (int y = top; y >= bottom; y--)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        int roofThickness = surface - y;
+                        if (roofThickness <= 1)
+                        {
+                            continue;
+                        }
+
+                        double depthFactor = 1.0 - Math.Clamp((top - y) / (double)Math.Max(1, top - bottom), 0.0, 1.0);
+                        double sealChance = bridgeWeight * exchangeSignal * (0.52 + depthFactor * 0.34 + roofThickness * 0.03);
                         if (sealChance > 0.52 || (sealChance > 0.36 && floodplainBand > 0.42))
                         {
                             mask[x, y, z] = false;

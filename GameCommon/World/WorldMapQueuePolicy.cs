@@ -12,6 +12,7 @@ namespace GameCommon.World
     /// Session 162 (v85/v88): Added subterranean-flow conduit queue scaling for terrain continuity.
     /// Session 163 (v86/v89): Added subterranean recharge-cascade queue scaling for cave-river-lake stability.
     /// Session 165 (v86/v90): Added karst-spillway queue coupling weight for server/client parity.
+    /// Session 167 (v87/v91): Added hyporheic exchange queue scaling for floodplain-aquifer parity.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -1063,6 +1064,84 @@ namespace GameCommon.World
             double volatilityPenalty = Math.Clamp(volatilityRatio * 0.042, 0.0, 0.1);
             double emergencyPenalty = emergencyBrake ? 0.038 : 0.0;
             double scale = baseScale + rechargeAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
+
+        /// <summary>
+        /// v87: Computes hyporheic-exchange queue scaling for world-map admission control.
+        /// Extends subterranean recharge scaling with floodplain-aquifer exchange emphasis so
+        /// queue transitions stay stable while rivers, lakes, and caves share groundwater load.
+        /// </summary>
+        public static double ComputeHyporheicExchangeQueueScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double spillwayContinuity,
+            double spillRetention,
+            double caveVentilationBias,
+            double hyporheicExchangeWeight,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.42)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.6);
+
+            double subterraneanFlowWeight = Math.Clamp(
+                Math.Clamp(aquiferConnectivity, 0.0, 1.4) * 0.38 +
+                Math.Clamp(alluvialPersistence, 0.0, 1.4) * 0.34 +
+                Math.Clamp(spillwayContinuity, 0.0, 1.4) * 0.28,
+                0.0,
+                1.4);
+            double rechargeCascadeSignal = Math.Clamp(
+                Math.Clamp(spillwayContinuity, 0.0, 1.4) * 0.36 +
+                Math.Clamp(spillRetention, 0.0, 1.4) * 0.34 +
+                Math.Clamp(caveVentilationBias, 0.0, 1.2) * 0.30,
+                0.0,
+                1.4);
+            double baseScale = ComputeSubterraneanRechargeCascadeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                aquiferConnectivity,
+                spillwayContinuity,
+                spillRetention,
+                caveVentilationBias,
+                subterraneanFlowWeight,
+                rechargeCascadeSignal,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double hyporheic = Math.Clamp(hyporheicExchangeWeight, 0.0, 1.5);
+            double aquifer = Math.Clamp(aquiferConnectivity, 0.0, 1.4);
+            double spillway = Math.Clamp(spillwayContinuity, 0.0, 1.4);
+            double retention = Math.Clamp(spillRetention, 0.0, 1.4);
+            double seamRelax = Math.Clamp(seamRelaxBlend, 0.0, 1.0);
+            double edgeFlux = Math.Clamp(edgeFluxBlend, 0.0, 1.2);
+            double continuity = Math.Clamp(continuityWeight, 0.0, 1.5);
+
+            double exchangeAssist = hyporheic * 0.05 +
+                                    aquifer * 0.024 +
+                                    spillway * 0.02 +
+                                    retention * 0.017 +
+                                    seamRelax * 0.014 +
+                                    edgeFlux * 0.012 +
+                                    continuity * 0.01;
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.9) * 0.046, 0.0, 0.1);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.046;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.04, 0.0, 0.1);
+            double emergencyPenalty = emergencyBrake ? 0.036 : 0.0;
+            double scale = baseScale + exchangeAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
     }

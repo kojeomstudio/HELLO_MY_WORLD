@@ -1,4 +1,4 @@
-﻿{
+{
     "Seed":  13371337,
     "ViewDistance":  10,
     "MaxConcurrentChunkGenerations":  4,
@@ -19,5 +19,6 @@
     "QueueShockAbsorberWeight":  0.24,
     "QueueHotspotRetentionSeconds":  18,
     "QueueAlluvialRelayWeight":  0.82,
-    "QueueKarstSpillwayWeight":  0.92
+    "QueueKarstSpillwayWeight":  0.92,
+    "QueueHyporheicExchangeWeight":  0.94
 }

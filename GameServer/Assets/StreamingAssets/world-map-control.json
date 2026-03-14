@@ -1,9 +1,9 @@
 {
-  "version": 90,
-  "profileHash": "8ce0e6edfba1b2a7ca51c3333f31ce26bb03621c5f09a8537b077536245fd2f7",
+  "version": 91,
+  "profileHash": "f1486e79519a1f23ff585a8929693dbecf9c880258c435ff6b3c74e24df6aaab",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-03-13T03:23:15.8589918Z",
-  "hydrologySignature": "2026-03-13-hydrology-riverlake-cave-v86",
+  "generatedAtUtc": "2026-03-14T00:20:23.7180154Z",
+  "hydrologySignature": "2026-03-14-hydrology-riverlake-cave-v87",
   "chunkSize": 16,
   "renderDistance": 12,
   "simulationDistance": 28,

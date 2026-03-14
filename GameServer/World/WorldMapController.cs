@@ -62,6 +62,7 @@ namespace GameServerApp.World
         private double queueShockAbsorberWeight;
         private double queueAlluvialRelayWeight;
         private double queueKarstSpillwayWeight;
+        private double queueHyporheicExchangeWeight;
         private int queueOverloadDrainFactor;
         private int queueBackoffDelayMs;
         private double queueLoadEma;
@@ -621,6 +622,7 @@ namespace GameServerApp.World
                 0.0,
                 1.5);
             queueKarstSpillwayWeight = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 91 ? 1.28 :
                 generationConfig.MapControlProfileVersion >= 90 ? 1.24 :
                 generationConfig.MapControlProfileVersion >= 89 ? 1.2 :
                 generationConfig.MapControlProfileVersion >= 86 ? 1.16 :
@@ -631,6 +633,20 @@ namespace GameServerApp.World
                 generationConfig.MapControlProfileVersion >= 76 ? 0.92 :
                 generationConfig.MapControlProfileVersion >= 75 ? 0.88 :
                 0.84,
+                0.0,
+                1.5);
+            queueHyporheicExchangeWeight = Math.Clamp(
+                generationConfig.MapControlProfileVersion >= 91 ? 1.22 :
+                generationConfig.MapControlProfileVersion >= 90 ? 1.16 :
+                generationConfig.MapControlProfileVersion >= 89 ? 1.10 :
+                generationConfig.MapControlProfileVersion >= 86 ? 1.04 :
+                generationConfig.MapControlProfileVersion >= 84 ? 0.98 :
+                generationConfig.MapControlProfileVersion >= 82 ? 0.92 :
+                generationConfig.MapControlProfileVersion >= 80 ? 0.88 :
+                generationConfig.MapControlProfileVersion >= 78 ? 0.84 :
+                generationConfig.MapControlProfileVersion >= 76 ? 0.8 :
+                generationConfig.MapControlProfileVersion >= 75 ? 0.76 :
+                0.72,
                 0.0,
                 1.5);
             queueLimit = Math.Clamp((int)Math.Ceiling(Math.Max(128, Math.Max(maxLoadedChunks, profileBudget) * queueSlackRatio)), 128, 16384);
@@ -706,6 +722,10 @@ namespace GameServerApp.World
             double alluvialWeight = queueAlluvialRelayWeight;
             double karstWeight = Math.Clamp(
                 queueAlluvialRelayWeight * (0.55 + queueKarstSpillwayWeight * 0.45),
+                0.0,
+                1.5);
+            double hyporheicWeight = Math.Clamp(
+                queueHyporheicExchangeWeight * (0.42 + queueKarstSpillwayWeight * 0.33 + queueAlluvialRelayWeight * 0.25),
                 0.0,
                 1.5);
             double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
@@ -792,8 +812,24 @@ namespace GameServerApp.World
                 emergencyBrake,
                 0.62,
                 1.32);
+            double hyporheicExchangeQueueScale = WorldMapQueuePolicy.ComputeHyporheicExchangeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * hyporheicWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * hyporheicWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * hyporheicWeight,
+                generationConfig.Lakes.SpillRetentionWeight * hyporheicWeight,
+                generationConfig.Caves.CaveVentilationBias * hyporheicWeight,
+                hyporheicWeight,
+                emergencyBrake,
+                0.62,
+                1.34);
             double combinedHydrologyScale = Math.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale * hyporheicExchangeQueueScale,
                 0.56,
                 1.3);
             QueuePressureBand pressureBand = WorldMapQueuePolicy.ClassifyBand(effectiveLoad);

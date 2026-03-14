@@ -18,8 +18,8 @@ Unity 클라이언트 + .NET 서버 기반의 Minecraft 스타일 프로젝트�
 - Runtime configs(JSON): `config/`, `GameServer/config/`, `Assets/StreamingAssets/`
 
 ## Documentation
-- Session 168 변경 보고서: `docs/2026-03-14-session-168-implementation-report.md`
-- 작업 계획: `plans/2026-03-14-session-168-comprehensive-work-plan.md`
+- Session 169 변경 보고서: `docs/2026-03-14-session-169-implementation-report.md`
+- 작업 계획: `plans/2026-03-14-session-169-comprehensive-work-plan.md`
 - Core/Content/Util 분류(JSON): `config/minecraft_feature_client_server_core_content_util_2026-03-14-session-168.json`
 - 기존 분석/설계 문서: `docs/`
 

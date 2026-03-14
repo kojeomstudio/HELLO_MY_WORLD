@@ -97,7 +97,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Block change error for user '{session.UserName}': {ex.Message}");
+            Console.WriteLine($"Block change error for user '{session.UserName}': {ex}");
             await SendFailureResponse(session, "블록 변경 처리 중 오류가 발생했습니다.");
         }
     }

@@ -129,14 +129,21 @@ namespace SharedProtocol
         public bool TryGetHandlerContract(MinecraftMessageType messageType, out Type contractType) =>
             _handlerContracts.TryGetValue(messageType, out contractType!);
 
+        public IReadOnlyCollection<MinecraftMessageType> GetRegisteredMessageTypes()
+        {
+            return _handlerContracts.Keys
+                .OrderBy(messageType => (int)messageType)
+                .ToArray();
+        }
+
         public IReadOnlyCollection<MinecraftMessageType> GetUnboundProtocolMessages()
         {
             var missing = new List<MinecraftMessageType>();
-            foreach (var registered in ProtocolRegistry.RegisteredMessageTypes)
+            foreach (var required in ProtocolValidator.GetMinecraftDispatcherRequiredMessages())
             {
-                if (!_handlerContracts.ContainsKey(registered))
+                if (!_handlerContracts.ContainsKey(required))
                 {
-                    missing.Add(registered);
+                    missing.Add(required);
                 }
             }
 

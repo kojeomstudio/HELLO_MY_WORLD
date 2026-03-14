@@ -41,7 +41,8 @@
                                                 "queueStalePruneEmergencyMultiplier":  1.38,
                                                 "queueAlluvialRelayWeight":  0.86,
                                                 "queueKarstSpillwayWeight":  0.92,
-                                                "queueHyporheicExchangeWeight":  0.94
+                                                "queueHyporheicExchangeWeight":  0.94,
+                                                "queuePhreaticResonanceWeight":  0.96
                                             },
                             "defaults":  {
                                              "renderDistance":  12,

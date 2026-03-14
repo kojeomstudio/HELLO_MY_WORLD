@@ -388,7 +388,96 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainVentPressureBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplySubsurfaceSpillwayConvergenceBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyHyporheicExchangeSealBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyPhreaticResonanceVaultBridge(mask, hydrologyMask, flowMask, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return mask;
+        }
+
+        private void ApplyPhreaticResonanceVaultBridge(
+            bool[,,] mask,
+            float[,] hydrologyMask,
+            float[,] flowMask,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                config.GroundwaterConnectivityWeight * 0.36 +
+                config.CeilingStabilityWeight * 0.34 +
+                config.CaveVentilationBias * 0.30,
+                0.0,
+                1.25);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = mask.GetLength(0);
+            int sizeY = mask.GetLength(1);
+            int sizeZ = mask.GetLength(2);
+            int reliefRadius = Math.Max(2, config.RiparianPlugDepth + 3);
+            int topClamp = Math.Min(sizeY - 2, Math.Max(8, seaLevel + config.RiparianPlugDepth + 4));
+            int bottomClamp = Math.Max(1, seaLevel - Math.Max(6, config.RiparianPlugDepth + 5));
+            double divergenceScale = Math.Max(0.12, config.MoistureFlowClamp * 0.62);
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double hydro = TerrainMaskUtility.Clamp01(hydrologyMask[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrologyMask, x, z);
+                    double flow = TerrainMaskUtility.Clamp01(flowMask[x, z]);
+                    double seamFlow = TerrainMaskUtility.SampleInterior(flowMask, x, z);
+                    double river = riverMask != null ? TerrainMaskUtility.Clamp01(riverMask[x, z]) : 0.0;
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) /
+                        Math.Max(1.0, config.RiparianPlugDepth + 8.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flow - seamFlow) / divergenceScale);
+                    double resonanceNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.003 + 19.0,
+                        (chunkZ * sizeZ + z) * 0.003 - 13.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 0, 613)));
+                    double resonance = Math.Clamp(
+                        (hydro + seamHydro + flow + seamFlow) * 0.25 * 0.56 +
+                        (1.0 - Math.Clamp(slope * 0.05, 0.0, 0.85)) * 0.2 +
+                        resonanceNoise * 0.24 +
+                        river * 0.12,
+                        0.0,
+                        1.25);
+                    resonance *= 1.0 - Math.Clamp(relief * 0.3 + divergence * 0.24, 0.0, 0.82);
+                    if (resonance <= 0.05)
+                    {
+                        continue;
+                    }
+
+                    int surface = Math.Clamp(heightMap[x, z], 2, sizeY - 2);
+                    int localTop = Math.Min(topClamp, Math.Min(surface - 1, seaLevel + config.RiparianPlugDepth + 3));
+                    int localBottom = Math.Max(bottomClamp, seaLevel - config.RiparianPlugDepth - 4);
+                    for (int y = localBottom; y <= localTop; y++)
+                    {
+                        if (!mask[x, y, z])
+                        {
+                            continue;
+                        }
+
+                        double depthBand = 1.0 - Math.Clamp(Math.Abs(y - seaLevel) / (double)Math.Max(2, config.RiparianPlugDepth + 4), 0.0, 1.0);
+                        double ventilation = Math.Clamp((surface - y) / (double)Math.Max(1, surface), 0.0, 1.0);
+                        double sealRisk = resonance * bridgeWeight * (0.56 + depthBand * 0.32 + (1.0 - ventilation) * 0.2);
+                        if (sealRisk > 0.48)
+                        {
+                            mask[x, y, z] = false;
+                        }
+                    }
+                }
+            }
         }
 
         private void ApplySubsurfaceSpillwayConvergenceBridge(

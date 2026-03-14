@@ -326,7 +326,92 @@ namespace GameServerApp.World.Generation
             ApplyFloodplainSpillwayBalancingBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplySubsurfaceOverflowBalancingBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             ApplyHyporheicStorageBalancingBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
+            ApplyPhreaticResonanceStorageBridge(lakes, hydrologyMask, flowAccumulation, riverMask, heightMap, chunkX, chunkZ, seaLevel);
             return lakes;
+        }
+
+        private void ApplyPhreaticResonanceStorageBridge(
+            float[,] lakes,
+            float[,] hydrology,
+            float[,] flow,
+            float[,]? riverMask,
+            int[,] heightMap,
+            int chunkX,
+            int chunkZ,
+            int seaLevel)
+        {
+            double bridgeWeight = Math.Clamp(
+                lakeConfig.SpillwayContinuityWeight * 0.35 +
+                lakeConfig.OutflowStabilityWeight * 0.34 +
+                waterConfig.HydrologyWaterTableClampWeight * 0.31,
+                0.0,
+                1.3);
+            if (bridgeWeight <= 0.01)
+            {
+                return;
+            }
+
+            int sizeX = lakes.GetLength(0);
+            int sizeZ = lakes.GetLength(1);
+            int reliefRadius = Math.Max(2, waterConfig.HydrologyWatershedStitchRadius + 2);
+            double divergenceScale = Math.Max(0.12, waterConfig.HydrologyFlowDivergenceClamp * 0.62);
+            var copy = (float[,])lakes.Clone();
+
+            for (int x = 1; x < sizeX - 1; x++)
+            {
+                for (int z = 1; z < sizeZ - 1; z++)
+                {
+                    double lake = copy[x, z];
+                    if (lake <= 0.02)
+                    {
+                        continue;
+                    }
+
+                    double hydro = TerrainMaskUtility.Clamp01(hydrology[x, z]);
+                    double seamHydro = TerrainMaskUtility.SampleInterior(hydrology, x, z);
+                    double flowNode = Math.Clamp(Math.Max(0.0, flow[x, z]) / 6.0, 0.0, 1.35);
+                    double seamFlow = Math.Clamp(TerrainMaskUtility.SampleInterior(flow, x, z) / 6.0, 0.0, 1.35);
+                    double slope = TerrainMaskUtility.ComputeSlope(heightMap, x, z);
+                    double relief = Math.Clamp(
+                        TerrainMaskUtility.ComputeLocalRelief(heightMap, x, z, reliefRadius) /
+                        Math.Max(1.0, waterConfig.HydrologyWaterTableClampRange + 8.0),
+                        0.0,
+                        1.0);
+                    double floodplainBand = Math.Clamp(
+                        1.0 - Math.Abs(heightMap[x, z] - seaLevel) / Math.Max(4.0, lakeConfig.MaxRadius + 7.0),
+                        0.0,
+                        1.0);
+                    double divergence = Math.Min(1.0, Math.Abs(flowNode - seamFlow) / divergenceScale);
+                    double riverAssist = riverMask != null ? Math.Clamp(riverMask[x, z], 0.0f, 1.0f) * 0.18 : 0.0;
+                    double resonanceNoise = Math.Abs(SimplexNoise.Generate(
+                        (chunkX * sizeX + x) * 0.0031 - 29.0,
+                        (chunkZ * sizeZ + z) * 0.0031 + 11.0,
+                        1.0,
+                        2,
+                        1.0,
+                        0.55,
+                        CreateNoiseSeed(chunkX, chunkZ, x, z, 457)));
+                    double resonance = Math.Clamp(
+                        (hydro + seamHydro + flowNode + seamFlow) * 0.25 * 0.52 +
+                        floodplainBand * 0.21 +
+                        resonanceNoise * 0.19 +
+                        riverAssist,
+                        0.0,
+                        1.3);
+                    resonance *= 1.0 - Math.Clamp(
+                        slope * waterConfig.HydrologySlopePenalty * 0.013 + relief * 0.3 + divergence * 0.23,
+                        0.0,
+                        0.86);
+                    if (resonance <= 0.01)
+                    {
+                        continue;
+                    }
+
+                    double floor = Math.Max(lake * (0.86 + lakeConfig.OutflowStabilityWeight * 0.08), resonance * 0.17);
+                    double target = lake * (1.0 - bridgeWeight * 0.1) + (lake + resonance) * bridgeWeight * 0.1;
+                    lakes[x, z] = (float)Math.Clamp(Math.Max(target, floor), 0.0, 1.35);
+                }
+            }
         }
 
         private void ApplyHyporheicStorageBalancingBridge(

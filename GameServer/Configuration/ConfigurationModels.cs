@@ -215,6 +215,7 @@ namespace GameServerApp.Configuration
         public double QueueAlluvialRelayWeight { get; set; } = 0.82;
         public double QueueKarstSpillwayWeight { get; set; } = 0.92;
         public double QueueHyporheicExchangeWeight { get; set; } = 0.94;
+        public double QueuePhreaticResonanceWeight { get; set; } = 0.96;
         public double QueueHotspotBias { get; set; } = 0.42;
         public double QueueHotspotEmergencyPenalty { get; set; } = 1.0;
         public int QueueHotspotRetentionSeconds { get; set; } = 18;

@@ -53,6 +53,7 @@ namespace GameServerApp.World
         private readonly double configuredQueueAlluvialRelayWeight;
         private readonly double configuredQueueKarstSpillwayWeight;
         private readonly double configuredQueueHyporheicExchangeWeight;
+        private readonly double configuredQueuePhreaticResonanceWeight;
         private readonly double configuredQueueHotspotBias;
         private readonly double configuredQueueHotspotEmergencyPenalty;
         private readonly TimeSpan queueHotspotRetention;
@@ -131,6 +132,10 @@ namespace GameServerApp.World
                 this.settings.QueueHyporheicExchangeWeight <= 0.0 ? 0.96 : this.settings.QueueHyporheicExchangeWeight,
                 0.0,
                 1.5);
+            configuredQueuePhreaticResonanceWeight = Math.Clamp(
+                this.settings.QueuePhreaticResonanceWeight <= 0.0 ? 0.98 : this.settings.QueuePhreaticResonanceWeight,
+                0.0,
+                1.6);
             configuredQueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(this.settings.QueueHotspotBias, 0.42);
             configuredQueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(this.settings.QueueHotspotEmergencyPenalty, 1.0);
             int hotspotRetentionSeconds = Math.Clamp(Math.Max(0, this.settings.QueueHotspotRetentionSeconds), 0, 300);
@@ -737,6 +742,10 @@ namespace GameServerApp.World
                 configuredQueueHyporheicExchangeWeight * (0.42 + configuredQueueKarstSpillwayWeight * 0.33 + configuredQueueAlluvialRelayWeight * 0.25),
                 0.0,
                 1.5);
+            double phreaticWeight = Math.Clamp(
+                configuredQueuePhreaticResonanceWeight * (0.44 + configuredQueueHyporheicExchangeWeight * 0.32 + configuredQueueKarstSpillwayWeight * 0.24),
+                0.0,
+                1.6);
             double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
                 load,
                 loadTrend + overloadBias * 0.18,
@@ -837,8 +846,25 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.62,
                 1.34);
+            double phreaticResonanceQueueScale = WorldMapQueuePolicy.ComputePhreaticResonanceQueueScale(
+                load,
+                loadTrend + overloadBias * 0.07,
+                volatilityRatio,
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * phreaticWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * phreaticWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * phreaticWeight,
+                generationConfig.Lakes.SpillRetentionWeight * phreaticWeight,
+                generationConfig.Caves.CaveVentilationBias * phreaticWeight,
+                hyporheicWeight,
+                phreaticWeight,
+                queueEmergencyBrakeLatched,
+                0.62,
+                1.36);
             double combinedHydrologyScale = Math.Clamp(
-                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale * hyporheicExchangeQueueScale,
+                hydrologyQueueScale * seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale * hyporheicExchangeQueueScale * phreaticResonanceQueueScale,
                 0.56,
                 1.3);
 
@@ -1037,6 +1063,10 @@ namespace GameServerApp.World
                 configuredQueueHyporheicExchangeWeight * (0.42 + configuredQueueKarstSpillwayWeight * 0.33 + configuredQueueAlluvialRelayWeight * 0.25),
                 0.0,
                 1.5);
+            double phreaticWeight = Math.Clamp(
+                configuredQueuePhreaticResonanceWeight * (0.44 + configuredQueueHyporheicExchangeWeight * 0.32 + configuredQueueKarstSpillwayWeight * 0.24),
+                0.0,
+                1.6);
             double alluvialRelayScale = WorldMapQueuePolicy.ComputeAlluvialAquiferRelayScale(
                 queueLoadSnapshot,
                 loadTrend,
@@ -1137,8 +1167,25 @@ namespace GameServerApp.World
                 queueEmergencyBrakeLatched,
                 0.76,
                 1.3);
+            double phreaticResonanceQueueScale = WorldMapQueuePolicy.ComputePhreaticResonanceQueueScale(
+                queueLoadSnapshot,
+                loadTrend,
+                Math.Abs(loadTrend),
+                generationConfig.Water.HydrologyContinuityWeight,
+                generationConfig.Water.HydrologySeamRelaxBlend,
+                generationConfig.Water.HydrologyEdgeFluxBlend,
+                generationConfig.Water.HydrologyFlowPersistence * phreaticWeight,
+                generationConfig.Caves.GroundwaterConnectivityWeight * phreaticWeight,
+                generationConfig.Lakes.SpillwayContinuityWeight * phreaticWeight,
+                generationConfig.Lakes.SpillRetentionWeight * phreaticWeight,
+                generationConfig.Caves.CaveVentilationBias * phreaticWeight,
+                hyporheicWeight,
+                phreaticWeight,
+                queueEmergencyBrakeLatched,
+                0.76,
+                1.32);
             int seamAdjusted = (int)Math.Round(
-                nearKeep * Math.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale * hyporheicExchangeQueueScale, 0.76, 1.3));
+                nearKeep * Math.Clamp(seamResilienceScale * alluvialRelayScale * karstFloodplainRelayScale * spillwayQueueScale * aquiferConduitQueueScale * subterraneanRechargeQueueScale * hyporheicExchangeQueueScale * phreaticResonanceQueueScale, 0.76, 1.3));
             return Math.Clamp(seamAdjusted, 8, 512);
         }
 

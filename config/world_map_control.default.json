@@ -20,5 +20,6 @@
     "QueueHotspotRetentionSeconds":  18,
     "QueueAlluvialRelayWeight":  0.82,
     "QueueKarstSpillwayWeight":  0.92,
-    "QueueHyporheicExchangeWeight":  0.94
+    "QueueHyporheicExchangeWeight":  0.94,
+    "QueuePhreaticResonanceWeight":  0.96
 }

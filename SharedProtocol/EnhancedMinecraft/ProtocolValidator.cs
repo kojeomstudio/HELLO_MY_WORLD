@@ -57,7 +57,16 @@ public static class ProtocolValidator
         MinecraftMessageType.ContainerUpdate
     };
 
+    private static readonly MinecraftMessageType[] MinecraftDispatcherRequiredMessages =
+    {
+        MinecraftMessageType.ChunkUnloadNotification,
+        MinecraftMessageType.ContainerOpen,
+        MinecraftMessageType.ContainerClose,
+        MinecraftMessageType.ContainerUpdate
+    };
+
     internal static IReadOnlyCollection<MinecraftMessageType> GetOptionalMessages() => OptionalMessages;
+    internal static IReadOnlyCollection<MinecraftMessageType> GetMinecraftDispatcherRequiredMessages() => MinecraftDispatcherRequiredMessages;
 
     internal static bool IsOptionalMessage(MinecraftMessageType messageType) => OptionalMessages.Contains(messageType);
 
@@ -164,10 +173,16 @@ public static class ProtocolValidator
     {
         if (dispatcher == null) throw new ArgumentNullException(nameof(dispatcher));
 
-        foreach (var messageType in ProtocolRegistry.RegisteredMessageTypes)
+        foreach (var messageType in dispatcher.GetRegisteredMessageTypes())
         {
+            bool isRegistered = ProtocolRegistry.IsRegistered(messageType);
             bool hasHandler = dispatcher.TryGetHandlerContract(messageType, out var handlerContract);
-            bool hasDescriptor = ProtocolRegistry.TryResolveContractType(messageType, out var contractType);
+            Type? contractType = null;
+            bool hasDescriptor = false;
+            if (isRegistered)
+            {
+                hasDescriptor = ProtocolRegistry.TryResolveContractType(messageType, out contractType);
+            }
 
             if (hasHandler && hasDescriptor && handlerContract != null && contractType != null && !contractType.IsAssignableFrom(handlerContract))
             {
@@ -175,17 +190,12 @@ public static class ProtocolValidator
                     $"Handler for '{messageType}' expects {handlerContract.Name} but EnhancedMinecraft registry exposes '{contractType.Name}'. Regenerate protobuf assets or update the handler contract.");
             }
 
-            if (!hasHandler && !IsOptionalMessage(messageType))
-            {
-                Console.WriteLine($"[Proto][WARN] EnhancedMinecraft packet '{messageType}' is registered but has no handler. Add a handler or mark it optional.");
-            }
-
-            if (hasHandler && !hasDescriptor && !IsOptionalMessage(messageType))
+            if (hasHandler && isRegistered && !hasDescriptor && !IsOptionalMessage(messageType))
             {
                 Console.WriteLine($"[Proto][WARN] Handler registered for '{messageType}' without a generated EnhancedMinecraft binding. Regenerate protobuf assets or update ProtocolRegistry.");
             }
 
-            if (hasHandler && !ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+            if (hasHandler && isRegistered && !ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
             {
                 string message =
                     $"Handler registered for '{messageType}' but no generated EnhancedMinecraft prototype was resolved. Regenerate protobuf DTOs or update using directives so handlers bind to generated messages.";
@@ -197,6 +207,14 @@ public static class ProtocolValidator
                 {
                     throw new InvalidOperationException(message);
                 }
+            }
+        }
+
+        foreach (var messageType in MinecraftDispatcherRequiredMessages)
+        {
+            if (!dispatcher.TryGetHandlerContract(messageType, out _))
+            {
+                Console.WriteLine($"[Proto][WARN] EnhancedMinecraft packet '{messageType}' requires a Minecraft dispatcher handler but none is registered.");
             }
         }
     }

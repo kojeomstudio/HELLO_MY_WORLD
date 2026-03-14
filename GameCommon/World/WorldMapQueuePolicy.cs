@@ -13,6 +13,7 @@ namespace GameCommon.World
     /// Session 163 (v86/v89): Added subterranean recharge-cascade queue scaling for cave-river-lake stability.
     /// Session 165 (v86/v90): Added karst-spillway queue coupling weight for server/client parity.
     /// Session 167 (v87/v91): Added hyporheic exchange queue scaling for floodplain-aquifer parity.
+    /// Session 168 (v88/v92): Added phreatic resonance queue scaling for water-table resonance parity.
     /// </summary>
     public enum QueuePressureBand
     {
@@ -1142,6 +1143,73 @@ namespace GameCommon.World
             double volatilityPenalty = Math.Clamp(volatilityRatio * 0.04, 0.0, 0.1);
             double emergencyPenalty = emergencyBrake ? 0.036 : 0.0;
             double scale = baseScale + exchangeAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
+            return Math.Clamp(scale, minScale, maxScale);
+        }
+
+        /// <summary>
+        /// v88: Computes phreatic-resonance queue scaling for world-map admission control.
+        /// Extends hyporheic exchange scaling with water-table resonance and conduit-memory
+        /// emphasis so server/client queue transitions remain stable near cave-river-lake seams.
+        /// </summary>
+        public static double ComputePhreaticResonanceQueueScale(
+            double effectiveLoad,
+            double loadTrend,
+            double volatilityRatio,
+            double continuityWeight,
+            double seamRelaxBlend,
+            double edgeFluxBlend,
+            double alluvialPersistence,
+            double aquiferConnectivity,
+            double spillwayContinuity,
+            double spillRetention,
+            double caveVentilationBias,
+            double hyporheicExchangeWeight,
+            double phreaticResonanceWeight,
+            bool emergencyBrake,
+            double minScale = 0.6,
+            double maxScale = 1.44)
+        {
+            minScale = Math.Clamp(minScale, 0.35, 1.0);
+            maxScale = Math.Clamp(maxScale, minScale, 1.62);
+
+            double baseScale = ComputeHyporheicExchangeQueueScale(
+                effectiveLoad,
+                loadTrend,
+                volatilityRatio,
+                continuityWeight,
+                seamRelaxBlend,
+                edgeFluxBlend,
+                alluvialPersistence,
+                aquiferConnectivity,
+                spillwayContinuity,
+                spillRetention,
+                caveVentilationBias,
+                hyporheicExchangeWeight,
+                emergencyBrake,
+                minScale,
+                maxScale);
+
+            double phreatic = Math.Clamp(phreaticResonanceWeight, 0.0, 1.6);
+            double hyporheic = Math.Clamp(hyporheicExchangeWeight, 0.0, 1.5);
+            double aquifer = Math.Clamp(aquiferConnectivity, 0.0, 1.4);
+            double spillway = Math.Clamp(spillwayContinuity, 0.0, 1.4);
+            double retention = Math.Clamp(spillRetention, 0.0, 1.4);
+            double seamRelax = Math.Clamp(seamRelaxBlend, 0.0, 1.0);
+            double edgeFlux = Math.Clamp(edgeFluxBlend, 0.0, 1.2);
+            double continuity = Math.Clamp(continuityWeight, 0.0, 1.5);
+            double resonanceAssist = phreatic * 0.052 +
+                                     hyporheic * 0.019 +
+                                     aquifer * 0.021 +
+                                     spillway * 0.016 +
+                                     retention * 0.015 +
+                                     seamRelax * 0.012 +
+                                     edgeFlux * 0.011 +
+                                     continuity * 0.01;
+            double loadPenalty = Math.Clamp((effectiveLoad - 0.9) * 0.045, 0.0, 0.11);
+            double trendPenalty = Math.Max(0.0, loadTrend) * 0.045;
+            double volatilityPenalty = Math.Clamp(volatilityRatio * 0.039, 0.0, 0.1);
+            double emergencyPenalty = emergencyBrake ? 0.034 : 0.0;
+            double scale = baseScale + resonanceAssist - loadPenalty - trendPenalty - volatilityPenalty - emergencyPenalty;
             return Math.Clamp(scale, minScale, maxScale);
         }
     }

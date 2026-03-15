@@ -10,7 +10,7 @@
     "includeOptionalMessages":  true,
     "requireRequiredPacketCoverage":  true,
     "failOnHydrologySignatureMismatch":  true,
-    "minMapControlProfileVersion":  92,
+    "minMapControlProfileVersion":  93,
     "failOnMapControlVersionRegression":  true,
     "failOnGeneratedSourceTimestampDrift":  true,
     "protoSourceDirectory":  "proto",

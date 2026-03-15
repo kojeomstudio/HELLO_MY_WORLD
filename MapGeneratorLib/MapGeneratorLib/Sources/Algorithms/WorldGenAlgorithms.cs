@@ -1804,6 +1804,90 @@ namespace MapGenLib
             SmoothScalarField(flowAccumulation, 1, CustomMathf.Clamp(HydrologySmoothBlend * 0.2f, 0f, 0.7f));
         }
 
+        private static void ApplyRiverLakeCaveConfluenceStability(SubWorldSize subWorldSize, int[,] surfaceCache, float[,] hydrologyMask, float[,] flowAccumulation)
+        {
+            if (surfaceCache == null || hydrologyMask == null || flowAccumulation == null)
+            {
+                return;
+            }
+
+            int width = subWorldSize.SizeX;
+            int depth = subWorldSize.SizeZ;
+            if (width < 3 || depth < 3)
+            {
+                return;
+            }
+
+            float couplingWeight = CustomMathf.Clamp01(
+                HydrologyContinuityWeight * 0.27f +
+                RiverConfluenceBoost * 0.24f +
+                LakeFlowSeepageWeight * 0.21f +
+                CaveRiverSuppressionWeight * 0.16f +
+                RiparianCaveGuardWeight * 0.12f);
+            if (couplingWeight <= 0.01f)
+            {
+                return;
+            }
+
+            int edgeRadius = CustomMathf.Max(1, HydrologyEdgeBlendRadius);
+            float divergenceClamp = CustomMathf.Max(0.0001f, HydrologyFlowDivergenceClamp);
+            float slopePenalty = CustomMathf.Max(1f, HydrologySlopePenalty);
+            float waterRange = CustomMathf.Max(1f, HydrologyWaterTableClampRange);
+            float riverCenterScale = CustomMathf.Max(0.0001f, (float)RiverCenterThreshold * 6.5f);
+            var hydroCopy = (float[,])hydrologyMask.Clone();
+            var flowCopy = (float[,])flowAccumulation.Clone();
+
+            for (int x = 1; x < width - 1; x++)
+            {
+                for (int z = 1; z < depth - 1; z++)
+                {
+                    float river = CustomMathf.Clamp01(EvaluateRiverIntensity(x, z, out _) / riverCenterScale);
+                    float seaBias = CustomMathf.Clamp01(
+                        (GlobalRiverWaterLevel + LakeShelfDepth - surfaceCache[x, z]) / (waterRange + 6f));
+                    float basinBias = CustomMathf.Clamp01(
+                        (SampleInterior(hydroCopy, x, z) + SampleInterior(flowCopy, x, z) * 0.65f) * 0.55f);
+                    float lakeSignal = CustomMathf.Clamp01(seaBias * 0.58f + basinBias * 0.42f);
+                    float confluence = CustomMathf.Clamp01(river * 0.56f + lakeSignal * 0.44f);
+                    if (confluence <= 0.01f)
+                    {
+                        continue;
+                    }
+
+                    float hydro = hydroCopy[x, z];
+                    float seamHydro = SampleInterior(hydroCopy, x, z);
+                    float flowNode = flowCopy[x, z];
+                    float seamFlow = SampleInterior(flowCopy, x, z);
+                    float continuity = CustomMathf.Clamp((hydro + seamHydro + flowNode + seamFlow) * 0.25f, 0f, 1.25f);
+                    float relief = ComputeLocalRelief(surfaceCache, subWorldSize, x, z, edgeRadius);
+                    float slope = CustomMathf.Clamp01(relief / (slopePenalty * 2.15f));
+                    float divergence = CustomMathf.Clamp01(CustomMathf.Abs(flowNode - seamFlow) / divergenceClamp);
+                    float caveGuard = CustomMathf.Clamp01(
+                        (1f - CustomMathf.Abs(river - lakeSignal)) * (0.42f + RiparianCaveGuardWeight * 0.35f));
+                    float suppression = CustomMathf.Clamp01(
+                        CaveRiverSuppressionWeight * (0.35f + river * 0.4f + lakeSignal * 0.25f));
+
+                    float exchange = confluence * (0.19f + continuity * 0.27f + caveGuard * 0.22f + (1f - suppression) * 0.12f);
+                    exchange *= couplingWeight;
+                    exchange *= 1f - CustomMathf.Clamp01(divergence * 0.4f + slope * 0.34f + suppression * 0.28f);
+                    if (exchange <= 0.001f)
+                    {
+                        continue;
+                    }
+
+                    float hydroTarget = hydro * (1f - exchange * 0.18f) +
+                        (seamHydro * 0.34f + lakeSignal * 0.28f + continuity * 0.22f) * exchange;
+                    float flowTarget = flowNode * (1f - exchange * 0.14f) +
+                        (seamFlow * 0.37f + confluence * 0.25f + continuity * 0.18f) * exchange;
+
+                    hydrologyMask[x, z] = CustomMathf.Clamp(hydroTarget, 0f, 1.25f);
+                    flowAccumulation[x, z] = CustomMathf.Max(0f, flowTarget);
+                }
+            }
+
+            SmoothScalarField(hydrologyMask, 1, CustomMathf.Clamp(HydrologySmoothBlend * 0.2f, 0f, 0.72f));
+            SmoothScalarField(flowAccumulation, 1, CustomMathf.Clamp(HydrologySmoothBlend * 0.17f, 0f, 0.65f));
+        }
+
         private static void ApplyFlowShadowMask(float[,] hydrologyMask, float[,] flowAccumulation)
         {
             int width = hydrologyMask.GetLength(0);
@@ -4025,6 +4109,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             ApplyHydrologySinkStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            ApplyRiverLakeCaveConfluenceStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             DampHydrologyEdgeNoise(subWorldSize, hydrologyMask, flowAccumulation);
             EnforceHydrologyEdgeConsistency(subWorldSize, hydrologyMask, flowAccumulation);
@@ -5356,6 +5441,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             ApplyHydrologySinkStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            ApplyRiverLakeCaveConfluenceStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             DampHydrologyEdgeNoise(subWorldSize, hydrologyMask, flowAccumulation);
             EnforceHydrologyEdgeConsistency(subWorldSize, hydrologyMask, flowAccumulation);
@@ -9519,6 +9605,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             ApplyHydrologySinkStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            ApplyRiverLakeCaveConfluenceStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] hydrologyCurvature = BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             DampHydrologyEdgeNoise(subWorldSize, hydrologyMask, flowAccumulation);
@@ -9686,6 +9773,7 @@ namespace MapGenLib
             float[,] hydrologyMask = BuildHydrologyMask(subWorldSize, surfaceCache);
             float[,] flowAccumulation = BuildFlowAccumulation(surfaceCache, subWorldSize);
             ApplyHydrologySinkStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
+            ApplyRiverLakeCaveConfluenceStability(subWorldSize, surfaceCache, hydrologyMask, flowAccumulation);
             float[,] hydrologyCurvature = BuildHydrologyCurvatureField(hydrologyMask, flowAccumulation);
             BlendHydrologySeams(subWorldSize, hydrologyMask, flowAccumulation);
             DampHydrologyEdgeNoise(subWorldSize, hydrologyMask, flowAccumulation);

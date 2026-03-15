@@ -2,7 +2,7 @@
   "version": 92,
   "profileHash": "d2e19a2d5460ee27b6721f4edc75f47b70d563f6273f71a6bb02aabf59287eb0",
   "sourceConfig": "config/world.json",
-  "generatedAtUtc": "2026-03-14T15:55:28.3595304Z",
+  "generatedAtUtc": "2026-03-15T00:15:33.6372306Z",
   "hydrologySignature": "2026-03-14-hydrology-riverlake-cave-v88",
   "chunkSize": 16,
   "renderDistance": 12,

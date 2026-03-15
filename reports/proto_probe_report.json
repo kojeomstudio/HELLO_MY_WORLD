@@ -1,5 +1,5 @@
 {
-  "timestampUtc": "2026-03-14T15:55:30.2898559Z",
+  "timestampUtc": "2026-03-15T00:10:04.2471822Z",
   "descriptor": "enhanced_minecraft_game.proto",
   "settings": {
     "Host": "127.0.0.1",
@@ -23,9 +23,10 @@
     "packetsRequested": 24,
     "requiredTargets": 14,
     "requiredRoundTripOk": 14,
-    "validated": 14,
+    "validated": 19,
+    "legacyFallbackValidated": 5,
     "missingRequired": 0,
-    "missingPrototype": 10,
+    "missingPrototype": 5,
     "optionalUnregistered": 10,
     "descriptorCoverageRatio": 0.25925925925925924,
     "missingGeneratedRequiredDescriptors": 0,
@@ -42,25 +43,32 @@
     "BlockChangeNotification",
     "ChunkUnloadNotification",
     "ChunkUnloadAcknowledge",
+    "InventoryUpdate",
     "EntitySpawn",
     "EntityDespawn",
+    "EntityUpdate",
     "TimeUpdate",
     "WeatherChange",
     "SoundEffect",
-    "ParticleEffect"
+    "ParticleEffect",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
+  ],
+  "legacyFallbackValidatedPackets": [
+    "InventoryUpdate",
+    "EntityUpdate",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
   ],
   "missingRequiredPackets": [],
   "missingPrototypePackets": [
     "MultiBlockChange",
-    "InventoryUpdate",
     "ItemUse",
     "ItemDrop",
     "ItemPickup",
-    "EntityUpdate",
-    "EntityInteract",
-    "ContainerOpen",
-    "ContainerClose",
-    "ContainerUpdate"
+    "EntityInteract"
   ],
   "optionalUnregistered": [
     "ContainerClose",

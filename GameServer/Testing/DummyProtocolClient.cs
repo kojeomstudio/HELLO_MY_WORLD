@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EnhancedMinecraftProtocol;
 using GameCommon.World;
 using Google.Protobuf;
+using ProtoBuf;
 using SharedProtocol;
 using SharedProtocol.EnhancedMinecraft;
 
@@ -169,6 +170,8 @@ namespace GameServerApp.Testing
 
         public List<string> OptionalUnregistered { get; } = new();
 
+        public List<string> LegacyFallbackValidatedPackets { get; } = new();
+
         public double DescriptorCoverageRatio { get; set; }
 
         public List<string> MissingGeneratedRequiredDescriptors { get; } = new();
@@ -300,7 +303,17 @@ namespace GameServerApp.Testing
 
                 if (!ProtocolRegistry.TryCreatePrototype(packetType, out IMessage prototype) || prototype == null)
                 {
-                    result.MissingPrototypePackets.Add(packetType.ToString());
+                    if (TryCreateLegacyOptionalPayload(packetType, out byte[] legacyPayload))
+                    {
+                        result.ValidatedPackets.Add(packetType.ToString());
+                        result.LegacyFallbackValidatedPackets.Add(packetType.ToString());
+                        payloads.Add((packetType, legacyPayload));
+                    }
+                    else
+                    {
+                        result.MissingPrototypePackets.Add(packetType.ToString());
+                    }
+
                     continue;
                 }
 
@@ -452,6 +465,87 @@ namespace GameServerApp.Testing
                 .ToList();
         }
 
+        private static bool TryCreateLegacyOptionalPayload(MinecraftMessageType messageType, out byte[] payload)
+        {
+            payload = Array.Empty<byte>();
+
+            if (!ProtocolRegistry.IsOptionalMessageType(messageType))
+            {
+                return false;
+            }
+
+            payload = messageType switch
+            {
+                MinecraftMessageType.InventoryUpdate => SerializeLegacyPayload(new InventoryUpdateBroadcast
+                {
+                    PlayerId = "dummy-player",
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    UpdatedSlots =
+                    {
+                        new InventorySlotData
+                        {
+                            SlotIndex = 0,
+                            ItemId = "stone",
+                            Amount = 1,
+                            ItemData = "{}"
+                        }
+                    }
+                }),
+                MinecraftMessageType.EntityUpdate => SerializeLegacyPayload(new EntityUpdateMessage
+                {
+                    EntityId = "dummy-entity",
+                    Position = new Vector3D(0, 64, 0),
+                    Rotation = new Vector3D(0, 0, 0),
+                    Velocity = new Vector3D(0, 0, 0),
+                    Health = 20f,
+                    UpdateFlags = new EntityUpdateFlags
+                    {
+                        PositionUpdated = true
+                    }
+                }),
+                MinecraftMessageType.ContainerOpen => SerializeLegacyPayload(new ContainerOpenRequestMessage
+                {
+                    Position = new Vector3I(0, 64, 0),
+                    ContainerType = ContainerType.Chest
+                }),
+                MinecraftMessageType.ContainerClose => SerializeLegacyPayload(new ContainerCloseRequestMessage
+                {
+                    ContainerId = 1
+                }),
+                MinecraftMessageType.ContainerUpdate => SerializeLegacyPayload(new ContainerUpdateRequestMessage
+                {
+                    ContainerId = 1,
+                    ForceFullSync = false,
+                    ClientSnapshotHash = string.Empty,
+                    SlotUpdates =
+                    {
+                        new SlotUpdate
+                        {
+                            Slot = 0,
+                            Item = new InventoryItemInfo
+                            {
+                                ItemId = 1,
+                                ItemName = "stone",
+                                Quantity = 1,
+                                ItemType = SharedProtocol.ItemType.Block
+                            },
+                            ItemIdentifier = "stone"
+                        }
+                    }
+                }),
+                _ => Array.Empty<byte>()
+            };
+
+            return payload.Length > 0;
+        }
+
+        private static byte[] SerializeLegacyPayload<T>(T message) where T : class
+        {
+            using var stream = new MemoryStream();
+            Serializer.Serialize(stream, message);
+            return stream.ToArray();
+        }
+
         private async Task<(bool Ok, string Error)> ProbeNetworkAsync(
             IReadOnlyList<(MinecraftMessageType Type, byte[] Payload)> payloads,
             CancellationToken cancellationToken)
@@ -544,6 +638,7 @@ namespace GameServerApp.Testing
                     requiredTargets,
                     requiredRoundTripOk,
                     validated = result.ValidatedPackets.Count,
+                    legacyFallbackValidated = result.LegacyFallbackValidatedPackets.Count,
                     missingRequired = result.MissingRequiredPackets.Count,
                     missingPrototype = result.MissingPrototypePackets.Count,
                     optionalUnregistered = result.OptionalUnregistered.Count,
@@ -554,6 +649,7 @@ namespace GameServerApp.Testing
                     result.NetworkProbeOk
                 },
                 validatedPackets = result.ValidatedPackets,
+                legacyFallbackValidatedPackets = result.LegacyFallbackValidatedPackets,
                 missingRequiredPackets = result.MissingRequiredPackets,
                 missingPrototypePackets = result.MissingPrototypePackets,
                 optionalUnregistered = result.OptionalUnregistered,

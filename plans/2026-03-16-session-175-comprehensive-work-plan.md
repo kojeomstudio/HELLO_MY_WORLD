@@ -6,7 +6,7 @@
 - `278d85b7` feat(session-172): comprehensive feature categorization and validation
 
 ## To Do
-- [ ] Commit and push session 175 changes
+- [ ] None
 
 ## Completed
 - [x] Loaded and decoded `work/work.md` task instructions
@@ -23,3 +23,4 @@
 - [x] Build validation passed (`SharedProtocol`, `GameCommon`, `GameServer`, `Tools/DummyMinecraftClient`)
 - [x] Runtime validation passed (`--generate-map-profile`, `--selftest`, `--proto-probe`)
 - [x] Updated `README.md` references to session 175 artifacts
+- [x] Committed and pushed session changes to `origin/master` (`1cbfc629`)

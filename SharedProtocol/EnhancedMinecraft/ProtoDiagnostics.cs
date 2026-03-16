@@ -391,13 +391,28 @@ public static class ProtoDiagnostics
         }
 
         var missing = dispatcher.GetUnboundProtocolMessages();
+        var registeredHandlers = dispatcher.GetRegisteredMessageTypes().ToHashSet();
+        var optional = ProtocolRegistry.GetOptionalMessageTypes();
+        var optionalMissing = optional
+            .Where(messageType => !registeredHandlers.Contains(messageType))
+            .OrderBy(messageType => (int)messageType)
+            .ToArray();
+
         if (missing.Count > 0)
         {
             Console.WriteLine("[Proto][WARN] Missing EnhancedMinecraft handlers: " + string.Join(", ", missing));
-            return;
+        }
+        else
+        {
+            Console.WriteLine("[Proto] EnhancedMinecraft handlers cover all required dispatcher packets.");
         }
 
-        Console.WriteLine("[Proto] EnhancedMinecraft handlers cover all registered messages.");
+        int optionalCovered = optional.Count - optionalMissing.Length;
+        Console.WriteLine($"[Proto] Optional handler coverage: {optionalCovered}/{optional.Count}.");
+        if (optionalMissing.Length > 0)
+        {
+            Console.WriteLine("[Proto][INFO] Optional packets without handlers: " + string.Join(", ", optionalMissing));
+        }
     }
 
     public static void LogMissingBinding(MinecraftMessageType messageType)

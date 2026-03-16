@@ -54,15 +54,15 @@ namespace GameCommon.World
     public static class SharedFeatureCatalog
     {
         /// <summary>
-        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-15.
-        /// Session 173 validates v89 terrain algorithms and v93 map-control queue policy.
+        /// Signature for hydrology-aware terrain and map-control alignment on 2026-03-16.
+        /// Session 175 validates v90 terrain algorithms and v94 map-control queue policy.
         /// </summary>
-        public const string HydrologySignature = "2026-03-15-hydrology-riverlake-cave-v89";
+        public const string HydrologySignature = "2026-03-16-hydrology-riverlake-cave-v90";
 
         /// <summary>
         /// Shared minimum profile version expected by server/client/probe paths.
         /// </summary>
-        public const int MapControlProfileVersion = 93;
+        public const int MapControlProfileVersion = 94;
 
         /// <summary>
         /// Descriptor list used by diagnostics and tooling to align client/server feature coverage.
@@ -88,7 +88,7 @@ namespace GameCommon.World
         {
             new SharedFeatureDescriptor(
                 "S22-CORE-01",
-                "Hydrology WorldGen v89",
+                "Hydrology WorldGen v90",
                 FeatureCategory.Core,
                 FeatureLayer.Shared,
                 new[]
@@ -98,14 +98,14 @@ namespace GameCommon.World
                     "GameServer/World/WorldMapControlProfile.cs",
                     "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
                     "config/world_map_control_profile.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-15-session-173.json"
+                    "config/minecraft_features_client_server_core_content_util_2026-03-16-session-175.json"
                 },
                 new[]
                 {
                     HydrologySignature,
                     "config/world.json",
                     "Assets/StreamingAssets/world-config.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-15-session-173.json",
+                    "config/minecraft_features_client_server_core_content_util_2026-03-16-session-175.json",
                     "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
                 },
                 "implemented",
@@ -126,7 +126,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S22-CONTENT-01",
-                "Hydrology-Aware Caves + Phreatic Resonance Vault Bridge v89",
+                "Hydrology-Aware Caves + Phreatic Resonance Vault Bridge v90",
                 FeatureCategory.Content,
                 FeatureLayer.Server,
                 new[]
@@ -154,7 +154,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S22-CONTENT-03",
-                "Lake Floodplain Spillway + Phreatic Resonance Storage Balancing v89",
+                "Lake Floodplain Spillway + Phreatic Resonance Storage Balancing v90",
                 FeatureCategory.Content,
                 FeatureLayer.Shared,
                 new[]
@@ -182,7 +182,7 @@ namespace GameCommon.World
                 "high"),
             new SharedFeatureDescriptor(
                 "S22-UTIL-02",
-                "Data-Driven Config Parity + Map-Control v93",
+                "Data-Driven Config Parity + Map-Control v94",
                 FeatureCategory.Utility,
                 FeatureLayer.Shared,
                 new[]
@@ -190,7 +190,7 @@ namespace GameCommon.World
                     "config/world.json",
                     "config/world_map_control_profile.json",
                     "config/world_map_control_queue_policy.json",
-                    "config/minecraft_feature_client_server_core_content_util_2026-03-15-session-173.json"
+                    "config/minecraft_features_client_server_core_content_util_2026-03-16-session-175.json"
                 },
                 new[] { HydrologySignature },
                 "implemented",

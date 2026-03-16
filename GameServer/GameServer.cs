@@ -193,6 +193,10 @@ namespace GameServerApp
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerOpen, new MinecraftContainerOpenHandler(containerSystem));
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerClose, new MinecraftContainerCloseHandler(containerSystem));
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerUpdate, new MinecraftContainerUpdateHandler(containerSystem));
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.InventoryUpdate, new MinecraftInventoryUpdateHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.EntityUpdate, new MinecraftEntityUpdateHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemUse, new MinecraftItemUseHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemDrop, new MinecraftItemDropHandler());
             
             Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
             Console.WriteLine("✓ Advanced Block Breaking System");

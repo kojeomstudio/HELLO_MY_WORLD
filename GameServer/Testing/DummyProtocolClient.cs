@@ -533,6 +533,34 @@ namespace GameServerApp.Testing
                         }
                     }
                 }),
+                MinecraftMessageType.ItemUse => SerializeLegacyPayload(new PlayerActionRequestMessage
+                {
+                    Action = PlayerActionType.UseItem,
+                    TargetPosition = new Vector3I(0, 64, 0),
+                    UsedItem = new InventoryItemInfo
+                    {
+                        ItemId = 1,
+                        ItemName = "stone",
+                        Quantity = 1,
+                        ItemType = SharedProtocol.ItemType.Block
+                    },
+                    Sequence = 1,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }),
+                MinecraftMessageType.ItemDrop => SerializeLegacyPayload(new PlayerActionRequestMessage
+                {
+                    Action = PlayerActionType.DropItem,
+                    TargetPosition = new Vector3I(0, 64, 0),
+                    UsedItem = new InventoryItemInfo
+                    {
+                        ItemId = 1,
+                        ItemName = "stone",
+                        Quantity = 1,
+                        ItemType = SharedProtocol.ItemType.Block
+                    },
+                    Sequence = 2,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }),
                 _ => Array.Empty<byte>()
             };
 

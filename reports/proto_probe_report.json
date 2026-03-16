@@ -1,5 +1,5 @@
 {
-  "timestampUtc": "2026-03-15T03:17:59.2429836Z",
+  "timestampUtc": "2026-03-16T00:12:34.3091836Z",
   "descriptor": "enhanced_minecraft_game.proto",
   "settings": {
     "Host": "127.0.0.1",
@@ -9,7 +9,7 @@
     "ValidateAllKnownPackets": true,
     "IncludeOptionalMessages": true,
     "RequireRequiredPacketCoverage": true,
-    "MinMapControlProfileVersion": 93,
+    "MinMapControlProfileVersion": 94,
     "FailOnReferenceReportDrift": true,
     "FailOnDescriptorCoverageRegression": true,
     "MinDescriptorCoverageRatio": 0.25,
@@ -23,10 +23,10 @@
     "packetsRequested": 24,
     "requiredTargets": 14,
     "requiredRoundTripOk": 14,
-    "validated": 19,
-    "legacyFallbackValidated": 5,
+    "validated": 21,
+    "legacyFallbackValidated": 7,
     "missingRequired": 0,
-    "missingPrototype": 5,
+    "missingPrototype": 3,
     "optionalUnregistered": 10,
     "descriptorCoverageRatio": 0.25925925925925924,
     "missingGeneratedRequiredDescriptors": 0,
@@ -44,6 +44,8 @@
     "ChunkUnloadNotification",
     "ChunkUnloadAcknowledge",
     "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
     "EntitySpawn",
     "EntityDespawn",
     "EntityUpdate",
@@ -57,6 +59,8 @@
   ],
   "legacyFallbackValidatedPackets": [
     "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
     "EntityUpdate",
     "ContainerOpen",
     "ContainerClose",
@@ -65,8 +69,6 @@
   "missingRequiredPackets": [],
   "missingPrototypePackets": [
     "MultiBlockChange",
-    "ItemUse",
-    "ItemDrop",
     "ItemPickup",
     "EntityInteract"
   ],

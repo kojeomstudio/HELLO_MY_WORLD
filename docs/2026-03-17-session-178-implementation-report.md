@@ -18,12 +18,12 @@ This session executed `work/work.md` process requirements: baseline verification
    - corrected nested code-fence example in `design/2026-03-16-game-data-template-pipeline.md`
 
 ## Validation Results
-- `dotnet build SharedProtocol/SharedProtocol.csproj`: TBD
-- `dotnet build GameServer/GameServer.csproj`: TBD
-- `dotnet build Tools/GameDataTemplateExporter/GameDataTemplateExporter.csproj`: TBD
-- `dotnet run --project GameServer -- --selftest`: TBD
+- `dotnet build SharedProtocol/SharedProtocol.csproj`: passed
+- `dotnet build GameServer/GameServer.csproj`: passed
+- `dotnet build Tools/GameDataTemplateExporter/GameDataTemplateExporter.csproj`: passed
+- `dotnet run --project GameServer -- --selftest`: passed
 
 ## Git Reflection
-- Implementation commit: `TBD`
-- Completion-note commit: `TBD`
-- Push to origin: `TBD`
+- Implementation commit: `b003930a` (2026-03-17)
+- Completion-note commit: `47158cb1` (2026-03-17)
+- Push to origin: completed

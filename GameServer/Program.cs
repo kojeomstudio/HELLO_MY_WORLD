@@ -39,6 +39,7 @@ namespace GameServerApp
             ValidateWorldMapQueuePolicyParity();
             ValidateWorldMapProfileParity();
             ValidateConfigParityManifest();
+            ValidateGameDataDatasets();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -523,6 +524,182 @@ namespace GameServerApp
             }
         }
 
+        private static void ValidateGameDataDatasets()
+        {
+            string gameDataDirectory = ResolveRepoPath(Path.Combine("config", "game-data"));
+            if (!Directory.Exists(gameDataDirectory))
+            {
+                throw new InvalidOperationException($"Required game-data directory is missing: {gameDataDirectory}");
+            }
+
+            var rules = new[]
+            {
+                new GameDataDatasetRule("items", JsonValueKind.Array, new[] { "id" }),
+                new GameDataDatasetRule("recipes", JsonValueKind.Array, new[] { "id", "result", "ingredients" }),
+                new GameDataDatasetRule("monsters", JsonValueKind.Array, new[] { "id", "health", "attack" }),
+                new GameDataDatasetRule("npcs", JsonValueKind.Array, new[] { "id", "role" }),
+                new GameDataDatasetRule("character_stats", JsonValueKind.Object, new[] { "base", "growth_per_level" })
+            };
+
+            var sourceHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (GameDataDatasetRule rule in rules)
+            {
+                string datasetPath = Path.Combine(gameDataDirectory, $"{rule.Name}.json");
+                if (!File.Exists(datasetPath))
+                {
+                    throw new InvalidOperationException($"Missing required game-data dataset: {datasetPath}");
+                }
+
+                string json = File.ReadAllText(datasetPath);
+                using JsonDocument document = JsonDocument.Parse(json);
+                ValidateGameDataDataset(rule, datasetPath, document.RootElement);
+
+                string hash = ComputeSha256Hex(json);
+                sourceHashes[rule.Name] = hash;
+                Console.WriteLine(
+                    $"[GameData] Validated '{rule.Name}' ({rule.RootKind}) from {datasetPath} (hash={hash[..12]}...).");
+            }
+
+            string profilePayload = string.Join(
+                "|",
+                sourceHashes
+                    .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(pair => $"{pair.Key}:{pair.Value}"));
+            string profileHash = ComputeSha256Hex(profilePayload);
+            Console.WriteLine(
+                $"[GameData] Validation complete. required={rules.Length}, profileHash={profileHash[..12]}...");
+
+            ReportGameDataMirrorDrift(sourceHashes, rules);
+        }
+
+        private static void ValidateGameDataDataset(GameDataDatasetRule rule, string datasetPath, JsonElement root)
+        {
+            if (root.ValueKind != rule.RootKind)
+            {
+                throw new InvalidOperationException(
+                    $"Dataset '{rule.Name}' must be {rule.RootKind} but was {root.ValueKind}. Path: {datasetPath}");
+            }
+
+            if (rule.RootKind == JsonValueKind.Array)
+            {
+                ValidateGameDataArrayDataset(rule, datasetPath, root);
+                return;
+            }
+
+            foreach (string propertyName in rule.RequiredProperties)
+            {
+                if (!root.TryGetProperty(propertyName, out JsonElement propertyValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' is missing required property '{propertyName}'. Path: {datasetPath}");
+                }
+
+                if (propertyValue.ValueKind == JsonValueKind.Null || propertyValue.ValueKind == JsonValueKind.Undefined)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' property '{propertyName}' must not be null. Path: {datasetPath}");
+                }
+
+                if (string.Equals(rule.Name, "character_stats", StringComparison.OrdinalIgnoreCase) &&
+                    (string.Equals(propertyName, "base", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(propertyName, "growth_per_level", StringComparison.OrdinalIgnoreCase)) &&
+                    propertyValue.ValueKind != JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' property '{propertyName}' must be an object. Path: {datasetPath}");
+                }
+            }
+        }
+
+        private static void ValidateGameDataArrayDataset(GameDataDatasetRule rule, string datasetPath, JsonElement root)
+        {
+            int index = 0;
+            foreach (JsonElement entry in root.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' element[{index}] must be object. Path: {datasetPath}");
+                }
+
+                foreach (string propertyName in rule.RequiredProperties)
+                {
+                    if (!entry.TryGetProperty(propertyName, out JsonElement propertyValue))
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] is missing '{propertyName}'. Path: {datasetPath}");
+                    }
+
+                    if (propertyValue.ValueKind == JsonValueKind.Null || propertyValue.ValueKind == JsonValueKind.Undefined)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] has null '{propertyName}'. Path: {datasetPath}");
+                    }
+                }
+
+                index++;
+            }
+
+            if (index == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Dataset '{rule.Name}' must contain at least one entry. Path: {datasetPath}");
+            }
+        }
+
+        private static void ReportGameDataMirrorDrift(
+            IReadOnlyDictionary<string, string> sourceHashes,
+            IReadOnlyCollection<GameDataDatasetRule> rules)
+        {
+            var mirrorRoots = new[]
+            {
+                ResolveRepoPath(Path.Combine("GameServer", "config", "game-data")),
+                ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "game-data"))
+            };
+
+            foreach (string mirrorRoot in mirrorRoots)
+            {
+                if (!Directory.Exists(mirrorRoot))
+                {
+                    Console.WriteLine($"[GameData][WARN] Mirror directory not found: {mirrorRoot}");
+                    continue;
+                }
+
+                int checkedCount = 0;
+                int driftCount = 0;
+
+                foreach (GameDataDatasetRule rule in rules)
+                {
+                    string mirrorPath = Path.Combine(mirrorRoot, $"{rule.Name}.json");
+                    if (!File.Exists(mirrorPath))
+                    {
+                        driftCount++;
+                        Console.WriteLine($"[GameData][WARN] Mirror file missing for '{rule.Name}': {mirrorPath}");
+                        continue;
+                    }
+
+                    checkedCount++;
+                    string mirrorHash = ComputeSha256Hex(File.ReadAllText(mirrorPath));
+                    if (!string.Equals(mirrorHash, sourceHashes[rule.Name], StringComparison.OrdinalIgnoreCase))
+                    {
+                        driftCount++;
+                        Console.WriteLine(
+                            $"[GameData][WARN] Mirror drift for '{rule.Name}' in {mirrorRoot} " +
+                            $"(source={sourceHashes[rule.Name][..12]}..., mirror={mirrorHash[..12]}...).");
+                    }
+                }
+
+                if (driftCount == 0)
+                {
+                    Console.WriteLine($"[GameData] Mirror parity OK at {mirrorRoot} (checked={checkedCount}).");
+                    continue;
+                }
+
+                Console.WriteLine(
+                    $"[GameData][WARN] Mirror parity drift at {mirrorRoot} (checked={checkedCount}, drift={driftCount}).");
+            }
+        }
+
         private sealed class ConfigParityManifest
         {
             public int Version { get; set; }
@@ -539,6 +716,22 @@ namespace GameServerApp
             public string Source { get; set; } = string.Empty;
 
             public List<string> Mirrors { get; set; } = new();
+        }
+
+        private sealed class GameDataDatasetRule
+        {
+            public GameDataDatasetRule(string name, JsonValueKind rootKind, IReadOnlyList<string> requiredProperties)
+            {
+                Name = name;
+                RootKind = rootKind;
+                RequiredProperties = requiredProperties;
+            }
+
+            public string Name { get; }
+
+            public JsonValueKind RootKind { get; }
+
+            public IReadOnlyList<string> RequiredProperties { get; }
         }
 
         private static async Task RunDummyProtocolProbeAsync(bool probeNetwork, CancellationToken cancellationToken)

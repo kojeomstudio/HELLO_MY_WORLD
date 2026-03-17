@@ -22,14 +22,14 @@
 - Plans: Session 179 completed and pushed to origin
 
 ## Work Checklist
-- [ ] Create session-180 plan document (this file)
-- [ ] Review and identify outdated/duplicate documents in docs/ for cleanup
-- [ ] Run template exporter to ensure game-data JSON is in sync with template
-- [ ] Run compile and selftest validation commands
-- [ ] Create session-180 implementation report in docs/
-- [ ] Commit and push session-180 changes to `origin/master`
-- [ ] Record completion commit hash/date in this plan
+- [x] Create session-180 plan document (this file)
+- [x] Review and identify outdated/duplicate documents in docs/ for cleanup (610 docs identified for future cleanup)
+- [x] Run template exporter to ensure game-data JSON is in sync with template
+- [x] Run compile and selftest validation commands
+- [x] Create session-180 implementation report in docs/
+- [x] Commit and push session-180 changes to `origin/master`
+- [x] Record completion commit hash/date in this plan
 
 ## Completion Record
-- Session-180 implementation commit hash/date: TBD
-- Session-180 origin reflection status: TBD
+- Session-180 implementation commit hash/date: `d23194da` | 2026-03-17
+- Session-180 origin reflection status: pushed (`master` -> `origin/master`)

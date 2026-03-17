@@ -17,9 +17,9 @@
 - [x] Create session-178 implementation report under `docs/`.
 - [x] Add design execution guidance under `design/` that references existing game design docs.
 - [x] Fix inconsistent markdown code-fence example in data-template pipeline design doc.
-- [ ] Run compile/tests (`SharedProtocol`, `GameServer`, `Tools/GameDataTemplateExporter`, `GameServer --selftest`).
-- [ ] Commit and push session-178 changes to `origin/master`.
-- [ ] Record completion commit hash/date in this plan.
+- [x] Run compile/tests (`SharedProtocol`, `GameServer`, `Tools/GameDataTemplateExporter`, `GameServer --selftest`).
+- [x] Commit and push session-178 changes to `origin/master`.
+- [x] Record completion commit hash/date in this plan.
 
 ## Document Consistency/Audit Notes
 - Non-markdown assets under `docs/` were checked; no non-`.md` file exists.
@@ -27,5 +27,5 @@
   - `design/2026-03-16-game-data-template-pipeline.md`
 
 ## Completion Record
-- Session-178 implementation commit hash/date: `TBD`
-- Session-178 completion-note commit hash/date: `TBD`
+- Session-178 implementation commit hash/date: `b003930a` | 2026-03-17
+- Session-178 completion-note commit hash/date: `b003930a` | 2026-03-17

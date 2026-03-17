@@ -17,14 +17,14 @@
 - The next fenced code block must be `json` and contain valid JSON.
 - Example:
 
-```md
+````md
 ## dataset: monsters
 ```json
 [
   { "id": "zombie", "health": 20, "attack": 3 }
 ]
 ```
-```
+````
 
 ## 4. Export Command
 - Build:
@@ -46,4 +46,3 @@
   - character_stats
 - Config/constant tuning remains JSON under existing config files.
 - Do not hardcode tunable content in C# unless it is static engine logic.
-

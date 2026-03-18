@@ -36,8 +36,8 @@
 - [x] Create implementation report in `docs/`.
 - [x] Create design execution guide in `design/`.
 - [x] Review obsolete/inconsistent docs; no safe deletion target identified in this session.
-- [ ] Commit and push session-183 changes to `origin/master`.
-- [ ] Record completion commit hash/date in this plan.
+- [x] Commit and push session-183 changes to `origin/master`.
+- [x] Record completion commit hash/date in this plan.
 
 ## Validation Output Notes
 - Template exporter: 5 datasets exported successfully (items, recipes, monsters, npcs, character_stats)
@@ -54,5 +54,5 @@
   - test-client sequence logs known `Unexpected response type` lines (non-fatal in current flow)
 
 ## Completion Record
-- Session-183 implementation commit hash/date: `TBD`
-- Session-183 origin reflection status: `TBD`
+- Session-183 implementation commit hash/date: `e8202575` | 2026-03-18 12:06:32 +0900
+- Session-183 origin reflection status: pushed (`master` -> `origin/master`)

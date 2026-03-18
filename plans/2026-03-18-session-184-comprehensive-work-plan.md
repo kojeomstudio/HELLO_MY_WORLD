@@ -38,8 +38,8 @@
 - [x] Create implementation report in `docs/`.
 - [x] Create design execution guide in `design/`.
 - [x] Review obsolete/inconsistent docs; no safe deletion target identified in this session.
-- [ ] Commit and push session-184 changes to `origin/master`.
-- [ ] Record completion commit hash/date in this plan.
+- [x] Commit and push session-184 changes to `origin/master`.
+- [x] Record completion commit hash/date in this plan.
 
 ## Validation Output Notes
 - Template exporter: 5 datasets exported successfully (items, recipes, monsters, npcs, character_stats)
@@ -56,5 +56,5 @@
   - test-client sequence logs known `Unexpected response type` lines (non-fatal in current flow)
 
 ## Completion Record
-- Session-184 implementation commit hash/date: _pending_
-- Session-184 origin reflection status: _pending_
+- Session-184 implementation commit hash/date: `7c20003f` | 2026-03-18
+- Session-184 origin reflection status: pushed (`master` -> `origin/master`)

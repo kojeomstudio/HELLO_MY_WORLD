@@ -34,8 +34,8 @@
 - [x] Create architecture/code-flow documentation in `docs/`.
 - [x] Create implementation report in `docs/`.
 - [x] Create design execution guide in `design/`.
-- [ ] Commit and push session-182 changes to `origin/master`.
-- [ ] Record completion commit hash/date in this plan.
+- [x] Commit and push session-182 changes to `origin/master`.
+- [x] Record completion commit hash/date in this plan.
 
 ## Validation Output Notes
 - Template exporter: 5 datasets exported successfully (items, recipes, monsters, npcs, character_stats)
@@ -48,5 +48,5 @@
   - Feature manifest loaded: 85 entries (v168)
 
 ## Completion Record
-- Session-182 implementation commit hash/date: _pending_
-- Session-182 origin reflection status: _pending_
+- Session-182 implementation commit hash/date: `e3532a5c` | 2026-03-18
+- Session-182 origin reflection status: pushed (`master` -> `origin/master`)

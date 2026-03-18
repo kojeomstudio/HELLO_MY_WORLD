@@ -33,8 +33,8 @@
 - [x] Create architecture/code-flow documentation in `docs/`.
 - [x] Create implementation report in `docs/`.
 - [x] Create design execution guide in `design/`.
-- [ ] Commit and push session-181 changes to `origin/master`.
-- [ ] Record completion commit hash/date in this plan.
+- [x] Commit and push session-181 changes to `origin/master`.
+- [x] Record completion commit hash/date in this plan.
 
 ## Validation Output Notes
 - Selftest and world-map-control generation refreshed timestamp fields in:
@@ -46,5 +46,5 @@
   - `reports/proto_probe_report.json`
 
 ## Completion Record
-- Session-181 implementation commit hash/date: `TBD`
-- Session-181 origin reflection status: `TBD`
+- Session-181 implementation commit hash/date: `caf12cfd` | 2026-03-18
+- Session-181 origin reflection status: pushed (`master` -> `origin/master`)

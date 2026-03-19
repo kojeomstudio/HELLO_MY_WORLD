@@ -1,10 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
-using System.Collections.Generic;
-using System;
 
 /// <summary>
-/// Inventory system for managing player items and blocks
-/// Supports hotbar, main inventory, and crafting
+/// Inventory system for managing player items and blocks.
+/// Uses JSON data first and falls back to built-in defaults.
 /// </summary>
 public class InventoryManager : MonoBehaviour
 {
@@ -12,410 +14,767 @@ public class InventoryManager : MonoBehaviour
     public int hotbarSize = 9;
     public int mainInventorySize = 27;
     public int maxStackSize = 64;
-    
+
+    [Header("Data Source")]
+    public string streamingItemsFileName = "items.json";
+    public string configItemsRelativePath = "config/items.json";
+
     [Header("UI References")]
     public GameObject inventoryUI;
     public Transform hotbarPanel;
     public Transform mainInventoryPanel;
-    
-    // Inventory data structure
-    private InventorySlot[] hotbarSlots;
-    private InventorySlot[] mainInventorySlots;
-    private Dictionary<byte, ItemData> itemDatabase;
-    
-    // Current selected slot
-    private int selectedSlot = 0;
-    
-    // Events
+
+    private InventorySlot[] hotbarSlots = Array.Empty<InventorySlot>();
+    private InventorySlot[] mainInventorySlots = Array.Empty<InventorySlot>();
+    private readonly Dictionary<int, ItemData> itemDatabase = new Dictionary<int, ItemData>();
+    private readonly Dictionary<string, int> itemIdByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+    private int selectedSlot;
+
     public delegate void InventoryUpdateHandler();
     public event InventoryUpdateHandler OnInventoryChanged;
     public event InventoryUpdateHandler OnHotbarChanged;
-    
-    void Start()
+
+    private void Start()
     {
         InitializeInventory();
+        EnsureItemDatabaseLoaded();
+    }
+
+    public void EnsureItemDatabaseLoaded()
+    {
+        if (itemDatabase.Count > 0)
+        {
+            return;
+        }
+
         LoadItemDatabase();
     }
-    
-    void InitializeInventory()
+
+    private void InitializeInventory()
     {
-        // Initialize hotbar
-        hotbarSlots = new InventorySlot[hotbarSize];
-        for (int i = 0; i < hotbarSize; i++)
+        hotbarSlots = new InventorySlot[Mathf.Max(1, hotbarSize)];
+        for (int i = 0; i < hotbarSlots.Length; i++)
         {
             hotbarSlots[i] = new InventorySlot();
         }
-        
-        // Initialize main inventory
-        mainInventorySlots = new InventorySlot[mainInventorySize];
-        for (int i = 0; i < mainInventorySize; i++)
+
+        mainInventorySlots = new InventorySlot[Mathf.Max(1, mainInventorySize)];
+        for (int i = 0; i < mainInventorySlots.Length; i++)
         {
             mainInventorySlots[i] = new InventorySlot();
         }
-        
-        // Give starting items
+
         AddStartingItems();
     }
-    
-    void LoadItemDatabase()
+
+    private void LoadItemDatabase()
     {
-        itemDatabase = new Dictionary<byte, ItemData>();
-        
-        // Load from JSON or create default database
-        TextAsset jsonFile = Resources.Load<TextAsset>("Data/items");
-        if (jsonFile != null)
+        itemDatabase.Clear();
+        itemIdByKey.Clear();
+
+        bool loadedFromJson = TryLoadItemDatabaseFromJson();
+        if (!loadedFromJson)
         {
-            // TODO: Parse JSON and load items
-            Debug.Log("Loading items from JSON");
-        }
-        else
-        {
-            // Create default items
             CreateDefaultItems();
+            Debug.LogWarning("[InventoryManager] Could not load item JSON. Using default item set.");
+        }
+
+        if (itemDatabase.Count == 0)
+        {
+            CreateDefaultItems();
+            Debug.LogWarning("[InventoryManager] Item database was empty after JSON load. Using default item set.");
         }
     }
-    
-    void CreateDefaultItems()
+
+    private bool TryLoadItemDatabaseFromJson()
     {
-        // Basic blocks
-        itemDatabase[1] = new ItemData { id = 1, name = "Stone", maxStack = 64, type = ItemType.Block };
-        itemDatabase[2] = new ItemData { id = 2, name = "Dirt", maxStack = 64, type = ItemType.Block };
-        itemDatabase[3] = new ItemData { id = 3, name = "Grass", maxStack = 64, type = ItemType.Block };
-        itemDatabase[4] = new ItemData { id = 4, name = "Wood", maxStack = 64, type = ItemType.Block };
-        itemDatabase[5] = new ItemData { id = 5, name = "Leaves", maxStack = 64, type = ItemType.Block };
-        
-        // Tools
-        itemDatabase[10] = new ItemData { id = 10, name = "Wooden Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        itemDatabase[11] = new ItemData { id = 11, name = "Stone Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 132 };
-        itemDatabase[12] = new ItemData { id = 12, name = "Wooden Sword", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        
-        // Food
-        itemDatabase[20] = new ItemData { id = 20, name = "Apple", maxStack = 64, type = ItemType.Food, nutrition = 4 };
-        itemDatabase[21] = new ItemData { id = 21, name = "Bread", maxStack = 64, type = ItemType.Food, nutrition = 5 };
-        itemDatabase[22] = new ItemData { id = 22, name = "Cooked Meat", maxStack = 64, type = ItemType.Food, nutrition = 8 };
+        string[] candidates = BuildItemJsonCandidates();
+        foreach (string path in candidates)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(path);
+                var root = JToken.Parse(json);
+                int loadedCount = ParseItemRoot(root);
+                if (loadedCount > 0)
+                {
+                    Debug.Log($"[InventoryManager] Loaded {loadedCount} items from '{path}'.");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[InventoryManager] Failed to parse '{path}': {ex.Message}");
+            }
+        }
+
+        return false;
     }
-    
-    void AddStartingItems()
+
+    private string[] BuildItemJsonCandidates()
     {
-        // Give player some starting items
-        AddItem(1, 10); // 10 stone
-        AddItem(4, 5);  // 5 wood
-        AddItem(10, 1); // 1 wooden pickaxe
-        AddItem(20, 3); // 3 apples
+        var paths = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(streamingItemsFileName))
+        {
+            paths.Add(Path.Combine(Application.streamingAssetsPath, streamingItemsFileName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(configItemsRelativePath))
+        {
+            paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", configItemsRelativePath)));
+        }
+
+        paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", "config", "game-data", "items.json")));
+        return paths.ToArray();
     }
-    
+
+    private int ParseItemRoot(JToken root)
+    {
+        int beforeCount = itemDatabase.Count;
+
+        if (root is JArray arrayRoot)
+        {
+            foreach (JToken token in arrayRoot)
+            {
+                if (token is not JObject itemObject)
+                {
+                    continue;
+                }
+
+                ParseItemFromArray(itemObject);
+            }
+
+            return itemDatabase.Count - beforeCount;
+        }
+
+        if (root is not JObject objectRoot)
+        {
+            return 0;
+        }
+
+        JToken? itemsToken = objectRoot["items"];
+        if (itemsToken is JObject itemsObject)
+        {
+            foreach (JProperty category in itemsObject.Properties())
+            {
+                if (category.Value is not JObject categoryObject)
+                {
+                    continue;
+                }
+
+                foreach (JProperty entry in categoryObject.Properties())
+                {
+                    if (entry.Value is not JObject itemObject)
+                    {
+                        continue;
+                    }
+
+                    ParseItemFromCatalog(entry.Name, category.Name, itemObject);
+                }
+            }
+        }
+
+        return itemDatabase.Count - beforeCount;
+    }
+
+    private void ParseItemFromArray(JObject itemObject)
+    {
+        string key = itemObject["id"]?.Value<string>() ?? string.Empty;
+        int id = ResolveItemId(itemObject["id"], key);
+        if (id < 0)
+        {
+            return;
+        }
+
+        string name = itemObject["name"]?.Value<string>()
+            ?? itemObject["displayName"]?.Value<string>()
+            ?? key;
+        string typeText = itemObject["type"]?.Value<string>() ?? "material";
+
+        int stackSize = itemObject["max_stack"]?.Value<int?>()
+            ?? itemObject["maxStack"]?.Value<int?>()
+            ?? (itemObject["stackable"]?.Value<bool?>() == false ? 1 : maxStackSize);
+
+        var itemData = new ItemData
+        {
+            id = id,
+            name = string.IsNullOrWhiteSpace(name) ? $"item_{id}" : name,
+            maxStack = Mathf.Max(1, stackSize),
+            type = ParseItemType(typeText),
+            nutrition = itemObject["hunger_restore"]?.Value<int?>()
+                ?? itemObject["nutrition"]?.Value<int?>()
+                ?? 0,
+            durability = itemObject["durability"]?.Value<int?>() ?? 0
+        };
+
+        RegisterItem(itemData, key);
+    }
+
+    private void ParseItemFromCatalog(string key, string categoryName, JObject itemObject)
+    {
+        int id = ResolveItemId(itemObject["id"], key);
+        if (id < 0)
+        {
+            return;
+        }
+
+        string name = itemObject["displayName"]?.Value<string>()
+            ?? itemObject["name"]?.Value<string>()
+            ?? key;
+
+        string typeText = itemObject["type"]?.Value<string>() ?? categoryName;
+        int stackSize = itemObject["stackSize"]?.Value<int?>()
+            ?? itemObject["maxStack"]?.Value<int?>()
+            ?? InferDefaultStackSize(typeText);
+
+        var itemData = new ItemData
+        {
+            id = id,
+            name = string.IsNullOrWhiteSpace(name) ? key : name,
+            maxStack = Mathf.Max(1, stackSize),
+            type = ParseItemType(typeText),
+            nutrition = itemObject["nutrition"]?.Value<int?>() ?? 0,
+            durability = itemObject["durability"]?.Value<int?>() ?? 0
+        };
+
+        RegisterItem(itemData, key);
+        RegisterKeyAlias(itemData.id, itemData.name);
+    }
+
+    private int ResolveItemId(JToken? idToken, string key)
+    {
+        if (idToken != null && idToken.Type == JTokenType.Integer)
+        {
+            int idValue = idToken.Value<int>();
+            return idValue >= 0 ? idValue : -1;
+        }
+
+        if (idToken != null && idToken.Type == JTokenType.String)
+        {
+            string? idString = idToken.Value<string>();
+            if (!string.IsNullOrWhiteSpace(idString) && int.TryParse(idString, out int parsed))
+            {
+                return parsed >= 0 ? parsed : -1;
+            }
+
+            if (!string.IsNullOrWhiteSpace(idString))
+            {
+                return BuildStableIdFromKey(idString);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            return BuildStableIdFromKey(key);
+        }
+
+        return -1;
+    }
+
+    private static int BuildStableIdFromKey(string key)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            string lower = key.ToLowerInvariant();
+            for (int i = 0; i < lower.Length; i++)
+            {
+                hash ^= lower[i];
+                hash *= 16777619;
+            }
+
+            int value = (int)(hash & 0x7FFFFFFF);
+            return 100000 + (value % 900000);
+        }
+    }
+
+    private void RegisterItem(ItemData itemData, string keyHint)
+    {
+        if (!itemDatabase.ContainsKey(itemData.id))
+        {
+            itemDatabase[itemData.id] = itemData;
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyHint))
+        {
+            RegisterKeyAlias(itemData.id, keyHint);
+        }
+    }
+
+    private void RegisterKeyAlias(int id, string alias)
+    {
+        if (string.IsNullOrWhiteSpace(alias))
+        {
+            return;
+        }
+
+        string normalized = alias.Trim();
+        if (!itemIdByKey.ContainsKey(normalized))
+        {
+            itemIdByKey.Add(normalized, id);
+        }
+    }
+
+    private ItemType ParseItemType(string typeText)
+    {
+        if (string.IsNullOrWhiteSpace(typeText))
+        {
+            return ItemType.Material;
+        }
+
+        switch (typeText.Trim().ToLowerInvariant())
+        {
+            case "block":
+            case "blocks":
+                return ItemType.Block;
+            case "tool":
+            case "tools":
+                return ItemType.Tool;
+            case "food":
+                return ItemType.Food;
+            default:
+                return ItemType.Material;
+        }
+    }
+
+    private int InferDefaultStackSize(string typeText)
+    {
+        if (string.IsNullOrWhiteSpace(typeText))
+        {
+            return maxStackSize;
+        }
+
+        string normalized = typeText.Trim().ToLowerInvariant();
+        if (normalized.Contains("tool") || normalized.Contains("weapon") || normalized.Contains("armor"))
+        {
+            return 1;
+        }
+
+        return maxStackSize;
+    }
+
+    private void CreateDefaultItems()
+    {
+        RegisterDefaultItem(1, "Stone", ItemType.Block, 64);
+        RegisterDefaultItem(2, "Dirt", ItemType.Block, 64);
+        RegisterDefaultItem(3, "Grass", ItemType.Block, 64);
+        RegisterDefaultItem(4, "Wood", ItemType.Block, 64);
+        RegisterDefaultItem(5, "Leaves", ItemType.Block, 64);
+        RegisterDefaultItem(10, "Wooden Pickaxe", ItemType.Tool, 1, durability: 60);
+        RegisterDefaultItem(11, "Stone Pickaxe", ItemType.Tool, 1, durability: 132);
+        RegisterDefaultItem(12, "Wooden Sword", ItemType.Tool, 1, durability: 60);
+        RegisterDefaultItem(20, "Apple", ItemType.Food, 64, nutrition: 4);
+        RegisterDefaultItem(21, "Bread", ItemType.Food, 64, nutrition: 5);
+        RegisterDefaultItem(22, "Cooked Meat", ItemType.Food, 64, nutrition: 8);
+
+        RegisterKeyAlias(1, "stone");
+        RegisterKeyAlias(4, "wood");
+        RegisterKeyAlias(10, "wooden_pickaxe");
+        RegisterKeyAlias(20, "apple");
+    }
+
+    private void RegisterDefaultItem(int id, string name, ItemType type, int stackSize, int nutrition = 0, int durability = 0)
+    {
+        var item = new ItemData
+        {
+            id = id,
+            name = name,
+            type = type,
+            maxStack = Mathf.Max(1, stackSize),
+            nutrition = nutrition,
+            durability = durability
+        };
+
+        RegisterItem(item, name);
+    }
+
+    private void AddStartingItems()
+    {
+        AddItem(ResolveItemIdFromKeyOrDefault("stone", 1), 10);
+        AddItem(ResolveItemIdFromKeyOrDefault("wood", 4), 5);
+        AddItem(ResolveItemIdFromKeyOrDefault("wooden_pickaxe", 10), 1);
+        AddItem(ResolveItemIdFromKeyOrDefault("apple", 20), 3);
+    }
+
+    private int ResolveItemIdFromKeyOrDefault(string key, int fallback)
+    {
+        if (TryGetItemIdByKey(key, out int id))
+        {
+            return id;
+        }
+
+        return fallback;
+    }
+
+    public bool TryGetItemIdByKey(string itemKey, out int itemId)
+    {
+        EnsureItemDatabaseLoaded();
+        return itemIdByKey.TryGetValue(itemKey, out itemId);
+    }
+
+    public bool AddItem(int itemId, int amount)
+    {
+        if (itemId <= 0 || amount <= 0)
+        {
+            return false;
+        }
+
+        int remaining = AddItemToExistingStacks(mainInventorySlots, itemId, amount);
+        remaining = AddItemToExistingStacks(hotbarSlots, itemId, remaining);
+        remaining = AddItemToEmptySlots(mainInventorySlots, itemId, remaining);
+        remaining = AddItemToEmptySlots(hotbarSlots, itemId, remaining);
+
+        bool completed = remaining <= 0;
+        if (completed)
+        {
+            OnInventoryChanged?.Invoke();
+            OnHotbarChanged?.Invoke();
+        }
+
+        return completed;
+    }
+
     public bool AddItem(byte itemId, int amount)
     {
-        // Try to add to existing stacks first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId && 
-                mainInventorySlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - mainInventorySlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                mainInventorySlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Try to add to hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId && 
-                hotbarSlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - hotbarSlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                hotbarSlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == 0)
-            {
-                mainInventorySlots[i].itemId = itemId;
-                mainInventorySlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= mainInventorySlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == 0)
-            {
-                hotbarSlots[i].itemId = itemId;
-                hotbarSlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= hotbarSlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Inventory is full
-        return amount <= 0;
+        return AddItem((int)itemId, amount);
     }
-    
+
+    private int AddItemToExistingStacks(InventorySlot[] slots, int itemId, int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].itemId != itemId || slots[i].amount >= GetItemMaxStack(itemId))
+            {
+                continue;
+            }
+
+            int space = GetItemMaxStack(itemId) - slots[i].amount;
+            int toAdd = Mathf.Min(amount, space);
+            slots[i].amount += toAdd;
+            amount -= toAdd;
+            if (amount <= 0)
+            {
+                return 0;
+            }
+        }
+
+        return amount;
+    }
+
+    private int AddItemToEmptySlots(InventorySlot[] slots, int itemId, int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].itemId != 0)
+            {
+                continue;
+            }
+
+            int toAdd = Mathf.Min(amount, GetItemMaxStack(itemId));
+            slots[i].itemId = itemId;
+            slots[i].amount = toAdd;
+            amount -= toAdd;
+            if (amount <= 0)
+            {
+                return 0;
+            }
+        }
+
+        return amount;
+    }
+
+    public bool RemoveItem(int itemId, int amount)
+    {
+        if (itemId <= 0 || amount <= 0)
+        {
+            return false;
+        }
+
+        int remaining = RemoveItemFromSlots(mainInventorySlots, itemId, amount);
+        remaining = RemoveItemFromSlots(hotbarSlots, itemId, remaining);
+
+        bool completed = remaining <= 0;
+        if (completed)
+        {
+            OnInventoryChanged?.Invoke();
+            OnHotbarChanged?.Invoke();
+        }
+
+        return completed;
+    }
+
     public bool RemoveItem(byte itemId, int amount)
     {
-        int remainingToRemove = amount;
-        
-        // Remove from main inventory first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, mainInventorySlots[i].amount);
-                mainInventorySlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (mainInventorySlots[i].amount <= 0)
-                {
-                    mainInventorySlots[i].itemId = 0;
-                    mainInventorySlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Remove from hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, hotbarSlots[i].amount);
-                hotbarSlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (hotbarSlots[i].amount <= 0)
-                {
-                    hotbarSlots[i].itemId = 0;
-                    hotbarSlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Not enough items
-        return remainingToRemove <= 0;
+        return RemoveItem((int)itemId, amount);
     }
-    
-    public int GetItemCount(byte itemId)
+
+    private static int RemoveItemFromSlots(InventorySlot[] slots, int itemId, int amount)
     {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].itemId != itemId)
+            {
+                continue;
+            }
+
+            int toRemove = Mathf.Min(amount, slots[i].amount);
+            slots[i].amount -= toRemove;
+            amount -= toRemove;
+
+            if (slots[i].amount <= 0)
+            {
+                slots[i].itemId = 0;
+                slots[i].amount = 0;
+            }
+
+            if (amount <= 0)
+            {
+                return 0;
+            }
+        }
+
+        return amount;
+    }
+
+    public int GetItemCount(int itemId)
+    {
+        if (itemId <= 0)
+        {
+            return 0;
+        }
+
         int count = 0;
-        
-        // Count in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                count += mainInventorySlots[i].amount;
-            }
-        }
-        
-        // Count in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                count += hotbarSlots[i].amount;
-            }
-        }
-        
+        count += CountItemInSlots(mainInventorySlots, itemId);
+        count += CountItemInSlots(hotbarSlots, itemId);
         return count;
     }
-    
-    public byte GetHotbarItem(int slot)
+
+    public int GetItemCount(byte itemId)
     {
-        if (slot >= 0 && slot < hotbarSize)
+        return GetItemCount((int)itemId);
+    }
+
+    private static int CountItemInSlots(InventorySlot[] slots, int itemId)
+    {
+        int count = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].itemId == itemId)
+            {
+                count += slots[i].amount;
+            }
+        }
+
+        return count;
+    }
+
+    public int GetHotbarItemId(int slot)
+    {
+        if (slot >= 0 && slot < hotbarSlots.Length)
         {
             return hotbarSlots[slot].itemId;
         }
+
         return 0;
     }
-    
+
+    public byte GetHotbarItem(int slot)
+    {
+        int id = GetHotbarItemId(slot);
+        return (byte)Mathf.Clamp(id, 0, byte.MaxValue);
+    }
+
     public InventorySlot GetHotbarSlot(int slot)
     {
-        if (slot >= 0 && slot < hotbarSize)
+        if (slot >= 0 && slot < hotbarSlots.Length)
         {
             return hotbarSlots[slot];
         }
+
         return new InventorySlot();
     }
-    
+
     public InventorySlot GetMainInventorySlot(int slot)
     {
-        if (slot >= 0 && slot < mainInventorySize)
+        if (slot >= 0 && slot < mainInventorySlots.Length)
         {
             return mainInventorySlots[slot];
         }
+
         return new InventorySlot();
     }
-    
+
     public void SetSelectedSlot(int slot)
     {
-        if (slot >= 0 && slot < hotbarSize)
+        if (slot >= 0 && slot < hotbarSlots.Length)
         {
             selectedSlot = slot;
             OnHotbarChanged?.Invoke();
         }
     }
-    
+
     public int GetSelectedSlot()
     {
         return selectedSlot;
     }
-    
+
     public bool SwapSlots(int fromSlot, int toSlot, bool fromHotbar, bool toHotbar)
     {
+        if (!ValidateSwapIndex(fromSlot, fromHotbar) || !ValidateSwapIndex(toSlot, toHotbar))
+        {
+            return false;
+        }
+
         InventorySlot fromData = fromHotbar ? hotbarSlots[fromSlot] : mainInventorySlots[fromSlot];
         InventorySlot toData = toHotbar ? hotbarSlots[toSlot] : mainInventorySlots[toSlot];
-        
-        // Swap slots
+
         if (fromHotbar)
+        {
             hotbarSlots[fromSlot] = toData;
+        }
         else
+        {
             mainInventorySlots[fromSlot] = toData;
-            
+        }
+
         if (toHotbar)
+        {
             hotbarSlots[toSlot] = fromData;
+        }
         else
+        {
             mainInventorySlots[toSlot] = fromData;
-        
+        }
+
         OnInventoryChanged?.Invoke();
         OnHotbarChanged?.Invoke();
         return true;
     }
-    
-    private int GetItemMaxStack(byte itemId)
+
+    private bool ValidateSwapIndex(int slot, bool hotbar)
     {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId].maxStack;
-        }
-        return maxStackSize;
+        return hotbar
+            ? slot >= 0 && slot < hotbarSlots.Length
+            : slot >= 0 && slot < mainInventorySlots.Length;
     }
-    
+
+    private int GetItemMaxStack(int itemId)
+    {
+        EnsureItemDatabaseLoaded();
+        if (itemDatabase.TryGetValue(itemId, out ItemData data))
+        {
+            return Mathf.Max(1, data.maxStack);
+        }
+
+        return Mathf.Max(1, maxStackSize);
+    }
+
+    public ItemData GetItemData(int itemId)
+    {
+        EnsureItemDatabaseLoaded();
+        return itemDatabase.TryGetValue(itemId, out ItemData data) ? data : null;
+    }
+
     public ItemData GetItemData(byte itemId)
     {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId];
-        }
-        return null;
+        return GetItemData((int)itemId);
     }
-    
+
     public void ToggleInventoryUI()
     {
-        if (inventoryUI != null)
+        if (inventoryUI == null)
         {
-            bool isActive = !inventoryUI.activeSelf;
-            inventoryUI.SetActive(isActive);
-            
-            if (isActive)
-            {
-                // Update UI with current inventory
-                UpdateInventoryUI();
-            }
+            return;
+        }
+
+        bool isActive = !inventoryUI.activeSelf;
+        inventoryUI.SetActive(isActive);
+
+        if (isActive)
+        {
+            UpdateInventoryUI();
         }
     }
-    
-    void UpdateInventoryUI()
+
+    private void UpdateInventoryUI()
     {
-        // TODO: Update UI elements with inventory data
-        Debug.Log("Updating inventory UI");
+        Debug.Log("[InventoryManager] Inventory UI refresh requested.");
     }
-    
-    // Save/Load functionality
+
     public string SaveInventory()
     {
-        InventorySaveData saveData = new InventorySaveData
+        var saveData = new InventorySaveData
         {
             hotbarSlots = hotbarSlots,
             mainInventorySlots = mainInventorySlots,
             selectedSlot = selectedSlot
         };
-        
+
         return JsonUtility.ToJson(saveData);
     }
-    
+
     public void LoadInventory(string jsonData)
     {
         try
         {
             InventorySaveData saveData = JsonUtility.FromJson<InventorySaveData>(jsonData);
-            hotbarSlots = saveData.hotbarSlots;
-            mainInventorySlots = saveData.mainInventorySlots;
+            if (saveData == null)
+            {
+                return;
+            }
+
+            hotbarSlots = saveData.hotbarSlots ?? Array.Empty<InventorySlot>();
+            mainInventorySlots = saveData.mainInventorySlots ?? Array.Empty<InventorySlot>();
             selectedSlot = saveData.selectedSlot;
-            
+
             OnInventoryChanged?.Invoke();
             OnHotbarChanged?.Invoke();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Debug.LogError($"Failed to load inventory: {e.Message}");
+            Debug.LogError($"[InventoryManager] Failed to load inventory: {ex.Message}");
         }
     }
 }
 
-// Data structures
-[System.Serializable]
+[Serializable]
 public class InventorySlot
 {
-    public byte itemId = 0;
-    public int amount = 0;
+    public int itemId;
+    public int amount;
 }
 
-[System.Serializable]
+[Serializable]
 public class ItemData
 {
-    public byte id;
-    public string name;
+    public int id;
+    public string name = string.Empty;
     public int maxStack = 64;
     public ItemType type;
-    public int nutrition; // For food items
-    public int durability; // For tools
+    public int nutrition;
+    public int durability;
 }
 
 public enum ItemType
@@ -426,878 +785,10 @@ public enum ItemType
     Material
 }
 
-[System.Serializable]
+[Serializable]
 public class InventorySaveData
 {
-    public InventorySlot[] hotbarSlots;
-    public InventorySlot[] mainInventorySlots;
+    public InventorySlot[] hotbarSlots = Array.Empty<InventorySlot>();
+    public InventorySlot[] mainInventorySlots = Array.Empty<InventorySlot>();
     public int selectedSlot;
-}
-using System.Collections.Generic;
-using System;
-
-/// <summary>
-/// Inventory system for managing player items and blocks
-/// Supports hotbar, main inventory, and crafting
-/// </summary>
-public class InventoryManager : MonoBehaviour
-{
-    [Header("Inventory Configuration")]
-    public int hotbarSize = 9;
-    public int mainInventorySize = 27;
-    public int maxStackSize = 64;
-    
-    [Header("UI References")]
-    public GameObject inventoryUI;
-    public Transform hotbarPanel;
-    public Transform mainInventoryPanel;
-    
-    // Inventory data structure
-    private InventorySlot[] hotbarSlots;
-    private InventorySlot[] mainInventorySlots;
-    private Dictionary<byte, ItemData> itemDatabase;
-    
-    // Current selected slot
-    private int selectedSlot = 0;
-    
-    // Events
-    public delegate void InventoryUpdateHandler();
-    public event InventoryUpdateHandler OnInventoryChanged;
-    public event InventoryUpdateHandler OnHotbarChanged;
-    
-    void Start()
-    {
-        InitializeInventory();
-        LoadItemDatabase();
-    }
-    
-    void InitializeInventory()
-    {
-        // Initialize hotbar
-        hotbarSlots = new InventorySlot[hotbarSize];
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            hotbarSlots[i] = new InventorySlot();
-        }
-        
-        // Initialize main inventory
-        mainInventorySlots = new InventorySlot[mainInventorySize];
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            mainInventorySlots[i] = new InventorySlot();
-        }
-        
-        // Give starting items
-        AddStartingItems();
-    }
-    
-    void LoadItemDatabase()
-    {
-        itemDatabase = new Dictionary<byte, ItemData>();
-        
-        // Load from JSON or create default database
-        TextAsset jsonFile = Resources.Load<TextAsset>("Data/items");
-        if (jsonFile != null)
-        {
-            // TODO: Parse JSON and load items
-            Debug.Log("Loading items from JSON");
-        }
-        else
-        {
-            // Create default items
-            CreateDefaultItems();
-        }
-    }
-    
-    void CreateDefaultItems()
-    {
-        // Basic blocks
-        itemDatabase[1] = new ItemData { id = 1, name = "Stone", maxStack = 64, type = ItemType.Block };
-        itemDatabase[2] = new ItemData { id = 2, name = "Dirt", maxStack = 64, type = ItemType.Block };
-        itemDatabase[3] = new ItemData { id = 3, name = "Grass", maxStack = 64, type = ItemType.Block };
-        itemDatabase[4] = new ItemData { id = 4, name = "Wood", maxStack = 64, type = ItemType.Block };
-        itemDatabase[5] = new ItemData { id = 5, name = "Leaves", maxStack = 64, type = ItemType.Block };
-        
-        // Tools
-        itemDatabase[10] = new ItemData { id = 10, name = "Wooden Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        itemDatabase[11] = new ItemData { id = 11, name = "Stone Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 132 };
-        itemDatabase[12] = new ItemData { id = 12, name = "Wooden Sword", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        
-        // Food
-        itemDatabase[20] = new ItemData { id = 20, name = "Apple", maxStack = 64, type = ItemType.Food, nutrition = 4 };
-        itemDatabase[21] = new ItemData { id = 21, name = "Bread", maxStack = 64, type = ItemType.Food, nutrition = 5 };
-        itemDatabase[22] = new ItemData { id = 22, name = "Cooked Meat", maxStack = 64, type = ItemType.Food, nutrition = 8 };
-    }
-    
-    void AddStartingItems()
-    {
-        // Give player some starting items
-        AddItem(1, 10); // 10 stone
-        AddItem(4, 5);  // 5 wood
-        AddItem(10, 1); // 1 wooden pickaxe
-        AddItem(20, 3); // 3 apples
-    }
-    
-    public bool AddItem(byte itemId, int amount)
-    {
-        // Try to add to existing stacks first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId && 
-                mainInventorySlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - mainInventorySlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                mainInventorySlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Try to add to hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId && 
-                hotbarSlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - hotbarSlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                hotbarSlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == 0)
-            {
-                mainInventorySlots[i].itemId = itemId;
-                mainInventorySlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= mainInventorySlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == 0)
-            {
-                hotbarSlots[i].itemId = itemId;
-                hotbarSlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= hotbarSlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Inventory is full
-        return amount <= 0;
-    }
-    
-    public bool RemoveItem(byte itemId, int amount)
-    {
-        int remainingToRemove = amount;
-        
-        // Remove from main inventory first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, mainInventorySlots[i].amount);
-                mainInventorySlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (mainInventorySlots[i].amount <= 0)
-                {
-                    mainInventorySlots[i].itemId = 0;
-                    mainInventorySlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Remove from hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, hotbarSlots[i].amount);
-                hotbarSlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (hotbarSlots[i].amount <= 0)
-                {
-                    hotbarSlots[i].itemId = 0;
-                    hotbarSlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Not enough items
-        return remainingToRemove <= 0;
-    }
-    
-    public int GetItemCount(byte itemId)
-    {
-        int count = 0;
-        
-        // Count in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                count += mainInventorySlots[i].amount;
-            }
-        }
-        
-        // Count in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                count += hotbarSlots[i].amount;
-            }
-        }
-        
-        return count;
-    }
-    
-    public byte GetHotbarItem(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            return hotbarSlots[slot].itemId;
-        }
-        return 0;
-    }
-    
-    public InventorySlot GetHotbarSlot(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            return hotbarSlots[slot];
-        }
-        return new InventorySlot();
-    }
-    
-    public InventorySlot GetMainInventorySlot(int slot)
-    {
-        if (slot >= 0 && slot < mainInventorySize)
-        {
-            return mainInventorySlots[slot];
-        }
-        return new InventorySlot();
-    }
-    
-    public void SetSelectedSlot(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            selectedSlot = slot;
-            OnHotbarChanged?.Invoke();
-        }
-    }
-    
-    public int GetSelectedSlot()
-    {
-        return selectedSlot;
-    }
-    
-    public bool SwapSlots(int fromSlot, int toSlot, bool fromHotbar, bool toHotbar)
-    {
-        InventorySlot fromData = fromHotbar ? hotbarSlots[fromSlot] : mainInventorySlots[fromSlot];
-        InventorySlot toData = toHotbar ? hotbarSlots[toSlot] : mainInventorySlots[toSlot];
-        
-        // Swap slots
-        if (fromHotbar)
-            hotbarSlots[fromSlot] = toData;
-        else
-            mainInventorySlots[fromSlot] = toData;
-            
-        if (toHotbar)
-            hotbarSlots[toSlot] = fromData;
-        else
-            mainInventorySlots[toSlot] = fromData;
-        
-        OnInventoryChanged?.Invoke();
-        OnHotbarChanged?.Invoke();
-        return true;
-    }
-    
-    private int GetItemMaxStack(byte itemId)
-    {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId].maxStack;
-        }
-        return maxStackSize;
-    }
-    
-    public ItemData GetItemData(byte itemId)
-    {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId];
-        }
-        return null;
-    }
-    
-    public void ToggleInventoryUI()
-    {
-        if (inventoryUI != null)
-        {
-            bool isActive = !inventoryUI.activeSelf;
-            inventoryUI.SetActive(isActive);
-            
-            if (isActive)
-            {
-                // Update UI with current inventory
-                UpdateInventoryUI();
-            }
-        }
-    }
-    
-    void UpdateInventoryUI()
-    {
-        // TODO: Update UI elements with inventory data
-        Debug.Log("Updating inventory UI");
-    }
-    
-    // Save/Load functionality
-    public string SaveInventory()
-    {
-        InventorySaveData saveData = new InventorySaveData
-        {
-            hotbarSlots = hotbarSlots,
-            mainInventorySlots = mainInventorySlots,
-            selectedSlot = selectedSlot
-        };
-        
-        return JsonUtility.ToJson(saveData);
-    }
-    
-    public void LoadInventory(string jsonData)
-    {
-        try
-        {
-            InventorySaveData saveData = JsonUtility.FromJson<InventorySaveData>(jsonData);
-            hotbarSlots = saveData.hotbarSlots;
-            mainInventorySlots = saveData.mainInventorySlots;
-            selectedSlot = saveData.selectedSlot;
-            
-            OnInventoryChanged?.Invoke();
-            OnHotbarChanged?.Invoke();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Failed to load inventory: {e.Message}");
-        }
-    }
-}
-
-// Data structures
-[System.Serializable]
-public class InventorySlot
-{
-    public byte itemId = 0;
-    public int amount = 0;
-}
-
-[System.Serializable]
-public class ItemData
-{
-    public byte id;
-    public string name;
-    public int maxStack = 64;
-    public ItemType type;
-    public int nutrition; // For food items
-    public int durability; // For tools
-}
-
-public enum ItemType
-{
-    Block,
-    Tool,
-    Food,
-    Material
-}
-
-[System.Serializable]
-public class InventorySaveData
-{
-    public InventorySlot[] hotbarSlots;
-    public InventorySlot[] mainInventorySlots;
-    public int selectedSlot;
-}
-}
-
-/// <summary>
-/// Inventory system for managing player items and blocks
-/// Supports hotbar, main inventory, and crafting
-/// </summary>
-public class InventoryManager : MonoBehaviour
-{
-    [Header("Inventory Configuration")]
-    public int hotbarSize = 9;
-    public int mainInventorySize = 27;
-    public int maxStackSize = 64;
-    
-    [Header("UI References")]
-    public GameObject inventoryUI;
-    public Transform hotbarPanel;
-    public Transform mainInventoryPanel;
-    
-    // Inventory data structure
-    private InventorySlot[] hotbarSlots;
-    private InventorySlot[] mainInventorySlots;
-    private Dictionary<byte, ItemData> itemDatabase;
-    
-    // Current selected slot
-    private int selectedSlot = 0;
-    
-    // Events
-    public delegate void InventoryUpdateHandler();
-    public event InventoryUpdateHandler OnInventoryChanged;
-    public event InventoryUpdateHandler OnHotbarChanged;
-    
-    void Start()
-    {
-        InitializeInventory();
-        LoadItemDatabase();
-    }
-    
-    void InitializeInventory()
-    {
-        // Initialize hotbar
-        hotbarSlots = new InventorySlot[hotbarSize];
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            hotbarSlots[i] = new InventorySlot();
-        }
-        
-        // Initialize main inventory
-        mainInventorySlots = new InventorySlot[mainInventorySize];
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            mainInventorySlots[i] = new InventorySlot();
-        }
-        
-        // Give starting items
-        AddStartingItems();
-    }
-    
-    void LoadItemDatabase()
-    {
-        itemDatabase = new Dictionary<byte, ItemData>();
-        
-        // Load from JSON or create default database
-        TextAsset jsonFile = Resources.Load<TextAsset>("Data/items");
-        if (jsonFile != null)
-        {
-            // TODO: Parse JSON and load items
-            Debug.Log("Loading items from JSON");
-        }
-        else
-        {
-            // Create default items
-            CreateDefaultItems();
-        }
-    }
-    
-    void CreateDefaultItems()
-    {
-        // Basic blocks
-        itemDatabase[1] = new ItemData { id = 1, name = "Stone", maxStack = 64, type = ItemType.Block };
-        itemDatabase[2] = new ItemData { id = 2, name = "Dirt", maxStack = 64, type = ItemType.Block };
-        itemDatabase[3] = new ItemData { id = 3, name = "Grass", maxStack = 64, type = ItemType.Block };
-        itemDatabase[4] = new ItemData { id = 4, name = "Wood", maxStack = 64, type = ItemType.Block };
-        itemDatabase[5] = new ItemData { id = 5, name = "Leaves", maxStack = 64, type = ItemType.Block };
-        
-        // Tools
-        itemDatabase[10] = new ItemData { id = 10, name = "Wooden Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        itemDatabase[11] = new ItemData { id = 11, name = "Stone Pickaxe", maxStack = 1, type = ItemType.Tool, durability = 132 };
-        itemDatabase[12] = new ItemData { id = 12, name = "Wooden Sword", maxStack = 1, type = ItemType.Tool, durability = 60 };
-        
-        // Food
-        itemDatabase[20] = new ItemData { id = 20, name = "Apple", maxStack = 64, type = ItemType.Food, nutrition = 4 };
-        itemDatabase[21] = new ItemData { id = 21, name = "Bread", maxStack = 64, type = ItemType.Food, nutrition = 5 };
-        itemDatabase[22] = new ItemData { id = 22, name = "Cooked Meat", maxStack = 64, type = ItemType.Food, nutrition = 8 };
-    }
-    
-    void AddStartingItems()
-    {
-        // Give player some starting items
-        AddItem(1, 10); // 10 stone
-        AddItem(4, 5);  // 5 wood
-        AddItem(10, 1); // 1 wooden pickaxe
-        AddItem(20, 3); // 3 apples
-    }
-    
-    public bool AddItem(byte itemId, int amount)
-    {
-        // Try to add to existing stacks first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId && 
-                mainInventorySlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - mainInventorySlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                mainInventorySlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Try to add to hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId && 
-                hotbarSlots[i].amount < GetItemMaxStack(itemId))
-            {
-                int spaceAvailable = GetItemMaxStack(itemId) - hotbarSlots[i].amount;
-                int amountToAdd = Mathf.Min(amount, spaceAvailable);
-                
-                hotbarSlots[i].amount += amountToAdd;
-                amount -= amountToAdd;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == 0)
-            {
-                mainInventorySlots[i].itemId = itemId;
-                mainInventorySlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= mainInventorySlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Add to empty slots in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == 0)
-            {
-                hotbarSlots[i].itemId = itemId;
-                hotbarSlots[i].amount = Mathf.Min(amount, GetItemMaxStack(itemId));
-                amount -= hotbarSlots[i].amount;
-                
-                if (amount <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Inventory is full
-        return amount <= 0;
-    }
-    
-    public bool RemoveItem(byte itemId, int amount)
-    {
-        int remainingToRemove = amount;
-        
-        // Remove from main inventory first
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, mainInventorySlots[i].amount);
-                mainInventorySlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (mainInventorySlots[i].amount <= 0)
-                {
-                    mainInventorySlots[i].itemId = 0;
-                    mainInventorySlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Remove from hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                int amountToRemove = Mathf.Min(remainingToRemove, hotbarSlots[i].amount);
-                hotbarSlots[i].amount -= amountToRemove;
-                remainingToRemove -= amountToRemove;
-                
-                if (hotbarSlots[i].amount <= 0)
-                {
-                    hotbarSlots[i].itemId = 0;
-                    hotbarSlots[i].amount = 0;
-                }
-                
-                if (remainingToRemove <= 0)
-                {
-                    OnInventoryChanged?.Invoke();
-                    OnHotbarChanged?.Invoke();
-                    return true;
-                }
-            }
-        }
-        
-        // Not enough items
-        return remainingToRemove <= 0;
-    }
-    
-    public int GetItemCount(byte itemId)
-    {
-        int count = 0;
-        
-        // Count in main inventory
-        for (int i = 0; i < mainInventorySize; i++)
-        {
-            if (mainInventorySlots[i].itemId == itemId)
-            {
-                count += mainInventorySlots[i].amount;
-            }
-        }
-        
-        // Count in hotbar
-        for (int i = 0; i < hotbarSize; i++)
-        {
-            if (hotbarSlots[i].itemId == itemId)
-            {
-                count += hotbarSlots[i].amount;
-            }
-        }
-        
-        return count;
-    }
-    
-    public byte GetHotbarItem(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            return hotbarSlots[slot].itemId;
-        }
-        return 0;
-    }
-    
-    public InventorySlot GetHotbarSlot(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            return hotbarSlots[slot];
-        }
-        return new InventorySlot();
-    }
-    
-    public InventorySlot GetMainInventorySlot(int slot)
-    {
-        if (slot >= 0 && slot < mainInventorySize)
-        {
-            return mainInventorySlots[slot];
-        }
-        return new InventorySlot();
-    }
-    
-    public void SetSelectedSlot(int slot)
-    {
-        if (slot >= 0 && slot < hotbarSize)
-        {
-            selectedSlot = slot;
-            OnHotbarChanged?.Invoke();
-        }
-    }
-    
-    public int GetSelectedSlot()
-    {
-        return selectedSlot;
-    }
-    
-    public bool SwapSlots(int fromSlot, int toSlot, bool fromHotbar, bool toHotbar)
-    {
-        InventorySlot fromData = fromHotbar ? hotbarSlots[fromSlot] : mainInventorySlots[fromSlot];
-        InventorySlot toData = toHotbar ? hotbarSlots[toSlot] : mainInventorySlots[toSlot];
-        
-        // Swap the slots
-        if (fromHotbar)
-            hotbarSlots[fromSlot] = toData;
-        else
-            mainInventorySlots[fromSlot] = toData;
-            
-        if (toHotbar)
-            hotbarSlots[toSlot] = fromData;
-        else
-            mainInventorySlots[toSlot] = fromData;
-        
-        OnInventoryChanged?.Invoke();
-        OnHotbarChanged?.Invoke();
-        return true;
-    }
-    
-    private int GetItemMaxStack(byte itemId)
-    {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId].maxStack;
-        }
-        return maxStackSize;
-    }
-    
-    public ItemData GetItemData(byte itemId)
-    {
-        if (itemDatabase.ContainsKey(itemId))
-        {
-            return itemDatabase[itemId];
-        }
-        return null;
-    }
-    
-    public void ToggleInventoryUI()
-    {
-        if (inventoryUI != null)
-        {
-            bool isActive = !inventoryUI.activeSelf;
-            inventoryUI.SetActive(isActive);
-            
-            if (isActive)
-            {
-                // Update UI with current inventory
-                UpdateInventoryUI();
-            }
-        }
-    }
-    
-    void UpdateInventoryUI()
-    {
-        // TODO: Update UI elements with inventory data
-        Debug.Log("Updating inventory UI");
-    }
-    
-    // Save/Load functionality
-    public string SaveInventory()
-    {
-        InventorySaveData saveData = new InventorySaveData
-        {
-            hotbarSlots = hotbarSlots,
-            mainInventorySlots = mainInventorySlots,
-            selectedSlot = selectedSlot
-        };
-        
-        return JsonUtility.ToJson(saveData);
-    }
-    
-    public void LoadInventory(string jsonData)
-    {
-        try
-        {
-            InventorySaveData saveData = JsonUtility.FromJson<InventorySaveData>(jsonData);
-            hotbarSlots = saveData.hotbarSlots;
-            mainInventorySlots = saveData.mainInventorySlots;
-            selectedSlot = saveData.selectedSlot;
-            
-            OnInventoryChanged?.Invoke();
-            OnHotbarChanged?.Invoke();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Failed to load inventory: {e.Message}");
-        }
-    }
-}
-
-// Data structures
-[System.Serializable]
-public class InventorySlot
-{
-    public byte itemId = 0;
-    public int amount = 0;
-}
-
-[System.Serializable]
-public class ItemData
-{
-    public byte id;
-    public string name;
-    public int maxStack = 64;
-    public ItemType type;
-    public int nutrition; // For food items
-    public int durability; // For tools
-}
-
-public enum ItemType
-{
-    Block,
-    Tool,
-    Food,
-    Material
-}
-
-[System.Serializable]
-public class InventorySaveData
-{
-    public InventorySlot[] hotbarSlots;
-    public InventorySlot[] mainInventorySlots;
-    public int selectedSlot;
-}
 }

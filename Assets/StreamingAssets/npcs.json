@@ -1,0 +1,103 @@
+{
+  "npcs": {
+    "villager": {
+      "id": 1,
+      "name": "Villager",
+      "displayName": "Villager",
+      "health": 20,
+      "armor": 0,
+      "speed": 0.15,
+      "behavior": "passive",
+      "profession": "none",
+      "trades": [],
+      "spawnConditions": {
+        "structures": ["village"],
+        "biomes": ["plains", "desert", "savanna", "taiga", "snowy"]
+      },
+      "categories": ["npcs", "passive", "trading"]
+    },
+    "farmer": {
+      "id": 2,
+      "name": "Farmer",
+      "displayName": "Farmer",
+      "health": 20,
+      "armor": 0,
+      "speed": 0.15,
+      "behavior": "passive",
+      "profession": "farmer",
+      "trades": [
+        { "input": "wheat", "output": "emerald", "inputQty": 20, "outputQty": 1 },
+        { "input": "emerald", "output": "bread", "inputQty": 1, "outputQty": 6 },
+        { "input": "emerald", "output": "apple", "inputQty": 1, "outputQty": 4 }
+      ],
+      "spawnConditions": {
+        "structures": ["village"],
+        "biomes": ["plains", "savanna"]
+      },
+      "categories": ["npcs", "passive", "trading", "farmer"]
+    },
+    "blacksmith": {
+      "id": 3,
+      "name": "Blacksmith",
+      "displayName": "Blacksmith",
+      "health": 20,
+      "armor": 0,
+      "speed": 0.15,
+      "behavior": "passive",
+      "profession": "blacksmith",
+      "trades": [
+        { "input": "coal", "output": "emerald", "inputQty": 15, "outputQty": 1 },
+        { "input": "emerald", "output": "iron_pickaxe", "inputQty": 9, "outputQty": 1 },
+        { "input": "emerald", "output": "iron_sword", "inputQty": 7, "outputQty": 1 },
+        { "input": "iron_ingot", "output": "emerald", "inputQty": 4, "outputQty": 1 }
+      ],
+      "spawnConditions": {
+        "structures": ["village"],
+        "biomes": ["plains", "desert", "savanna"]
+      },
+      "categories": ["npcs", "passive", "trading", "blacksmith"]
+    },
+    "librarian": {
+      "id": 4,
+      "name": "Librarian",
+      "displayName": "Librarian",
+      "health": 20,
+      "armor": 0,
+      "speed": 0.15,
+      "behavior": "passive",
+      "profession": "librarian",
+      "trades": [
+        { "input": "paper", "output": "emerald", "inputQty": 24, "outputQty": 1 },
+        { "input": "emerald", "output": "book", "inputQty": 1, "outputQty": 1 },
+        { "input": "emerald", "output": "bookshelf", "inputQty": 6, "outputQty": 1 }
+      ],
+      "spawnConditions": {
+        "structures": ["village"],
+        "biomes": ["plains", "taiga"]
+      },
+      "categories": ["npcs", "passive", "trading", "librarian"]
+    },
+    "wandering_trader": {
+      "id": 5,
+      "name": "Wandering Trader",
+      "displayName": "Wandering Trader",
+      "health": 20,
+      "armor": 0,
+      "speed": 0.2,
+      "behavior": "passive",
+      "profession": "wandering_trader",
+      "trades": [
+        { "input": "emerald", "output": "sapling", "inputQty": 5, "outputQty": 1 },
+        { "input": "emerald", "output": "coral", "inputQty": 3, "outputQty": 1 },
+        { "input": "emerald", "output": "kelp", "inputQty": 3, "outputQty": 3 }
+      ],
+      "spawnConditions": {
+        "biomes": ["any"],
+        "spawnChance": 0.1
+      },
+      "categories": ["npcs", "passive", "trading", "wandering"]
+    }
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-19T12:00:00Z"
+}

@@ -561,6 +561,48 @@ namespace GameServerApp.Testing
                     Sequence = 2,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 }),
+                MinecraftMessageType.MultiBlockChange => SerializeLegacyPayload(new MultiBlockChangeRequestMessage
+                {
+                    Changes =
+                    {
+                        new BlockChangeRequestEntry
+                        {
+                            Position = new Vector3I(0, 64, 0),
+                            NewBlockId = 1,
+                            Metadata = 0,
+                            ActionType = PlayerActionType.PlaceBlock,
+                            Sequence = 3
+                        },
+                        new BlockChangeRequestEntry
+                        {
+                            Position = new Vector3I(1, 64, 0),
+                            NewBlockId = 2,
+                            Metadata = 0,
+                            ActionType = PlayerActionType.PlaceBlock,
+                            Sequence = 4
+                        }
+                    }
+                }),
+                MinecraftMessageType.ItemPickup => SerializeLegacyPayload(new ItemPickupRequestMessage
+                {
+                    EntityId = "dummy-item-entity",
+                    RequestedQuantity = 1,
+                    Sequence = 5
+                }),
+                MinecraftMessageType.EntityInteract => SerializeLegacyPayload(new EntityInteractRequestMessage
+                {
+                    TargetEntityId = "dummy-entity",
+                    InteractionType = EntityInteractionType.Interact,
+                    UsedItem = new InventoryItemInfo
+                    {
+                        ItemId = 280,
+                        ItemName = "stick",
+                        Quantity = 1,
+                        ItemType = SharedProtocol.ItemType.Material
+                    },
+                    Sequence = 6,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }),
                 _ => Array.Empty<byte>()
             };
 

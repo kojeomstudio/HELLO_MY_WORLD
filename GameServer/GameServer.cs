@@ -197,6 +197,9 @@ namespace GameServerApp
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.EntityUpdate, new MinecraftEntityUpdateHandler());
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemUse, new MinecraftItemUseHandler());
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemDrop, new MinecraftItemDropHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.MultiBlockChange, new MinecraftMultiBlockChangeHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemPickup, new MinecraftItemPickupHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.EntityInteract, new MinecraftEntityInteractHandler());
             
             Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
             Console.WriteLine("✓ Advanced Block Breaking System");

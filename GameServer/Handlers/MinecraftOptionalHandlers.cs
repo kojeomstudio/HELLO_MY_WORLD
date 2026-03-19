@@ -73,4 +73,82 @@ namespace GameServerApp.Handlers
             await session.SendAsync((int)MinecraftMessageType.PlayerActionResponse, stream.ToArray());
         }
     }
+
+    public sealed class MinecraftMultiBlockChangeHandler : MinecraftMessageHandlerBase<MultiBlockChangeRequestMessage>
+    {
+        public override async Task HandleAsync(Session session, MultiBlockChangeRequestMessage message)
+        {
+            int changeCount = message?.Changes?.Count ?? 0;
+            var response = new MultiBlockChangeResponseMessage
+            {
+                AllSuccess = true
+            };
+
+            if (message?.Changes != null)
+            {
+                foreach (var change in message.Changes)
+                {
+                    response.Results.Add(new BlockChangeResultEntry
+                    {
+                        Success = true,
+                        Message = "MultiBlockChange optional packet acknowledged.",
+                        Position = change?.Position ?? new Vector3I(),
+                        ActualBlockId = change?.NewBlockId ?? 0,
+                        Sequence = change?.Sequence ?? 0
+                    });
+                }
+            }
+
+            Console.WriteLine($"[Minecraft][Optional] MultiBlockChange received ({changeCount} changes) and acknowledged.");
+            using var stream = new MemoryStream();
+            Serializer.Serialize(stream, response);
+            await session.SendAsync((int)MinecraftMessageType.MultiBlockChange, stream.ToArray());
+        }
+    }
+
+    public sealed class MinecraftItemPickupHandler : MinecraftMessageHandlerBase<ItemPickupRequestMessage>
+    {
+        public override async Task HandleAsync(Session session, ItemPickupRequestMessage message)
+        {
+            var response = new ItemPickupResponseMessage
+            {
+                Success = true,
+                Message = "ItemPickup optional packet acknowledged.",
+                EntityId = message?.EntityId ?? string.Empty,
+                PickedItem = new InventoryItemInfo
+                {
+                    ItemId = 0,
+                    ItemName = "unknown",
+                    Quantity = Math.Max(0, message?.RequestedQuantity ?? 0)
+                },
+                RemainingQuantity = 0,
+                Sequence = message?.Sequence ?? 0
+            };
+
+            Console.WriteLine($"[Minecraft][Optional] ItemPickup received for entity '{response.EntityId}' and acknowledged.");
+            using var stream = new MemoryStream();
+            Serializer.Serialize(stream, response);
+            await session.SendAsync((int)MinecraftMessageType.ItemPickup, stream.ToArray());
+        }
+    }
+
+    public sealed class MinecraftEntityInteractHandler : MinecraftMessageHandlerBase<EntityInteractRequestMessage>
+    {
+        public override async Task HandleAsync(Session session, EntityInteractRequestMessage message)
+        {
+            var response = new EntityInteractResponseMessage
+            {
+                Success = true,
+                Message = "EntityInteract optional packet acknowledged.",
+                TargetEntityId = message?.TargetEntityId ?? string.Empty,
+                Sequence = message?.Sequence ?? 0
+            };
+
+            Console.WriteLine(
+                $"[Minecraft][Optional] EntityInteract received for '{response.TargetEntityId}' (action: {message?.InteractionType}) and acknowledged.");
+            using var stream = new MemoryStream();
+            Serializer.Serialize(stream, response);
+            await session.SendAsync((int)MinecraftMessageType.EntityInteract, stream.ToArray());
+        }
+    }
 }

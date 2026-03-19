@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
     <PackageReference Include="Google.Protobuf" Version="3.27.2" />
     <PackageReference Include="protobuf-net" Version="3.2.26" />
     <PackageReference Include="Grpc.Tools" Version="2.64.0">

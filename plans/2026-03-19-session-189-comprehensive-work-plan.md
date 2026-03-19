@@ -22,7 +22,7 @@
 - [x] Runtime smoke validation completed (`GameServer --selftest`)
 - [x] Implementation commit created
 - [x] Completion hash/date written back to this plan
-- [ ] Reflected to `origin`
+- [x] Reflected to `origin`
 
 ## Validation Notes
 - Build:
@@ -38,4 +38,4 @@
 
 ## Completion Record
 - Implementation commit hash/date: `e079baa6` | `2026-03-19`
-- Origin reflection status: pending
+- Origin reflection status: pushed (`master` -> `origin/master`)

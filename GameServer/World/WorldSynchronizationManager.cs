@@ -48,15 +48,34 @@ namespace GameServerApp.World
         /// <summary>
         /// Processes a block change and queues it for synchronization
         /// </summary>
-        public async Task ProcessBlockChangeAsync(WorldBlockChangeRequest request, Session originSession)
+        public async Task ProcessBlockChangeAsync(
+            WorldBlockChangeRequest request,
+            Session originSession,
+            BlockType resolvedBlockType,
+            int protocolBlockType)
         {
-            var chunkX = request.BlockPosition.X / 16;
-            var chunkZ = request.BlockPosition.Z / 16;
+            var blockPosition = request.BlockPosition;
+            if (blockPosition == null)
+            {
+                return;
+            }
+
+            var chunkX = blockPosition.X / 16;
+            var chunkZ = blockPosition.Z / 16;
             var chunkKey = GetChunkKey(chunkX, chunkZ);
 
             // Track the chunk update
             var tracker = _chunkUpdateTrackers.GetOrAdd(chunkKey, _ => new ChunkUpdateTracker(chunkX, chunkZ));
-            tracker.RecordBlockChange(request.BlockPosition, (BlockType)request.BlockType);
+            tracker.RecordBlockChange(blockPosition, resolvedBlockType);
+
+            var normalizedRequest = new WorldBlockChangeRequest
+            {
+                AreaId = request.AreaId,
+                SubworldId = request.SubworldId,
+                BlockPosition = blockPosition,
+                BlockType = protocolBlockType,
+                ChunkType = request.ChunkType
+            };
 
             // Queue the world change
             lock (_queueLock)
@@ -64,14 +83,14 @@ namespace GameServerApp.World
                 _worldChangeQueue.Enqueue(new WorldChangeRecord
                 {
                     Type = WorldChangeType.BlockChange,
-                    Data = request,
+                    Data = normalizedRequest,
                     Timestamp = DateTimeOffset.UtcNow,
                     OriginPlayerId = originSession.UserName ?? originSession.SessionToken ?? string.Empty
                 });
             }
 
             // Process the block change immediately for the origin player
-            await ProcessImmediateBlockChange(request, originSession);
+            await ProcessImmediateBlockChange(normalizedRequest, originSession, resolvedBlockType);
         }
 
         /// <summary>
@@ -106,19 +125,25 @@ namespace GameServerApp.World
             await CleanupOldChunkTrackers();
         }
 
-        private async Task ProcessImmediateBlockChange(WorldBlockChangeRequest request, Session originSession)
+        private async Task ProcessImmediateBlockChange(WorldBlockChangeRequest request, Session originSession, BlockType resolvedBlockType)
         {
-            var chunkX = request.BlockPosition.X / 16;
-            var chunkZ = request.BlockPosition.Z / 16;
+            var blockPosition = request.BlockPosition;
+            if (blockPosition == null)
+            {
+                return;
+            }
+
+            var chunkX = blockPosition.X / 16;
+            var chunkZ = blockPosition.Z / 16;
             
-            if (request.BlockPosition.X < 0) chunkX--;
-            if (request.BlockPosition.Z < 0) chunkZ--;
+            if (blockPosition.X < 0) chunkX--;
+            if (blockPosition.Z < 0) chunkZ--;
 
             var playerId = 1; // TODO: Get actual player ID
-            var blockType = (BlockType)request.BlockType;
+            var blockType = resolvedBlockType;
             
             await _worldManager.UpdateBlockAsync(chunkX, chunkZ, 
-                request.BlockPosition.X, request.BlockPosition.Y, request.BlockPosition.Z,
+                blockPosition.X, blockPosition.Y, blockPosition.Z,
                 blockType, playerId);
         }
 

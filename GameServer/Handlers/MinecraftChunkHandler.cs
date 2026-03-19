@@ -290,12 +290,14 @@ namespace GameServerApp.Handlers
                     generationTimestamp: 0);
             }
 
-            var (compressedBlockData, biomeBytes, _, _) = chunkResult.Value;
+            var (rawBlockData, _, biomeBytes, _, _) = chunkResult.Value;
+            var protocolBlockData = BlockTypeProtocolMapper.ConvertChunkBlockDataToProtocol(rawBlockData);
+            var protocolCompressedBlockData = CompressChunkData(protocolBlockData);
             var generationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var chunkData = ChunkPayloadBuilder.BuildChunkData(
                 chunkX,
                 chunkZ,
-                compressedBlockData,
+                protocolCompressedBlockData,
                 biomeBytes,
                 generationTimestamp);
 
@@ -370,8 +372,10 @@ namespace GameServerApp.Handlers
                 return false;
             }
 
-            var (compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
+            var (rawBlockData, compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
             var alreadyServed = HasPlayerLoadedChunk(playerId, chunkX, chunkZ);
+            var protocolBlockData = BlockTypeProtocolMapper.ConvertChunkBlockDataToProtocol(rawBlockData);
+            var protocolCompressedBlockData = CompressChunkData(protocolBlockData);
 
             var entities = await _worldManager.GetEntitiesInChunk(chunkX, chunkZ);
 
@@ -390,13 +394,13 @@ namespace GameServerApp.Handlers
             var enhancedResponse = ChunkPayloadBuilder.BuildLoadResponse(
                 chunkX,
                 chunkZ,
-                compressedBlockData,
+                protocolCompressedBlockData,
                 biomeBytes,
                 generationTimestamp,
                 totalRequested);
             response.EnhancedPayload = enhancedResponse.ToByteArray();
 
-            ChunkPayloadBuilder.ValidateChunkPayload(chunkX, chunkZ, compressedBlockData, biomeBytes);
+            ChunkPayloadBuilder.ValidateChunkPayload(chunkX, chunkZ, protocolCompressedBlockData, biomeBytes);
             await SendChunkResponse(session, response);
 
             await UpdatePlayerLoadedChunks(playerId, chunkX, chunkZ, viewDistance);
@@ -452,7 +456,7 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 청크 데이터를 로드하거나 새로 생성하고 전송에 필요한 메타데이터를 준비한다.
         /// </summary>
-        private async Task<(byte[] CompressedBlockData, byte[] BiomeBytes, BiomeInfo BiomeInfo, bool IsFromDatabase)?> LoadOrGenerateChunkPayload(int chunkX, int chunkZ)
+        private async Task<(byte[] RawBlockData, byte[] CompressedBlockData, byte[] BiomeBytes, BiomeInfo BiomeInfo, bool IsFromDatabase)?> LoadOrGenerateChunkPayload(int chunkX, int chunkZ)
         {
             try
             {
@@ -471,7 +475,7 @@ namespace GameServerApp.Handlers
                     ? storedBiomeBytes
                     : ConvertBiomeIdsToBytes(biomeInfo.BiomeIds);
 
-                return (compressed, biomeBytes, biomeInfo, isPersisted);
+                return (blockBytes, compressed, biomeBytes, biomeInfo, isPersisted);
             }
             catch (Exception ex)
             {

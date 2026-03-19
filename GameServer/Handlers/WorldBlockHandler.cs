@@ -59,23 +59,23 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 await SendFailureResponse(session, "블록 Y 좌표가 허용 범위를 벗어났습니다.");
                 return;
             }
-            if (message.BlockType < 0 ||
-                message.BlockType > ushort.MaxValue ||
-                !Enum.IsDefined(typeof(BlockType), (ushort)message.BlockType))
+
+            if (!BlockTypeProtocolMapper.TryProtocolToServer(message.BlockType, out BlockType resolvedBlockType))
             {
                 await SendFailureResponse(session, "알 수 없는 블록 타입입니다.");
                 return;
             }
+            int protocolBlockType = BlockTypeProtocolMapper.ToProtocol(resolvedBlockType);
 
             // 블록 변경 처리 (WorldSynchronizationManager를 통한 실시간 월드 동기화)
             if (_worldSync != null)
             {
-                await _worldSync.ProcessBlockChangeAsync(message, session);
+                await _worldSync.ProcessBlockChangeAsync(message, session, resolvedBlockType, protocolBlockType);
                 await _worldSync.ProcessWorldChangeQueueAsync();
             }
             else
             {
-                await ProcessBlockChange(session, message);
+                await ProcessBlockChange(session, message, resolvedBlockType);
             }
 
             // 성공 응답 전송
@@ -90,7 +90,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
             // 다른 플레이어들에게 브로드캐스트 (WorldSynchronizationManager가 큐를 통해 처리)
             if (_worldSync == null)
             {
-                await BroadcastBlockChange(session, message);
+                await BroadcastBlockChange(session, message, protocolBlockType);
             }
 
             Console.WriteLine($"Block changed by {session.UserName}: {message.AreaId}/{message.SubworldId} at ({message.BlockPosition.X}, {message.BlockPosition.Y}, {message.BlockPosition.Z})");
@@ -134,39 +134,41 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
     /// <summary>
     /// 블록 변경을 실제로 처리합니다.
     /// </summary>
-    private async Task ProcessBlockChange(Session session, WorldBlockChangeRequest message)
+    private async Task ProcessBlockChange(Session session, WorldBlockChangeRequest message, BlockType blockType)
     {
         var playerState = _sessions.GetPlayerState(session.UserName!);
         if (playerState == null) return;
+        if (message.BlockPosition == null) return;
 
-        var chunkX = message.BlockPosition.X / 16;
-        var chunkZ = message.BlockPosition.Z / 16;
+        var blockPosition = message.BlockPosition;
+
+        var chunkX = blockPosition.X / 16;
+        var chunkZ = blockPosition.Z / 16;
         
-        if (message.BlockPosition.X < 0) chunkX--;
-        if (message.BlockPosition.Z < 0) chunkZ--;
+        if (blockPosition.X < 0) chunkX--;
+        if (blockPosition.Z < 0) chunkZ--;
 
         var playerId = 1;
-        var blockType = (BlockType)message.BlockType;
         
         await _worldManager.UpdateBlockAsync(chunkX, chunkZ, 
-            message.BlockPosition.X, message.BlockPosition.Y, message.BlockPosition.Z,
+            blockPosition.X, blockPosition.Y, blockPosition.Z,
             blockType, playerId);
             
-        Console.WriteLine($"Block updated at ({message.BlockPosition.X}, {message.BlockPosition.Y}, {message.BlockPosition.Z}) " +
+        Console.WriteLine($"Block updated at ({blockPosition.X}, {blockPosition.Y}, {blockPosition.Z}) " +
                          $"to type {blockType} by {session.UserName}");
     }
 
     /// <summary>
     /// 블록 변경 사항을 다른 플레이어들에게 브로드캐스트합니다.
     /// </summary>
-    private async Task BroadcastBlockChange(Session originSession, WorldBlockChangeRequest message)
+    private async Task BroadcastBlockChange(Session originSession, WorldBlockChangeRequest message, int protocolBlockType)
     {
         var broadcast = new WorldBlockChangeBroadcast
         {
             AreaId = message.AreaId,
             SubworldId = message.SubworldId,
             BlockPosition = message.BlockPosition,
-            BlockType = message.BlockType,
+            BlockType = protocolBlockType,
             ChunkType = message.ChunkType,
             PlayerId = originSession.PlayerInfo?.PlayerId ?? originSession.UserName ?? "Unknown",
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()

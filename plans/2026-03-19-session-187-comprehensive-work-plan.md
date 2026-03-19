@@ -33,9 +33,9 @@
 - [x] `design/` 실행 기획 문서 작성(minetest 참조 근거 포함)
 - [x] 불필요/오래된 문서 정리 대상 점검
   - 이번 세션 기준 즉시 삭제가 필요한 문서는 발견하지 못함
-- [ ] 구현 커밋 생성
-- [ ] origin 반영(push)
-- [ ] 완료 커밋 해시/날짜 기록 업데이트
+- [x] 구현 커밋 생성
+- [x] origin 반영(push)
+- [x] 완료 커밋 해시/날짜 기록 업데이트
 
 ## Validation Notes
 - Build
@@ -55,5 +55,5 @@
 - `reports/proto_probe_report.json`
 
 ## Completion Record
-- Session-187 implementation commit hash/date: `TBD`
-- Session-187 origin reflection status: `TBD`
+- Session-187 implementation commit hash/date: `459e8c10` | `2026-03-19 09:13:20 +0900`
+- Session-187 origin reflection status: pushed (`master` -> `origin/master`)

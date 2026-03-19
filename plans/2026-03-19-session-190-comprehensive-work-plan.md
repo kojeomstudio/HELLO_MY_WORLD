@@ -47,5 +47,5 @@ Based on `minetest_project/src/`:
 - `inventory.cpp/h` -> Inventory management
 
 ## Completion Record
-- Implementation commit hash/date: (to be filled after commit)
-- Origin reflection status: (to be filled after push)
+- Implementation commit hash/date: `d5cd224e` | `2026-03-19`
+- Origin reflection status: pushed (`master` -> `origin/master`)

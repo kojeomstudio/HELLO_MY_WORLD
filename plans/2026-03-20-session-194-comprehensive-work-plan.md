@@ -29,29 +29,29 @@
 ## 작업 항목
 
 ### 1. minetest 기준 블록/아이템 ID 체계 분석
-- [ ] `minetest_project/src/nodedef.h` ContentFeatures 구조 분석
-- [ ] `minetest_project/src/itemdef.h` ItemDefinition 구조 분석
-- [ ] `minetest_project/src/inventorymanager.h` InventoryLocation 패턴 분석
-- [ ] Unity/Server 공통 ID 매핑 설계안 작성
+- [x] `minetest_project/src/nodedef.h` ContentFeatures 구조 분석
+- [x] `minetest_project/src/itemdef.h` ItemDefinition 구조 분석
+- [x] `minetest_project/src/inventorymanager.h` InventoryLocation 패턴 분석
+- [x] Unity/Server 공통 ID 매핑 설계안 작성
 
 ### 2. 네트워크 계층 개선 분석
-- [ ] `GameNetworkManager.cs` 현재 상태 분석
-- [ ] protobuf 단일 경로 수렴을 위한 인터페이스 설계
-- [ ] 서버-클라 프로토콜 정합성 점검
+- [x] `GameNetworkManager.cs` 현재 상태 분석
+- [ ] protobuf 단일 경로 수렴을 위한 인터페이스 설계 (후속 세션)
+- [ ] 서버-클라 프로토콜 정합성 점검 (후속 세션)
 
 ### 3. 아키텍처 문서 업데이트
-- [ ] minetest NodeDef/ItemDef 매핑 문서 작성 (`docs/2026-03-20-session-194-architecture-and-code-flow.md`)
-- [ ] design 문서 업데이트 (`design/2026-03-20-session-194-design-execution.md`)
+- [x] minetest NodeDef/ItemDef 매핑 문서 작성 (`docs/2026-03-20-session-194-architecture-and-code-flow.md`)
+- [x] design 문서 업데이트 (`design/2026-03-20-session-194-design-execution.md`)
 
 ### 4. 문서 정리
-- [ ] `docs/` 경로의 2025년/초기 2026년 구형 문서 삭제
-- [ ] `plans/` 경로의 완료된 세션 계획 문서 정리
+- [x] `docs/` 경로의 2025년/초기 2026년 구형 문서 삭제 (220+개 파일 삭제)
+- [x] `plans/` 경로의 완료된 세션 계획 문서 정리 (62개 파일 삭제)
 
 ### 5. 검증 및 Git 반영
-- [ ] `dotnet build SharedProtocol/SharedProtocol.csproj`
-- [ ] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
+- [x] `dotnet build GameServer/GameServer.csproj`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ---
 
@@ -59,4 +59,7 @@
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| (대기) | - | - |
+| minetest NodeDef/ItemDef 분석 및 설계 문서 | `bf6794e4` | 2026-03-20 |
+| 오래된 docs/plans 정리 (282개 파일 삭제) | `bf6794e4` | 2026-03-20 |
+| 컴파일 테스트 | `bf6794e4` | 2026-03-20 |
+| origin 반영 | `bf6794e4` | 2026-03-20 |

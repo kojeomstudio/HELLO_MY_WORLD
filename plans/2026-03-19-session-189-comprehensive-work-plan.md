@@ -20,8 +20,8 @@
 - [x] Game-data template exporter validation completed
 - [x] Compile validation completed (`SharedProtocol`, `GameServer`)
 - [x] Runtime smoke validation completed (`GameServer --selftest`)
-- [ ] Implementation commit created
-- [ ] Completion hash/date written back to this plan
+- [x] Implementation commit created
+- [x] Completion hash/date written back to this plan
 - [ ] Reflected to `origin`
 
 ## Validation Notes
@@ -37,6 +37,5 @@
   - Emitted datasets: `items`, `recipes`, `monsters`, `npcs`, `character_stats` (5 files)
 
 ## Completion Record
-- Implementation commit hash/date: pending
-- Plan completion commit hash/date: pending
+- Implementation commit hash/date: `e079baa6` | `2026-03-19`
 - Origin reflection status: pending

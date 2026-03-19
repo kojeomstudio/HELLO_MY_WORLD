@@ -46,8 +46,8 @@
 ### 4. 검증 및 Git 반영
 - [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
 - [x] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ---
 
@@ -55,8 +55,8 @@
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| blocks.json 중복 데이터 수정 | (pending) | 2026-03-20 |
-| 오래된 세션 JSON 정리 | (pending) | 2026-03-20 |
-| minetest 데이터 모델 분석 | (pending) | 2026-03-20 |
-| 컴파일 테스트 | (pending) | 2026-03-20 |
-| origin 반영 | (pending) | 2026-03-20 |
+| blocks.json 중복 데이터 수정 | `4499cfe0` | 2026-03-20 |
+| 오래된 세션 JSON 정리 | `4499cfe0` | 2026-03-20 |
+| minetest 데이터 모델 분석 | `4499cfe0` | 2026-03-20 |
+| 컴파일 테스트 | `4499cfe0` | 2026-03-20 |
+| origin 반영 | `4499cfe0` | 2026-03-20 |

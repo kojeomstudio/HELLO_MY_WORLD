@@ -27,8 +27,8 @@
 - [x] 컴파일 검증 - SUCCESS (0 errors)
 - [x] 런타임 스모크 검증 (selftest) - PASSED
 - [x] 문서 작성 (docs/, design/)
-- [ ] 구현 커밋 생성
-- [ ] origin 반영(push)
+- [x] 구현 커밋 생성
+- [x] origin 반영(push)
 
 ## Validation Notes
 - Build
@@ -43,5 +43,5 @@
   - Datasets: 5 files (items, recipes, monsters, npcs, character_stats)
 
 ## Completion Record
-- Session-188 implementation commit hash/date: (pending)
-- Session-188 origin reflection status: (pending)
+- Session-188 implementation commit hash/date: `6399d5a8` | `2026-03-19`
+- Session-188 origin reflection status: pushed (`master` -> `origin/master`)

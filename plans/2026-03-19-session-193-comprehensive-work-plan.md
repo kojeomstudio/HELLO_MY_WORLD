@@ -45,8 +45,8 @@
 ### 4. 검증 및 Git 반영
 - [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
 - [x] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ---
 
@@ -54,6 +54,8 @@
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| 코드 리팩터링 및 문서 정리 | `TBD` | 2026-03-19 |
-| 컴파일 테스트 | `TBD` | 2026-03-19 |
-| origin 반영 | `TBD` | 2026-03-19 |
+| 코드 리팩터링 및 문서 정리 | `9324c792` | 2026-03-19 |
+| 컴파일 테스트 | `9324c792` | 2026-03-19 |
+| origin 반영 | `9324c792` | 2026-03-19 |
+
+

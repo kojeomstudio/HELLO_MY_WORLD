@@ -48,8 +48,8 @@
 ### 4. 검증 및 Git 반영
 - [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
 - [x] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ---
 
@@ -57,7 +57,7 @@
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| 블록 ID 프로토콜 정규화 레이어 구현 | `TBD` | `TBD` |
-| 문서화 및 계획서 갱신 | `TBD` | `TBD` |
-| 컴파일 검증 | `TBD` | `2026-03-19` |
-| origin 반영 | `TBD` | `TBD` |
+| 블록 ID 프로토콜 정규화 레이어 구현 | `76a3c289` | `2026-03-19` |
+| 문서화 및 계획서 갱신 | `76a3c289` | `2026-03-19` |
+| 컴파일 검증 | `76a3c289` | `2026-03-19` |
+| origin 반영 | `76a3c289` | `2026-03-19` |

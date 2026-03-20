@@ -35,11 +35,11 @@
 ### 4. 검증 및 Git 반영
 - [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
 - [x] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ## 완료 작업 기록
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| | | |
+| Unity game-data 파서 정합성 보완 및 세션 문서 갱신 | 5b851ad3 | 2026-03-20 |

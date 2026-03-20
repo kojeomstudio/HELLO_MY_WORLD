@@ -46,16 +46,16 @@
 ### 5. 검증 및 Git 반영
 - [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
 - [x] `dotnet build GameServer/GameServer.csproj`
-- [ ] 변경사항 커밋
+- [x] 변경사항 커밋
 - [ ] `git push origin master`
 
 ## 완료 작업 기록
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| game-data 로딩 경로 우선순위 정렬 | `TBD` | 2026-03-20 |
-| game-data parity manifest 확장 | `TBD` | 2026-03-20 |
-| game-data 미러 파일 동기화 | `TBD` | 2026-03-20 |
-| docs/plans 구식 문서 정리 | `TBD` | 2026-03-20 |
-| session-197 문서 작성 | `TBD` | 2026-03-20 |
-| 컴파일 검증 및 원격 반영 | `TBD` | 2026-03-20 |
+| game-data 로딩 경로 우선순위 정렬 | `10a16122` | 2026-03-20 |
+| game-data parity manifest 확장 | `10a16122` | 2026-03-20 |
+| game-data 미러 파일 동기화 | `10a16122` | 2026-03-20 |
+| docs/plans 구식 문서 정리 | `10a16122` | 2026-03-20 |
+| session-197 문서 작성 | `10a16122` | 2026-03-20 |
+| 컴파일 검증 및 원격 반영 | `10a16122` | 2026-03-20 |

@@ -535,7 +535,7 @@ namespace GameServerApp
             var rules = new[]
             {
                 new GameDataDatasetRule("items", JsonValueKind.Array, new[] { "id" }),
-                new GameDataDatasetRule("recipes", JsonValueKind.Array, new[] { "id", "result", "ingredients" }),
+                new GameDataDatasetRule("recipes", JsonValueKind.Array, new[] { "id", "ingredients" }),
                 new GameDataDatasetRule("monsters", JsonValueKind.Array, new[] { "id", "health", "attack" }),
                 new GameDataDatasetRule("npcs", JsonValueKind.Array, new[] { "id", "role" }),
                 new GameDataDatasetRule("character_stats", JsonValueKind.Object, new[] { "base", "growth_per_level" })
@@ -634,6 +634,41 @@ namespace GameServerApp
                     {
                         throw new InvalidOperationException(
                             $"Dataset '{rule.Name}' element[{index}] has null '{propertyName}'. Path: {datasetPath}");
+                    }
+                }
+
+                if (string.Equals(rule.Name, "recipes", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool hasSingleResult = entry.TryGetProperty("result", out JsonElement singleResult) &&
+                        singleResult.ValueKind != JsonValueKind.Null &&
+                        singleResult.ValueKind != JsonValueKind.Undefined;
+                    bool hasMultiResults = entry.TryGetProperty("results", out JsonElement multiResults) &&
+                        multiResults.ValueKind != JsonValueKind.Null &&
+                        multiResults.ValueKind != JsonValueKind.Undefined;
+
+                    if (!hasSingleResult && !hasMultiResults)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] is missing 'result' or 'results'. Path: {datasetPath}");
+                    }
+
+                    if (hasSingleResult && singleResult.ValueKind != JsonValueKind.Object)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] property 'result' must be object. Path: {datasetPath}");
+                    }
+
+                    if (hasMultiResults && multiResults.ValueKind != JsonValueKind.Array)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] property 'results' must be array. Path: {datasetPath}");
+                    }
+
+                    JsonElement ingredients = entry.GetProperty("ingredients");
+                    if (ingredients.ValueKind != JsonValueKind.Array)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] property 'ingredients' must be array. Path: {datasetPath}");
                     }
                 }
 

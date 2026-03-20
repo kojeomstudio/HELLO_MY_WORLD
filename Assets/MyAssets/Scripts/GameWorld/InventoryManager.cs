@@ -216,7 +216,8 @@ public class InventoryManager : MonoBehaviour
             ?? key;
         string typeText = itemObject["type"]?.Value<string>() ?? "material";
 
-        int stackSize = itemObject["max_stack"]?.Value<int?>()
+        int stackSize = itemObject["stack_max"]?.Value<int?>()
+            ?? itemObject["max_stack"]?.Value<int?>()
             ?? itemObject["maxStack"]?.Value<int?>()
             ?? (itemObject["stackable"]?.Value<bool?>() == false ? 1 : maxStackSize);
 
@@ -248,7 +249,9 @@ public class InventoryManager : MonoBehaviour
             ?? key;
 
         string typeText = itemObject["type"]?.Value<string>() ?? categoryName;
-        int stackSize = itemObject["stackSize"]?.Value<int?>()
+        int stackSize = itemObject["stack_max"]?.Value<int?>()
+            ?? itemObject["max_stack"]?.Value<int?>()
+            ?? itemObject["stackSize"]?.Value<int?>()
             ?? itemObject["maxStack"]?.Value<int?>()
             ?? InferDefaultStackSize(typeText);
 

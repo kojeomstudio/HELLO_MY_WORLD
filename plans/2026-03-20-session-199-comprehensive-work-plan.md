@@ -26,14 +26,14 @@
 
 ### 3. 검증 및 Git 반영
 - [x] `dotnet build GameServer/GameServer.csproj` 성공
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ## 완료 작업 기록
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| | | |
+| 게임 데이터 스키마 확장 및 3중 미러 동기화 | dd6b4ce7 | 2026-03-20 |
 
 ## 변경 파일 목록
 - `config/game-data/items.json` - 스키마 확장 (groups, stack_max, tool_capabilities)

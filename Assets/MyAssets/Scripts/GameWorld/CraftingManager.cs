@@ -24,6 +24,7 @@ public class CraftingManager : MonoBehaviour
 
     private InventoryManager inventoryManager;
     private readonly Dictionary<string, CraftingRecipe> recipes = new Dictionary<string, CraftingRecipe>(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, float> fuelBurnTimeByItemId = new Dictionary<int, float>();
     private CraftingType currentCraftingType = CraftingType.Hand;
     private bool isCrafting;
     private float currentCraftingProgress;
@@ -33,6 +34,14 @@ public class CraftingManager : MonoBehaviour
     public event CraftingUpdateHandler OnCraftingStarted;
     public event CraftingUpdateHandler OnCraftingProgress;
     public event CraftingUpdateHandler OnCraftingCompleted;
+
+    private enum RecipeMethod
+    {
+        Unknown,
+        Normal,
+        Cooking,
+        Fuel
+    }
 
     private void Start()
     {
@@ -50,6 +59,7 @@ public class CraftingManager : MonoBehaviour
     private void LoadRecipes()
     {
         recipes.Clear();
+        fuelBurnTimeByItemId.Clear();
         bool loaded = TryLoadRecipesFromJson();
         if (!loaded)
         {
@@ -171,7 +181,25 @@ public class CraftingManager : MonoBehaviour
             return false;
         }
 
+        RecipeMethod method = ParseRecipeMethod(
+            recipeObject["method"]?.Value<string>()
+            ?? recipeObject["craft_method"]?.Value<string>()
+            ?? string.Empty);
+
         var ingredients = ParseIngredients(recipeObject["ingredients"] as JArray);
+        float craftingTime = recipeObject["craftingTime"]?.Value<float?>()
+            ?? recipeObject["crafting_time"]?.Value<float?>()
+            ?? recipeObject["craft_time"]?.Value<float?>()
+            ?? recipeObject["cooktime"]?.Value<float?>()
+            ?? recipeObject["burntime"]?.Value<float?>()
+            ?? 0.0f;
+
+        if (method == RecipeMethod.Fuel)
+        {
+            RegisterFuelRecipe(ingredients, craftingTime);
+            return ingredients.Count > 0;
+        }
+
         var results = ParseResults(recipeObject);
         if (ingredients.Count == 0 || results.Count == 0)
         {
@@ -183,18 +211,14 @@ public class CraftingManager : MonoBehaviour
             ?? recipeId;
         string station = recipeObject["craftingStation"]?.Value<string>()
             ?? recipeObject["station"]?.Value<string>()
-            ?? recipeObject["type"]?.Value<string>()
-            ?? "hand";
-
-        float craftingTime = recipeObject["craftingTime"]?.Value<float?>()
-            ?? recipeObject["crafting_time"]?.Value<float?>()
-            ?? 0.0f;
+            ?? recipeObject["crafting_type"]?.Value<string>()
+            ?? string.Empty;
 
         var recipe = new CraftingRecipe
         {
             id = recipeId,
             name = displayName,
-            type = ParseCraftingType(station),
+            type = ParseCraftingType(station, method),
             craftingTime = Mathf.Max(0.0f, craftingTime),
             ingredients = ingredients.ToArray(),
             results = results.ToArray()
@@ -202,6 +226,33 @@ public class CraftingManager : MonoBehaviour
 
         recipes[recipeId] = recipe;
         return true;
+    }
+
+    private void RegisterFuelRecipe(IReadOnlyList<CraftingIngredient> ingredients, float burnTime)
+    {
+        if (ingredients.Count == 0)
+        {
+            return;
+        }
+
+        float clampedBurnTime = Mathf.Max(0.0f, burnTime);
+        foreach (CraftingIngredient ingredient in ingredients)
+        {
+            if (ingredient.itemId <= 0 || ingredient.amount <= 0)
+            {
+                continue;
+            }
+
+            float perItemBurnTime = clampedBurnTime / ingredient.amount;
+            if (fuelBurnTimeByItemId.TryGetValue(ingredient.itemId, out float existing))
+            {
+                fuelBurnTimeByItemId[ingredient.itemId] = Mathf.Max(existing, perItemBurnTime);
+            }
+            else
+            {
+                fuelBurnTimeByItemId[ingredient.itemId] = perItemBurnTime;
+            }
+        }
     }
 
     private List<CraftingIngredient> ParseIngredients(JArray ingredientsArray)
@@ -328,8 +379,13 @@ public class CraftingManager : MonoBehaviour
         return inventoryManager.TryGetItemIdByKey(key, out itemId);
     }
 
-    private CraftingType ParseCraftingType(string station)
+    private CraftingType ParseCraftingType(string station, RecipeMethod method)
     {
+        if (method == RecipeMethod.Cooking || method == RecipeMethod.Fuel)
+        {
+            return CraftingType.Furnace;
+        }
+
         if (string.IsNullOrWhiteSpace(station))
         {
             return CraftingType.Hand;
@@ -344,13 +400,37 @@ public class CraftingManager : MonoBehaviour
                 return CraftingType.Workbench;
             case "furnace":
             case "smelting":
+            case "cooking":
+            case "fuel":
                 return CraftingType.Furnace;
+            case "normal":
+                return CraftingType.Hand;
             case "anvil":
                 return CraftingType.Anvil;
             case "enchanting_table":
                 return CraftingType.EnchantingTable;
             default:
                 return CraftingType.Hand;
+        }
+    }
+
+    private static RecipeMethod ParseRecipeMethod(string methodText)
+    {
+        if (string.IsNullOrWhiteSpace(methodText))
+        {
+            return RecipeMethod.Unknown;
+        }
+
+        switch (methodText.Trim().ToUpperInvariant())
+        {
+            case "NORMAL":
+                return RecipeMethod.Normal;
+            case "COOKING":
+                return RecipeMethod.Cooking;
+            case "FUEL":
+                return RecipeMethod.Fuel;
+            default:
+                return RecipeMethod.Unknown;
         }
     }
 
@@ -535,6 +615,16 @@ public class CraftingManager : MonoBehaviour
     public CraftingType GetCurrentCraftingType()
     {
         return currentCraftingType;
+    }
+
+    public bool TryGetFuelBurnTime(int itemId, out float burnTime)
+    {
+        return fuelBurnTimeByItemId.TryGetValue(itemId, out burnTime);
+    }
+
+    public bool TryGetFuelBurnTime(byte itemId, out float burnTime)
+    {
+        return TryGetFuelBurnTime((int)itemId, out burnTime);
     }
 
     public bool IsCrafting()

@@ -26,33 +26,33 @@
 ## 작업 체크리스트
 
 ### 1. CraftReplacements 구현
-- [ ] `CraftingRecipe` 클래스에 `replacements` 필드 추가
-- [ ] `TryRegisterRecipe`에서 replacements 파싱
-- [ ] `CompleteCrafting`에서 교체 아이템 반환 처리
+- [x] `CraftingRecipe` 클래스에 `replacements` 필드 추가
+- [x] `TryRegisterRecipe`에서 replacements 파싱
+- [x] `CompleteCrafting`에서 교체 아이템 반환 처리
 
 ### 2. Shaped Recipe 지원
-- [ ] `CraftingRecipe`에 `isShaped`, `width`, `height` 필드 추가
-- [ ] 그리드 기반 재료 검증 로직 구현
-- [ ] Shapeless 레시피와 Shaped 레시피 구분 처리
+- [x] `CraftingRecipe`에 `isShaped`, `width`, `height` 필드 추가
+- [x] 그리드 기반 재료 검증 로직 구현
+- [x] Shapeless 레시피와 Shaped 레시피 구분 처리
 
 ### 3. Item Groups 활용
-- [ ] `InventoryManager`에서 groups 파싱 및 저장
-- [ ] 레시피 재료 매칭 시 그룹 기반 매칭 지원
-- [ ] 예: `group:wood` → plank, stick 등 wood 그룹 아이템
+- [x] `InventoryManager`에서 groups 파싱 및 저장
+- [x] 레시피 재료 매칭 시 그룹 기반 매칭 지원
+- [x] 예: `group:wood` → plank, stick 등 wood 그룹 아이템
 
 ### 4. 문서화
-- [ ] 아키텍처/코드 흐름 문서 작성 (`docs/2026-03-20-session-201-architecture-and-code-flow.md`)
-- [ ] 기획 실행 문서 작성 (`design/2026-03-20-session-201-design-execution.md`)
+- [x] 아키텍처/코드 흐름 문서 작성 (`docs/2026-03-20-session-201-architecture-and-code-flow.md`)
+- [x] 기획 실행 문서 작성 (`design/2026-03-20-session-201-design-execution.md`)
 
 ### 5. 검증 및 Git 반영
-- [ ] `dotnet build SharedProtocol/SharedProtocol.csproj`
-- [ ] `dotnet build GameServer/GameServer.csproj`
-- [ ] Unity 컴파일 확인
-- [ ] 변경사항 커밋
-- [ ] `git push origin master`
+- [x] `dotnet build SharedProtocol/SharedProtocol.csproj`
+- [x] `dotnet build GameServer/GameServer.csproj`
+- [x] Unity 컴파일 확인
+- [x] 변경사항 커밋
+- [x] `git push origin master`
 
 ## 완료 작업 기록
 
 | 항목 | 커밋 해시 | 완료일자 |
 |------|-----------|----------|
-| - | - | - |
+| CraftReplacements, Shaped Recipe, Item Groups 지원 추가 | 17032ade | 2026-03-20 |

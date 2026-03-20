@@ -20,7 +20,7 @@ public class CraftingManager : MonoBehaviour
     [Header("Crafting Configuration")]
     public float craftingSpeed = 1.0f;
     public string streamingRecipesFileName = "recipes.json";
-    public string configRecipesRelativePath = "config/recipes.json";
+    public string configRecipesRelativePath = "config/game-data/recipes.json";
 
     private InventoryManager inventoryManager;
     private readonly Dictionary<string, CraftingRecipe> recipes = new Dictionary<string, CraftingRecipe>(StringComparer.OrdinalIgnoreCase);
@@ -97,17 +97,36 @@ public class CraftingManager : MonoBehaviour
     private string[] BuildRecipeJsonCandidates()
     {
         var paths = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddCandidate(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            string fullPath = Path.GetFullPath(path);
+            if (seen.Add(fullPath))
+            {
+                paths.Add(fullPath);
+            }
+        }
+
+        AddCandidate(Path.Combine(Application.streamingAssetsPath, "game-data", "recipes.json"));
+
         if (!string.IsNullOrWhiteSpace(streamingRecipesFileName))
         {
-            paths.Add(Path.Combine(Application.streamingAssetsPath, streamingRecipesFileName));
+            AddCandidate(Path.Combine(Application.streamingAssetsPath, streamingRecipesFileName));
         }
 
         if (!string.IsNullOrWhiteSpace(configRecipesRelativePath))
         {
-            paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", configRecipesRelativePath)));
+            AddCandidate(Path.Combine(Application.dataPath, "..", configRecipesRelativePath));
         }
 
-        paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", "config", "game-data", "recipes.json")));
+        AddCandidate(Path.Combine(Application.dataPath, "..", "config", "game-data", "recipes.json"));
+        AddCandidate(Path.Combine(Application.dataPath, "..", "config", "recipes.json"));
         return paths.ToArray();
     }
 

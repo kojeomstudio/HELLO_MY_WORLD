@@ -17,7 +17,7 @@ public class InventoryManager : MonoBehaviour
 
     [Header("Data Source")]
     public string streamingItemsFileName = "items.json";
-    public string configItemsRelativePath = "config/items.json";
+    public string configItemsRelativePath = "config/game-data/items.json";
 
     [Header("UI References")]
     public GameObject inventoryUI;
@@ -120,18 +120,36 @@ public class InventoryManager : MonoBehaviour
     private string[] BuildItemJsonCandidates()
     {
         var paths = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddCandidate(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            string fullPath = Path.GetFullPath(path);
+            if (seen.Add(fullPath))
+            {
+                paths.Add(fullPath);
+            }
+        }
+
+        AddCandidate(Path.Combine(Application.streamingAssetsPath, "game-data", "items.json"));
 
         if (!string.IsNullOrWhiteSpace(streamingItemsFileName))
         {
-            paths.Add(Path.Combine(Application.streamingAssetsPath, streamingItemsFileName));
+            AddCandidate(Path.Combine(Application.streamingAssetsPath, streamingItemsFileName));
         }
 
         if (!string.IsNullOrWhiteSpace(configItemsRelativePath))
         {
-            paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", configItemsRelativePath)));
+            AddCandidate(Path.Combine(Application.dataPath, "..", configItemsRelativePath));
         }
 
-        paths.Add(Path.GetFullPath(Path.Combine(Application.dataPath, "..", "config", "game-data", "items.json")));
+        AddCandidate(Path.Combine(Application.dataPath, "..", "config", "game-data", "items.json"));
+        AddCandidate(Path.Combine(Application.dataPath, "..", "config", "items.json"));
         return paths.ToArray();
     }
 

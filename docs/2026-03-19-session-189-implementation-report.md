@@ -19,7 +19,7 @@ This session executed `work/work.md` requirements by re-validating project statu
   - `docs/_archive/Project_PDD_v1_2020.md`
   - `docs/_archive/minecraft_feature_taskboard_2025-10-29.md`
 - Updated README documentation pointers from session 177 to session 189.
-- Updated archive path reference to `docs/archive/`.
+- Session 197 later removed the archive directory as part of consistency cleanup.
 
 3. Validation artifact refresh
 - `config/world_map_control_profile.json`

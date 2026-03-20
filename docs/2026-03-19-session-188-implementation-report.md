@@ -34,7 +34,7 @@
 ### 2025 Historical Documents
 - 155 documents from 2025 found in docs/
 - Most are session logs and feature execution records
-- Archived in `docs/archive/` for historical reference
+- Archived documents were later removed in Session 197 cleanup.
 - No immediate deletion required
 
 ## Next Steps

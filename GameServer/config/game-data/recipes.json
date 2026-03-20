@@ -1,0 +1,32 @@
+[
+  {
+    "id": "recipe_wooden_pickaxe",
+    "result": {
+      "item_id": "wooden_pickaxe",
+      "count": 1
+    },
+    "ingredients": [
+      {
+        "item_id": "plank",
+        "count": 3
+      },
+      {
+        "item_id": "stick",
+        "count": 2
+      }
+    ]
+  },
+  {
+    "id": "recipe_bread",
+    "result": {
+      "item_id": "bread",
+      "count": 1
+    },
+    "ingredients": [
+      {
+        "item_id": "wheat",
+        "count": 3
+      }
+    ]
+  }
+]

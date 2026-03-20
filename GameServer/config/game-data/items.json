@@ -1,0 +1,21 @@
+[
+  {
+    "id": "wooden_pickaxe",
+    "type": "tool",
+    "durability": 59,
+    "stackable": false
+  },
+  {
+    "id": "bread",
+    "type": "food",
+    "hunger_restore": 5,
+    "stackable": true,
+    "max_stack": 64
+  },
+  {
+    "id": "iron_ingot",
+    "type": "material",
+    "stackable": true,
+    "max_stack": 64
+  }
+]

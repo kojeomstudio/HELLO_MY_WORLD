@@ -9,6 +9,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["air", "not_in_creative_inventory"],
     "Drops": []
   },
   {
@@ -23,6 +24,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["stone", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "cobblestone",
@@ -44,6 +46,7 @@
     "RequiredTool": "shovel",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["soil", "grass", "shovel_diggable", "crumbly"],
     "Drops": [
       {
         "ItemId": "dirt",
@@ -65,6 +68,7 @@
     "RequiredTool": "shovel",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["soil", "dirt", "shovel_diggable", "crumbly"],
     "Drops": [
       {
         "ItemId": "dirt",
@@ -83,9 +87,8 @@
     "IsTransparent": false,
     "IsFluid": false,
     "AffectedByGravity": false,
-    "RequiredTool": "pickaxe",
-    "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["stone", "cobblestone", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "cobblestone",
@@ -105,6 +108,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["wood", "planks", "choppy", "axe_diggable", "flammable"],
     "Drops": [
       {
         "ItemId": "wood_planks",
@@ -124,6 +128,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["bedrock", "unbreakable"],
     "Drops": []
   },
   {
@@ -136,6 +141,7 @@
     "IsFluid": true,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["water", "liquid", "not_in_creative_inventory"],
     "Drops": []
   },
   {
@@ -148,6 +154,7 @@
     "IsFluid": true,
     "AffectedByGravity": false,
     "LightLevel": 15,
+    "Groups": ["lava", "liquid", "igniter", "not_in_creative_inventory"],
     "Drops": []
   },
   {
@@ -162,6 +169,7 @@
     "RequiredTool": "shovel",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["sand", "falling_node", "shovel_diggable", "crumbly"],
     "Drops": [
       {
         "ItemId": "sand",
@@ -183,6 +191,7 @@
     "RequiredTool": "shovel",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["gravel", "falling_node", "shovel_diggable", "crumbly"],
     "Drops": [
       {
         "ItemId": "gravel",
@@ -210,6 +219,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 2,
     "LightLevel": 0,
+    "Groups": ["ore", "gold_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "gold_ore",
@@ -231,6 +241,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 1,
     "LightLevel": 0,
+    "Groups": ["ore", "iron_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "iron_ore",
@@ -252,6 +263,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["ore", "coal_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "coal",
@@ -273,6 +285,7 @@
     "RequiredTool": "axe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["wood", "tree", "choppy", "axe_diggable", "flammable"],
     "Drops": [
       {
         "ItemId": "wood",
@@ -292,6 +305,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["leaves", "snappy", "flammable", "plant"],
     "Drops": [
       {
         "ItemId": "sapling",
@@ -311,6 +325,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["glass", "cracky", "oddly_breakable_by_hand"],
     "Drops": []
   },
   {
@@ -325,6 +340,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 1,
     "LightLevel": 0,
+    "Groups": ["ore", "lapis_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "lapis_lazuli",
@@ -346,6 +362,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["sandstone", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "sandstone",
@@ -365,6 +382,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["tnt", "explosive", "flammable", "oddly_breakable_by_hand"],
     "Drops": [
       {
         "ItemId": "tnt",
@@ -386,6 +404,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 3,
     "LightLevel": 0,
+    "Groups": ["obsidian", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "obsidian",
@@ -405,6 +424,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 14,
+    "Groups": ["torch", "light_source", "oddly_breakable_by_hand"],
     "Drops": [
       {
         "ItemId": "torch",
@@ -426,6 +446,7 @@
     "RequiredTool": "axe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["chest", "choppy", "axe_diggable", "flammable", "container"],
     "Drops": [
       {
         "ItemId": "chest",
@@ -446,6 +467,7 @@
     "AffectedByGravity": false,
     "ConductsRedstone": true,
     "LightLevel": 0,
+    "Groups": ["redstone", "conductor", "oddly_breakable_by_hand"],
     "Drops": [
       {
         "ItemId": "redstone",
@@ -467,6 +489,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 2,
     "LightLevel": 0,
+    "Groups": ["ore", "diamond_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "diamond",
@@ -488,6 +511,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 2,
     "LightLevel": 0,
+    "Groups": ["diamond_block", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "diamond_block",
@@ -509,6 +533,7 @@
     "RequiredTool": "axe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["crafting_table", "workstation", "choppy", "axe_diggable", "flammable"],
     "Drops": [
       {
         "ItemId": "crafting_table",
@@ -530,6 +555,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 0,
     "LightLevel": 0,
+    "Groups": ["furnace", "workstation", "cracky", "pickaxe_diggable", "container"],
     "Drops": [
       {
         "ItemId": "furnace",
@@ -551,6 +577,7 @@
     "RequiredTool": "pickaxe",
     "RequiredToolLevel": 2,
     "LightLevel": 0,
+    "Groups": ["ore", "redstone_ore", "cracky", "pickaxe_diggable"],
     "Drops": [
       {
         "ItemId": "redstone",
@@ -571,6 +598,7 @@
     "AffectedByGravity": false,
     "IsPowerSource": true,
     "LightLevel": 7,
+    "Groups": ["redstone_torch", "redstone", "light_source", "power_source", "oddly_breakable_by_hand"],
     "Drops": [
       {
         "ItemId": "redstone_torch",
@@ -590,6 +618,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 0,
+    "Groups": ["ice", "slippery", "cracky"],
     "Drops": []
   },
   {
@@ -602,6 +631,7 @@
     "IsFluid": false,
     "AffectedByGravity": false,
     "LightLevel": 15,
+    "Groups": ["glowstone", "light_source", "cracky", "oddly_breakable_by_hand"],
     "Drops": [
       {
         "ItemId": "glowstone_dust",

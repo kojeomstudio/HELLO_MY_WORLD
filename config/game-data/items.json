@@ -2,20 +2,103 @@
   {
     "id": "wooden_pickaxe",
     "type": "tool",
+    "name": "Wooden Pickaxe",
+    "description": "A basic wooden pickaxe for mining stone",
+    "stack_max": 1,
     "durability": 59,
-    "stackable": false
+    "groups": ["tool", "pickaxe", "wooden"],
+    "tool_capabilities": {
+      "dig_speed": { "stone": 2.0, "wood": 1.0 },
+      "damage": 2
+    }
   },
   {
     "id": "bread",
     "type": "food",
+    "name": "Bread",
+    "description": "A loaf of bread that restores hunger",
+    "stack_max": 64,
     "hunger_restore": 5,
-    "stackable": true,
-    "max_stack": 64
+    "groups": ["food", "edible"]
   },
   {
     "id": "iron_ingot",
     "type": "material",
-    "stackable": true,
-    "max_stack": 64
+    "name": "Iron Ingot",
+    "description": "A refined iron ingot used for crafting",
+    "stack_max": 64,
+    "groups": ["material", "metal", "iron"]
+  },
+  {
+    "id": "plank",
+    "type": "material",
+    "name": "Wood Planks",
+    "description": "Wooden planks used for crafting",
+    "stack_max": 64,
+    "groups": ["material", "wood", "flammable"]
+  },
+  {
+    "id": "stick",
+    "type": "material",
+    "name": "Stick",
+    "description": "A wooden stick used for crafting tools",
+    "stack_max": 64,
+    "groups": ["material", "wood", "flammable"]
+  },
+  {
+    "id": "wheat",
+    "type": "material",
+    "name": "Wheat",
+    "description": "Wheat harvested from crops",
+    "stack_max": 64,
+    "groups": ["material", "plant", "flammable"]
+  },
+  {
+    "id": "cobblestone",
+    "type": "material",
+    "name": "Cobblestone",
+    "description": "Rough stone mined from stone blocks",
+    "stack_max": 64,
+    "groups": ["material", "stone"]
+  },
+  {
+    "id": "dirt",
+    "type": "material",
+    "name": "Dirt",
+    "description": "A block of dirt",
+    "stack_max": 64,
+    "groups": ["material", "soil"]
+  },
+  {
+    "id": "coal",
+    "type": "resource",
+    "name": "Coal",
+    "description": "Coal used as fuel",
+    "stack_max": 64,
+    "groups": ["resource", "fuel"]
+  },
+  {
+    "id": "torch",
+    "type": "tool",
+    "name": "Torch",
+    "description": "A torch that provides light",
+    "stack_max": 64,
+    "groups": ["tool", "light_source"]
+  },
+  {
+    "id": "crafting_table",
+    "type": "tool",
+    "name": "Crafting Table",
+    "description": "A table used for advanced crafting",
+    "stack_max": 64,
+    "groups": ["tool", "workstation"]
+  },
+  {
+    "id": "furnace",
+    "type": "tool",
+    "name": "Furnace",
+    "description": "A furnace for smelting ores",
+    "stack_max": 64,
+    "groups": ["tool", "workstation", "cooking"]
   }
 ]

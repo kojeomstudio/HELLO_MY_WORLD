@@ -1,614 +1,644 @@
-{
-  "BlockTypes": {
-    "Air": {
-      "Id": 0,
-      "Name": "Air",
-      "DisplayName": "Air",
-      "Solid": false,
-      "Transparent": true,
-      "LightPassing": true,
-      "CanBreak": false,
-      "CanPlace": false,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 0,
-      "Hardness": 0,
-      "Texture": {
-        "Top": "",
-        "Bottom": "",
-        "Sides": ""
-      },
-      "Drops": [],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "",
-        "Place": "",
-        "Step": ""
-      }
-    },
-    "Stone": {
-      "Id": 1,
-      "Name": "Stone",
-      "DisplayName": "Stone",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 6,
-      "Hardness": 1.5,
-      "Texture": {
-        "Top": "stone_top",
-        "Bottom": "stone_bottom",
-        "Sides": "stone_side"
-      },
-      "Drops": [
-        {
-          "Item": "Cobblestone",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    },
-    "Grass": {
-      "Id": 2,
-      "Name": "Grass",
-      "DisplayName": "Grass Block",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 3,
-      "Hardness": 0.6,
-      "Texture": {
-        "Top": "grass_top",
-        "Bottom": "dirt",
-        "Sides": "grass_side"
-      },
-      "Drops": [
-        {
-          "Item": "Dirt",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Shovel",
-      "Sounds": {
-        "Break": "grass_break",
-        "Place": "grass_place",
-        "Step": "grass_step"
-      }
-    },
-    "Dirt": {
-      "Id": 3,
-      "Name": "Dirt",
-      "DisplayName": "Dirt",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 2.5,
-      "Hardness": 0.5,
-      "Texture": {
-        "Top": "dirt",
-        "Bottom": "dirt",
-        "Sides": "dirt"
-      },
-      "Drops": [
-        {
-          "Item": "Dirt",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Shovel",
-      "Sounds": {
-        "Break": "dirt_break",
-        "Place": "dirt_place",
-        "Step": "dirt_step"
-      }
-    },
-    "Cobblestone": {
-      "Id": 4,
-      "Name": "Cobblestone",
-      "DisplayName": "Cobblestone",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 6,
-      "Hardness": 2.0,
-      "Texture": {
-        "Top": "cobblestone",
-        "Bottom": "cobblestone",
-        "Sides": "cobblestone"
-      },
-      "Drops": [
-        {
-          "Item": "Cobblestone",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    },
-    "Wood": {
-      "Id": 5,
-      "Name": "Wood",
-      "DisplayName": "Wood Planks",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 3,
-      "Hardness": 2.0,
-      "Texture": {
-        "Top": "planks_oak_top",
-        "Bottom": "planks_oak_top",
-        "Sides": "planks_oak"
-      },
-      "Drops": [
-        {
-          "Item": "Wood",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Axe",
-      "Sounds": {
-        "Break": "wood_break",
-        "Place": "wood_place",
-        "Step": "wood_step"
-      }
-    },
-    "Sapling": {
-      "Id": 6,
-      "Name": "Sapling",
-      "DisplayName": "Oak Sapling",
-      "Solid": false,
-      "Transparent": true,
-      "LightPassing": true,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 0,
-      "Hardness": 0,
-      "Texture": {
-        "Top": "sapling_oak",
-        "Bottom": "sapling_oak",
-        "Sides": "sapling_oak"
-      },
-      "Drops": [
-        {
-          "Item": "Sapling",
-          "Count": 1,
-          "Chance": 0.5
-        }
-      ],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "grass_break",
-        "Place": "grass_place",
-        "Step": "grass_step"
-      }
-    },
-    "Bedrock": {
-      "Id": 7,
-      "Name": "Bedrock",
-      "DisplayName": "Bedrock",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": false,
-      "CanPlace": false,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 3600000,
-      "Hardness": -1,
-      "Texture": {
-        "Top": "bedrock",
-        "Bottom": "bedrock",
-        "Sides": "bedrock"
-      },
-      "Drops": [],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "",
-        "Place": "",
-        "Step": "stone_step"
-      }
-    },
-    "Water": {
-      "Id": 8,
-      "Name": "Water",
-      "DisplayName": "Water",
-      "Solid": false,
-      "Transparent": true,
-      "LightPassing": true,
-      "CanBreak": false,
-      "CanPlace": true,
-      "HasGravity": true,
-      "LightLevel": 0,
-      "Resistance": 100,
-      "Hardness": 0,
-      "Texture": {
-        "Top": "water_still",
-        "Bottom": "water_still",
-        "Sides": "water_flow"
-      },
-      "Drops": [],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "",
-        "Place": "water_place",
-        "Step": "water_step"
-      }
-    },
-    "Lava": {
-      "Id": 10,
-      "Name": "Lava",
-      "DisplayName": "Lava",
-      "Solid": false,
-      "Transparent": true,
-      "LightPassing": false,
-      "CanBreak": false,
-      "CanPlace": true,
-      "HasGravity": true,
-      "LightLevel": 15,
-      "Resistance": 500,
-      "Hardness": 0,
-      "Texture": {
-        "Top": "lava_still",
-        "Bottom": "lava_still",
-        "Sides": "lava_flow"
-      },
-      "Drops": [],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "",
-        "Place": "lava_place",
-        "Step": "lava_step"
-      }
-    },
-    "Sand": {
-      "Id": 12,
-      "Name": "Sand",
-      "DisplayName": "Sand",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": true,
-      "LightLevel": 0,
-      "Resistance": 2.5,
-      "Hardness": 0.5,
-      "Texture": {
-        "Top": "sand",
-        "Bottom": "sand",
-        "Sides": "sand"
-      },
-      "Drops": [
-        {
-          "Item": "Sand",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Shovel",
-      "Sounds": {
-        "Break": "sand_break",
-        "Place": "sand_place",
-        "Step": "sand_step"
-      }
-    },
-    "Gravel": {
-      "Id": 13,
-      "Name": "Gravel",
-      "DisplayName": "Gravel",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": true,
-      "LightLevel": 0,
-      "Resistance": 3,
-      "Hardness": 0.6,
-      "Texture": {
-        "Top": "gravel",
-        "Bottom": "gravel",
-        "Sides": "gravel"
-      },
-      "Drops": [
-        {
-          "Item": "Gravel",
-          "Count": 1,
-          "Chance": 0.9
-        },
-        {
-          "Item": "Flint",
-          "Count": 1,
-          "Chance": 0.1
-        }
-      ],
-      "Tool": "Shovel",
-      "Sounds": {
-        "Break": "gravel_break",
-        "Place": "gravel_place",
-        "Step": "gravel_step"
-      }
-    },
-    "Log": {
-      "Id": 17,
-      "Name": "Log",
-      "DisplayName": "Oak Log",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 4,
-      "Hardness": 2.0,
-      "Texture": {
-        "Top": "oak_log_top",
-        "Bottom": "oak_log_top",
-        "Sides": "oak_log"
-      },
-      "Drops": [
-        {
-          "Item": "Log",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Axe",
-      "Sounds": {
-        "Break": "wood_break",
-        "Place": "wood_place",
-        "Step": "wood_step"
-      }
-    },
-    "Leaves": {
-      "Id": 18,
-      "Name": "Leaves",
-      "DisplayName": "Oak Leaves",
-      "Solid": false,
-      "Transparent": true,
-      "LightPassing": true,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 1,
-      "Resistance": 0.2,
-      "Hardness": 0.2,
-      "Texture": {
-        "Top": "oak_leaves",
-        "Bottom": "oak_leaves",
-        "Sides": "oak_leaves"
-      },
-      "Drops": [
-        {
-          "Item": "Sapling",
-          "Count": 1,
-          "Chance": 0.05
-        }
-      ],
-      "Tool": "Shears",
-      "Sounds": {
-        "Break": "grass_break",
-        "Place": "grass_place",
-        "Step": "grass_step"
-      }
-    },
-    "Glass": {
-      "Id": 20,
-      "Name": "Glass",
-      "DisplayName": "Glass",
-      "Solid": true,
-      "Transparent": true,
-      "LightPassing": true,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 1.5,
-      "Hardness": 0.3,
-      "Texture": {
-        "Top": "glass",
-        "Bottom": "glass",
-        "Sides": "glass"
-      },
-      "Drops": [],
-      "Tool": "None",
-      "Sounds": {
-        "Break": "glass_break",
-        "Place": "glass_place",
-        "Step": "stone_step"
-      }
-    },
-    "CoalOre": {
-      "Id": 16,
-      "Name": "CoalOre",
-      "DisplayName": "Coal Ore",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 5,
-      "Hardness": 3.0,
-      "Texture": {
-        "Top": "coal_ore",
-        "Bottom": "coal_ore",
-        "Sides": "coal_ore"
-      },
-      "Drops": [
-        {
-          "Item": "Coal",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    },
-    "IronOre": {
-      "Id": 15,
-      "Name": "IronOre",
-      "DisplayName": "Iron Ore",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 5,
-      "Hardness": 3.0,
-      "Texture": {
-        "Top": "iron_ore",
-        "Bottom": "iron_ore",
-        "Sides": "iron_ore"
-      },
-      "Drops": [
-        {
-          "Item": "IronOre",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    },
-    "GoldOre": {
-      "Id": 14,
-      "Name": "GoldOre",
-      "DisplayName": "Gold Ore",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 5,
-      "Hardness": 3.0,
-      "Texture": {
-        "Top": "gold_ore",
-        "Bottom": "gold_ore",
-        "Sides": "gold_ore"
-      },
-      "Drops": [
-        {
-          "Item": "GoldOre",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    },
-    "DiamondOre": {
-      "Id": 56,
-      "Name": "DiamondOre",
-      "DisplayName": "Diamond Ore",
-      "Solid": true,
-      "Transparent": false,
-      "LightPassing": false,
-      "CanBreak": true,
-      "CanPlace": true,
-      "HasGravity": false,
-      "LightLevel": 0,
-      "Resistance": 5,
-      "Hardness": 3.0,
-      "Texture": {
-        "Top": "diamond_ore",
-        "Bottom": "diamond_ore",
-        "Sides": "diamond_ore"
-      },
-      "Drops": [
-        {
-          "Item": "Diamond",
-          "Count": 1,
-          "Chance": 1.0
-        }
-      ],
-      "Tool": "Pickaxe",
-      "Sounds": {
-        "Break": "stone_break",
-        "Place": "stone_place",
-        "Step": "stone_step"
-      }
-    }
+[
+  {
+    "Type": 0,
+    "Name": "air",
+    "DisplayName": "Air",
+    "Hardness": 0,
+    "Resistance": 0,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["air", "not_in_creative_inventory"],
+    "Drops": []
   },
-  "ToolTypes": {
-    "None": {
-      "Name": "None",
-      "Efficiency": 1.0,
-      "CanHarvest": []
-    },
-    "Pickaxe": {
-      "Name": "Pickaxe",
-      "Efficiency": 1.0,
-      "CanHarvest": ["Stone", "Cobblestone", "CoalOre", "IronOre", "GoldOre", "DiamondOre"]
-    },
-    "Axe": {
-      "Name": "Axe",
-      "Efficiency": 1.0,
-      "CanHarvest": ["Wood", "Log"]
-    },
-    "Shovel": {
-      "Name": "Shovel",
-      "Efficiency": 1.0,
-      "CanHarvest": ["Dirt", "Grass", "Sand", "Gravel"]
-    },
-    "Shears": {
-      "Name": "Shears",
-      "Efficiency": 1.0,
-      "CanHarvest": ["Leaves"]
-    }
+  {
+    "Type": 1,
+    "Name": "stone",
+    "DisplayName": "Stone",
+    "Hardness": 1.5,
+    "Resistance": 6.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["stone", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "cobblestone",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 2,
+    "Name": "grass",
+    "DisplayName": "Grass Block",
+    "Hardness": 0.6,
+    "Resistance": 0.6,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "shovel",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["soil", "grass", "shovel_diggable", "crumbly"],
+    "Drops": [
+      {
+        "ItemId": "dirt",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 3,
+    "Name": "dirt",
+    "DisplayName": "Dirt",
+    "Hardness": 0.5,
+    "Resistance": 0.5,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "shovel",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["soil", "dirt", "shovel_diggable", "crumbly"],
+    "Drops": [
+      {
+        "ItemId": "dirt",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 4,
+    "Name": "cobblestone",
+    "DisplayName": "Cobblestone",
+    "Hardness": 2.0,
+    "Resistance": 6.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["stone", "cobblestone", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "cobblestone",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 5,
+    "Name": "wood_planks",
+    "DisplayName": "Wood Planks",
+    "Hardness": 2.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["wood", "planks", "choppy", "axe_diggable", "flammable"],
+    "Drops": [
+      {
+        "ItemId": "wood_planks",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 7,
+    "Name": "bedrock",
+    "DisplayName": "Bedrock",
+    "Hardness": -1,
+    "Resistance": 3600000.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["bedrock", "unbreakable"],
+    "Drops": []
+  },
+  {
+    "Type": 8,
+    "Name": "water",
+    "DisplayName": "Water",
+    "Hardness": 100,
+    "Resistance": 100,
+    "IsTransparent": true,
+    "IsFluid": true,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["water", "liquid", "not_in_creative_inventory"],
+    "Drops": []
+  },
+  {
+    "Type": 10,
+    "Name": "lava",
+    "DisplayName": "Lava",
+    "Hardness": 100,
+    "Resistance": 100,
+    "IsTransparent": false,
+    "IsFluid": true,
+    "AffectedByGravity": false,
+    "LightLevel": 15,
+    "Groups": ["lava", "liquid", "igniter", "not_in_creative_inventory"],
+    "Drops": []
+  },
+  {
+    "Type": 12,
+    "Name": "sand",
+    "DisplayName": "Sand",
+    "Hardness": 0.5,
+    "Resistance": 0.5,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": true,
+    "RequiredTool": "shovel",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["sand", "falling_node", "shovel_diggable", "crumbly"],
+    "Drops": [
+      {
+        "ItemId": "sand",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 13,
+    "Name": "gravel",
+    "DisplayName": "Gravel",
+    "Hardness": 0.6,
+    "Resistance": 0.6,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": true,
+    "RequiredTool": "shovel",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["gravel", "falling_node", "shovel_diggable", "crumbly"],
+    "Drops": [
+      {
+        "ItemId": "gravel",
+        "Chance": 0.9,
+        "MinCount": 1,
+        "MaxCount": 1
+      },
+      {
+        "ItemId": "flint",
+        "Chance": 0.1,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 14,
+    "Name": "gold_ore",
+    "DisplayName": "Gold Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 2,
+    "LightLevel": 0,
+    "Groups": ["ore", "gold_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "gold_ore",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 15,
+    "Name": "iron_ore",
+    "DisplayName": "Iron Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 1,
+    "LightLevel": 0,
+    "Groups": ["ore", "iron_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "iron_ore",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 16,
+    "Name": "coal_ore",
+    "DisplayName": "Coal Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["ore", "coal_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "coal",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 17,
+    "Name": "wood",
+    "DisplayName": "Wood",
+    "Hardness": 2.0,
+    "Resistance": 2.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "axe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["wood", "tree", "choppy", "axe_diggable", "flammable"],
+    "Drops": [
+      {
+        "ItemId": "wood",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 18,
+    "Name": "leaves",
+    "DisplayName": "Leaves",
+    "Hardness": 0.2,
+    "Resistance": 0.2,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["leaves", "snappy", "flammable", "plant"],
+    "Drops": [
+      {
+        "ItemId": "sapling",
+        "Chance": 0.05,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 20,
+    "Name": "glass",
+    "DisplayName": "Glass",
+    "Hardness": 0.3,
+    "Resistance": 0.3,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["glass", "cracky", "oddly_breakable_by_hand"],
+    "Drops": []
+  },
+  {
+    "Type": 21,
+    "Name": "lapis_ore",
+    "DisplayName": "Lapis Lazuli Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 1,
+    "LightLevel": 0,
+    "Groups": ["ore", "lapis_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "lapis_lazuli",
+        "Chance": 1.0,
+        "MinCount": 4,
+        "MaxCount": 9
+      }
+    ]
+  },
+  {
+    "Type": 24,
+    "Name": "sandstone",
+    "DisplayName": "Sandstone",
+    "Hardness": 0.8,
+    "Resistance": 0.8,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["sandstone", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "sandstone",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 46,
+    "Name": "tnt",
+    "DisplayName": "TNT",
+    "Hardness": 0,
+    "Resistance": 0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["tnt", "explosive", "flammable", "oddly_breakable_by_hand"],
+    "Drops": [
+      {
+        "ItemId": "tnt",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 49,
+    "Name": "obsidian",
+    "DisplayName": "Obsidian",
+    "Hardness": 50.0,
+    "Resistance": 1200.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 3,
+    "LightLevel": 0,
+    "Groups": ["obsidian", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "obsidian",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 50,
+    "Name": "torch",
+    "DisplayName": "Torch",
+    "Hardness": 0,
+    "Resistance": 0,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 14,
+    "Groups": ["torch", "light_source", "oddly_breakable_by_hand"],
+    "Drops": [
+      {
+        "ItemId": "torch",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 54,
+    "Name": "chest",
+    "DisplayName": "Chest",
+    "Hardness": 2.5,
+    "Resistance": 2.5,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "axe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["chest", "choppy", "axe_diggable", "flammable", "container"],
+    "Drops": [
+      {
+        "ItemId": "chest",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 55,
+    "Name": "redstone_wire",
+    "DisplayName": "Redstone Wire",
+    "Hardness": 0,
+    "Resistance": 0,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "ConductsRedstone": true,
+    "LightLevel": 0,
+    "Groups": ["redstone", "conductor", "oddly_breakable_by_hand"],
+    "Drops": [
+      {
+        "ItemId": "redstone",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 56,
+    "Name": "diamond_ore",
+    "DisplayName": "Diamond Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 2,
+    "LightLevel": 0,
+    "Groups": ["ore", "diamond_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "diamond",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 57,
+    "Name": "diamond_block",
+    "DisplayName": "Block of Diamond",
+    "Hardness": 5.0,
+    "Resistance": 6.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 2,
+    "LightLevel": 0,
+    "Groups": ["diamond_block", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "diamond_block",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 58,
+    "Name": "crafting_table",
+    "DisplayName": "Crafting Table",
+    "Hardness": 2.5,
+    "Resistance": 2.5,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "axe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["crafting_table", "workstation", "choppy", "axe_diggable", "flammable"],
+    "Drops": [
+      {
+        "ItemId": "crafting_table",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 61,
+    "Name": "furnace",
+    "DisplayName": "Furnace",
+    "Hardness": 3.5,
+    "Resistance": 3.5,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 0,
+    "LightLevel": 0,
+    "Groups": ["furnace", "workstation", "cracky", "pickaxe_diggable", "container"],
+    "Drops": [
+      {
+        "ItemId": "furnace",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 73,
+    "Name": "redstone_ore",
+    "DisplayName": "Redstone Ore",
+    "Hardness": 3.0,
+    "Resistance": 3.0,
+    "IsTransparent": false,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "RequiredTool": "pickaxe",
+    "RequiredToolLevel": 2,
+    "LightLevel": 0,
+    "Groups": ["ore", "redstone_ore", "cracky", "pickaxe_diggable"],
+    "Drops": [
+      {
+        "ItemId": "redstone",
+        "Chance": 1.0,
+        "MinCount": 4,
+        "MaxCount": 5
+      }
+    ]
+  },
+  {
+    "Type": 76,
+    "Name": "redstone_torch_on",
+    "DisplayName": "Redstone Torch",
+    "Hardness": 0,
+    "Resistance": 0,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "IsPowerSource": true,
+    "LightLevel": 7,
+    "Groups": ["redstone_torch", "redstone", "light_source", "power_source", "oddly_breakable_by_hand"],
+    "Drops": [
+      {
+        "ItemId": "redstone_torch",
+        "Chance": 1.0,
+        "MinCount": 1,
+        "MaxCount": 1
+      }
+    ]
+  },
+  {
+    "Type": 79,
+    "Name": "ice",
+    "DisplayName": "Ice",
+    "Hardness": 0.5,
+    "Resistance": 0.5,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 0,
+    "Groups": ["ice", "slippery", "cracky"],
+    "Drops": []
+  },
+  {
+    "Type": 89,
+    "Name": "glowstone",
+    "DisplayName": "Glowstone",
+    "Hardness": 0.3,
+    "Resistance": 0.3,
+    "IsTransparent": true,
+    "IsFluid": false,
+    "AffectedByGravity": false,
+    "LightLevel": 15,
+    "Groups": ["glowstone", "light_source", "cracky", "oddly_breakable_by_hand"],
+    "Drops": [
+      {
+        "ItemId": "glowstone_dust",
+        "Chance": 1.0,
+        "MinCount": 2,
+        "MaxCount": 4
+      }
+    ]
   }
-}
+]

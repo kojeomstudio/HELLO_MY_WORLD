@@ -1,32 +1,119 @@
 [
   {
     "id": "recipe_wooden_pickaxe",
-    "result": {
-      "item_id": "wooden_pickaxe",
-      "count": 1
-    },
+    "name": "Wooden Pickaxe",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "wooden_pickaxe", "amount": 1 }
+    ],
     "ingredients": [
-      {
-        "item_id": "plank",
-        "count": 3
-      },
-      {
-        "item_id": "stick",
-        "count": 2
-      }
-    ]
+      { "item_id": "plank", "amount": 3 },
+      { "item_id": "stick", "amount": 2 }
+    ],
+    "replacements": []
   },
   {
     "id": "recipe_bread",
-    "result": {
-      "item_id": "bread",
-      "count": 1
-    },
+    "name": "Bread",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "bread", "amount": 1 }
+    ],
     "ingredients": [
-      {
-        "item_id": "wheat",
-        "count": 3
-      }
-    ]
+      { "item_id": "wheat", "amount": 3 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_planks_from_wood",
+    "name": "Wood Planks",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "plank", "amount": 4 }
+    ],
+    "ingredients": [
+      { "item_id": "wood", "amount": 1 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_sticks",
+    "name": "Sticks",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "stick", "amount": 4 }
+    ],
+    "ingredients": [
+      { "item_id": "plank", "amount": 2 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_crafting_table",
+    "name": "Crafting Table",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "crafting_table", "amount": 1 }
+    ],
+    "ingredients": [
+      { "item_id": "plank", "amount": 4 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_furnace",
+    "name": "Furnace",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "furnace", "amount": 1 }
+    ],
+    "ingredients": [
+      { "item_id": "cobblestone", "amount": 8 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_torches",
+    "name": "Torches",
+    "method": "NORMAL",
+    "craft_time": 0.0,
+    "results": [
+      { "item_id": "torch", "amount": 4 }
+    ],
+    "ingredients": [
+      { "item_id": "coal", "amount": 1 },
+      { "item_id": "stick", "amount": 1 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_iron_ingot",
+    "name": "Iron Ingot",
+    "method": "COOKING",
+    "craft_time": 10.0,
+    "results": [
+      { "item_id": "iron_ingot", "amount": 1 }
+    ],
+    "ingredients": [
+      { "item_id": "iron_ore", "amount": 1 }
+    ],
+    "replacements": []
+  },
+  {
+    "id": "recipe_coal_fuel",
+    "name": "Coal Fuel",
+    "method": "FUEL",
+    "craft_time": 80.0,
+    "results": [],
+    "ingredients": [
+      { "item_id": "coal", "amount": 1 }
+    ],
+    "replacements": []
   }
 ]

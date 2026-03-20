@@ -22,7 +22,7 @@ Shader "Minecraft/FoliageWind"
         #pragma multi_compile_instancing
 
         sampler2D _MainTex;
-        float4 _MainTex_ST;
+        fixed _Cutoff;
         float _WindStrength;
         float _WindFrequency;
 

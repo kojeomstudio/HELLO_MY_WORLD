@@ -59,7 +59,7 @@ public class AIActorManager : MonoBehaviour
         public GameObject GameObject;
         public ActorController ActorController;
         public ActorAnimationController AnimationController;
-        public Vector3 TargetPosition;
+        public UnityEngine.Vector3 TargetPosition;
         public AIState CurrentState;
         public int Health;
         public int MaxHealth;

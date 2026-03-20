@@ -20,7 +20,6 @@ Shader "Minecraft/VoxelBlockStandard"
         #pragma multi_compile_instancing
 
         sampler2D _MainTex;
-        float4 _MainTex_ST;
         half _AmbientOcclusion;
         half _Smoothness;
 

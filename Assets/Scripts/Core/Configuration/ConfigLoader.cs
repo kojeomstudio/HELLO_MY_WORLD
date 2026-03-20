@@ -290,10 +290,8 @@ namespace Core.Configuration
     
     /// <summary>
     /// Placeholder configuration classes (to be implemented as needed)
+    /// Note: WorldGenerationConfig is defined in WorldGenerationConfig.cs
     /// </summary>
-    [Serializable]
-    public class WorldGenerationConfig : ConfigBase { }
-    
     [Serializable]
     public class BlockConfig : ConfigBase { }
     

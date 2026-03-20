@@ -230,7 +230,8 @@ public class InventoryManager : MonoBehaviour
             nutrition = itemObject["hunger_restore"]?.Value<int?>()
                 ?? itemObject["nutrition"]?.Value<int?>()
                 ?? 0,
-            durability = itemObject["durability"]?.Value<int?>() ?? 0
+            durability = itemObject["durability"]?.Value<int?>() ?? 0,
+            groups = ParseGroups(itemObject["groups"] as JArray)
         };
 
         RegisterItem(itemData, key);
@@ -365,6 +366,51 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    private static string[] ParseGroups(JArray groupsArray)
+    {
+        if (groupsArray == null || groupsArray.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var groups = new List<string>();
+        foreach (JToken token in groupsArray)
+        {
+            string group = token?.Value<string>();
+            if (!string.IsNullOrWhiteSpace(group))
+            {
+                groups.Add(group.Trim().ToLowerInvariant());
+            }
+        }
+
+        return groups.ToArray();
+    }
+
+    public bool ItemHasGroup(int itemId, string group)
+    {
+        if (string.IsNullOrWhiteSpace(group))
+        {
+            return false;
+        }
+
+        ItemData data = GetItemData(itemId);
+        if (data == null || data.groups == null)
+        {
+            return false;
+        }
+
+        string normalizedGroup = group.Trim().ToLowerInvariant();
+        foreach (string itemGroup in data.groups)
+        {
+            if (string.Equals(itemGroup, normalizedGroup, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private int InferDefaultStackSize(string typeText)
     {
         if (string.IsNullOrWhiteSpace(typeText))
@@ -438,6 +484,12 @@ public class InventoryManager : MonoBehaviour
     {
         EnsureItemDatabaseLoaded();
         return itemIdByKey.TryGetValue(itemKey, out itemId);
+    }
+
+    public IReadOnlyDictionary<string, int> GetAllItemIdMappings()
+    {
+        EnsureItemDatabaseLoaded();
+        return itemIdByKey;
     }
 
     public bool AddItem(int itemId, int amount)
@@ -796,6 +848,7 @@ public class ItemData
     public ItemType type;
     public int nutrition;
     public int durability;
+    public string[] groups = Array.Empty<string>();
 }
 
 public enum ItemType

@@ -214,6 +214,13 @@ public class CraftingManager : MonoBehaviour
             ?? recipeObject["crafting_type"]?.Value<string>()
             ?? string.Empty;
 
+        var replacements = ParseReplacements(recipeObject["replacements"] as JArray);
+        bool isShaped = recipeObject["shaped"]?.Value<bool?>()
+            ?? recipeObject["is_shaped"]?.Value<bool?>()
+            ?? (recipeObject["width"] != null || recipeObject["height"] != null);
+        int width = recipeObject["width"]?.Value<int?>() ?? 0;
+        int height = recipeObject["height"]?.Value<int?>() ?? 0;
+
         var recipe = new CraftingRecipe
         {
             id = recipeId,
@@ -221,7 +228,11 @@ public class CraftingManager : MonoBehaviour
             type = ParseCraftingType(station, method),
             craftingTime = Mathf.Max(0.0f, craftingTime),
             ingredients = ingredients.ToArray(),
-            results = results.ToArray()
+            results = results.ToArray(),
+            replacements = replacements.ToArray(),
+            isShaped = isShaped,
+            width = width,
+            height = height
         };
 
         recipes[recipeId] = recipe;
@@ -270,9 +281,20 @@ public class CraftingManager : MonoBehaviour
                 continue;
             }
 
+            string groupValue = ingredientObject["group"]?.Value<string>()
+                ?? ingredientObject["item_group"]?.Value<string>()
+                ?? string.Empty;
+
             if (!TryResolveItemId(ingredientObject["itemId"] ?? ingredientObject["item_id"], out int itemId))
             {
-                continue;
+                if (!string.IsNullOrWhiteSpace(groupValue))
+                {
+                    itemId = 0;
+                }
+                else
+                {
+                    continue;
+                }
             }
 
             int amount = ingredientObject["quantity"]?.Value<int?>()
@@ -287,7 +309,8 @@ public class CraftingManager : MonoBehaviour
             ingredients.Add(new CraftingIngredient
             {
                 itemId = itemId,
-                amount = amount
+                amount = amount,
+                group = groupValue
             });
         }
 
@@ -345,6 +368,44 @@ public class CraftingManager : MonoBehaviour
         return true;
     }
 
+    private List<CraftingReplacement> ParseReplacements(JArray replacementsArray)
+    {
+        var replacements = new List<CraftingReplacement>();
+        if (replacementsArray == null)
+        {
+            return replacements;
+        }
+
+        foreach (JToken replacementToken in replacementsArray)
+        {
+            if (replacementToken is not JObject replacementObject)
+            {
+                continue;
+            }
+
+            JToken consumeToken = replacementObject["consume"] ?? replacementObject["from"] ?? replacementObject["consume_item"];
+            JToken replaceToken = replacementObject["replace"] ?? replacementObject["to"] ?? replacementObject["replace_with"];
+
+            if (!TryResolveItemId(consumeToken, out int consumeItemId))
+            {
+                continue;
+            }
+
+            if (!TryResolveItemId(replaceToken, out int replaceWithItemId))
+            {
+                continue;
+            }
+
+            replacements.Add(new CraftingReplacement
+            {
+                consumeItemId = consumeItemId,
+                replaceWithItemId = replaceWithItemId
+            });
+        }
+
+        return replacements;
+    }
+
     private bool TryResolveItemId(JToken token, out int itemId)
     {
         itemId = 0;
@@ -377,6 +438,22 @@ public class CraftingManager : MonoBehaviour
         }
 
         return inventoryManager.TryGetItemIdByKey(key, out itemId);
+    }
+
+    private bool IngredientMatchesItem(int ingredientItemId, int actualItemId, string ingredientGroup)
+    {
+        if (ingredientItemId > 0 && ingredientItemId == actualItemId)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ingredientGroup) && ingredientGroup.StartsWith("group:", StringComparison.OrdinalIgnoreCase))
+        {
+            string groupName = ingredientGroup.Substring(6);
+            return inventoryManager.ItemHasGroup(actualItemId, groupName);
+        }
+
+        return false;
     }
 
     private CraftingType ParseCraftingType(string station, RecipeMethod method)
@@ -521,9 +598,113 @@ public class CraftingManager : MonoBehaviour
 
         foreach (CraftingIngredient ingredient in recipe.ingredients)
         {
-            if (inventoryManager.GetItemCount(ingredient.itemId) < ingredient.amount)
+            if (!HasEnoughIngredients(ingredient))
             {
                 return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool HasEnoughIngredients(CraftingIngredient ingredient)
+    {
+        if (ingredient.itemId > 0)
+        {
+            return inventoryManager.GetItemCount(ingredient.itemId) >= ingredient.amount;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ingredient.group) && ingredient.group.StartsWith("group:", StringComparison.OrdinalIgnoreCase))
+        {
+            string groupName = ingredient.group.Substring(6);
+            return CountItemsInGroup(groupName) >= ingredient.amount;
+        }
+
+        return false;
+    }
+
+    private int CountItemsInGroup(string groupName)
+    {
+        int count = 0;
+        foreach (KeyValuePair<string, int> entry in inventoryManager.GetAllItemIdMappings())
+        {
+            if (inventoryManager.ItemHasGroup(entry.Value, groupName))
+            {
+                count += inventoryManager.GetItemCount(entry.Value);
+            }
+        }
+        return count;
+    }
+
+    public bool CanCraftShapedRecipe(string recipeId, int[,] craftingGrid, int gridWidth, int gridHeight)
+    {
+        if (!recipes.TryGetValue(recipeId, out CraftingRecipe recipe))
+        {
+            return false;
+        }
+
+        if (!recipe.isShaped)
+        {
+            return CanCraftRecipe(recipeId);
+        }
+
+        if (recipe.width <= 0 || recipe.height <= 0)
+        {
+            return CanCraftRecipe(recipeId);
+        }
+
+        if (recipe.width > gridWidth || recipe.height > gridHeight)
+        {
+            return false;
+        }
+
+        for (int offsetY = 0; offsetY <= gridHeight - recipe.height; offsetY++)
+        {
+            for (int offsetX = 0; offsetX <= gridWidth - recipe.width; offsetX++)
+            {
+                if (MatchesShapedPattern(recipe, craftingGrid, gridWidth, gridHeight, offsetX, offsetY))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool MatchesShapedPattern(CraftingRecipe recipe, int[,] craftingGrid, int gridWidth, int gridHeight, int offsetX, int offsetY)
+    {
+        int ingredientIndex = 0;
+        for (int y = 0; y < recipe.height; y++)
+        {
+            for (int x = 0; x < recipe.width; x++)
+            {
+                int gridX = x + offsetX;
+                int gridY = y + offsetY;
+
+                if (gridX >= gridWidth || gridY >= gridHeight)
+                {
+                    return false;
+                }
+
+                int gridItemId = craftingGrid[gridX, gridY];
+
+                if (ingredientIndex >= recipe.ingredients.Length)
+                {
+                    if (gridItemId != 0)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+
+                CraftingIngredient ingredient = recipe.ingredients[ingredientIndex];
+                if (gridItemId != ingredient.itemId)
+                {
+                    return false;
+                }
+
+                ingredientIndex++;
             }
         }
 
@@ -579,7 +760,22 @@ public class CraftingManager : MonoBehaviour
 
         foreach (CraftingIngredient ingredient in currentRecipe.ingredients)
         {
-            inventoryManager.RemoveItem(ingredient.itemId, ingredient.amount);
+            bool replaced = false;
+            foreach (CraftingReplacement replacement in currentRecipe.replacements)
+            {
+                if (ingredient.itemId == replacement.consumeItemId)
+                {
+                    inventoryManager.RemoveItem(ingredient.itemId, ingredient.amount);
+                    inventoryManager.AddItem(replacement.replaceWithItemId, ingredient.amount);
+                    replaced = true;
+                    break;
+                }
+            }
+
+            if (!replaced)
+            {
+                inventoryManager.RemoveItem(ingredient.itemId, ingredient.amount);
+            }
         }
 
         foreach (CraftingResult result in currentRecipe.results)
@@ -684,6 +880,10 @@ public class CraftingRecipe
     public float craftingTime;
     public CraftingIngredient[] ingredients = Array.Empty<CraftingIngredient>();
     public CraftingResult[] results = Array.Empty<CraftingResult>();
+    public CraftingReplacement[] replacements = Array.Empty<CraftingReplacement>();
+    public bool isShaped;
+    public int width;
+    public int height;
 }
 
 [Serializable]
@@ -691,6 +891,7 @@ public class CraftingIngredient
 {
     public int itemId;
     public int amount;
+    public string group = string.Empty;
 }
 
 [Serializable]
@@ -698,6 +899,13 @@ public class CraftingResult
 {
     public int itemId;
     public int amount;
+}
+
+[Serializable]
+public class CraftingReplacement
+{
+    public int consumeItemId;
+    public int replaceWithItemId;
 }
 
 public enum CraftingType

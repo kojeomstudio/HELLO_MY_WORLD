@@ -13,438 +13,169 @@ namespace Minecraft.World
         [Header("World Settings")]
         [SerializeField] private int worldSize = 1000;
         [SerializeField] private int chunkSize = 16;
-        [SerializeField] private int renderDistance = 10;
-        
-        private ProtobufNetworkClient _networkClient;
-        private Dictionary<Vector3Int, int> _blockChanges = new Dictionary<Vector3Int, int>();
-        private Dictionary<string, SubWorld> _subWorlds = new Dictionary<string, SubWorld>();
-        
-        public int WorldSize => worldSize;
-        public int ChunkSize => chunkSize;
-        public int RenderDistance => renderDistance;
-        
-        private void Awake()
-        {
-            // Find network client in scene
-            _networkClient = FindObjectOfType<ProtobufNetworkClient>();
-            
-            if (_networkClient != null)
-            {
-                // Register for block change broadcasts
-                _networkClient.BlockChangeBroadcastReceived += OnBlockChangeBroadcast;
-            }
-            else
-            {
-                Debug.LogWarning("[WorldManager] ProtobufNetworkClient not found in scene");
-            }
-        }
-        
-        /// <summary>
-        /// Modify a block in the world
-        /// </summary>
-        public void ModifyBlock(Vector3Int position, int blockType)
-        {
-            // Store local change
-            _blockChanges[position] = blockType;
-            
-            // Send change request to server
-            if (_networkClient != null)
-            {
-                _networkClient.SendBlockChangeRequest("main_world", "default", position, blockType, 0);
-            }
-            
-            Debug.Log($"[WorldManager] Modified block at {position} to type {blockType}");
-        }
-        
-        /// <summary>
-        /// Modify multiple blocks in a batch
-        /// </summary>
-        public void ModifyBlocks(Dictionary<Vector3Int, int> blockChanges)
-        {
-            foreach (var change in blockChanges)
-            {
-                ModifyBlock(change.Key, change.Value);
-            }
-        }
-        
-        /// <summary>
-        /// Modify world manager settings
-        /// </summary>
-        public void ModifyWorldManager(WorldManagerSettings settings)
-        {
-            if (settings != null)
-            {
-                worldSize = settings.WorldSize > 0 ? settings.WorldSize : worldSize;
-                chunkSize = settings.ChunkSize > 0 ? settings.ChunkSize : chunkSize;
-                renderDistance = settings.RenderDistance > 0 ? settings.RenderDistance : renderDistance;
-                
-                Debug.Log($"[WorldManager] Updated world settings: Size={worldSize}, ChunkSize={chunkSize}, RenderDistance={renderDistance}");
-            }
-        }
-        
-        /// <summary>
-        /// Modify a specific sub-world
-        /// </summary>
-        public void ModifySpecificSubWorld(string subWorldId, SubWorldSettings settings)
-        {
-            if (!_subWorlds.ContainsKey(subWorldId))
-            {
-                _subWorlds[subWorldId] = new SubWorld
-                {
-                    Id = subWorldId,
-                    Name = settings.Name ?? subWorldId,
-                    Description = settings.Description ?? "",
-                    IsEnabled = settings.IsEnabled,
-                    BlockTypes = new List<int>(settings.BlockTypes ?? new int[0])
-                };
-            }
-            else
-            {
-                var subWorld = _subWorlds[subWorldId];
-                subWorld.Name = settings.Name ?? subWorld.Name;
-                subWorld.Description = settings.Description ?? subWorld.Description;
-                subWorld.IsEnabled = settings.IsEnabled;
-                
-                if (settings.BlockTypes != null)
-                {
-                    subWorld.BlockTypes.Clear();
-                    subWorld.BlockTypes.AddRange(settings.BlockTypes);
-                }
-            }
-            
-            Debug.Log($"[WorldManager] Modified sub-world {subWorldId}: Name={_subWorlds[subWorldId].Name}, Enabled={_subWorlds[subWorldId].IsEnabled}");
-        }
-        
-        /// <summary>
-        /// Get block type at position
-        /// </summary>
-        public int GetBlockType(Vector3Int position)
-        {
-            if (_blockChanges.ContainsKey(position))
-            {
-                return _blockChanges[position];
-            }
-            
-            // Default to air (0) if no change recorded
-            return 0;
-        }
-        
-        /// <summary>
-        /// Get sub-world by ID
-        /// </summary>
-        public SubWorld GetSubWorld(string subWorldId)
-        {
-            return _subWorlds.ContainsKey(subWorldId) ? _subWorlds[subWorldId] : null;
-        }
-        
-        /// <summary>
-        /// Get all sub-worlds
-        /// </summary>
-        public Dictionary<string, SubWorld> GetAllSubWorlds()
-        {
-            return new Dictionary<string, SubWorld>(_subWorlds);
-        }
-        
-        /// <summary>
-        /// Handle block change broadcast from server
-        /// </summary>
-        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
-        {
-            var position = new Vector3Int(
-                (int)broadcast.BlockPosition.X,
-                (int)broadcast.BlockPosition.Y,
-                (int)broadcast.BlockPosition.Z
-            );
-            
-            // Update local block changes
-            _blockChanges[position] = broadcast.BlockType;
-            
-            // Notify listeners
-            OnBlockChanged?.Invoke(position, broadcast.BlockType);
-            
-            Debug.Log($"[WorldManager] Received block change: {position} -> {broadcast.BlockType}");
-        }
-        
-        /// <summary>
-        /// Event fired when a block is changed
-        /// </summary>
-        public event System.Action<Vector3Int, int> OnBlockChanged;
-        
-        private void OnDestroy()
-        {
-            if (_networkClient != null)
-            {
-                _networkClient.BlockChangeBroadcastReceived -= OnBlockChangeBroadcast;
-            }
-        }
-    }
-    
-    /// <summary>
-    /// World manager settings
-    /// </summary>
-    [System.Serializable]
-    public class WorldManagerSettings
-    {
-        public int WorldSize;
-        public int ChunkSize;
-        public int RenderDistance;
-    }
-    
-    /// <summary>
-    /// Sub-world definition
-    /// </summary>
-    [System.Serializable]
-    public class SubWorld
-    {
-        public string Id;
-        public string Name;
-        public string Description;
-        public bool IsEnabled;
-        public List<int> BlockTypes;
-    }
-    
-    /// <summary>
-    /// Sub-world settings
-    /// </summary>
-    [System.Serializable]
-    public class SubWorldSettings
-    {
-        public string Name;
-        public string Description;
-        public bool IsEnabled = true;
-        public int[] BlockTypes;
-    }
-}
-using UnityEngine;
-using Networking.Core;
-using GameProtocol;
-
-namespace Minecraft.World
-{
-    /// <summary>
-    /// Client-side world manager that handles block changes and world modifications
-    /// </summary>
-    public class WorldManager : MonoBehaviour
-    {
-        [Header("World Settings")]
-        [SerializeField] private int worldSize = 1000;
-        [SerializeField] private int chunkSize = 16;
-        [SerializeField] private int renderDistance = 10;
-        
-        private ProtobufNetworkClient _networkClient;
-        private Dictionary<Vector3Int, int> _blockChanges = new Dictionary<Vector3Int, int>();
-        private Dictionary<string, SubWorld> _subWorlds = new Dictionary<string, SubWorld>();
-        
-        public int WorldSize => worldSize;
-        public int ChunkSize => chunkSize;
-        public int RenderDistance => renderDistance;
-        
-        private void Awake()
-        {
-            // Find network client in scene
-            _networkClient = FindObjectOfType<ProtobufNetworkClient>();
-            
-            if (_networkClient != null)
-            {
-                // Register for block change broadcasts
-                _networkClient.BlockChangeBroadcastReceived += OnBlockChangeBroadcast;
-            }
-            else
-            {
-                Debug.LogWarning("[WorldManager] ProtobufNetworkClient not found in scene");
-            }
-        }
-        
-        /// <summary>
-        /// Modify a block in the world
-        /// </summary>
-        public void ModifyBlock(Vector3Int position, int blockType)
-        {
-            // Store local change
-            _blockChanges[position] = blockType;
-            
-            // Send change request to server
-            if (_networkClient != null)
-            {
-                _networkClient.SendBlockChangeRequest("main_world", "default", position, blockType, 0);
-            }
-            
-            Debug.Log($"[WorldManager] Modified block at {position} to type {blockType}");
-        }
-        
-        /// <summary>
-        /// Modify multiple blocks in a batch
-        /// </summary>
-        public void ModifyBlocks(Dictionary<Vector3Int, int> blockChanges)
-        {
-            foreach (var change in blockChanges)
-            {
-                ModifyBlock(change.Key, change.Value);
-            }
-        }
-        
-        /// <summary>
-        /// Modify world manager settings
-        /// </summary>
-        public void ModifyWorldManager(WorldManagerSettings settings)
-        {
-            if (settings != null)
-            {
-                worldSize = settings.WorldSize > 0 ? settings.WorldSize : worldSize;
-                chunkSize = settings.ChunkSize > 0 ? settings.ChunkSize : chunkSize;
-                renderDistance = settings.RenderDistance > 0 ? settings.RenderDistance : renderDistance;
-                
-                Debug.Log($"[WorldManager] Updated world settings: Size={worldSize}, ChunkSize={chunkSize}, RenderDistance={renderDistance}");
-            }
-        }
-        
-        /// <summary>
-        /// Modify a specific sub-world
-        /// </summary>
-        public void ModifySpecificSubWorld(string subWorldId, SubWorldSettings settings)
-        {
-            if (!_subWorlds.ContainsKey(subWorldId))
-            {
-                _subWorlds[subWorldId] = new SubWorld
-                {
-                    Id = subWorldId,
-                    Name = settings.Name ?? subWorldId,
-                    Description = settings.Description ?? "",
-                    IsEnabled = settings.IsEnabled,
-                    BlockTypes = new List<int>(settings.BlockTypes ?? new int[0])
-                };
-            }
-            else
-            {
-                var subWorld = _subWorlds[subWorldId];
-                subWorld.Name = settings.Name ?? subWorld.Name;
-                subWorld.Description = settings.Description ?? subWorld.Description;
-                subWorld.IsEnabled = settings.IsEnabled;
-                
-                if (settings.BlockTypes != null)
-                {
-                    subWorld.BlockTypes.Clear();
-                    subWorld.BlockTypes.AddRange(settings.BlockTypes);
-                }
-            }
-            
-            Debug.Log($"[WorldManager] Modified sub-world {subWorldId}: Name={_subWorlds[subWorldId].Name}, Enabled={_subWorlds[subWorldId].IsEnabled}");
-        }
-        
-        /// <summary>
-        /// Get block type at position
-        /// </summary>
-        public int GetBlockType(Vector3Int position)
-        {
-            if (_blockChanges.ContainsKey(position))
-            {
-                return _blockChanges[position];
-            }
-            
-            // Default to air (0) if no change recorded
-            return 0;
-        }
-        
-        /// <summary>
-        /// Get sub-world by ID
-        /// </summary>
-        public SubWorld GetSubWorld(string subWorldId)
-        {
-            return _subWorlds.ContainsKey(subWorldId) ? _subWorlds[subWorldId] : null;
-        }
-        
-        /// <summary>
-        /// Get all sub-worlds
-        /// </summary>
-        public Dictionary<string, SubWorld> GetAllSubWorlds()
-        {
-            return new Dictionary<string, SubWorld>(_subWorlds);
-        }
-        
-        /// <summary>
-        /// Handle block change broadcast from server
-        /// </summary>
-        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
-        {
-            var position = new Vector3Int(
-                (int)broadcast.BlockPosition.X,
-                (int)broadcast.BlockPosition.Y,
-                (int)broadcast.BlockPosition.Z
-            );
-            
-            // Update local block changes
-            _blockChanges[position] = broadcast.BlockType;
-            
-            // Notify listeners
-            OnBlockChanged?.Invoke(position, broadcast.BlockType);
-            
-            Debug.Log($"[WorldManager] Received block change: {position} -> {broadcast.BlockType}");
-        }
-        
-        /// <summary>
-        /// Event fired when a block is changed
-        /// </summary>
-        public event System.Action<Vector3Int, int> OnBlockChanged;
-        
-        private void OnDestroy()
-        {
-            if (_networkClient != null)
-            {
-                _networkClient.BlockChangeBroadcastReceived -= OnBlockChangeBroadcast;
-            }
-        }
-    }
-    
-    /// <summary>
-    /// World manager settings
-    /// </summary>
-    [System.Serializable]
-    public class WorldManagerSettings
-    {
-        public int WorldSize;
-        public int ChunkSize;
-        public int RenderDistance;
-    }
-    
-    /// <summary>
-    /// Sub-world definition
-    /// </summary>
-    [System.Serializable]
-    public class SubWorld
-    {
-        public string Id;
-        public string Name;
-        public string Description;
-        public bool IsEnabled;
-        public List<int> BlockTypes;
-    }
-    
-    /// <summary>
-    /// Sub-world settings
-    /// </summary>
-    [System.Serializable]
-    public class SubWorldSettings
-    {
-        public string Name;
-        public string Description;
-        public bool IsEnabled = true;
-        public int[] BlockTypes;
-    }
-}
-}
-        [SerializeField] private int chunkSize = 16;
         [SerializeField] private int worldHeight = 256;
         [SerializeField] private int renderDistance = 8;
+        
+        private ProtobufNetworkClient _networkClient;
+        private Dictionary<Vector3Int, int> _blockChanges = new Dictionary<Vector3Int, int>();
+        private Dictionary<string, SubWorld> _subWorlds = new Dictionary<string, SubWorld>();
         
         // Dictionary to store loaded chunks
         private Dictionary<string, Chunk> loadedChunks = new Dictionary<string, Chunk>();
         
+        public int WorldSize => worldSize;
+        public int ChunkSize => chunkSize;
+        public int RenderDistance => renderDistance;
+        
         // Event for block changes
-        public event System.Action<int, int, int, int, byte> OnBlockChanged;
+        public event System.Action<Vector3Int, int> OnBlockChanged;
+        public event System.Action<int, int, int, int, byte> OnBlockChangedLegacy;
+        
+        private void Awake()
+        {
+            // Find network client in scene
+            _networkClient = FindObjectOfType<ProtobufNetworkClient>();
+            
+            if (_networkClient != null)
+            {
+                // Register for block change broadcasts
+                _networkClient.BlockChangeBroadcastReceived += OnBlockChangeBroadcast;
+            }
+            else
+            {
+                Debug.LogWarning("[WorldManager] ProtobufNetworkClient not found in scene");
+            }
+        }
         
         private void Start()
         {
             Debug.Log("[WorldManager] Initialized client-side world manager");
+        }
+        
+        /// <summary>
+        /// Modify a block in the world
+        /// </summary>
+        public void ModifyBlock(Vector3Int position, int blockType)
+        {
+            // Store local change
+            _blockChanges[position] = blockType;
+            
+            // Send change request to server
+            if (_networkClient != null)
+            {
+                _networkClient.SendBlockChangeRequest("main_world", "default", position, blockType, 0);
+            }
+            
+            Debug.Log($"[WorldManager] Modified block at {position} to type {blockType}");
+        }
+        
+        /// <summary>
+        /// Modify multiple blocks in a batch
+        /// </summary>
+        public void ModifyBlocks(Dictionary<Vector3Int, int> blockChanges)
+        {
+            foreach (var change in blockChanges)
+            {
+                ModifyBlock(change.Key, change.Value);
+            }
+        }
+        
+        /// <summary>
+        /// Modify world manager settings
+        /// </summary>
+        public void ModifyWorldManager(WorldManagerSettings settings)
+        {
+            if (settings != null)
+            {
+                worldSize = settings.WorldSize > 0 ? settings.WorldSize : worldSize;
+                chunkSize = settings.ChunkSize > 0 ? settings.ChunkSize : chunkSize;
+                renderDistance = settings.RenderDistance > 0 ? settings.RenderDistance : renderDistance;
+                
+                Debug.Log($"[WorldManager] Updated world settings: Size={worldSize}, ChunkSize={chunkSize}, RenderDistance={renderDistance}");
+            }
+        }
+        
+        /// <summary>
+        /// Modify a specific sub-world
+        /// </summary>
+        public void ModifySpecificSubWorld(string subWorldId, SubWorldSettings settings)
+        {
+            if (!_subWorlds.ContainsKey(subWorldId))
+            {
+                _subWorlds[subWorldId] = new SubWorld
+                {
+                    Id = subWorldId,
+                    Name = settings.Name ?? subWorldId,
+                    Description = settings.Description ?? "",
+                    IsEnabled = settings.IsEnabled,
+                    BlockTypes = new List<int>(settings.BlockTypes ?? new int[0])
+                };
+            }
+            else
+            {
+                var subWorld = _subWorlds[subWorldId];
+                subWorld.Name = settings.Name ?? subWorld.Name;
+                subWorld.Description = settings.Description ?? subWorld.Description;
+                subWorld.IsEnabled = settings.IsEnabled;
+                
+                if (settings.BlockTypes != null)
+                {
+                    subWorld.BlockTypes.Clear();
+                    subWorld.BlockTypes.AddRange(settings.BlockTypes);
+                }
+            }
+            
+            Debug.Log($"[WorldManager] Modified sub-world {subWorldId}: Name={_subWorlds[subWorldId].Name}, Enabled={_subWorlds[subWorldId].IsEnabled}");
+        }
+        
+        /// <summary>
+        /// Get block type at position
+        /// </summary>
+        public int GetBlockType(Vector3Int position)
+        {
+            if (_blockChanges.ContainsKey(position))
+            {
+                return _blockChanges[position];
+            }
+            
+            // Default to air (0) if no change recorded
+            return 0;
+        }
+        
+        /// <summary>
+        /// Get sub-world by ID
+        /// </summary>
+        public SubWorld GetSubWorld(string subWorldId)
+        {
+            return _subWorlds.ContainsKey(subWorldId) ? _subWorlds[subWorldId] : null;
+        }
+        
+        /// <summary>
+        /// Get all sub-worlds
+        /// </summary>
+        public Dictionary<string, SubWorld> GetAllSubWorlds()
+        {
+            return new Dictionary<string, SubWorld>(_subWorlds);
+        }
+        
+        /// <summary>
+        /// Handle block change broadcast from server
+        /// </summary>
+        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
+        {
+            var position = new Vector3Int(
+                (int)broadcast.BlockPosition.X,
+                (int)broadcast.BlockPosition.Y,
+                (int)broadcast.BlockPosition.Z
+            );
+            
+            // Update local block changes
+            _blockChanges[position] = broadcast.BlockType;
+            
+            // Notify listeners
+            OnBlockChanged?.Invoke(position, broadcast.BlockType);
+            
+            Debug.Log($"[WorldManager] Received block change: {position} -> {broadcast.BlockType}");
         }
         
         /// <summary>
@@ -485,7 +216,7 @@ namespace Minecraft.World
                 int worldZ = chunkZ * chunkSize + blockZ;
                 
                 // Notify listeners of block change
-                OnBlockChanged?.Invoke(worldX, blockY, worldZ, blockType);
+                OnBlockChangedLegacy?.Invoke(worldX, blockY, worldZ, blockType);
                 
                 Debug.Log($"[WorldManager] Set block at ({worldX}, {blockY}, {worldZ}) to type {blockType}");
             }
@@ -582,9 +313,50 @@ namespace Minecraft.World
         
         private void OnDestroy()
         {
+            if (_networkClient != null)
+            {
+                _networkClient.BlockChangeBroadcastReceived -= OnBlockChangeBroadcast;
+            }
+            
             loadedChunks.Clear();
             Debug.Log("[WorldManager] Cleaned up world manager");
         }
+    }
+    
+    /// <summary>
+    /// World manager settings
+    /// </summary>
+    [System.Serializable]
+    public class WorldManagerSettings
+    {
+        public int WorldSize;
+        public int ChunkSize;
+        public int RenderDistance;
+    }
+    
+    /// <summary>
+    /// Sub-world definition
+    /// </summary>
+    [System.Serializable]
+    public class SubWorld
+    {
+        public string Id;
+        public string Name;
+        public string Description;
+        public bool IsEnabled;
+        public List<int> BlockTypes;
+    }
+    
+    /// <summary>
+    /// Sub-world settings
+    /// </summary>
+    [System.Serializable]
+    public class SubWorldSettings
+    {
+        public string Name;
+        public string Description;
+        public bool IsEnabled = true;
+        public int[] BlockTypes;
     }
     
     /// <summary>

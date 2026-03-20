@@ -23,7 +23,6 @@ Shader "Minecraft/FoliageWind"
 
         sampler2D _MainTex;
         float4 _MainTex_ST;
-        fixed4 _Tint;
         float _WindStrength;
         float _WindFrequency;
 

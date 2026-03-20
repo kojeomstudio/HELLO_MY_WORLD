@@ -39,9 +39,9 @@ namespace Minecraft.World
         private Dictionary<int, BlockType> _blockTypes = new();
         
         // Configuration properties
-        private int ChunkSize => _worldConfig.ChunkSize;
-        private int WorldHeight => _worldConfig.WorldHeight;
-        private int RenderDistance => _clientConfig.Graphics.RenderDistance;
+        private int ChunkSize => _worldConfig != null ? _worldConfig.ChunkSize : 16;
+        private int WorldHeight => _worldConfig != null ? _worldConfig.WorldHeight : 256;
+        private int RenderDistance => _clientConfig != null && _clientConfig.Graphics != null ? _clientConfig.Graphics.RenderDistance : 8;
         
         public event Action<Vector2Int> ChunkLoaded;
         public event Action<Vector2Int> ChunkUnloaded;
@@ -65,8 +65,14 @@ namespace Minecraft.World
             _blockDataManager = BlockDataManager.Instance;
             
             // Apply configuration to Unity settings
-            _clientConfig.ApplyToUnity();
-            _worldConfig.ApplyToUnity();
+            if (_clientConfig != null)
+            {
+                _clientConfig.ApplyToUnity();
+            }
+            if (_worldConfig != null)
+            {
+                _worldConfig.ApplyToUnity();
+            }
         }
         
         private void InitializeComponents()
@@ -94,6 +100,8 @@ namespace Minecraft.World
         
         private void InitializeBlockTypes()
         {
+            if (_blockDataManager == null) return;
+            
             // Load block types from data manager
             var blockDefinitions = _blockDataManager.GetAllBlockDefinitions();
             
@@ -207,7 +215,7 @@ namespace Minecraft.World
         private void RequestChunkFromServer(Vector2Int chunkPos)
         {
             // First try to generate locally if offline mode or server unavailable
-            if (_clientConfig.Network.EnableOfflineMode || _gameClient == null)
+            if (_clientConfig != null && _clientConfig.Network != null && _clientConfig.Network.EnableOfflineMode || _gameClient == null)
             {
                 GenerateChunkLocally(chunkPos);
                 return;
@@ -485,112 +493,3 @@ namespace Minecraft.World
         }
     }
 }
-            }
-            
-            BlockChanged?.Invoke(blockPos, oldBlockId, newBlockId);
-        }
-        
-        private void UpdateBlockInChunk(ChunkSnapshot chunkData, Vector3Int localPos, int newBlockId)
-        {
-            chunkData.SetBlockId(localPos.x, localPos.y, localPos.z, newBlockId);
-        }
-        
-        public int GetBlockAt(Vector3Int worldPos)
-        {
-            var chunkPos = new Vector2Int(
-                Mathf.FloorToInt(worldPos.x / (float)ChunkSize),
-                Mathf.FloorToInt(worldPos.z / (float)ChunkSize)
-            );
-            
-            if (!_chunkData.TryGetValue(chunkPos, out var chunkData))
-                return 0;
-            
-            var localPos = new Vector3Int(
-                worldPos.x - (chunkPos.x * ChunkSize),
-                worldPos.y,
-                worldPos.z - (chunkPos.y * ChunkSize)
-            );
-            
-            return chunkData.GetBlockId(localPos.x, localPos.y, localPos.z);
-        }
-        
-        public BlockType GetBlockType(int blockId)
-        {
-            _blockTypes.TryGetValue(blockId, out var blockType);
-            return blockType ?? _blockTypes[0];
-        }
-        
-        public bool IsChunkLoaded(Vector2Int chunkPos)
-        {
-            return _chunkData.ContainsKey(chunkPos);
-        }
-        
-        public IEnumerable<Vector2Int> GetLoadedChunks()
-        {
-            return _chunkData.Keys;
-        }
-        
-        private void OnDrawGizmosSelected()
-        {
-            if (_worldConfig == null) return;
-            
-            var chunkSize = ChunkSize;
-            var renderDistance = RenderDistance;
-            
-            Gizmos.color = Color.yellow;
-            var centerPos = new Vector3(_playerChunkPos.x * chunkSize, 0, _playerChunkPos.y * chunkSize);
-            Gizmos.DrawWireCube(centerPos, new Vector3(renderDistance * chunkSize * 2, 10, renderDistance * chunkSize * 2));
-            
-            Gizmos.color = Color.green;
-            foreach (var chunkPos in _chunkData.Keys)
-            {
-                var worldPos = new Vector3(chunkPos.x * chunkSize, 5, chunkPos.y * chunkSize);
-                Gizmos.DrawWireCube(worldPos, new Vector3(chunkSize, 10, chunkSize));
-            }
-        }
-        
-        /// <summary>
-        /// Reload chunk configuration and apply changes
-        /// </summary>
-        public void ReloadConfiguration()
-        {
-            InitializeConfiguration();
-            Debug.Log("ChunkManager configuration reloaded");
-        }
-        
-        /// <summary>
-        /// Get performance statistics
-        /// </summary>
-        public string GetPerformanceStats()
-        {
-            return $"Loaded Chunks: {_chunkData.Count} | " +
-                   $"Queued Loads: {_chunksToLoad.Count} | " +
-                   $"Queued Unloads: {_chunksToUnload.Count} | " +
-                   $"Queued Updates: {_chunksToUpdate.Count} | " +
-                   $"Render Distance: {RenderDistance}";
-        }
-    }
-    
-    /// <summary>
-    /// Block type definition
-    /// </summary>
-    [System.Serializable]
-    public class BlockType
-    {
-        public int Id { get; }
-        public string Name { get; }
-        public bool IsSolid { get; }
-        public bool IsOpaque { get; }
-        public float Hardness { get; set; } = 1f;
-        public string TextureName { get; set; }
-        
-        public BlockType(int id, string name, bool isSolid, bool isOpaque)
-        {
-            Id = id;
-            Name = name;
-            IsSolid = isSolid;
-            IsOpaque = isOpaque;
-        }
-    }
-}
-

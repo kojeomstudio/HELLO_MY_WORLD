@@ -21,8 +21,6 @@ Shader "Minecraft/VoxelBlockStandard"
 
         sampler2D _MainTex;
         float4 _MainTex_ST;
-        float4 _UVData;
-        fixed4 _Tint;
         half _AmbientOcclusion;
         half _Smoothness;
 

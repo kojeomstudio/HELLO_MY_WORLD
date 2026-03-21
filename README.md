@@ -24,9 +24,9 @@ Unity 클라이언트 + .NET 서버 기반의 Minecraft 스타일 프로젝트�
 - **Terrain**: Hydrology v90 (rivers, lakes, caves), Map Control v94
 
 ## Documentation
-- 작업 계획: `plans/2026-03-20-session-197-comprehensive-work-plan.md`
-- 아키텍처/코드 흐름: `docs/2026-03-20-session-197-architecture-and-code-flow.md`
-- 게임 기획 실행: `design/2026-03-20-session-197-design-execution.md`
+- 작업 계획: `plans/2026-03-21-session-205-comprehensive-work-plan.md`
+- 아키텍처/코드 흐름: `docs/2026-03-21-session-205-architecture-and-code-flow.md`
+- 게임 기획: `design/2026-03-16-minecraft-clone-game-design.md`
 - 데이터 템플릿 파이프라인: `design/2026-03-16-game-data-template-pipeline.md`
 - 템플릿 -> JSON 도구: `Tools/GameDataTemplateExporter/`
 - Core/Content/Util 분류: `config/minecraft_features_client_server_core_content_util_2026-03-16-session-175.json`

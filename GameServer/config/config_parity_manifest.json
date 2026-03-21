@@ -55,30 +55,6 @@
             ]
         },
         {
-            "name": "feature-manifest-session-159",
-            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json",
-            "mirrors": [
-                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json",
-                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-12-session-159.json"
-            ]
-        },
-        {
-            "name": "feature-manifest-session-167",
-            "source": "config/minecraft_feature_client_server_core_content_util_2026-03-14-session-167.json",
-            "mirrors": [
-                "GameServer/config/minecraft_feature_client_server_core_content_util_2026-03-14-session-167.json",
-                "Assets/StreamingAssets/minecraft_feature_client_server_core_content_util_2026-03-14-session-167.json"
-            ]
-        },
-        {
-            "name": "feature-manifest-detailed-session-167",
-            "source": "config/minecraft_features_client_server_core_content_util_2026-03-14-session-167.json",
-            "mirrors": [
-                "GameServer/config/minecraft_features_client_server_core_content_util_2026-03-14-session-167.json",
-                "Assets/StreamingAssets/minecraft_features_client_server_core_content_util_2026-03-14-session-167.json"
-            ]
-        },
-        {
             "name": "parity-manifest-self",
             "source": "config/config_parity_manifest.json",
             "mirrors": [

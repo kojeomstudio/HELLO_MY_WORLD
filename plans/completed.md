@@ -3,7 +3,7 @@
 이 문서는 완료된 작업과 해당 커밋 해시를 기록합니다.
 
 ## Session 216 (2026-03-23)
-**Commit:** (pending)
+**Commit:** 2356dfb2
 
 - work/worksheet.md 작업 문서 확인 및 작업 진행
 - .NET 버전 6.0 → 8.0 업그레이드 (GameServer, SharedProtocol, GameServer.Launcher)

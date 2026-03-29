@@ -14,6 +14,7 @@ public enum LOG_TYPE
     USER_INPUT,
     DATABASE,
     DEBUG_TEST,
+    WARNING,
     //
     NETWORK_SERVER_INFO,
     NETWORK_CLIENT_INFO,

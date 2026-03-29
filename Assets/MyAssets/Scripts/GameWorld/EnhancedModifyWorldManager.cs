@@ -1,5 +1,5 @@
 using Mono.Data.Sqlite;
-using MapGenLib;
+using HMWCore;
 using UnityEngine;
 using System;
 using System.Text;

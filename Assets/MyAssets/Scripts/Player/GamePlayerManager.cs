@@ -36,4 +36,9 @@ public class GamePlayerManager : MonoBehaviour {
     {
         return bFinishMake == true;
     }
+
+    public GamePlayer GetCurrentPlayer()
+    {
+        return MyGamePlayer;
+    }
 }

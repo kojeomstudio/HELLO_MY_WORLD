@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Threading.Tasks;
 using System;
-using MapGenLib;
+using HMWCore;
 using Unity.Collections;
 
 public class ChunkSlot

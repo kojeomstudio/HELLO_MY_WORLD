@@ -35,6 +35,13 @@ public enum GameParticleType
     TireSmoke,
     WaterSplash,
     WaterSplatter,
+    // Block effects.
+    BlockFragment,
+    BlockPlace,
+    StoneBreak,
+    WoodBreak,
+    GrassBreak,
+    DirtBreak,
     //
     COUNT,
 }

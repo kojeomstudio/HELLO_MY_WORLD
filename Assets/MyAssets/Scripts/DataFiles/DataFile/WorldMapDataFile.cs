@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using MapGenLib;
+using HMWCore;
 
 public class WorldMapData
 {

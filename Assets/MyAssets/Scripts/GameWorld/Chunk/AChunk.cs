@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 using System.Threading.Tasks;
 
 public abstract class AChunk : MonoBehaviour {

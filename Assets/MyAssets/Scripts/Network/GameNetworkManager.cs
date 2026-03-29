@@ -9,7 +9,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using MapGenLib;
+using HMWCore;
 
 /// <summary>
 /// 네트워크 프로토콜.

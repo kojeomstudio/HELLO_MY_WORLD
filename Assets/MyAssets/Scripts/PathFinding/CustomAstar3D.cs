@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 
 public class PathNode3D
 {

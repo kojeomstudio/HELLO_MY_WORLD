@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 using System.Diagnostics;
 
 public class KojeomUtility

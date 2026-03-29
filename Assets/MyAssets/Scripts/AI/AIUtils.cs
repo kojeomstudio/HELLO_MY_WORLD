@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 public class AIUtils
 {
     public static bool GetRandomWorldPositionFromActorPos(out Vector3 outResult, ActorController actorController)

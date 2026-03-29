@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 public class WindowInput : AInput
 {
     private Vector3 ClickPosition;

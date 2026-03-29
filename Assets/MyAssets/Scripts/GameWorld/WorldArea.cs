@@ -5,7 +5,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using UnityEngine;
-using MapGenLib;
+using HMWCore;
 using Unity.Collections;
 /// <summary>
 /// 외부파일로 저장하게되는 World info.

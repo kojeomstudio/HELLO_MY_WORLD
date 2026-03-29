@@ -1,0 +1,157 @@
+{
+  "version": "session-105",
+  "generated_at_utc": "2026-02-21T11:45:00Z",
+  "session": 105,
+  "date": "2026-02-21",
+  "signature": "2026-02-21-hydrology-riverlake-cave-v45",
+  "profileVersion": 49,
+  "features": [
+    {
+      "id": "S105-CORE-01",
+      "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+      "category": "Core",
+      "side": "shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ]
+    },
+    {
+      "id": "S105-CORE-02",
+      "name": "World Map Profile v49 + Hydrology Signature v45",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "S105-CORE-03",
+      "name": "Queue Hysteresis (Emergency Hold + Recovery Ramp)",
+      "category": "Core",
+      "side": "server-client",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "id": "S105-CONTENT-01",
+      "name": "Cave Flood-Bypass Vent Damping Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S105-CONTENT-02",
+      "name": "River Confluence Lag Storage Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S105-CONTENT-03",
+      "name": "Lake Spillway Backflow Damping Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S105-UTIL-01",
+      "name": "Dummy Protocol Probe Version Guard v49",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "config/dummy_minecraft_client.json"
+      ]
+    },
+    {
+      "id": "S105-UTIL-02",
+      "name": "Runtime Feature Manifest Loader Session 105",
+      "category": "Utility",
+      "side": "server",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-21-session-105.json"
+      ]
+    },
+    {
+      "id": "S105-UTIL-03",
+      "name": "Config-Driven Queue Policy Extension",
+      "category": "Utility",
+      "side": "shared-tooling",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S105-CORE-01",
+      "S105-CORE-02",
+      "S105-CORE-03"
+    ],
+    "content": [
+      "S105-CONTENT-01",
+      "S105-CONTENT-02",
+      "S105-CONTENT-03"
+    ],
+    "utility": [
+      "S105-UTIL-01",
+      "S105-UTIL-02",
+      "S105-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Baseline check (git clean + recent commits)",
+    "2. Refresh plans/TODO + feature inventory manifest",
+    "3. Implement cave/river/lake terrain bridge improvements",
+    "4. Upgrade server/client world-map queue hysteresis architecture",
+    "5. Raise signature/profile guards to v45/v49",
+    "6. Validate protobuf probe and shared contract usage",
+    "7. Build/test, regenerate profile, update docs, commit/push"
+  ]
+}

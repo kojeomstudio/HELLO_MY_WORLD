@@ -1,0 +1,134 @@
+{
+  "date": "2026-01-17",
+  "branch": "master",
+  "head": "31230302",
+  "sequenceNote": "1) Refresh Core/Content/Util map for client+server, 2) harden hydrology-driven worldgen (caves/rivers/lakes) and world-map control parity, 3) validate protobuf bindings, 4) ship docs/builds.",
+  "core": {
+    "server": [
+      {
+        "id": "core-s-01",
+        "name": "world-map-control-signature",
+        "order": 1,
+        "status": "planned",
+        "paths": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "notes": "Keep control profile hash/signature aligned with world + proto content; reuse terrain masks in cache-aware map streaming."
+      },
+      {
+        "id": "core-s-02",
+        "name": "protocol-registry-validation",
+        "order": 2,
+        "status": "planned",
+        "paths": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "GameServer/Network/EnhancedProtocolHandler.cs"
+        ],
+        "notes": "Verify generated EnhancedMinecraft DTOs and handler bindings at startup; surface missing packet coverage and stale descriptors."
+      }
+    ],
+    "client": [
+      {
+        "id": "core-c-01",
+        "name": "world-map-preview-parity",
+        "order": 1,
+        "status": "planned",
+        "paths": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Unity preview mirrors server hydrology/cave tuning with seam-safe smoothing; reloads profile hashes when JSON drifts."
+      },
+      {
+        "id": "core-c-02",
+        "name": "protocol-client-bindings",
+        "order": 2,
+        "status": "planned",
+        "paths": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/Generated/Protobuf",
+          "Assets/Scripts/Minecraft/Network/ProtobufNetworkClient.cs"
+        ],
+        "notes": "Ensure client protobuf DTO references match SharedProtocol registry; guard against stale generated assemblies."
+      }
+    ]
+  },
+  "content": {
+    "server": [
+      {
+        "id": "content-s-01",
+        "name": "hydrology-coherent-caves",
+        "order": 1,
+        "status": "in-progress",
+        "paths": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "notes": "Hydrology-driven carving with seam-aware smoothing, riparian plugs, and ceiling clamps; keeps subterranean water aligned with rivers/basins."
+      },
+      {
+        "id": "content-s-02",
+        "name": "river-lake-outflow-alignment",
+        "order": 2,
+        "status": "planned",
+        "paths": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "notes": "Blend rivers into lake basins with flow accumulation carry-over; stitch hydrology envelopes across chunk seams."
+      }
+    ],
+    "client": [
+      {
+        "id": "content-c-01",
+        "name": "terrain-preview-masks",
+        "order": 1,
+        "status": "planned",
+        "paths": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "notes": "Preview renderer consumes shared mask metadata (hydrology/flow/river/lake) to display stitched terrain in editor/runtime."
+      }
+    ]
+  },
+  "utility": {
+    "server": [
+      {
+        "id": "util-s-01",
+        "name": "data-driven-config-fingerprint",
+        "order": 0,
+        "status": "in-progress",
+        "paths": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "notes": "JSON-backed config loader with checksum logging; feeds world map control generation and hydrology/lake/cave thresholds."
+      }
+    ],
+    "client": [
+      {
+        "id": "util-c-01",
+        "name": "streaming-profile-hotload",
+        "order": 0,
+        "status": "in-progress",
+        "paths": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+        ],
+        "notes": "Hot-reloads map-control JSON and resets preview generator when hash/signature changes; ensures data-driven parameters stay synced."
+      }
+    ]
+  }
+}

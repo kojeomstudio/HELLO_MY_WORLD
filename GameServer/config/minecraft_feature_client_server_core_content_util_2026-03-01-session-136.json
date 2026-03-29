@@ -1,0 +1,372 @@
+{
+  "version": "2026-03-01-session-136",
+  "generated_at_utc": "2026-03-01T00:00:00Z",
+  "features": [
+    {
+      "id": "core-001-network-proto",
+      "name": "Protobuf Network Protocol Layer",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Shared protobuf packet contracts, message registry, and runtime protocol validation.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "proto/enhanced_minecraft_game.proto"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "core-002-shared-dll",
+      "name": "Shared DLL Contracts",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server and client share world/profile/enum contracts through GameCommon and SharedProtocol assemblies.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapControlProfile.cs"
+      ],
+      "dependencies": [
+        "core-001-network-proto"
+      ]
+    },
+    {
+      "id": "core-003-session-auth",
+      "name": "Session and Authentication",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-authoritative session lifecycle and authentication gate for multiplayer entry.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs",
+        "GameServer/Handlers/AuthHandler.cs"
+      ],
+      "dependencies": [
+        "core-001-network-proto"
+      ]
+    },
+    {
+      "id": "core-004-worldgen-pipeline",
+      "name": "Hydrology Terrain Pipeline",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Chunk terrain generation pipeline with hydrology coupling for caves, rivers, and lakes.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "dependencies": [
+        "core-002-shared-dll"
+      ]
+    },
+    {
+      "id": "core-005-world-map-control",
+      "name": "World Map Control Architecture",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Shared map-control profile, queue policy, runtime parity validation, and streaming-assets mirroring.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "GameServer/World/WorldMapController.cs",
+        "GameCommon/World/WorldMapControlProfileUtility.cs",
+        "config/world_map_control_profile.json",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "core-002-shared-dll"
+      ]
+    },
+    {
+      "id": "core-006-data-driven-config",
+      "name": "Data-Driven Configuration Backbone",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World and runtime settings are controlled through JSON files for server and client parity.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/enhanced_world_map_control_server.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "core-005-world-map-control"
+      ]
+    },
+    {
+      "id": "content-001-river-relay",
+      "name": "River Spring Floodplain Relay",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved river continuity near floodplain/headwater seams via spring-fed relay stabilization.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": [
+        "core-004-worldgen-pipeline"
+      ]
+    },
+    {
+      "id": "content-002-lake-storage",
+      "name": "Lake Floodplain Storage Spill",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake spillway behavior is reinforced with floodplain storage/overflow coupling.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": [
+        "core-004-worldgen-pipeline"
+      ]
+    },
+    {
+      "id": "content-003-cave-conduit",
+      "name": "Subsurface Conduit Relay",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Hydrology-aware conduit relay improves cave continuity around groundwater and riparian bands.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ],
+      "dependencies": [
+        "core-004-worldgen-pipeline"
+      ]
+    },
+    {
+      "id": "content-004-channel-momentum",
+      "name": "River-Lake Channel Momentum Bridge",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Terrain coordinator applies additional channel momentum coupling between hydrology, rivers, and lakes.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": [
+        "content-001-river-relay",
+        "content-002-lake-storage"
+      ]
+    },
+    {
+      "id": "content-005-chunk-streaming",
+      "name": "Chunk Streaming and Caching",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server chunk production and client preview streaming for world exploration.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+      ],
+      "dependencies": [
+        "core-005-world-map-control"
+      ]
+    },
+    {
+      "id": "content-006-player-movement",
+      "name": "Player Movement and Actions",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player movement, action requests, and state update replication.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MovementHandler.cs",
+        "proto/game_move.proto",
+        "Assets/Scripts/Minecraft/Player"
+      ],
+      "dependencies": [
+        "core-001-network-proto"
+      ]
+    },
+    {
+      "id": "content-007-block-inventory",
+      "name": "Block and Inventory Gameplay",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Block placement/breaking and inventory updates with shared item/block datasets.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "GameServer/Handlers/InventoryHandler.cs",
+        "config/blocks.json",
+        "config/items.json"
+      ],
+      "dependencies": [
+        "core-006-data-driven-config"
+      ]
+    },
+    {
+      "id": "content-008-world-events",
+      "name": "World Events and Time",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chunk-level event packets for time, weather, particles, and audio effects.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "proto/game_world.proto",
+        "proto/game_core.proto",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+      ],
+      "dependencies": [
+        "core-001-network-proto"
+      ]
+    },
+    {
+      "id": "util-001-dummy-client",
+      "name": "Dummy Client Protocol Probe",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Dummy protocol client validates packet bindings, descriptor coverage, and optional network probe.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "GameServer/DummyProtocolTestClient.cs",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/protocol_dummy_client.json",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "core-001-network-proto"
+      ]
+    },
+    {
+      "id": "util-002-proto-reference",
+      "name": "Protobuf Reference Report",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Runtime emits and verifies protobuf registration/reference reports for drift detection.",
+      "order": 31,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/proto_reference_report.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": [
+        "util-001-dummy-client"
+      ]
+    },
+    {
+      "id": "util-003-queue-policy-parity",
+      "name": "Queue Policy Parity Guard",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server startup validates and repairs world-map queue policy parity between config and StreamingAssets.",
+      "order": 32,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "core-005-world-map-control"
+      ]
+    },
+    {
+      "id": "util-004-profile-parity",
+      "name": "Map Profile Parity Auto-Heal",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server startup validates profile version/signature/hash and mirrors repaired profile to client assets.",
+      "order": 33,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "core-005-world-map-control"
+      ]
+    },
+    {
+      "id": "util-005-build-validation",
+      "name": "Build and Reference Validation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Compile and test validation for shared/server/client projects including using/reference integrity checks.",
+      "order": 34,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": [
+        "core-002-shared-dll"
+      ]
+    },
+    {
+      "id": "util-006-docs-and-plans",
+      "name": "Documentation and Plan Governance",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Session plan tracking and markdown documentation updates in plans/ and docs/.",
+      "order": 35,
+      "status": "implemented",
+      "artifacts": [
+        "plans/2026-03-01-session-136-comprehensive-work-plan.md",
+        "docs/session-136-implementation-summary.md",
+        "README.md"
+      ],
+      "dependencies": []
+    }
+  ]
+}

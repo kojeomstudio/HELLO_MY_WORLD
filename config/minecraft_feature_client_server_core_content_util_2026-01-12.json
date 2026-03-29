@@ -1,0 +1,111 @@
+{
+  "date": "2026-01-12",
+  "categories": {
+    "core": [
+      {
+        "id": "core_hydrology_flow_memory",
+        "order": 1,
+        "name": "Hydrology flow-memory stabilization",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json",
+          "config/world_map_control_profile.json"
+        ]
+      },
+      {
+        "id": "core_proto_registry_guard",
+        "order": 2,
+        "name": "Protobuf registry + descriptor validation",
+        "status": "planned",
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+        ],
+        "client": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+        ],
+        "data": [
+          "proto/enhanced_minecraft_game.proto"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content_river_lake_envelope",
+        "order": 3,
+        "name": "River/lake basin smoothing + wetland padding",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/WorldManager.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      },
+      {
+        "id": "content_cave_threshold_alignment",
+        "order": 4,
+        "name": "Cave density alignment with hydrology flow-memory",
+        "status": "planned",
+        "server": [
+          "GameServer/World/WorldManager.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "data": [
+          "config/world.json"
+        ]
+      }
+    ],
+    "util": [
+      {
+        "id": "util_config_parity",
+        "order": 5,
+        "name": "Config/profile parity (world + map control)",
+        "status": "in_progress",
+        "server": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "client": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "data": [
+          "config/minecraft_feature_client_server_core_content_util_2026-01-12.json"
+        ]
+      },
+      {
+        "id": "util_docs_traceability",
+        "order": 6,
+        "name": "Docs/plan traceability for worldgen and proto",
+        "status": "planned",
+        "server": [
+          "plans/2026-01-12-plan.md",
+          "docs/minecraft_feature_core_content_util_2026-01-12.md"
+        ],
+        "client": [],
+        "data": [
+          "docs/*"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "timestampUtc": "2026-02-20T12:31:59.7952006Z",
+  "descriptor": "enhanced_minecraft_game.proto",
+  "settings": {
+    "Host": "127.0.0.1",
+    "Port": 9000,
+    "RoundTripCount": 3,
+    "MaxNetworkProbePackets": 4,
+    "ValidateAllKnownPackets": true,
+    "IncludeOptionalMessages": true,
+    "MinMapControlProfileVersion": 48,
+    "ProbeNetwork": false
+  },
+  "totals": {
+    "packetsRequested": 24,
+    "requiredTargets": 14,
+    "requiredRoundTripOk": 14,
+    "validated": 14,
+    "missingRequired": 0,
+    "missingPrototype": 10,
+    "optionalUnregistered": 10,
+    "RoundTripOk": true,
+    "NetworkProbeAttempted": false,
+    "NetworkProbeOk": false
+  },
+  "validatedPackets": [
+    "PlayerStateUpdate",
+    "PlayerActionRequest",
+    "PlayerActionResponse",
+    "ChunkDataRequest",
+    "ChunkDataResponse",
+    "BlockChangeNotification",
+    "ChunkUnloadNotification",
+    "ChunkUnloadAcknowledge",
+    "EntitySpawn",
+    "EntityDespawn",
+    "TimeUpdate",
+    "WeatherChange",
+    "SoundEffect",
+    "ParticleEffect"
+  ],
+  "missingRequiredPackets": [],
+  "missingPrototypePackets": [
+    "MultiBlockChange",
+    "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
+    "ItemPickup",
+    "EntityUpdate",
+    "EntityInteract",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
+  ],
+  "optionalUnregistered": [
+    "ContainerClose",
+    "ContainerOpen",
+    "ContainerUpdate",
+    "EntityInteract",
+    "EntityUpdate",
+    "InventoryUpdate",
+    "ItemDrop",
+    "ItemPickup",
+    "ItemUse",
+    "MultiBlockChange"
+  ],
+  "networkError": ""
+}

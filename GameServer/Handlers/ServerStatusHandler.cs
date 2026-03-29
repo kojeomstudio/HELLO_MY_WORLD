@@ -45,7 +45,10 @@ public class ServerStatusHandler : MessageHandler<ServerStatusRequest>
             TotalTrackedChunks = snapshot.TotalTrackedChunks,
             ActiveChunkResidencyPlayers = snapshot.PlayersWithChunkResidency,
             PeakChunksPerPlayer = snapshot.PeakChunksPerPlayer,
-            BusiestChunkPlayer = snapshot.BusiestChunkPlayer
+            BusiestChunkPlayer = snapshot.BusiestChunkPlayer,
+            TotalDeaths = snapshot.TotalDeaths,
+            TotalRespawns = snapshot.TotalRespawns,
+            DeathsLastTenMinutes = snapshot.DeathsLastTenMinutes
         };
 
         await session.SendAsync(MessageType.ServerStatusResponse, response);

@@ -1,4 +1,5 @@
 using GameServerApp.Database;
+using GameServerApp.Models;
 using GameServerApp.World;
 using SharedProtocol;
 
@@ -14,14 +15,16 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
     private readonly SessionManager _sessions;
     private readonly WorldManager _worldManager;
     private readonly Rooms.RoomManager _rooms;
+    private readonly WorldSynchronizationManager _worldSync;
 
-    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, Rooms.RoomManager rooms) 
+    public WorldBlockHandler(DatabaseHelper database, SessionManager sessions, WorldManager worldManager, Rooms.RoomManager rooms, WorldSynchronizationManager worldSync) 
         : base(MessageType.WorldBlockChangeRequest)
     {
         _database = database;
         _sessions = sessions;
         _worldManager = worldManager;
         _rooms = rooms;
+        _worldSync = worldSync;
     }
 
     protected override async Task HandleAsync(Session session, WorldBlockChangeRequest message)
@@ -56,14 +59,24 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
                 await SendFailureResponse(session, "블록 Y 좌표가 허용 범위를 벗어났습니다.");
                 return;
             }
-            if (!Enum.IsDefined(typeof(World.BlockType), message.BlockType))
+            if (message.BlockType < 0 ||
+                message.BlockType > ushort.MaxValue ||
+                !Enum.IsDefined(typeof(BlockType), (ushort)message.BlockType))
             {
                 await SendFailureResponse(session, "알 수 없는 블록 타입입니다.");
                 return;
             }
 
-            // 블록 변경 처리 (WorldManager를 통한 실제 월드 데이터 변경)
-            await ProcessBlockChange(session, message);
+            // 블록 변경 처리 (WorldSynchronizationManager를 통한 실시간 월드 동기화)
+            if (_worldSync != null)
+            {
+                await _worldSync.ProcessBlockChangeAsync(message, session);
+                await _worldSync.ProcessWorldChangeQueueAsync();
+            }
+            else
+            {
+                await ProcessBlockChange(session, message);
+            }
 
             // 성공 응답 전송
             var response = new WorldBlockChangeResponse
@@ -74,14 +87,17 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
             };
             await session.SendAsync(MessageType.WorldBlockChangeResponse, response);
 
-            // 다른 플레이어들에게 브로드캐스트
-            await BroadcastBlockChange(session, message);
+            // 다른 플레이어들에게 브로드캐스트 (WorldSynchronizationManager가 큐를 통해 처리)
+            if (_worldSync == null)
+            {
+                await BroadcastBlockChange(session, message);
+            }
 
             Console.WriteLine($"Block changed by {session.UserName}: {message.AreaId}/{message.SubworldId} at ({message.BlockPosition.X}, {message.BlockPosition.Y}, {message.BlockPosition.Z})");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Block change error for user '{session.UserName}': {ex.Message}");
+            Console.WriteLine($"Block change error for user '{session.UserName}': {ex}");
             await SendFailureResponse(session, "블록 변경 처리 중 오류가 발생했습니다.");
         }
     }
@@ -130,7 +146,7 @@ public class WorldBlockHandler : MessageHandler<WorldBlockChangeRequest>
         if (message.BlockPosition.Z < 0) chunkZ--;
 
         var playerId = 1;
-        var blockType = (World.BlockType)message.BlockType;
+        var blockType = (BlockType)message.BlockType;
         
         await _worldManager.UpdateBlockAsync(chunkX, chunkZ, 
             message.BlockPosition.X, message.BlockPosition.Y, message.BlockPosition.Z,

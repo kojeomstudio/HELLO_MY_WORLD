@@ -1,0 +1,624 @@
+using System.Net.Sockets;
+using System.Text.Json;
+using GameCommon.World;
+using Google.Protobuf;
+using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
+using EnhancedMinecraftProtocol;
+
+namespace DummyMinecraftClient;
+
+public sealed class DummyClientConfig
+{
+    private static readonly string[] DefaultPackets =
+    {
+        "PlayerStateUpdate",
+        "ChunkDataRequest",
+        "ChunkDataResponse",
+        "ChunkUnloadNotification",
+        "TimeUpdate",
+        "WeatherChange",
+        "SoundEffect",
+        "ParticleEffect"
+    };
+
+    public string Host { get; set; } = "127.0.0.1";
+    public int Port { get; set; } = 9000;
+    public int ConnectTimeoutMs { get; set; } = 1500;
+    public int ReceiveTimeoutMs { get; set; } = 1500;
+    public bool ProbeNetwork { get; set; } = false;
+    public int MaxPacketsToSend { get; set; } = 6;
+    public bool StrictRequiredBindings { get; set; } = true;
+    public bool RequireRequiredPacketCoverage { get; set; } = true;
+    public bool FailOnHydrologySignatureMismatch { get; set; } = true;
+    public int MinMapControlProfileVersion { get; set; } = SharedFeatureCatalog.MapControlProfileVersion;
+    public bool FailOnMapControlVersionRegression { get; set; } = true;
+    public string WorldMapControlProfilePath { get; set; } = "config/world_map_control_profile.json";
+    public bool FailOnReferenceReportDrift { get; set; } = true;
+    public string ReferenceReportPath { get; set; } = "config/proto_reference_report.json";
+    public bool FailOnGeneratedSourceTimestampDrift { get; set; } = true;
+    public string ProtoSourceDirectory { get; set; } = "proto";
+    public string GeneratedProtobufDirectory { get; set; } = "Assets/Generated/Protobuf";
+    public bool IncludeOptionalMessages { get; set; } = false;
+    public bool PrintBindingDiagnostics { get; set; } = true;
+    public string[] Packets { get; set; } = DefaultPackets;
+
+    public void Normalize()
+    {
+        Host = string.IsNullOrWhiteSpace(Host) ? "127.0.0.1" : Host.Trim();
+        Port = Math.Clamp(Port <= 0 ? 9000 : Port, 1, 65535);
+        ConnectTimeoutMs = Math.Clamp(ConnectTimeoutMs <= 0 ? 1500 : ConnectTimeoutMs, 100, 120000);
+        ReceiveTimeoutMs = Math.Clamp(ReceiveTimeoutMs <= 0 ? 1500 : ReceiveTimeoutMs, 100, 120000);
+        MaxPacketsToSend = Math.Clamp(MaxPacketsToSend <= 0 ? 6 : MaxPacketsToSend, 1, 128);
+        MinMapControlProfileVersion = Math.Max(
+            SharedFeatureCatalog.MapControlProfileVersion,
+            Math.Max(1, MinMapControlProfileVersion));
+        WorldMapControlProfilePath = string.IsNullOrWhiteSpace(WorldMapControlProfilePath)
+            ? "config/world_map_control_profile.json"
+            : WorldMapControlProfilePath;
+        ReferenceReportPath = string.IsNullOrWhiteSpace(ReferenceReportPath)
+            ? "config/proto_reference_report.json"
+            : ReferenceReportPath;
+        ProtoSourceDirectory = string.IsNullOrWhiteSpace(ProtoSourceDirectory)
+            ? "proto"
+            : ProtoSourceDirectory;
+        GeneratedProtobufDirectory = string.IsNullOrWhiteSpace(GeneratedProtobufDirectory)
+            ? "Assets/Generated/Protobuf"
+            : GeneratedProtobufDirectory;
+
+        Packets = (Packets ?? Array.Empty<string>())
+            .Where(packet => !string.IsNullOrWhiteSpace(packet))
+            .Select(packet => packet.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (Packets.Length == 0)
+        {
+            Packets = DefaultPackets;
+        }
+    }
+
+    public static DummyClientConfig Load(string path)
+    {
+        if (!File.Exists(path))
+        {
+            var defaults = new DummyClientConfig();
+            defaults.Normalize();
+            return defaults;
+        }
+
+        var json = File.ReadAllText(path);
+        var loaded = JsonSerializer.Deserialize<DummyClientConfig>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
+        }) ?? new DummyClientConfig();
+        loaded.Normalize();
+        return loaded;
+    }
+}
+
+public static class Program
+{
+    public static async Task<int> Main(string[] args)
+    {
+        string configPath = "config/dummy_minecraft_client.json";
+        bool forceNetworkProbe = false;
+        bool? includeOptionalOverride = null;
+        bool? strictRequiredOverride = null;
+        bool? printBindingOverride = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--config":
+                case "-c":
+                    if (i + 1 < args.Length)
+                    {
+                        configPath = args[++i];
+                    }
+                    break;
+                case "--network":
+                    forceNetworkProbe = true;
+                    break;
+                case "--include-optional":
+                    includeOptionalOverride = true;
+                    break;
+                case "--required-only":
+                    includeOptionalOverride = false;
+                    break;
+                case "--strict-required-bindings":
+                    strictRequiredOverride = true;
+                    break;
+                case "--no-strict-required-bindings":
+                    strictRequiredOverride = false;
+                    break;
+                case "--print-bindings":
+                    printBindingOverride = true;
+                    break;
+                case "--no-print-bindings":
+                    printBindingOverride = false;
+                    break;
+            }
+        }
+
+        var config = DummyClientConfig.Load(configPath);
+        if (includeOptionalOverride.HasValue)
+        {
+            config.IncludeOptionalMessages = includeOptionalOverride.Value;
+        }
+
+        if (strictRequiredOverride.HasValue)
+        {
+            config.StrictRequiredBindings = strictRequiredOverride.Value;
+        }
+
+        if (printBindingOverride.HasValue)
+        {
+            config.PrintBindingDiagnostics = printBindingOverride.Value;
+        }
+
+        bool probeNetwork = forceNetworkProbe || config.ProbeNetwork;
+
+        Console.WriteLine("=== Dummy Minecraft Client (Protocol Probe) ===");
+        Console.WriteLine($"Config: {Path.GetFullPath(configPath)}");
+        Console.WriteLine($"Mode: IncludeOptional={config.IncludeOptionalMessages}, StrictRequiredBindings={config.StrictRequiredBindings}, RequireRequiredCoverage={config.RequireRequiredPacketCoverage}, ProbeNetwork={probeNetwork}, PrintBindings={config.PrintBindingDiagnostics}");
+
+        string resolvedProfilePath = string.IsNullOrWhiteSpace(config.WorldMapControlProfilePath)
+            ? string.Empty
+            : Path.GetFullPath(config.WorldMapControlProfilePath);
+        if (!string.IsNullOrWhiteSpace(resolvedProfilePath))
+        {
+            var profile = WorldMapControlProfileUtility.Load(resolvedProfilePath);
+            if (profile != null)
+            {
+                bool signatureMatch = string.Equals(
+                    profile.HydrologySignature,
+                    SharedFeatureCatalog.HydrologySignature,
+                    StringComparison.OrdinalIgnoreCase);
+                Console.WriteLine(
+                    $"Profile: {resolvedProfilePath} (version={profile.Version}, hash={profile.ProfileHash}, hydrology={profile.HydrologySignature}, shared={SharedFeatureCatalog.HydrologySignature})");
+                if (!signatureMatch && config.FailOnHydrologySignatureMismatch)
+                {
+                    Console.WriteLine("[ERROR] Hydrology signature mismatch detected and fail-fast is enabled.");
+                    return 1;
+                }
+
+                if (profile.Version < Math.Max(1, config.MinMapControlProfileVersion) && config.FailOnMapControlVersionRegression)
+                {
+                    Console.WriteLine($"[ERROR] Map control profile version regression detected (profile={profile.Version}, required={config.MinMapControlProfileVersion}).");
+                    return 1;
+                }
+            }
+        }
+
+        ProtoRuntime.EnsureInitialized();
+        ProtoFingerprint.AssertDescriptorFingerprint();
+        ProtocolRegistry.ValidateBindings();
+        ProtocolValidator.ValidateEnhancedContracts();
+        ProtoDiagnostics.AssertRegistryClean();
+        var missingRequiredBindings = ProtocolRegistry.GetUnregisteredRequiredMessages().ToArray();
+        var missingOptionalBindings = ProtocolRegistry.GetOptionalMessagesWithoutBindings()
+            .Select(type => type.ToString())
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var typeDrift = ProtocolRegistry.BuildTypeConsistencyDiagnostics()
+            .Where(item => item.HasEnhancedType && item.HasLegacyType && !item.LegacyTypeMatches)
+            .OrderBy(item => item.MessageType.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        var unboundRequiredDescriptors = ProtocolRegistry.GetGeneratedRequiredDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var unboundGeneratedDescriptors = ProtocolRegistry.GetGeneratedDescriptorsWithoutBindings()
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var generatedDescriptorNames = ProtocolRegistry.GetGeneratedDescriptorNames()
+            .ToHashSet(StringComparer.Ordinal);
+        string expectedDescriptorPackage = EnhancedMinecraftGameReflection.Descriptor?.Package ?? string.Empty;
+        string expectedDescriptorFileName = EnhancedMinecraftGameReflection.Descriptor?.Name ?? string.Empty;
+
+        if (config.PrintBindingDiagnostics)
+        {
+            PrintBindingDiagnostics(generatedDescriptorNames, expectedDescriptorPackage, expectedDescriptorFileName);
+        }
+
+        if (missingRequiredBindings.Length > 0)
+        {
+            Console.WriteLine("[WARN] Missing required protocol bindings: " + string.Join(", ", missingRequiredBindings));
+            if (config.StrictRequiredBindings)
+            {
+                Console.WriteLine("[ERROR] Strict mode enabled; aborting dummy client run.");
+                return 1;
+            }
+        }
+
+        if (missingOptionalBindings.Length > 0)
+        {
+            Console.WriteLine("[INFO] Optional protocol bindings not registered: " + string.Join(", ", missingOptionalBindings));
+        }
+
+        if (typeDrift.Length > 0)
+        {
+            Console.WriteLine("[INFO] Legacy/Enhanced type drift entries: " +
+                              string.Join(", ", typeDrift.Select(item =>
+                                  $"{item.MessageType}(legacy={item.LegacyClrType}, enhanced={item.EnhancedClrType}, optional={item.IsOptional})")));
+        }
+
+        if (unboundGeneratedDescriptors.Length > 0)
+        {
+            Console.WriteLine("[INFO] Generated descriptors without registry bindings: " + string.Join(", ", unboundGeneratedDescriptors));
+        }
+
+        if (unboundRequiredDescriptors.Length > 0)
+        {
+            Console.WriteLine("[WARN] Required generated descriptors missing registry bindings: " + string.Join(", ", unboundRequiredDescriptors));
+            if (config.StrictRequiredBindings)
+            {
+                Console.WriteLine("[ERROR] Strict mode enabled; aborting due to required descriptor binding gaps.");
+                return 1;
+            }
+        }
+
+        if (config.FailOnReferenceReportDrift &&
+            !ValidateReferenceReport(config.ReferenceReportPath, out string referenceError))
+        {
+            Console.WriteLine("[ERROR] Proto reference report drift detected: " + referenceError);
+            return 1;
+        }
+
+        if (config.FailOnGeneratedSourceTimestampDrift)
+        {
+            try
+            {
+                string protoDirectory = Path.GetFullPath(config.ProtoSourceDirectory);
+                string generatedDirectory = Path.GetFullPath(config.GeneratedProtobufDirectory);
+                ProtoDiagnostics.AssertGeneratedSourceFreshness(
+                    protoDirectory,
+                    generatedDirectory,
+                    new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[ERROR] Generated protobuf freshness check failed: " + ex.Message);
+                return 1;
+            }
+        }
+
+        var packetTypes = ResolvePackets(config.Packets);
+        if (config.IncludeOptionalMessages)
+        {
+            packetTypes.AddRange(ProtocolRegistry.GetOptionalMessagesWithoutBindings());
+            packetTypes = packetTypes.Distinct().ToList();
+        }
+
+        if (config.RequireRequiredPacketCoverage)
+        {
+            var missingCoverage = ProtocolRegistry.GetMissingRequiredInSelection(packetTypes)
+                .Select(type => type.ToString())
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            if (missingCoverage.Length > 0)
+            {
+                Console.WriteLine("[ERROR] Required packet coverage is incomplete: " + string.Join(", ", missingCoverage));
+                return 1;
+            }
+        }
+
+        int requiredTargets = packetTypes.Count(type => !ProtocolRegistry.IsOptionalMessageType(type));
+        int optionalTargets = packetTypes.Count - requiredTargets;
+        int roundTripOk = 0;
+        int requiredRoundTripOk = 0;
+        int optionalRoundTripOk = 0;
+        var payloads = new List<(MinecraftMessageType Type, byte[] Payload)>();
+
+        foreach (var messageType in packetTypes)
+        {
+            if (!ProtocolRegistry.TryCreatePrototype(messageType, out IMessage prototype) || prototype == null)
+            {
+                Console.WriteLine($"[WARN] Prototype missing: {messageType}");
+                continue;
+            }
+
+            try
+            {
+                var descriptor = prototype.Descriptor;
+                string descriptorName = descriptor?.Name ?? string.Empty;
+                string descriptorPackage = descriptor?.File?.Package ?? string.Empty;
+                string descriptorFullName = descriptor?.FullName ?? string.Empty;
+                string descriptorSourceName = descriptor?.File?.Name ?? string.Empty;
+                if (descriptor == null || string.IsNullOrWhiteSpace(descriptorName))
+                {
+                    Console.WriteLine($"[WARN] Descriptor missing: {messageType}");
+                    continue;
+                }
+
+                if (!generatedDescriptorNames.Contains(descriptorName))
+                {
+                    Console.WriteLine($"[WARN] Descriptor not found in generated reflection set: {messageType} ({descriptorName})");
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorFileName) &&
+                    !string.IsNullOrWhiteSpace(descriptorSourceName) &&
+                    !string.Equals(descriptorSourceName, expectedDescriptorFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[WARN] Descriptor source mismatch: {messageType} (actual={descriptorSourceName}, expected={expectedDescriptorFileName})");
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedDescriptorPackage) &&
+                    !string.Equals(descriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor package mismatch: {messageType} (actual={descriptorPackage}, expected={expectedDescriptorPackage})");
+                    continue;
+                }
+
+                string actualAssembly = prototype.GetType().Assembly.GetName().Name ?? string.Empty;
+                string expectedAssembly = typeof(EnhancedMinecraftGameReflection).Assembly.GetName().Name ?? string.Empty;
+                if (!string.Equals(actualAssembly, expectedAssembly, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor assembly mismatch: {messageType} (actual={actualAssembly}, expected={expectedAssembly})");
+                    continue;
+                }
+
+                byte[] payload = prototype.ToByteArray();
+                var parser = descriptor.Parser;
+                if (parser == null)
+                {
+                    Console.WriteLine($"[WARN] Parser missing: {messageType}");
+                    continue;
+                }
+
+                var parsed = parser.ParseFrom(payload);
+                if (parsed?.Descriptor == null ||
+                    !string.Equals(parsed.Descriptor.FullName, descriptorFullName, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[WARN] Descriptor full-name mismatch after round-trip: {messageType} ({descriptorFullName} -> {parsed?.Descriptor?.FullName ?? "<null>"})");
+                    continue;
+                }
+
+                roundTripOk++;
+                if (ProtocolRegistry.IsOptionalMessageType(messageType))
+                {
+                    optionalRoundTripOk++;
+                }
+                else
+                {
+                    requiredRoundTripOk++;
+                }
+                payloads.Add((messageType, payload));
+                Console.WriteLine($"[OK] {messageType} round-trip ({payload.Length} bytes)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] {messageType} round-trip failed: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"Round-trip result: total={roundTripOk}/{packetTypes.Count}, required={requiredRoundTripOk}/{requiredTargets}, optional={optionalRoundTripOk}/{optionalTargets}");
+
+        bool networkOk = true;
+        if (probeNetwork)
+        {
+            networkOk = await ProbeNetworkAsync(config, payloads);
+        }
+
+        bool roundTripPassed = requiredRoundTripOk == requiredTargets;
+        if (!roundTripPassed)
+        {
+            Console.WriteLine("[WARN] Some required packet round-trips failed. Check registry/prototype mappings.");
+        }
+
+        return roundTripPassed && networkOk && missingRequiredBindings.Length == 0 && unboundRequiredDescriptors.Length == 0 ? 0 : 1;
+    }
+
+    private static void PrintBindingDiagnostics(
+        HashSet<string> generatedDescriptorNames,
+        string expectedDescriptorPackage,
+        string expectedDescriptorFileName)
+    {
+        var bindings = ProtocolRegistry.GetBindingDiagnostics()
+            .OrderBy(diagnostic => diagnostic.MessageType.ToString(), StringComparer.Ordinal)
+            .ToArray();
+        var coverage = ProtocolRegistry.GetBindingCoverage();
+        Console.WriteLine($"Binding coverage: {coverage.BoundDescriptors}/{coverage.GeneratedDescriptors} (descriptorFile={expectedDescriptorFileName}, package={expectedDescriptorPackage})");
+
+        foreach (var binding in bindings)
+        {
+            bool descriptorExists = generatedDescriptorNames.Contains(binding.DescriptorName);
+            bool packageMatch = string.IsNullOrWhiteSpace(expectedDescriptorPackage) ||
+                string.Equals(binding.DescriptorPackage, expectedDescriptorPackage, StringComparison.Ordinal);
+            string packageStatus = packageMatch ? "pkg=ok" : $"pkg=drift:{binding.DescriptorPackage}";
+            Console.WriteLine($"[BINDING] {binding.MessageType} -> {binding.DescriptorName} ({packageStatus}, generated={(descriptorExists ? "yes" : "no")}, clr={binding.ClrType})");
+        }
+    }
+
+    private static bool ValidateReferenceReport(string reportPath, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(reportPath))
+        {
+            return true;
+        }
+
+        string resolvedPath = Path.IsPathRooted(reportPath)
+            ? reportPath
+            : Path.GetFullPath(reportPath);
+        if (!File.Exists(resolvedPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var reference = JsonSerializer.Deserialize<ProtoReferenceSnapshot>(
+                File.ReadAllText(resolvedPath),
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                });
+            if (reference == null)
+            {
+                return true;
+            }
+
+            string runtimeDescriptor = ProtoFingerprint.DescriptorFingerprint;
+            string runtimeComputed = ProtoFingerprint.ComputeFingerprint();
+            if (!string.IsNullOrWhiteSpace(reference.DescriptorFingerprint) &&
+                !string.Equals(reference.DescriptorFingerprint, runtimeDescriptor, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"descriptor fingerprint mismatch (reference={reference.DescriptorFingerprint}, runtime={runtimeDescriptor})";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(reference.ComputedFingerprint) &&
+                !string.Equals(reference.ComputedFingerprint, runtimeComputed, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"computed fingerprint mismatch (reference={reference.ComputedFingerprint}, runtime={runtimeComputed})";
+                return false;
+            }
+
+            if (reference.MissingRegistrations?.Length > 0)
+            {
+                error = "reference report contains missing registrations: " + string.Join(", ", reference.MissingRegistrations);
+                return false;
+            }
+
+            if (reference.UnregisteredMessageTypes?.Length > 0)
+            {
+                error = "reference report contains unregistered message types: " + string.Join(", ", reference.UnregisteredMessageTypes);
+                return false;
+            }
+
+            if (reference.Registered != null && reference.Registered.Length > 0)
+            {
+                var registered = new HashSet<string>(
+                    reference.Registered
+                        .Select(item => item.MessageType ?? string.Empty)
+                        .Where(item => !string.IsNullOrWhiteSpace(item)),
+                    StringComparer.Ordinal);
+                var missing = ProtocolRegistry.RegisteredMessageTypes
+                    .Select(item => item.ToString())
+                    .Where(item => !registered.Contains(item))
+                    .ToArray();
+                if (missing.Length > 0)
+                {
+                    error = "reference report missing runtime registered message types: " + string.Join(", ", missing);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static List<MinecraftMessageType> ResolvePackets(IEnumerable<string> packetNames)
+    {
+        var types = new List<MinecraftMessageType>();
+        foreach (var packetName in packetNames)
+        {
+            if (Enum.TryParse(packetName, true, out MinecraftMessageType messageType))
+            {
+                types.Add(messageType);
+            }
+            else
+            {
+                Console.WriteLine($"[WARN] Unknown packet in config: {packetName}");
+            }
+        }
+
+        if (types.Count == 0)
+        {
+            types.AddRange(ProtocolRegistry.RegisteredMessageTypes);
+        }
+
+        return types.Distinct().ToList();
+    }
+
+    private static async Task<bool> ProbeNetworkAsync(DummyClientConfig config, List<(MinecraftMessageType Type, byte[] Payload)> payloads)
+    {
+        Console.WriteLine($"Network probe: {config.Host}:{config.Port}");
+
+        try
+        {
+            using var client = new TcpClient();
+            var connectTask = client.ConnectAsync(config.Host, config.Port);
+            var timeoutTask = Task.Delay(Math.Max(100, config.ConnectTimeoutMs));
+            var completed = await Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false);
+            if (completed == timeoutTask)
+            {
+                Console.WriteLine("[WARN] Connect timeout");
+                return false;
+            }
+
+            await connectTask.ConfigureAwait(false);
+            using var stream = client.GetStream();
+            stream.ReadTimeout = Math.Max(100, config.ReceiveTimeoutMs);
+            stream.WriteTimeout = Math.Max(100, config.ReceiveTimeoutMs);
+
+            int sendCount = Math.Min(Math.Max(1, config.MaxPacketsToSend), payloads.Count);
+            for (int i = 0; i < sendCount; i++)
+            {
+                var packet = payloads[i];
+                await WritePacketAsync(stream, (int)packet.Type, packet.Payload).ConfigureAwait(false);
+                Console.WriteLine($"[NET-SEND] {packet.Type} ({packet.Payload.Length} bytes)");
+            }
+
+            var header = new byte[8];
+            if (stream.DataAvailable)
+            {
+                int read = await stream.ReadAsync(header, 0, header.Length).ConfigureAwait(false);
+                if (read == header.Length)
+                {
+                    int responseType = BitConverter.ToInt32(header, 0);
+                    int responseLength = BitConverter.ToInt32(header, 4);
+                    Console.WriteLine($"[NET-RECV] type={responseType}, length={responseLength}");
+                }
+            }
+
+            Console.WriteLine("[OK] Network probe completed");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARN] Network probe failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static async Task WritePacketAsync(NetworkStream stream, int messageType, byte[] payload)
+    {
+        byte[] typeBytes = BitConverter.GetBytes(messageType);
+        byte[] lengthBytes = BitConverter.GetBytes(payload.Length);
+        await stream.WriteAsync(typeBytes, 0, typeBytes.Length).ConfigureAwait(false);
+        await stream.WriteAsync(lengthBytes, 0, lengthBytes.Length).ConfigureAwait(false);
+        if (payload.Length > 0)
+        {
+            await stream.WriteAsync(payload, 0, payload.Length).ConfigureAwait(false);
+        }
+
+        await stream.FlushAsync().ConfigureAwait(false);
+    }
+
+    private sealed class ProtoReferenceSnapshot
+    {
+        public string DescriptorFingerprint { get; set; } = string.Empty;
+        public string ComputedFingerprint { get; set; } = string.Empty;
+        public string[] MissingRegistrations { get; set; } = Array.Empty<string>();
+        public string[] UnregisteredMessageTypes { get; set; } = Array.Empty<string>();
+        public ProtoReferenceRegisteredSnapshot[] Registered { get; set; } = Array.Empty<ProtoReferenceRegisteredSnapshot>();
+    }
+
+    private sealed class ProtoReferenceRegisteredSnapshot
+    {
+        public string MessageType { get; set; } = string.Empty;
+        public string PrototypeName { get; set; } = string.Empty;
+    }
+}

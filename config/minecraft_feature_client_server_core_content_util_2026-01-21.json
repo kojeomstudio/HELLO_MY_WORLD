@@ -1,0 +1,2322 @@
+{
+  "version": "2026-01-21",
+  "description": "Comprehensive Minecraft feature categorization for client and server",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_001",
+          "name": "Chunk Streaming System",
+          "description": "Chunk-based world loading and streaming with mesh rebuilds",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ]
+        },
+        {
+          "id": "client_core_002",
+          "name": "World Map Control Profile",
+          "description": "Configuration profile for world generation parameters",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ]
+        },
+        {
+          "id": "client_core_003",
+          "name": "Network Bootstrap",
+          "description": "Network connection initialization and bootstrap",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_004",
+          "name": "Session Management",
+          "description": "Client-side session lifecycle management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_005",
+          "name": "Player State Synchronization",
+          "description": "Synchronization of player position, rotation, and state",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerController.cs"
+          ]
+        },
+        {
+          "id": "client_core_006",
+          "name": "Block Placement/Break",
+          "description": "Client-side block interaction system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerController.cs"
+          ]
+        },
+        {
+          "id": "client_core_007",
+          "name": "Inventory HUD",
+          "description": "Inventory display and management UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_006"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+          ]
+        },
+        {
+          "id": "client_core_008",
+          "name": "Chunk Synchronization",
+          "description": "Receiving and applying server chunk updates",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_001", "client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_009",
+          "name": "World Generation Preview",
+          "description": "Client-side terrain generation preview system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_core_002"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_core_010",
+          "name": "Keepalive Handling",
+          "description": "Network keepalive and reconnection logic",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_001",
+          "name": "Biome-Tinted Terrain",
+          "description": "Terrain coloring based on biome types",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_002",
+          "name": "River Visualization",
+          "description": "Visual rendering of river systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_003",
+          "name": "Lake Visualization",
+          "description": "Visual rendering of lake systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_004",
+          "name": "Cave Visualization",
+          "description": "Visual rendering of cave systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_005",
+          "name": "Shoreline Visualization",
+          "description": "Visual rendering of shorelines and beaches",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_002", "client_content_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_006",
+          "name": "Wetland Visualization",
+          "description": "Visual rendering of wetland areas",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_007",
+          "name": "Aquifer Visualization",
+          "description": "Visual rendering of underground water sources",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_004"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_008",
+          "name": "Structure Preview",
+          "description": "Preview hooks for world structures",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/StructureManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_009",
+          "name": "Loot Preview",
+          "description": "Preview hooks for loot containers",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_content_008"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/StructureManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_010",
+          "name": "Day/Night Cycle",
+          "description": "Visual day/night cycle implementation",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Environment/DayNightCycle.cs"
+          ]
+        },
+        {
+          "id": "client_content_011",
+          "name": "Weather Visualization",
+          "description": "Visual rendering of weather effects",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_010"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Environment/WeatherSystem.cs"
+          ]
+        },
+        {
+          "id": "client_content_012",
+          "name": "Block Rendering",
+          "description": "Visual rendering of all block types",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/BlockRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_013",
+          "name": "Item Rendering",
+          "description": "Visual rendering of items and tools",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_content_012"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Items/ItemRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_014",
+          "name": "Player Rendering",
+          "description": "Visual rendering of player characters",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_015",
+          "name": "Mob Rendering",
+          "description": "Visual rendering of hostile mobs",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Entities/MobRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_016",
+          "name": "Animal Rendering",
+          "description": "Visual rendering of passive animals",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Entities/AnimalRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_017",
+          "name": "Ambient Audio",
+          "description": "Ambient sound effects and music",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Audio/AudioManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_018",
+          "name": "FX Triggers",
+          "description": "Visual effects triggers",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Effects/FXManager.cs"
+          ]
+        }
+      ],
+      "utility": [
+        {
+          "id": "client_util_001",
+          "name": "Debug Overlays",
+          "description": "Debug visualization for chunk bounds and masks",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/DebugOverlay.cs"
+          ]
+        },
+        {
+          "id": "client_util_002",
+          "name": "JSON Config Loading",
+          "description": "Loading configuration from StreamingAssets",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Config/ConfigLoader.cs"
+          ]
+        },
+        {
+          "id": "client_util_003",
+          "name": "Protobuf Error Reporting",
+          "description": "Error reporting for protocol desynchronization",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/ProtobufErrorHandler.cs"
+          ]
+        },
+        {
+          "id": "client_util_004",
+          "name": "Localization",
+          "description": "Localization system stub",
+          "status": "partial",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Localization/LocalizationManager.cs"
+          ]
+        },
+        {
+          "id": "client_util_005",
+          "name": "Analytics",
+          "description": "Analytics system stub",
+          "status": "partial",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Analytics/AnalyticsManager.cs"
+          ]
+        },
+        {
+          "id": "client_util_006",
+          "name": "Performance Monitoring",
+          "description": "FPS and performance metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/PerformanceMonitor.cs"
+          ]
+        },
+        {
+          "id": "client_util_007",
+          "name": "Logging System",
+          "description": "Client-side logging",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/Logger.cs"
+          ]
+        },
+        {
+          "id": "client_util_008",
+          "name": "Main Menu UI",
+          "description": "Main menu interface",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/MainMenu.cs"
+          ]
+        },
+        {
+          "id": "client_util_009",
+          "name": "Inventory Interface",
+          "description": "Inventory management UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_007"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_010",
+          "name": "Crafting Interface",
+          "description": "Crafting system UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_util_009"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/CraftingUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_011",
+          "name": "Health/Hunger Display",
+          "description": "Health and hunger indicators",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/StatusUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_012",
+          "name": "Loading Screens",
+          "description": "Loading screen interface",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/LoadingScreen.cs"
+          ]
+        },
+        {
+          "id": "client_util_013",
+          "name": "Message System",
+          "description": "In-game message display",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/MessageSystem.cs"
+          ]
+        },
+        {
+          "id": "client_util_014",
+          "name": "Save/Load System",
+          "description": "Client-side save/load functionality",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/SaveLoad/SaveManager.cs"
+          ]
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_001",
+          "name": "World Map Control Generation",
+          "description": "Server-side world generation and caching",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_002",
+          "name": "Profile Export",
+          "description": "Export world generation profile to clients",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_003",
+          "name": "Hydrology/Flow Cache",
+          "description": "Caching system for hydrology and flow data",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_004",
+          "name": "Session Lifecycle",
+          "description": "Session creation, management, and cleanup",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/SessionManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_005",
+          "name": "Authentication",
+          "description": "Player authentication system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/LoginHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_006",
+          "name": "Keepalive Handlers",
+          "description": "Network keepalive management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/KeepaliveHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_007",
+          "name": "Chunk Save/Load Pipeline",
+          "description": "Database persistence for chunks",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/ChunkManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_008",
+          "name": "Profile Hash Validation",
+          "description": "Hash verification for configuration integrity",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_002"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_009",
+          "name": "Network Message Handling",
+          "description": "Routing and processing of network messages",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Network/MessageRouter.cs"
+          ]
+        },
+        {
+          "id": "server_core_010",
+          "name": "Player Movement Processing",
+          "description": "Server-side player movement validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/MovementHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_011",
+          "name": "Player Interaction Processing",
+          "description": "Server-side player interaction validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_010"],
+          "files": [
+            "GameServer/Handlers/InteractionHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_012",
+          "name": "Block Change Broadcasting",
+          "description": "Broadcasting block changes to all players",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_011"],
+          "files": [
+            "GameServer/Handlers/BlockHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_013",
+          "name": "World Seed Management",
+          "description": "World seed storage and retrieval",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_001",
+          "name": "Biome Tables",
+          "description": "JSON-driven biome configuration",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "config/biomes.json"
+          ]
+        },
+        {
+          "id": "server_content_002",
+          "name": "Loot Tables",
+          "description": "JSON-driven loot configuration",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/loot_tables.json"
+          ]
+        },
+        {
+          "id": "server_content_003",
+          "name": "Structure Tables",
+          "description": "JSON-driven structure configuration",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/structures.json"
+          ]
+        },
+        {
+          "id": "server_content_004",
+          "name": "Cave Generation",
+          "description": "Advanced cave generation with riparian sealing",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_005",
+          "name": "River Generation",
+          "description": "Advanced river generation with erosion",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_006",
+          "name": "Lake Generation",
+          "description": "Advanced lake generation with wetlands",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_007",
+          "name": "Weather Scheduler",
+          "description": "Weather event scheduling system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/WeatherScheduler.cs"
+          ]
+        },
+        {
+          "id": "server_content_008",
+          "name": "Progression Events",
+          "description": "Game progression event system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/ProgressionManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_009",
+          "name": "Block Distribution",
+          "description": "Data-driven block and ore distribution",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "config/blocks.json"
+          ]
+        },
+        {
+          "id": "server_content_010",
+          "name": "Entity Spawning",
+          "description": "Entity spawning system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/Entities/EntityManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_011",
+          "name": "Entity AI",
+          "description": "Entity behavior AI",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["server_content_010"],
+          "files": [
+            "GameServer/Entities/AIController.cs"
+          ]
+        },
+        {
+          "id": "server_content_012",
+          "name": "Crafting Recipes",
+          "description": "Crafting recipe processing",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "config/recipes.json"
+          ]
+        },
+        {
+          "id": "server_content_013",
+          "name": "Inventory Management",
+          "description": "Server-side inventory validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_011"],
+          "files": [
+            "GameServer/Handlers/InventoryHandler.cs"
+          ]
+        },
+        {
+          "id": "server_content_014",
+          "name": "Health System",
+          "description": "Player health management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/HealthHandler.cs"
+          ]
+        },
+        {
+          "id": "server_content_015",
+          "name": "Hunger System",
+          "description": "Player hunger management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_content_014"],
+          "files": [
+            "GameServer/Handlers/HungerHandler.cs"
+          ]
+        }
+      ],
+      "utility": [
+        {
+          "id": "server_util_001",
+          "name": "Config Management",
+          "description": "JSON configuration with reload hooks",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Config/ConfigManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_002",
+          "name": "Monitoring",
+          "description": "Server monitoring and metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Monitoring/Monitor.cs"
+          ]
+        },
+        {
+          "id": "server_util_003",
+          "name": "Logging",
+          "description": "Server-side logging system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Logging/Logger.cs"
+          ]
+        },
+        {
+          "id": "server_util_004",
+          "name": "Admin Commands",
+          "description": "Administrative command interface",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Commands/AdminCommands.cs"
+          ]
+        },
+        {
+          "id": "server_util_005",
+          "name": "Protobuf Registration",
+          "description": "DTO registration and validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Network/ProtobufRegistry.cs"
+          ]
+        },
+        {
+          "id": "server_util_006",
+          "name": "Data-Driven Tuning",
+          "description": "Drop rates, mob stats, XP curves",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/gameplay.json"
+          ]
+        },
+        {
+          "id": "server_util_007",
+          "name": "Database Persistence",
+          "description": "SQLite database for data storage",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Database/DatabaseManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_008",
+          "name": "Performance Profiling",
+          "description": "Server performance metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Profiling/Profiler.cs"
+          ]
+        },
+        {
+          "id": "server_util_009",
+          "name": "Memory Management",
+          "description": "Memory optimization and cleanup",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Memory/MemoryManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_010",
+          "name": "Object Pooling",
+          "description": "Object pooling for performance",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Memory/ObjectPool.cs"
+          ]
+        }
+      ]
+    }
+  },
+  "terrain_features": {
+    "caves": [
+      {
+        "id": "terrain_cave_001",
+        "name": "Regional Main Caves",
+        "description": "Large cave systems spanning multiple chunks",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["noise_3d", "stability_fields", "hydrology_aware"]
+      },
+      {
+        "id": "terrain_cave_002",
+        "name": "Noise-Based Cave Layers",
+        "description": "Layered cave generation using 3D noise",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["perlin_noise", "simplex_noise"]
+      },
+      {
+        "id": "terrain_cave_003",
+        "name": "Cave Stability Fields",
+        "description": "Stability calculations for natural cave formations",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["stability_field", "support_pillars"]
+      },
+      {
+        "id": "terrain_cave_004",
+        "name": "Hydrology-Aware Caves",
+        "description": "Caves that respect water flow and saturation",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["hydrology_integration", "flooded_caves"]
+      },
+      {
+        "id": "terrain_cave_005",
+        "name": "Cave Support Pillars",
+        "description": "Support structures to prevent collapse",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["support_pillars", "ceiling_stabilization"]
+      },
+      {
+        "id": "terrain_cave_006",
+        "name": "Flooded Caves",
+        "description": "Caves below water table",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["water_table_detection", "saturation_mapping"]
+      },
+      {
+        "id": "terrain_cave_007",
+        "name": "Karst Inlets",
+        "description": "Karst formation with water inlets",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["karst_formation", "dripstone_features"]
+      },
+      {
+        "id": "terrain_cave_008",
+        "name": "Vertical Shafts",
+        "description": "Vertical cave shafts",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["vertical_generation", "shaft_connectivity"]
+      },
+      {
+        "id": "terrain_cave_009",
+        "name": "Riparian Cave Guard",
+        "description": "Protection for caves near waterways",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["riparian_buffer", "erosion_protection"]
+      }
+    ],
+    "rivers": [
+      {
+        "id": "terrain_river_001",
+        "name": "River Flow Vectors",
+        "description": "Directional flow for rivers",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["flow_accumulation", "gradient_calculation"]
+      },
+      {
+        "id": "terrain_river_002",
+        "name": "River Bank Erosion",
+        "description": "Erosion simulation for river banks",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["erosion_simulation", "sediment_deposition"]
+      },
+      {
+        "id": "terrain_river_003",
+        "name": "River Confluence Boost",
+        "description": "Enhanced merging of river tributaries",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["confluence_detection", "flow_boosting"]
+      },
+      {
+        "id": "terrain_river_004",
+        "name": "River Mouth Smoothing",
+        "description": "Smooth transitions at river mouths",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["delta_formation", "mouth_smoothing"]
+      },
+      {
+        "id": "terrain_river_005",
+        "name": "River Width Modulation",
+        "description": "Variable river widths based on flow",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["flow_based_width", "width_variance"]
+      },
+      {
+        "id": "terrain_river_006",
+        "name": "Tributary Channels",
+        "description": "Branching river tributaries",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["tributary_generation", "branching_logic"]
+      },
+      {
+        "id": "terrain_river_007",
+        "name": "Delta Fans",
+        "description": "River delta formations",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["delta_formation", "sediment_distribution"]
+      },
+      {
+        "id": "terrain_river_008",
+        "name": "Floodplain Wetlands",
+        "description": "Wetland areas around rivers",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["floodplain_generation", "wetland_buffering"]
+      }
+    ],
+    "lakes": [
+      {
+        "id": "terrain_lake_001",
+        "name": "Lake Basin Smoothing",
+        "description": "Smooth lake basin formation",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["basin_smoothing", "depth_variation"]
+      },
+      {
+        "id": "terrain_lake_002",
+        "name": "Lake Shoreline Enhancement",
+        "description": "Enhanced shoreline complexity",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["shoreline_noise", "erosion_rings"]
+      },
+      {
+        "id": "terrain_lake_003",
+        "name": "Lake Outflow Channels",
+        "description": "Channels for lake outflow",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["outflow_carving", "channel_routing"]
+      },
+      {
+        "id": "terrain_lake_004",
+        "name": "Lake-River Integration",
+        "description": "Integration of lakes with river systems",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["river_integration", "inflow_outflow"]
+      },
+      {
+        "id": "terrain_lake_005",
+        "name": "Wetland Pockets",
+        "description": "Wetland areas around lakes",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["wetland_generation", "buffer_radius"]
+      },
+      {
+        "id": "terrain_lake_006",
+        "name": "Overflow Channels",
+        "description": "Channels for lake overflow",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["overflow_routing", "flood_control"]
+      },
+      {
+        "id": "terrain_lake_007",
+        "name": "Shelf Depth Modeling",
+        "description": "Underwater shelf depth variation",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["shelf_modeling", "depth_gradient"]
+      }
+    ]
+  },
+  "protobuf_protocol": {
+    "namespaces": [
+      "MinecraftGame.Common",
+      "Game.Auth",
+      "Game.Chat",
+      "Game.Diag",
+      "Game.Core",
+      "Game.Move",
+      "Game.World",
+      "EnhancedMinecraftProtocol"
+    ],
+    "issues": [
+      {
+        "id": "proto_issue_001",
+        "type": "namespace_inconsistency",
+        "description": "Multiple namespaces used across protocol files",
+        "severity": "high",
+        "resolution": "Standardize on EnhancedMinecraftProtocol"
+      },
+      {
+        "id": "proto_issue_002",
+        "type": "redundant_definitions",
+        "description": "Overlap between Game.* and EnhancedMinecraftProtocol",
+        "severity": "high",
+        "resolution": "Remove redundant Game.* protocols"
+      },
+      {
+        "id": "proto_issue_003",
+        "type": "mixed_serialization",
+        "description": "Mixed Google.Protobuf and protobuf-net usage",
+        "severity": "high",
+        "resolution": "Standardize on Google.Protobuf"
+      },
+      {
+        "id": "proto_issue_004",
+        "type": "missing_using_statements",
+        "description": "Some using statements reference non-existent files",
+        "severity": "medium",
+        "resolution": "Fix all using statements"
+      },
+      {
+        "id": "proto_issue_005",
+        "type": "conditional_compilation",
+        "description": "#if HMW_PROTO creates maintenance burden",
+        "severity": "medium",
+        "resolution": "Remove conditional compilation"
+      }
+    ],
+    "recommendations": [
+      "Consolidate protocol definitions on EnhancedMinecraftProtocol",
+      "Standardize serialization on Google.Protobuf",
+      "Fix all namespace inconsistencies",
+      "Remove conditional compilation directives",
+      "Add comprehensive error handling",
+      "Implement proper protocol versioning",
+      "Add protocol documentation"
+    ]
+  }
+}
+  "version": "2026-01-21",
+  "description": "Comprehensive Minecraft feature categorization for client and server",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_001",
+          "name": "Chunk Streaming System",
+          "description": "Chunk-based world loading and streaming with mesh rebuilds",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ]
+        },
+        {
+          "id": "client_core_002",
+          "name": "World Map Control Profile",
+          "description": "Configuration profile for world generation parameters",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ]
+        },
+        {
+          "id": "client_core_003",
+          "name": "Network Bootstrap",
+          "description": "Network connection initialization and bootstrap",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_004",
+          "name": "Session Management",
+          "description": "Client-side session lifecycle management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_005",
+          "name": "Player State Synchronization",
+          "description": "Synchronization of player position, rotation, and state",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerController.cs"
+          ]
+        },
+        {
+          "id": "client_core_006",
+          "name": "Block Placement/Break",
+          "description": "Client-side block interaction system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerController.cs"
+          ]
+        },
+        {
+          "id": "client_core_007",
+          "name": "Inventory HUD",
+          "description": "Inventory display and management UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_006"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+          ]
+        },
+        {
+          "id": "client_core_008",
+          "name": "Chunk Synchronization",
+          "description": "Receiving and applying server chunk updates",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_001", "client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+          ]
+        },
+        {
+          "id": "client_core_009",
+          "name": "World Generation Preview",
+          "description": "Client-side terrain generation preview system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_core_002"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_core_010",
+          "name": "Keepalive Handling",
+          "description": "Network keepalive and reconnection logic",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/NetworkManager.cs"
+          ]
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_001",
+          "name": "Biome-Tinted Terrain",
+          "description": "Terrain coloring based on biome types",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_002",
+          "name": "River Visualization",
+          "description": "Visual rendering of river systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_003",
+          "name": "Lake Visualization",
+          "description": "Visual rendering of lake systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_004",
+          "name": "Cave Visualization",
+          "description": "Visual rendering of cave systems",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_005",
+          "name": "Shoreline Visualization",
+          "description": "Visual rendering of shorelines and beaches",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_002", "client_content_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_006",
+          "name": "Wetland Visualization",
+          "description": "Visual rendering of wetland areas",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_007",
+          "name": "Aquifer Visualization",
+          "description": "Visual rendering of underground water sources",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_004"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "client_content_008",
+          "name": "Structure Preview",
+          "description": "Preview hooks for world structures",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/StructureManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_009",
+          "name": "Loot Preview",
+          "description": "Preview hooks for loot containers",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_content_008"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/StructureManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_010",
+          "name": "Day/Night Cycle",
+          "description": "Visual day/night cycle implementation",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Environment/DayNightCycle.cs"
+          ]
+        },
+        {
+          "id": "client_content_011",
+          "name": "Weather Visualization",
+          "description": "Visual rendering of weather effects",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["client_content_010"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Environment/WeatherSystem.cs"
+          ]
+        },
+        {
+          "id": "client_content_012",
+          "name": "Block Rendering",
+          "description": "Visual rendering of all block types",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_content_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/World/BlockRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_013",
+          "name": "Item Rendering",
+          "description": "Visual rendering of items and tools",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_content_012"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Items/ItemRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_014",
+          "name": "Player Rendering",
+          "description": "Visual rendering of player characters",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Player/PlayerRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_015",
+          "name": "Mob Rendering",
+          "description": "Visual rendering of hostile mobs",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Entities/MobRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_016",
+          "name": "Animal Rendering",
+          "description": "Visual rendering of passive animals",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Minecraft/Entities/AnimalRenderer.cs"
+          ]
+        },
+        {
+          "id": "client_content_017",
+          "name": "Ambient Audio",
+          "description": "Ambient sound effects and music",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Audio/AudioManager.cs"
+          ]
+        },
+        {
+          "id": "client_content_018",
+          "name": "FX Triggers",
+          "description": "Visual effects triggers",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Effects/FXManager.cs"
+          ]
+        }
+      ],
+      "utility": [
+        {
+          "id": "client_util_001",
+          "name": "Debug Overlays",
+          "description": "Debug visualization for chunk bounds and masks",
+          "status": "implemented",
+          "priority": "low",
+          "dependencies": ["client_core_001"],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/DebugOverlay.cs"
+          ]
+        },
+        {
+          "id": "client_util_002",
+          "name": "JSON Config Loading",
+          "description": "Loading configuration from StreamingAssets",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Config/ConfigLoader.cs"
+          ]
+        },
+        {
+          "id": "client_util_003",
+          "name": "Protobuf Error Reporting",
+          "description": "Error reporting for protocol desynchronization",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_003"],
+          "files": [
+            "Assets/MyAssets/Scripts/Network/ProtobufErrorHandler.cs"
+          ]
+        },
+        {
+          "id": "client_util_004",
+          "name": "Localization",
+          "description": "Localization system stub",
+          "status": "partial",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Localization/LocalizationManager.cs"
+          ]
+        },
+        {
+          "id": "client_util_005",
+          "name": "Analytics",
+          "description": "Analytics system stub",
+          "status": "partial",
+          "priority": "low",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Analytics/AnalyticsManager.cs"
+          ]
+        },
+        {
+          "id": "client_util_006",
+          "name": "Performance Monitoring",
+          "description": "FPS and performance metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/PerformanceMonitor.cs"
+          ]
+        },
+        {
+          "id": "client_util_007",
+          "name": "Logging System",
+          "description": "Client-side logging",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/Debug/Logger.cs"
+          ]
+        },
+        {
+          "id": "client_util_008",
+          "name": "Main Menu UI",
+          "description": "Main menu interface",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/MainMenu.cs"
+          ]
+        },
+        {
+          "id": "client_util_009",
+          "name": "Inventory Interface",
+          "description": "Inventory management UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_007"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_010",
+          "name": "Crafting Interface",
+          "description": "Crafting system UI",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_util_009"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/CraftingUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_011",
+          "name": "Health/Hunger Display",
+          "description": "Health and hunger indicators",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["client_core_005"],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/StatusUI.cs"
+          ]
+        },
+        {
+          "id": "client_util_012",
+          "name": "Loading Screens",
+          "description": "Loading screen interface",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/LoadingScreen.cs"
+          ]
+        },
+        {
+          "id": "client_util_013",
+          "name": "Message System",
+          "description": "In-game message display",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/UI/MessageSystem.cs"
+          ]
+        },
+        {
+          "id": "client_util_014",
+          "name": "Save/Load System",
+          "description": "Client-side save/load functionality",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "Assets/MyAssets/Scripts/SaveLoad/SaveManager.cs"
+          ]
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_001",
+          "name": "World Map Control Generation",
+          "description": "Server-side world generation and caching",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_002",
+          "name": "Profile Export",
+          "description": "Export world generation profile to clients",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_003",
+          "name": "Hydrology/Flow Cache",
+          "description": "Caching system for hydrology and flow data",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_004",
+          "name": "Session Lifecycle",
+          "description": "Session creation, management, and cleanup",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/SessionManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_005",
+          "name": "Authentication",
+          "description": "Player authentication system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/LoginHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_006",
+          "name": "Keepalive Handlers",
+          "description": "Network keepalive management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/KeepaliveHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_007",
+          "name": "Chunk Save/Load Pipeline",
+          "description": "Database persistence for chunks",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/ChunkManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_008",
+          "name": "Profile Hash Validation",
+          "description": "Hash verification for configuration integrity",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_002"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_core_009",
+          "name": "Network Message Handling",
+          "description": "Routing and processing of network messages",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Network/MessageRouter.cs"
+          ]
+        },
+        {
+          "id": "server_core_010",
+          "name": "Player Movement Processing",
+          "description": "Server-side player movement validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/MovementHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_011",
+          "name": "Player Interaction Processing",
+          "description": "Server-side player interaction validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_010"],
+          "files": [
+            "GameServer/Handlers/InteractionHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_012",
+          "name": "Block Change Broadcasting",
+          "description": "Broadcasting block changes to all players",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_011"],
+          "files": [
+            "GameServer/Handlers/BlockHandler.cs"
+          ]
+        },
+        {
+          "id": "server_core_013",
+          "name": "World Seed Management",
+          "description": "World seed storage and retrieval",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_001",
+          "name": "Biome Tables",
+          "description": "JSON-driven biome configuration",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "config/biomes.json"
+          ]
+        },
+        {
+          "id": "server_content_002",
+          "name": "Loot Tables",
+          "description": "JSON-driven loot configuration",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/loot_tables.json"
+          ]
+        },
+        {
+          "id": "server_content_003",
+          "name": "Structure Tables",
+          "description": "JSON-driven structure configuration",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/structures.json"
+          ]
+        },
+        {
+          "id": "server_content_004",
+          "name": "Cave Generation",
+          "description": "Advanced cave generation with riparian sealing",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_005",
+          "name": "River Generation",
+          "description": "Advanced river generation with erosion",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_006",
+          "name": "Lake Generation",
+          "description": "Advanced lake generation with wetlands",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/World/WorldManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_007",
+          "name": "Weather Scheduler",
+          "description": "Weather event scheduling system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/WeatherScheduler.cs"
+          ]
+        },
+        {
+          "id": "server_content_008",
+          "name": "Progression Events",
+          "description": "Game progression event system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/World/ProgressionManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_009",
+          "name": "Block Distribution",
+          "description": "Data-driven block and ore distribution",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "config/blocks.json"
+          ]
+        },
+        {
+          "id": "server_content_010",
+          "name": "Entity Spawning",
+          "description": "Entity spawning system",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["server_core_001"],
+          "files": [
+            "GameServer/Entities/EntityManager.cs"
+          ]
+        },
+        {
+          "id": "server_content_011",
+          "name": "Entity AI",
+          "description": "Entity behavior AI",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": ["server_content_010"],
+          "files": [
+            "GameServer/Entities/AIController.cs"
+          ]
+        },
+        {
+          "id": "server_content_012",
+          "name": "Crafting Recipes",
+          "description": "Crafting recipe processing",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "config/recipes.json"
+          ]
+        },
+        {
+          "id": "server_content_013",
+          "name": "Inventory Management",
+          "description": "Server-side inventory validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_011"],
+          "files": [
+            "GameServer/Handlers/InventoryHandler.cs"
+          ]
+        },
+        {
+          "id": "server_content_014",
+          "name": "Health System",
+          "description": "Player health management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_core_004"],
+          "files": [
+            "GameServer/Handlers/HealthHandler.cs"
+          ]
+        },
+        {
+          "id": "server_content_015",
+          "name": "Hunger System",
+          "description": "Player hunger management",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": ["server_content_014"],
+          "files": [
+            "GameServer/Handlers/HungerHandler.cs"
+          ]
+        }
+      ],
+      "utility": [
+        {
+          "id": "server_util_001",
+          "name": "Config Management",
+          "description": "JSON configuration with reload hooks",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Config/ConfigManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_002",
+          "name": "Monitoring",
+          "description": "Server monitoring and metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Monitoring/Monitor.cs"
+          ]
+        },
+        {
+          "id": "server_util_003",
+          "name": "Logging",
+          "description": "Server-side logging system",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Logging/Logger.cs"
+          ]
+        },
+        {
+          "id": "server_util_004",
+          "name": "Admin Commands",
+          "description": "Administrative command interface",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Commands/AdminCommands.cs"
+          ]
+        },
+        {
+          "id": "server_util_005",
+          "name": "Protobuf Registration",
+          "description": "DTO registration and validation",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Network/ProtobufRegistry.cs"
+          ]
+        },
+        {
+          "id": "server_util_006",
+          "name": "Data-Driven Tuning",
+          "description": "Drop rates, mob stats, XP curves",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "config/gameplay.json"
+          ]
+        },
+        {
+          "id": "server_util_007",
+          "name": "Database Persistence",
+          "description": "SQLite database for data storage",
+          "status": "implemented",
+          "priority": "high",
+          "dependencies": [],
+          "files": [
+            "GameServer/Database/DatabaseManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_008",
+          "name": "Performance Profiling",
+          "description": "Server performance metrics",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Profiling/Profiler.cs"
+          ]
+        },
+        {
+          "id": "server_util_009",
+          "name": "Memory Management",
+          "description": "Memory optimization and cleanup",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Memory/MemoryManager.cs"
+          ]
+        },
+        {
+          "id": "server_util_010",
+          "name": "Object Pooling",
+          "description": "Object pooling for performance",
+          "status": "implemented",
+          "priority": "medium",
+          "dependencies": [],
+          "files": [
+            "GameServer/Memory/ObjectPool.cs"
+          ]
+        }
+      ]
+    }
+  },
+  "terrain_features": {
+    "caves": [
+      {
+        "id": "terrain_cave_001",
+        "name": "Regional Main Caves",
+        "description": "Large cave systems spanning multiple chunks",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["noise_3d", "stability_fields", "hydrology_aware"]
+      },
+      {
+        "id": "terrain_cave_002",
+        "name": "Noise-Based Cave Layers",
+        "description": "Layered cave generation using 3D noise",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["perlin_noise", "simplex_noise"]
+      },
+      {
+        "id": "terrain_cave_003",
+        "name": "Cave Stability Fields",
+        "description": "Stability calculations for natural cave formations",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["stability_field", "support_pillars"]
+      },
+      {
+        "id": "terrain_cave_004",
+        "name": "Hydrology-Aware Caves",
+        "description": "Caves that respect water flow and saturation",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["hydrology_integration", "flooded_caves"]
+      },
+      {
+        "id": "terrain_cave_005",
+        "name": "Cave Support Pillars",
+        "description": "Support structures to prevent collapse",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["support_pillars", "ceiling_stabilization"]
+      },
+      {
+        "id": "terrain_cave_006",
+        "name": "Flooded Caves",
+        "description": "Caves below water table",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["water_table_detection", "saturation_mapping"]
+      },
+      {
+        "id": "terrain_cave_007",
+        "name": "Karst Inlets",
+        "description": "Karst formation with water inlets",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["karst_formation", "dripstone_features"]
+      },
+      {
+        "id": "terrain_cave_008",
+        "name": "Vertical Shafts",
+        "description": "Vertical cave shafts",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["vertical_generation", "shaft_connectivity"]
+      },
+      {
+        "id": "terrain_cave_009",
+        "name": "Riparian Cave Guard",
+        "description": "Protection for caves near waterways",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["riparian_buffer", "erosion_protection"]
+      }
+    ],
+    "rivers": [
+      {
+        "id": "terrain_river_001",
+        "name": "River Flow Vectors",
+        "description": "Directional flow for rivers",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["flow_accumulation", "gradient_calculation"]
+      },
+      {
+        "id": "terrain_river_002",
+        "name": "River Bank Erosion",
+        "description": "Erosion simulation for river banks",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["erosion_simulation", "sediment_deposition"]
+      },
+      {
+        "id": "terrain_river_003",
+        "name": "River Confluence Boost",
+        "description": "Enhanced merging of river tributaries",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["confluence_detection", "flow_boosting"]
+      },
+      {
+        "id": "terrain_river_004",
+        "name": "River Mouth Smoothing",
+        "description": "Smooth transitions at river mouths",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["delta_formation", "mouth_smoothing"]
+      },
+      {
+        "id": "terrain_river_005",
+        "name": "River Width Modulation",
+        "description": "Variable river widths based on flow",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["flow_based_width", "width_variance"]
+      },
+      {
+        "id": "terrain_river_006",
+        "name": "Tributary Channels",
+        "description": "Branching river tributaries",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["tributary_generation", "branching_logic"]
+      },
+      {
+        "id": "terrain_river_007",
+        "name": "Delta Fans",
+        "description": "River delta formations",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["delta_formation", "sediment_distribution"]
+      },
+      {
+        "id": "terrain_river_008",
+        "name": "Floodplain Wetlands",
+        "description": "Wetland areas around rivers",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["floodplain_generation", "wetland_buffering"]
+      }
+    ],
+    "lakes": [
+      {
+        "id": "terrain_lake_001",
+        "name": "Lake Basin Smoothing",
+        "description": "Smooth lake basin formation",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["basin_smoothing", "depth_variation"]
+      },
+      {
+        "id": "terrain_lake_002",
+        "name": "Lake Shoreline Enhancement",
+        "description": "Enhanced shoreline complexity",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["shoreline_noise", "erosion_rings"]
+      },
+      {
+        "id": "terrain_lake_003",
+        "name": "Lake Outflow Channels",
+        "description": "Channels for lake outflow",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["outflow_carving", "channel_routing"]
+      },
+      {
+        "id": "terrain_lake_004",
+        "name": "Lake-River Integration",
+        "description": "Integration of lakes with river systems",
+        "status": "implemented",
+        "priority": "high",
+        "algorithms": ["river_integration", "inflow_outflow"]
+      },
+      {
+        "id": "terrain_lake_005",
+        "name": "Wetland Pockets",
+        "description": "Wetland areas around lakes",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["wetland_generation", "buffer_radius"]
+      },
+      {
+        "id": "terrain_lake_006",
+        "name": "Overflow Channels",
+        "description": "Channels for lake overflow",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["overflow_routing", "flood_control"]
+      },
+      {
+        "id": "terrain_lake_007",
+        "name": "Shelf Depth Modeling",
+        "description": "Underwater shelf depth variation",
+        "status": "implemented",
+        "priority": "medium",
+        "algorithms": ["shelf_modeling", "depth_gradient"]
+      }
+    ]
+  },
+  "protobuf_protocol": {
+    "namespaces": [
+      "MinecraftGame.Common",
+      "Game.Auth",
+      "Game.Chat",
+      "Game.Diag",
+      "Game.Core",
+      "Game.Move",
+      "Game.World",
+      "EnhancedMinecraftProtocol"
+    ],
+    "issues": [
+      {
+        "id": "proto_issue_001",
+        "type": "namespace_inconsistency",
+        "description": "Multiple namespaces used across protocol files",
+        "severity": "high",
+        "resolution": "Standardize on EnhancedMinecraftProtocol"
+      },
+      {
+        "id": "proto_issue_002",
+        "type": "redundant_definitions",
+        "description": "Overlap between Game.* and EnhancedMinecraftProtocol",
+        "severity": "high",
+        "resolution": "Remove redundant Game.* protocols"
+      },
+      {
+        "id": "proto_issue_003",
+        "type": "mixed_serialization",
+        "description": "Mixed Google.Protobuf and protobuf-net usage",
+        "severity": "high",
+        "resolution": "Standardize on Google.Protobuf"
+      },
+      {
+        "id": "proto_issue_004",
+        "type": "missing_using_statements",
+        "description": "Some using statements reference non-existent files",
+        "severity": "medium",
+        "resolution": "Fix all using statements"
+      },
+      {
+        "id": "proto_issue_005",
+        "type": "conditional_compilation",
+        "description": "#if HMW_PROTO creates maintenance burden",
+        "severity": "medium",
+        "resolution": "Remove conditional compilation"
+      }
+    ],
+    "recommendations": [
+      "Consolidate protocol definitions on EnhancedMinecraftProtocol",
+      "Standardize serialization on Google.Protobuf",
+      "Fix all namespace inconsistencies",
+      "Remove conditional compilation directives",
+      "Add comprehensive error handling",
+      "Implement proper protocol versioning",
+      "Add protocol documentation"
+    ]
+  }
+}
+

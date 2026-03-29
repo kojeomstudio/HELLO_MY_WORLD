@@ -1,0 +1,159 @@
+{
+  "date": "2026-01-28",
+  "meta": {
+    "hydrology_signature": "2026-01-28-hydrology-shield-v5-aquifer",
+    "map_control_profile_version": 8,
+    "source_commits": [
+      "97314dff",
+      "f418c0a6",
+      "b83e7370"
+    ],
+    "notes": "Daily client/server feature split for hydrology v5 aquifer shielding, proto registry validation, and shared DLL rollout."
+  },
+  "client": {
+    "core": [
+      {
+        "id": "CL-CORE-01",
+        "name": "World Map Control + Preview",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "notes": "Hydrology-aware previews with river/lake overlays and cave suppression tuned to aquifer shielding."
+      },
+      {
+        "id": "CL-CORE-02",
+        "name": "Network Proto Runtime",
+        "files": [
+          "Assets/MyAssets/Scripts/Network/NetworkManager.cs",
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/Generated/Protobuf/GameWorld.cs"
+        ],
+        "status": "validated",
+        "notes": "Google.Protobuf bindings, dispatcher registration, and descriptor fingerprint checks."
+      },
+      {
+        "id": "CL-CORE-03",
+        "name": "Shared DLL Integration",
+        "files": [
+          "Assets/Plugins/GameCommon.dll",
+          "GameCommon/GameCommon.csproj"
+        ],
+        "status": "in-progress",
+        "notes": "Shared enums/contracts for world map signature + feature catalog consumed by Unity."
+      }
+    ],
+    "content": [
+      {
+        "id": "CL-CONTENT-01",
+        "name": "Hydrology v5 Terrain Preview",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Client-side river/lake/cave visualization with aquifer damping and lake seepage continuity."
+      },
+      {
+        "id": "CL-CONTENT-02",
+        "name": "World Map UI",
+        "files": [
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "status": "planned",
+        "notes": "UI toggles and overlays consuming refreshed profile hashes."
+      }
+    ],
+    "util": [
+      {
+        "id": "CL-UTIL-01",
+        "name": "Profile Reload/Hash Guard",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Auto-reload streaming profile/config when hydrology signature or map profile version changes."
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "SV-CORE-01",
+        "name": "World Map Control Manager",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Pipeline signature, profile generation, and chunk previews wired to hydrology v5."
+      },
+      {
+        "id": "SV-CORE-02",
+        "name": "Shared Protocol Wiring",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "validated",
+        "notes": "Registry validation, fingerprint assertions, and packet bindings for dummy client tests."
+      }
+    ],
+    "content": [
+      {
+        "id": "SV-CONTENT-01",
+        "name": "Improved Hydrology Masks",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "in-progress",
+        "notes": "River/lake feedback, flow memory, and shoreline seepage tuned for aquifer stability."
+      },
+      {
+        "id": "SV-CONTENT-02",
+        "name": "Cave Generator (Aquifer Shield)",
+        "files": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Cave stability clamps linked to hydrology, river suppression, and erosion risk."
+      }
+    ],
+    "util": [
+      {
+        "id": "SV-UTIL-01",
+        "name": "Dummy Protocol Client",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs"
+        ],
+        "status": "planned",
+        "notes": "Round-trip framing for time, chunk load, and block change packets against registry."
+      },
+      {
+        "id": "SV-UTIL-02",
+        "name": "Map Profile Generator",
+        "files": [
+          "GameServer/Program.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress",
+        "notes": "Generates profile v8 artifacts and syncs hashes to Unity StreamingAssets."
+      }
+    ]
+  },
+  "implementation_order": [
+    "SV-CORE-01",
+    "SV-CONTENT-01",
+    "SV-CONTENT-02",
+    "CL-CORE-01",
+    "CL-CONTENT-01",
+    "SV-UTIL-01",
+    "SV-UTIL-02"
+  ]
+}

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using GameServerApp.Rooms;
 using SharedProtocol;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
 
 namespace GameServerApp.Handlers;
 

@@ -3,19 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using SharedProtocol;
 using System.Linq;
+using Minecraft.Core;
 
 namespace Minecraft.World
 {
     /// <summary>
     /// System that manages chunks in the Minecraft world
     /// Handles chunk loading, unloading, rendering, block management, etc.
+    /// Improved with data-driven configuration and enhanced terrain generation
     /// </summary>
     public class ChunkManager : MonoBehaviour
     {
         [Header("Chunk Settings")]
-        [SerializeField] private int chunkSize = 16;
-        [SerializeField] private int worldHeight = 256;
-        [SerializeField] private int renderDistance = 8;
         [SerializeField] private Material blockMaterial;
         [SerializeField] private GameObject chunkPrefab;
         
@@ -26,6 +25,11 @@ namespace Minecraft.World
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _chunkData = new();
         private Dictionary<Vector2Int, GameObject> _chunkObjects = new();
         private Dictionary<Vector2Int, ChunkRenderer> _chunkRenderers = new();
+        private Core.MinecraftGameClient _gameClient;
+        private TerrainGenerator _terrainGenerator;
+        private ClientConfig _clientConfig;
+        private WorldConfig _worldConfig;
+        private BlockDataManager _blockDataManager;
         
         private Vector2Int _playerChunkPos;
         private Queue<Vector2Int> _chunksToLoad = new();
@@ -33,6 +37,11 @@ namespace Minecraft.World
         private Queue<Vector2Int> _chunksToUpdate = new();
         
         private Dictionary<int, BlockType> _blockTypes = new();
+        
+        // Configuration properties
+        private int ChunkSize => _worldConfig.ChunkSize;
+        private int WorldHeight => _worldConfig.WorldHeight;
+        private int RenderDistance => _clientConfig.Graphics.RenderDistance;
         
         public event Action<Vector2Int> ChunkLoaded;
         public event Action<Vector2Int> ChunkUnloaded;
@@ -43,8 +52,38 @@ namespace Minecraft.World
         
         private void Start()
         {
+            InitializeConfiguration();
             InitializeBlockTypes();
+            InitializeComponents();
             InvokeRepeating(nameof(ProcessChunkUpdates), 0f, chunkUpdateInterval);
+        }
+        
+        private void InitializeConfiguration()
+        {
+            _clientConfig = ClientConfig.Instance;
+            _worldConfig = WorldConfig.Instance;
+            _blockDataManager = BlockDataManager.Instance;
+            
+            // Apply configuration to Unity settings
+            _clientConfig.ApplyToUnity();
+            _worldConfig.ApplyToUnity();
+        }
+        
+        private void InitializeComponents()
+        {
+            _gameClient = FindObjectOfType<Core.MinecraftGameClient>();
+            
+            // Initialize terrain generator if not already present
+            if (_terrainGenerator == null)
+            {
+                _terrainGenerator = FindObjectOfType<TerrainGenerator>();
+                if (_terrainGenerator == null)
+                {
+                    var terrainGenObj = new GameObject("TerrainGenerator");
+                    terrainGenObj.transform.SetParent(transform);
+                    _terrainGenerator = terrainGenObj.AddComponent<TerrainGenerator>();
+                }
+            }
         }
         
         private void Update()
@@ -55,26 +94,32 @@ namespace Minecraft.World
         
         private void InitializeBlockTypes()
         {
-            _blockTypes[0] = new BlockType(0, "Air", false, false);
-            _blockTypes[1] = new BlockType(1, "Stone", true, true);
-            _blockTypes[2] = new BlockType(2, "Grass", true, true);
-            _blockTypes[3] = new BlockType(3, "Dirt", true, true);
-            _blockTypes[4] = new BlockType(4, "Cobblestone", true, true);
-            _blockTypes[5] = new BlockType(5, "Wood", true, true);
-            _blockTypes[6] = new BlockType(6, "Leaves", true, false);
-            _blockTypes[7] = new BlockType(7, "Sand", true, true);
-            _blockTypes[8] = new BlockType(8, "Water", false, false);
-            _blockTypes[9] = new BlockType(9, "Lava", false, false);
+            // Load block types from data manager
+            var blockDefinitions = _blockDataManager.GetAllBlockDefinitions();
             
-            Debug.Log($"Initialized {_blockTypes.Count} block types");
+            foreach (var blockDef in blockDefinitions)
+            {
+                _blockTypes[blockDef.Id] = new BlockType(
+                    blockDef.Id,
+                    blockDef.Name,
+                    blockDef.IsSolid,
+                    blockDef.IsOpaque
+                )
+                {
+                    Hardness = blockDef.Hardness,
+                    TextureName = blockDef.TextureName
+                };
+            }
+            
+            Debug.Log($"Initialized {_blockTypes.Count} block types from data manager");
         }
         
         private void UpdatePlayerChunkPosition()
         {
             var playerPos = transform.position;
             var newChunkPos = new Vector2Int(
-                Mathf.FloorToInt(playerPos.x / chunkSize),
-                Mathf.FloorToInt(playerPos.z / chunkSize)
+                Mathf.FloorToInt(playerPos.x / ChunkSize),
+                Mathf.FloorToInt(playerPos.z / ChunkSize)
             );
             
             if (newChunkPos != _playerChunkPos)
@@ -87,6 +132,7 @@ namespace Minecraft.World
         private void UpdateChunkLoadingArea()
         {
             var chunksInRange = new HashSet<Vector2Int>();
+            var renderDistance = RenderDistance;
             
             for (int x = _playerChunkPos.x - renderDistance; x <= _playerChunkPos.x + renderDistance; x++)
             {
@@ -160,10 +206,53 @@ namespace Minecraft.World
         
         private void RequestChunkFromServer(Vector2Int chunkPos)
         {
-            var gameClient = FindObjectOfType<Core.MinecraftGameClient>();
-            if (gameClient != null)
+            // First try to generate locally if offline mode or server unavailable
+            if (_clientConfig.Network.EnableOfflineMode || _gameClient == null)
             {
-                gameClient.RequestChunk(chunkPos.x, chunkPos.y);
+                GenerateChunkLocally(chunkPos);
+                return;
+            }
+
+            if (_gameClient != null && _gameClient.IsConnected)
+            {
+                _gameClient.RequestChunk(chunkPos.x, chunkPos.y);
+            }
+            else
+            {
+                // Fallback to local generation
+                GenerateChunkLocally(chunkPos);
+            }
+        }
+        
+        private void GenerateChunkLocally(Vector2Int chunkPos)
+        {
+            if (_terrainGenerator == null)
+            {
+                Debug.LogError("TerrainGenerator not available for local chunk generation");
+                return;
+            }
+            
+            try
+            {
+                var blocks = _terrainGenerator.GenerateChunk(chunkPos.x, chunkPos.y);
+                var entities = new List<EntityInfo>(); // No entities in local generation
+                var biomeData = new BiomeInfo(); // Basic biome info
+                
+                var chunkSnapshot = new ChunkSnapshot(
+                    chunkPos.x,
+                    chunkPos.y,
+                    blocks,
+                    biomeData,
+                    entities,
+                    isFromCache: false
+                );
+                
+                LoadChunk(chunkSnapshot);
+                Debug.Log($"Generated chunk locally: ({chunkPos.x}, {chunkPos.y})");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to generate chunk locally ({chunkPos.x}, {chunkPos.y}): {ex.Message}");
             }
         }
         
@@ -240,7 +329,7 @@ namespace Minecraft.World
         {
             var chunkObj = chunkPrefab != null ? Instantiate(chunkPrefab) : new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}");
             
-            var worldPos = new Vector3(chunkPos.x * chunkSize, 0, chunkPos.y * chunkSize);
+            var worldPos = new Vector3(chunkPos.x * ChunkSize, 0, chunkPos.y * ChunkSize);
             chunkObj.transform.position = worldPos;
             chunkObj.transform.parent = transform;
             
@@ -271,16 +360,16 @@ namespace Minecraft.World
         public void ChangeBlock(Vector3Int blockPos, int oldBlockId, int newBlockId)
         {
             var chunkPos = new Vector2Int(
-                Mathf.FloorToInt(blockPos.x / (float)chunkSize),
-                Mathf.FloorToInt(blockPos.z / (float)chunkSize)
+                Mathf.FloorToInt(blockPos.x / (float)ChunkSize),
+                Mathf.FloorToInt(blockPos.z / (float)ChunkSize)
             );
             
             if (!_chunkData.TryGetValue(chunkPos, out var chunkData)) return;
             
             var localBlockPos = new Vector3Int(
-                blockPos.x - (chunkPos.x * chunkSize),
+                blockPos.x - (chunkPos.x * ChunkSize),
                 blockPos.y,
-                blockPos.z - (chunkPos.y * chunkSize)
+                blockPos.z - (chunkPos.y * ChunkSize)
             );
             
             UpdateBlockInChunk(chunkData, localBlockPos, newBlockId);
@@ -301,17 +390,17 @@ namespace Minecraft.World
         public int GetBlockAt(Vector3Int worldPos)
         {
             var chunkPos = new Vector2Int(
-                Mathf.FloorToInt(worldPos.x / (float)chunkSize),
-                Mathf.FloorToInt(worldPos.z / (float)chunkSize)
+                Mathf.FloorToInt(worldPos.x / (float)ChunkSize),
+                Mathf.FloorToInt(worldPos.z / (float)ChunkSize)
             );
             
             if (!_chunkData.TryGetValue(chunkPos, out var chunkData))
                 return 0;
             
             var localPos = new Vector3Int(
-                worldPos.x - (chunkPos.x * chunkSize),
+                worldPos.x - (chunkPos.x * ChunkSize),
                 worldPos.y,
-                worldPos.z - (chunkPos.y * chunkSize)
+                worldPos.z - (chunkPos.y * ChunkSize)
             );
             
             return chunkData.GetBlockId(localPos.x, localPos.y, localPos.z);
@@ -335,6 +424,11 @@ namespace Minecraft.World
         
         private void OnDrawGizmosSelected()
         {
+            if (_worldConfig == null) return;
+            
+            var chunkSize = ChunkSize;
+            var renderDistance = RenderDistance;
+            
             Gizmos.color = Color.yellow;
             var centerPos = new Vector3(_playerChunkPos.x * chunkSize, 0, _playerChunkPos.y * chunkSize);
             Gizmos.DrawWireCube(centerPos, new Vector3(renderDistance * chunkSize * 2, 10, renderDistance * chunkSize * 2));
@@ -345,6 +439,27 @@ namespace Minecraft.World
                 var worldPos = new Vector3(chunkPos.x * chunkSize, 5, chunkPos.y * chunkSize);
                 Gizmos.DrawWireCube(worldPos, new Vector3(chunkSize, 10, chunkSize));
             }
+        }
+        
+        /// <summary>
+        /// Reload chunk configuration and apply changes
+        /// </summary>
+        public void ReloadConfiguration()
+        {
+            InitializeConfiguration();
+            Debug.Log("ChunkManager configuration reloaded");
+        }
+        
+        /// <summary>
+        /// Get performance statistics
+        /// </summary>
+        public string GetPerformanceStats()
+        {
+            return $"Loaded Chunks: {_chunkData.Count} | " +
+                   $"Queued Loads: {_chunksToLoad.Count} | " +
+                   $"Queued Unloads: {_chunksToUnload.Count} | " +
+                   $"Queued Updates: {_chunksToUpdate.Count} | " +
+                   $"Render Distance: {RenderDistance}";
         }
     }
     
@@ -370,3 +485,112 @@ namespace Minecraft.World
         }
     }
 }
+            }
+            
+            BlockChanged?.Invoke(blockPos, oldBlockId, newBlockId);
+        }
+        
+        private void UpdateBlockInChunk(ChunkSnapshot chunkData, Vector3Int localPos, int newBlockId)
+        {
+            chunkData.SetBlockId(localPos.x, localPos.y, localPos.z, newBlockId);
+        }
+        
+        public int GetBlockAt(Vector3Int worldPos)
+        {
+            var chunkPos = new Vector2Int(
+                Mathf.FloorToInt(worldPos.x / (float)ChunkSize),
+                Mathf.FloorToInt(worldPos.z / (float)ChunkSize)
+            );
+            
+            if (!_chunkData.TryGetValue(chunkPos, out var chunkData))
+                return 0;
+            
+            var localPos = new Vector3Int(
+                worldPos.x - (chunkPos.x * ChunkSize),
+                worldPos.y,
+                worldPos.z - (chunkPos.y * ChunkSize)
+            );
+            
+            return chunkData.GetBlockId(localPos.x, localPos.y, localPos.z);
+        }
+        
+        public BlockType GetBlockType(int blockId)
+        {
+            _blockTypes.TryGetValue(blockId, out var blockType);
+            return blockType ?? _blockTypes[0];
+        }
+        
+        public bool IsChunkLoaded(Vector2Int chunkPos)
+        {
+            return _chunkData.ContainsKey(chunkPos);
+        }
+        
+        public IEnumerable<Vector2Int> GetLoadedChunks()
+        {
+            return _chunkData.Keys;
+        }
+        
+        private void OnDrawGizmosSelected()
+        {
+            if (_worldConfig == null) return;
+            
+            var chunkSize = ChunkSize;
+            var renderDistance = RenderDistance;
+            
+            Gizmos.color = Color.yellow;
+            var centerPos = new Vector3(_playerChunkPos.x * chunkSize, 0, _playerChunkPos.y * chunkSize);
+            Gizmos.DrawWireCube(centerPos, new Vector3(renderDistance * chunkSize * 2, 10, renderDistance * chunkSize * 2));
+            
+            Gizmos.color = Color.green;
+            foreach (var chunkPos in _chunkData.Keys)
+            {
+                var worldPos = new Vector3(chunkPos.x * chunkSize, 5, chunkPos.y * chunkSize);
+                Gizmos.DrawWireCube(worldPos, new Vector3(chunkSize, 10, chunkSize));
+            }
+        }
+        
+        /// <summary>
+        /// Reload chunk configuration and apply changes
+        /// </summary>
+        public void ReloadConfiguration()
+        {
+            InitializeConfiguration();
+            Debug.Log("ChunkManager configuration reloaded");
+        }
+        
+        /// <summary>
+        /// Get performance statistics
+        /// </summary>
+        public string GetPerformanceStats()
+        {
+            return $"Loaded Chunks: {_chunkData.Count} | " +
+                   $"Queued Loads: {_chunksToLoad.Count} | " +
+                   $"Queued Unloads: {_chunksToUnload.Count} | " +
+                   $"Queued Updates: {_chunksToUpdate.Count} | " +
+                   $"Render Distance: {RenderDistance}";
+        }
+    }
+    
+    /// <summary>
+    /// Block type definition
+    /// </summary>
+    [System.Serializable]
+    public class BlockType
+    {
+        public int Id { get; }
+        public string Name { get; }
+        public bool IsSolid { get; }
+        public bool IsOpaque { get; }
+        public float Hardness { get; set; } = 1f;
+        public string TextureName { get; set; }
+        
+        public BlockType(int id, string name, bool isSolid, bool isOpaque)
+        {
+            Id = id;
+            Name = name;
+            IsSolid = isSolid;
+            IsOpaque = isOpaque;
+        }
+    }
+}
+

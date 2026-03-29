@@ -37,6 +37,8 @@ protoc \
 
 Then refresh Unity so the generated C# appears. Ensure `Assets/link.xml` preserves the Google.Protobuf assembly for IL2CPP builds.
 
+Run `scripts/verify_protobuf.ps1` to confirm the generated C# files are newer than the `.proto` sources; if the script warns, rerun `protoc` and rebuild `SharedProtocol/SharedProtocol.csproj` so the server and client share identical packet DTOs.
+
 ## Message Types
 
 Message type IDs mirror `SharedProtocol.MessageType` on the server and must remain stable:
@@ -79,6 +81,9 @@ Authenticated clients may send `ServerStatusRequest` (type 42) after login. The 
 - `ActiveChunkResidencyPlayers`: number of players contributing to the residency counters.
 - `PeakChunksPerPlayer`: highest chunk residency count recorded for any single player in the current snapshot.
 - `BusiestChunkPlayer`: username associated with the current peak residency (empty when no players are tracked).
+- `TotalDeaths`: cumulative number of player deaths recorded since the server entered the running state.
+- `DeathsLastTenMinutes`: rolling count of deaths observed within the last ten minutes (used for HUD analytics spikes).
+- `TotalRespawns`: cumulative number of respawn acknowledgements processed by the dedicated server.
 
 Requests with missing or mismatched session tokens are ignored; no error payload is emitted to avoid leaking metrics to unauthenticated clients.
 
@@ -156,8 +161,10 @@ When the Unity client writes one of these messages it feeds the raw integer ID i
 - Server: `GameServer/Handlers/MinecraftChunkHandler` packs each chunk into a 65,536 byte block array (16x256x16). If the payload exceeds 1 KB it is gzipped before being written as `ChunkDataResponseMessage.CompressedBlockData`.
 - Client: `MinecraftGameClient` runs the buffer through `ChunkCompression.DecodeBlocks`, which detects the gzip magic bytes and inflates the array if required. The decoded result is stored in a `ChunkSnapshot` for subsequent mesh generation and block mutation.
 - `ChunkDataResponseMessage.IsFromCache` is set when the server serves a cached payload or the player re-requests an already streamed chunk; the client logs cache hits and `_pendingChunkRequests` deduplicate outstanding chunk loads.
+- Every `ChunkDataResponseMessage` now carries `EnhancedPayload` (field 8) which contains the serialized `EnhancedMinecraftProtocol.ChunkLoadResponse`. Unity can continue to rely on the legacy fields, but enhanced clients can parse the payload directly via the generated DTOs without rehydrating legacy structures.
 - `ChunkManager` rehydrates the snapshot into a `byte[,,]` during `ChunkRenderer.GenerateMesh`. Server-driven block updates (`BlockChangeNotification` or `WorldBlockChangeBroadcast`) update the snapshot first, then schedule a mesh refresh so the change is visible locally.
 - Residency pruning: the server evicts per-player chunk residency using `WorldSettings.ChunkUnloadTimeoutMinutes` and the configured load radius, so clients may occasionally receive a fresh chunk stream for areas that fell out of cache.
+- The server accepts both the legacy `ChunkDataRequestMessage` (single chunk) and the enhanced `ChunkLoadRequest` aggregate message from `enhanced_minecraft_game.proto`. Enhanced requests may batch multiple chunk coordinates in a single payload; the server serves each chunk and tags responses with the aggregated `total_requested` metadata inside `EnhancedPayload`.
 
 ### Chunk Unload Handshake
 1. `MinecraftGameClient` trims chunks beyond `renderDistance`, removes them from its `_loadedChunks`, and immediately sends a `ChunkUnloadNotificationMessage` that includes player id, chunk coords, reason, and the current view radius.
@@ -169,6 +176,13 @@ Because both sides are dealing with raw byte arrays (rather than a repeated list
 ## Protobuf DTOs
 
 Generated code lives in `Assets/Generated/Protobuf/`. Alongside the classic `Game.*` protos, the Unity project includes `enhanced_minecraft_game.proto` which defines all Minecraft-specific DTOs (`ChunkDataResponse`, `PlayerActionRequest`, `EntityInfo`, etc.). Run the bundled `protoc` command whenever fields change, then commit the regenerated C# to keep the client in sync with `SharedProtocol/MinecraftMessages.cs`.
+
+### Descriptor Validation
+
+- `ProtoFingerprint.AssertDescriptorFingerprint()` runs inside `ProtocolValidator.ValidateEnhancedContracts()` on the server and `GameNetworkManager` on the Unity client. If the generated DTOs drift from the `.proto` sources those entry points throw and instruct you to rerun `protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto`.
+- `ProtoDiagnostics.AssertRegistryClean()` now executes alongside the fingerprint check so missing registrations or orphaned descriptors fail fast during startup instead of emitting only warnings.
+- `ProtocolRegistry.ValidateBindings()` instantiates every EnhancedMinecraft prototype at bootstrap and compares the generated descriptor names with the registry metadata. This guarantees the server-side `SharedProtocol` bindings and Unity's Google.Protobuf DTOs point at the same generated classes before chunk payloads or gameplay messages are dispatched.
+- `ProtocolValidator` guards the EnhancedMinecraft registry/descriptor set (chunk/time/weather/entity/block/action/world control) so stale or mismatched generated DTOs are caught before gameplay or HUD traffic is processed; rerun `protoc` + rebuild `SharedProtocol` when `.proto` files change.
 
 ## Server Compatibility Changes
 

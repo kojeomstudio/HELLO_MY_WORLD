@@ -1,0 +1,179 @@
+{
+  "updatedAt": "2026-02-23T00:00:00Z",
+  "source": "planning-pass-cli",
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-parity",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress"
+      },
+      {
+        "feature": "terrain-generation-caves-rivers-lakes",
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress"
+      },
+      {
+        "feature": "chunk-streaming-and-networking",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/Scripts/Minecraft/Network/ChunkClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/WorldManager.cs",
+          "SharedProtocol/EnhancedMinecraft"
+        ],
+        "data": [
+          "proto/game_world.proto",
+          "Assets/Generated/Protobuf",
+          "SharedProtocol/EnhancedMinecraft"
+        ],
+        "status": "stable"
+      },
+      {
+        "feature": "player-state-and-auth",
+        "client": [
+          "Assets/MyAssets/Scripts/Network/NetworkPlayer.cs",
+          "Assets/MyAssets/Scripts/Network/AuthenticationClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/Sessions/SessionManager.cs"
+        ],
+        "data": [
+          "proto/game_auth.proto",
+          "config/server.json"
+        ],
+        "status": "stable"
+      }
+    ],
+    "content": [
+      {
+        "feature": "blocks-items-recipes",
+        "client": [
+          "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+          "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/ItemHandler.cs",
+          "GameServer/Handlers/CraftingHandler.cs"
+        ],
+        "data": [
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json"
+        ],
+        "status": "stable"
+      },
+      {
+        "feature": "mobs-and-spawning",
+        "client": [
+          "Assets/MyAssets/Scripts/AI/MobSpawner.cs",
+          "Assets/MyAssets/Scripts/AI/MobController.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MobHandler.cs",
+          "GameServer/Simulation/MobSpawnService.cs"
+        ],
+        "data": [
+          "config/gameplay.json",
+          "docs/mob_spawn_rules.md"
+        ],
+        "status": "planned"
+      },
+      {
+        "feature": "structures-and-decorators",
+        "client": [
+          "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/StructureGenerator.cs",
+          "GameServer/World/Generation/TreeGenerator.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "docs/world-generation.md"
+        ],
+        "status": "in-progress"
+      }
+    ],
+    "util": [
+      {
+        "feature": "config-and-hotreload",
+        "client": [
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/Configuration/WorldGenerationConfig.cs"
+        ],
+        "data": [
+          "config/*.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "in-progress"
+      },
+      {
+        "feature": "telemetry-and-diagnostics",
+        "client": [
+          "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+        ],
+        "server": [
+          "GameServer/Diagnostics/Metrics/MetricsCollector.cs",
+          "GameServer/Handlers/DiagHandler.cs"
+        ],
+        "data": [
+          "config/server.json",
+          "docs/diagnostics.md"
+        ],
+        "status": "planned"
+      },
+      {
+        "feature": "tooling-and-proto-sync",
+        "client": [
+          "scripts/generate_proto.ps1",
+          "Assets/Generated/Protobuf"
+        ],
+        "server": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "scripts/verify_proto.ps1"
+        ],
+        "data": [
+          "proto/*.proto",
+          "docs/protobuf_protocol_validation_analysis.md"
+        ],
+        "status": "stable"
+      }
+    ]
+  }
+}

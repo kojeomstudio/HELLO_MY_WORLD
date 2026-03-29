@@ -1,0 +1,197 @@
+{
+  "version": "session-107",
+  "generated_at_utc": "2026-02-21T12:25:00Z",
+  "session": 107,
+  "date": "2026-02-21",
+  "signature": "2026-02-21-hydrology-riverlake-cave-v46",
+  "profileVersion": 50,
+  "features": [
+    {
+      "id": "S107-CORE-01",
+      "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+      "category": "Core",
+      "side": "shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ]
+    },
+    {
+      "id": "S107-CORE-02",
+      "name": "World Map Profile v50 + Hydrology Signature v46",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "S107-CORE-03",
+      "name": "Server World-Map Inflight Timeout Guard",
+      "category": "Core",
+      "side": "server",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs"
+      ]
+    },
+    {
+      "id": "S107-CORE-04",
+      "name": "Client Chunk Queue Budget Guard (Runtime JSON)",
+      "category": "Core",
+      "side": "client",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json",
+        "config/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S107-CONTENT-01",
+      "name": "Cave Groundwater Pressure-Relief Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S107-CONTENT-02",
+      "name": "River Confluence Floodplain Relay Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S107-CONTENT-03",
+      "name": "Lake Karst Outlet Stability Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S107-CONTENT-04",
+      "name": "Hydrology-Coupled Terrain Pipeline (Cave/River/Lake)",
+      "category": "Content",
+      "side": "server",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+      ]
+    },
+    {
+      "id": "S107-UTIL-01",
+      "name": "Protobuf Registry and Descriptor Validation",
+      "category": "Utility",
+      "side": "shared",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ]
+    },
+    {
+      "id": "S107-UTIL-02",
+      "name": "Dummy Protocol Client Guard v50",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/protocol_dummy_client.json",
+        "config/dummy_minecraft_client.json"
+      ]
+    },
+    {
+      "id": "S107-UTIL-03",
+      "name": "Session 107 Runtime Feature Manifest",
+      "category": "Utility",
+      "side": "server",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-21-session-107.json"
+      ]
+    },
+    {
+      "id": "S107-UTIL-04",
+      "name": "JSON Config Parity Sync (Server/Client)",
+      "category": "Utility",
+      "side": "shared-tooling",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/enhanced_world_map_control_server.json",
+        "GameServer/config/enhanced_world_map_control_server.json"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S107-CORE-01",
+      "S107-CORE-02",
+      "S107-CORE-03",
+      "S107-CORE-04"
+    ],
+    "content": [
+      "S107-CONTENT-01",
+      "S107-CONTENT-02",
+      "S107-CONTENT-03",
+      "S107-CONTENT-04"
+    ],
+    "utility": [
+      "S107-UTIL-01",
+      "S107-UTIL-02",
+      "S107-UTIL-03",
+      "S107-UTIL-04"
+    ]
+  },
+  "implementationSequence": [
+    "1. Baseline check (git clean + recent commits)",
+    "2. Refresh plans/TODO + feature inventory manifest",
+    "3. Implement cave/river/lake terrain bridge improvements",
+    "4. Apply world-map architecture safety improvements (server timeout + client queue budget)",
+    "5. Raise signature/profile guards to v46/v50 and sync JSON config parity",
+    "6. Validate protobuf packet registry and dummy protocol probes",
+    "7. Build/test + update docs + commit/push"
+  ]
+}

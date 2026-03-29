@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
+
+using SharedProtocol.EnhancedMinecraft;
+using Google.Protobuf;
 
 namespace SharedProtocol
 {
@@ -11,6 +15,7 @@ namespace SharedProtocol
     public class MinecraftMessageDispatcher
     {
         private readonly Dictionary<MinecraftMessageType, IMinecraftMessageHandler> _handlers = new();
+        private readonly Dictionary<MinecraftMessageType, Type> _handlerContracts = new();
         private readonly MessageDispatcher _baseDispatcher;
 
         public MinecraftMessageDispatcher(MessageDispatcher baseDispatcher)
@@ -24,7 +29,45 @@ namespace SharedProtocol
         public void RegisterHandler<T>(MinecraftMessageType messageType, IMinecraftMessageHandler<T> handler)
             where T : class
         {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+
+            if (ProtocolRegistry.IsRegistered(messageType))
+            {
+                ProtoRuntime.EnsureInitialized();
+                ProtocolRegistry.EnsureRegistered(messageType);
+
+                if (!ProtocolRegistry.TryCreatePrototype(messageType, out var prototype))
+                {
+                    throw new InvalidOperationException(
+                        $"EnhancedMinecraft registry failed to resolve '{messageType}'. Regenerate protobuf assets and rebuild SharedProtocol.");
+                }
+
+                if (!typeof(IMessage).IsAssignableFrom(typeof(T)))
+                {
+                    throw new InvalidOperationException(
+                        $"EnhancedMinecraft protocol '{messageType}' must use Google.Protobuf generated DTOs. Update the handler contract to the generated message type ({prototype.Descriptor?.ClrType?.Name ?? "unknown"}) and regenerate protobuf assets if necessary.");
+                }
+
+                var descriptorType = prototype.Descriptor?.ClrType;
+                if (descriptorType != null && descriptorType != typeof(T))
+                {
+                    throw new InvalidOperationException(
+                        $"Handler for '{messageType}' expects {typeof(T).Name} but generated contract '{descriptorType.Name}' was registered. Update the handler or regenerate protobufs.");
+                }
+            }
+            else if (!ProtocolValidator.IsOptionalMessage(messageType))
+            {
+                Console.WriteLine(
+                    $"[Proto][WARN] Handler registered for '{messageType}' without an EnhancedMinecraft binding. If this packet should use protobuf, add it to ProtocolRegistry or mark it optional.");
+            }
+            else if (!typeof(IMessage).IsAssignableFrom(typeof(T)))
+            {
+                Console.WriteLine(
+                    $"[Proto][INFO] Handler for optional message '{messageType}' is using protobuf-net fallback ({typeof(T).Name}). Consider migrating to Google.Protobuf to align with EnhancedMinecraftProtocol.");
+            }
+
             _handlers[messageType] = handler;
+            _handlerContracts[messageType] = typeof(T);
         }
 
         /// <summary>
@@ -83,6 +126,53 @@ namespace SharedProtocol
             Console.WriteLine($"Sending message {messageType} to players in chunk [{chunkX}, {chunkZ}] with view distance {viewDistance}");
         }
 
+        public bool TryGetHandlerContract(MinecraftMessageType messageType, out Type contractType) =>
+            _handlerContracts.TryGetValue(messageType, out contractType!);
+
+        public IReadOnlyCollection<MinecraftMessageType> GetRegisteredMessageTypes()
+        {
+            return _handlerContracts.Keys
+                .OrderBy(messageType => (int)messageType)
+                .ToArray();
+        }
+
+        public IReadOnlyCollection<MinecraftMessageType> GetUnboundProtocolMessages()
+        {
+            var missing = new List<MinecraftMessageType>();
+            foreach (var required in ProtocolValidator.GetMinecraftDispatcherRequiredMessages())
+            {
+                if (!_handlerContracts.ContainsKey(required))
+                {
+                    missing.Add(required);
+                }
+            }
+
+            return missing;
+        }
+
+        public void AssertHandlerCoverage(IReadOnlyCollection<MinecraftMessageType> requiredHandlers)
+        {
+            if (requiredHandlers == null)
+            {
+                throw new ArgumentNullException(nameof(requiredHandlers));
+            }
+
+            var missing = new List<MinecraftMessageType>();
+            foreach (var messageType in requiredHandlers)
+            {
+                if (!_handlerContracts.ContainsKey(messageType))
+                {
+                    missing.Add(messageType);
+                }
+            }
+
+            if (missing.Count > 0)
+            {
+                string missingList = string.Join(", ", missing);
+                throw new InvalidOperationException($"Minecraft message handlers missing: {missingList}.");
+            }
+        }
+
         /// <summary>
         /// 등록된 핸들러 수
         /// </summary>
@@ -115,7 +205,17 @@ namespace SharedProtocol
             try
             {
                 // ProtoBuf를 사용한 역직렬화
-                var message = ProtoBuf.Serializer.Deserialize<T>(new MemoryStream(messageData));
+                if (typeof(IMessage).IsAssignableFrom(typeof(T)))
+                {
+                    ProtoRuntime.EnsureInitialized();
+
+                    var parsed = ParseGoogleProtobufMessage(messageData);
+                    await HandleAsync(session, (T)parsed);
+                    return;
+                }
+
+                using var stream = new MemoryStream(messageData);
+                var message = ProtoBuf.Serializer.Deserialize<T>(stream);
                 await HandleAsync(session, message);
             }
             catch (Exception ex)
@@ -123,6 +223,20 @@ namespace SharedProtocol
                 Console.WriteLine($"Error deserializing message of type {typeof(T).Name}: {ex.Message}");
                 throw;
             }
+        }
+
+        private static object ParseGoogleProtobufMessage(byte[] messageData)
+        {
+            if (messageData == null) throw new ArgumentNullException(nameof(messageData));
+
+            PropertyInfo? parserProperty = typeof(T).GetProperty("Parser", BindingFlags.Public | BindingFlags.Static);
+            if (parserProperty?.GetValue(null) is not MessageParser parser)
+            {
+                throw new InvalidOperationException(
+                    $"Google.Protobuf parser not found for {typeof(T).FullName}. Ensure generated protobuf assets are referenced and up to date.");
+            }
+
+            return parser.ParseFrom(messageData);
         }
 
         public abstract Task HandleAsync(Session session, T message);

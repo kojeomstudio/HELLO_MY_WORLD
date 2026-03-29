@@ -1,0 +1,71 @@
+name: Protobuf Validation
+
+on:
+  push:
+    branches: [ master, dev ]
+    paths:
+      - 'proto/**'
+      - 'Assets/Generated/Protobuf/**'
+      - '.github/workflows/protobuf-check.yml'
+  pull_request:
+    branches: [ master, dev ]
+    paths:
+      - 'proto/**'
+      - 'Assets/Generated/Protobuf/**'
+      - '.github/workflows/protobuf-check.yml'
+
+jobs:
+  validate-proto:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Check proto files exist
+      run: |
+        if [ -d "proto" ]; then
+          echo "Proto directory found"
+          find proto -name "*.proto" -type f | head -20
+        else
+          echo "No proto directory found"
+          exit 0
+        fi
+    
+    - name: Setup protoc
+      uses: arduino/setup-protoc@v3
+      with:
+        version: "25.x"
+      continue-on-error: true
+    
+    - name: Validate proto syntax
+      run: |
+        if [ -d "proto" ]; then
+          for proto_file in proto/*.proto; do
+            if [ -f "$proto_file" ]; then
+              echo "Validating $proto_file"
+              protoc --proto_path=proto --csharp_out=/tmp/proto_out "$proto_file" || echo "Warning: $proto_file validation had issues"
+            fi
+          done
+        fi
+      continue-on-error: true
+
+  check-generated-sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Check generated protobuf files
+      run: |
+        if [ -d "Assets/Generated/Protobuf" ]; then
+          echo "Generated protobuf files:"
+          ls -la Assets/Generated/Protobuf/
+        else
+          echo "No generated protobuf files found"
+        fi

@@ -1,0 +1,224 @@
+{
+  "updatedAt": "2026-01-24T06:00:00Z",
+  "session": "14",
+  "categories": {
+    "core": [
+      {
+        "id": "core-001",
+        "name": "hydrology-terrain-parity",
+        "description": "Cave/river/lake generation with client-server parity, seam smoothing, and hydrology-aware carving.",
+        "order": 1,
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json",
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "priority": "critical",
+        "dependencies": []
+      },
+      {
+        "id": "core-002",
+        "name": "world-map-control-sync",
+        "description": "World map control orchestration, profile hashing, and chunk streaming sync between client and server.",
+        "order": 2,
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/WorldGenerationConfig.cs"
+        ],
+        "data": [
+          "config/world_map_control_profile.json",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json",
+          "config/world.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": [
+          "core-001"
+        ]
+      },
+      {
+        "id": "core-003",
+        "name": "protobuf-network-pipeline",
+        "description": "Google Protobuf packet contracts, handlers, and serialization checks across server and Unity client.",
+        "order": 3,
+        "client": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/MyAssets/Scripts/Network/ProtobufNetworkClient.cs",
+          "Assets/Generated/Protobuf",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "server": [
+          "GameServer/Handlers",
+          "GameServer/Network/ProtobufMessageRouter.cs",
+          "SharedProtocol",
+          "GameServer/Program.cs"
+        ],
+        "data": [
+          "proto/*.proto",
+          "Assets/Generated/Protobuf/*.cs",
+          "SharedProtocol/obj/fingerprint.txt"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": [
+          "core-001",
+          "core-002"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content-001",
+        "name": "biome-decoration-and-structures",
+        "description": "Biome-aware vegetation, ore, dungeon hooks, and subworld decoration aligned with hydrology output.",
+        "order": 4,
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldMapDataFile.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "GameServer/World/Generation/EnhancedCaveGenerator.cs"
+        ],
+        "data": [
+          "config/biomes.json",
+          "config/blocks.json",
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "planned",
+        "priority": "medium",
+        "dependencies": [
+          "core-001"
+        ]
+      },
+      {
+        "id": "content-002",
+        "name": "water-features-and-coastlines",
+        "description": "Surface lakes, rivers, wetlands, and coastline blending that respect hydrology masks for gameplay.",
+        "order": 5,
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json",
+          "config/world.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": [
+          "core-001",
+          "core-002"
+        ]
+      }
+    ],
+    "util": [
+      {
+        "id": "util-001",
+        "name": "data-driven-configs",
+        "description": "JSON-driven knobs for worldgen, world map control, and networking; tooling to regenerate profiles.",
+        "order": 6,
+        "client": [
+          "Assets/StreamingAssets/world-map-control.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldGenerationConfig.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced_terrain_generation.json",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": [
+          "core-001",
+          "core-002"
+        ]
+      },
+      {
+        "id": "util-002",
+        "name": "debugging-and-validation",
+        "description": "Instrumentation, signature/fingerprint checks, and validation reports for terrain/proto outputs.",
+        "order": 7,
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "data": [
+          "proto/proto_fingerprint.log",
+          "SharedProtocol/obj/fingerprint.txt",
+          "docs/terrain_generation_improvements.md"
+        ],
+        "status": "planned",
+        "priority": "medium",
+        "dependencies": [
+          "core-003"
+        ]
+      }
+    ]
+  },
+  "implementation_sequence": [
+    "core-001",
+    "core-002",
+    "core-003",
+    "content-001",
+    "content-002",
+    "util-001",
+    "util-002"
+  ],
+  "verification": {
+    "build": [
+      "dotnet build SharedProtocol/SharedProtocol.csproj",
+      "dotnet build GameServer/GameServer.csproj"
+    ],
+    "proto": [
+      "protoc -I proto --csharp_out=Assets/Generated/Protobuf proto/*.proto"
+    ],
+    "worldgen": [
+      "dotnet run --project GameServer -- --selftest",
+      "Unity preview generation via WorldMapController"
+    ]
+  }
+}

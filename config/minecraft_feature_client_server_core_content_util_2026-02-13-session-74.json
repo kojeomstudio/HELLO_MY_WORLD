@@ -1,0 +1,338 @@
+﻿{
+  "version": "2026-02-13-session-74",
+  "generated_at_utc": "2026-02-13T13:55:00Z",
+  "metadata": {
+    "session": "74",
+    "date": "2026-02-13",
+    "hydrologySignature": "2026-02-13-hydrology-riverlake-cave-v29",
+    "mapControlProfileVersion": 33,
+    "description": "Core/Content/Utility feature catalog with sequential implementation status for session 74."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S74-CORE-001",
+      "name": "Shared DLL contracts and enums",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll provide shared enums/contracts for client and server.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/World/WorldMapContracts.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S74-CORE-002",
+      "name": "Hydrology signature and profile sync",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v29 and map-control profile version 33 synchronized across server/client config and runtime.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": [
+        "S74-CORE-001"
+      ]
+    },
+    {
+      "id": "S74-CORE-003",
+      "name": "Server world-map adaptive queue policy",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Queue limit/pressure/slack are computed adaptively for map chunk generation and profile signatures.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": [
+        "S74-CORE-002"
+      ]
+    },
+    {
+      "id": "S74-CORE-004",
+      "name": "Client world-map adaptive queue policy",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity world map controller uses adaptive queue/backoff settings from JSON configs.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S74-CORE-003"
+      ]
+    },
+    {
+      "id": "S74-CORE-005",
+      "name": "Cave karst spring continuity seal",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Added cave sealing pass to prevent wet karst bypass artifacts across chunk seams.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-002"
+      ]
+    },
+    {
+      "id": "S74-CORE-006",
+      "name": "River anabranch cutoff damping",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Added damping pass to stabilize branch cutoffs and improve seam continuity near river mouths.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-002"
+      ]
+    },
+    {
+      "id": "S74-CORE-007",
+      "name": "Lake terrace backfill bridge",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Added terrace backfill pass to preserve lake spillway continuity and reduce edge collapse.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-002"
+      ]
+    },
+    {
+      "id": "S74-CORE-008",
+      "name": "Karst-wetland terrain coordinator coupling",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology/flow/erosion coupling pass aligns cave/river/lake transition behavior.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-005",
+        "S74-CORE-006",
+        "S74-CORE-007"
+      ]
+    },
+    {
+      "id": "S74-CORE-009",
+      "name": "Protocol registry and protobuf contract validation",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Google.Protobuf descriptors and runtime registry are validated on startup and probe flows.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-001"
+      ]
+    },
+    {
+      "id": "S74-CONTENT-001",
+      "name": "Terrain content generation (cave/river/lake)",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Biome terrain and hydrology content generation with improved cave/river/lake passes.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-008"
+      ]
+    },
+    {
+      "id": "S74-CONTENT-002",
+      "name": "World map preview content",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client preview chunks render aligned world-map terrain masks and height updates.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "S74-CORE-004"
+      ]
+    },
+    {
+      "id": "S74-CONTENT-003",
+      "name": "Gameplay block/entity/time/weather packets",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Enhanced packet contracts cover chunk, block, entity, time, and weather content sync.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "proto/enhanced_minecraft_game.proto",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "GameServer/Handlers/MinecraftChunkHandler.cs",
+        "GameServer/Systems/WorldTimeSystem.cs",
+        "GameServer/Systems/WeatherSystem.cs"
+      ],
+      "dependencies": [
+        "S74-CORE-009"
+      ]
+    },
+    {
+      "id": "S74-CONTENT-004",
+      "name": "Data-driven gameplay content",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Items/blocks/world settings are loaded from JSON data for runtime tuning.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/world.json",
+        "GameCommon/DataDriven"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S74-UTIL-001",
+      "name": "JSON config governance",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client world-map runtime and queue policy parameters are JSON-managed and mirrored.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S74-CORE-003",
+        "S74-CORE-004"
+      ]
+    },
+    {
+      "id": "S74-UTIL-002",
+      "name": "Protobuf generation and verification scripts",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Protocol generation/verification scripts validate descriptor freshness and hashes.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "scripts/generate_proto.ps1",
+        "scripts/verify_protobuf.ps1",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "S74-CORE-009"
+      ]
+    },
+    {
+      "id": "S74-UTIL-003",
+      "name": "Dummy protocol client probe (server)",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side dummy probe validates registry bindings, descriptor package/name, and packet round-trip.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S74-CORE-009"
+      ]
+    },
+    {
+      "id": "S74-UTIL-004",
+      "name": "Dummy protocol client executable (tool)",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "CLI dummy client validates descriptor full-name/package consistency and packet round-trip/network probe.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S74-CORE-009"
+      ]
+    },
+    {
+      "id": "S74-UTIL-005",
+      "name": "Plans/docs update workflow",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Session planning and implementation reports are maintained in plans/ and docs/.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "plans/2026-02-13-session-74-comprehensive-work-plan.md",
+        "docs/2026-02-13-session-74-worldgen-map-proto-report.md"
+      ],
+      "dependencies": []
+    }
+  ]
+}

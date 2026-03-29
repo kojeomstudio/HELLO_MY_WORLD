@@ -313,9 +313,10 @@ namespace Minecraft.Core
         {
             if (response.Success)
             {
+                _ = EnhancedChunkPayloadBridge.Decode(response, warning => Debug.LogWarning($"[NetworkChunks] {warning}"));
                 var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
                 _loadedChunks[chunkKey] = response;
-                
+
                 ChunkLoaded?.Invoke(response);
                 Debug.Log($"Loaded chunk ({response.ChunkX}, {response.ChunkZ})");
             }

@@ -1,12 +1,13 @@
 syntax = "proto3";
 package Game.World;
 option csharp_namespace = "Game.World";
+import "common.proto";
 import "game_core.proto";
 
 message WorldBlockChangeRequest {
   string area_id = 1;
   string subworld_id = 2;
-  Game.Core.Vector3Int block_position = 3;
+  MinecraftGame.Common.Vector3Int block_position = 3;
   int32 block_type = 4;
   int32 chunk_type = 5;
 }
@@ -20,7 +21,7 @@ message WorldBlockChangeResponse {
 message WorldBlockChangeBroadcast {
   string area_id = 1;
   string subworld_id = 2;
-  Game.Core.Vector3Int block_position = 3;
+  MinecraftGame.Common.Vector3Int block_position = 3;
   int32 block_type = 4;
   int32 chunk_type = 5;
   string player_id = 6;

@@ -1,0 +1,128 @@
+{
+  "date": "2026-01-26",
+  "session": "16",
+  "meta": {
+    "source_commits": [
+      "b3bbcbbd",
+      "02f827e4",
+      "35b394dd"
+    ],
+    "notes": "Hydrology-shielded worldgen, shared GameCommon DLL, and protocol dummy client coverage"
+  },
+  "client": {
+    "core": [
+      {
+        "id": "C016-CORE-01",
+        "name": "Hydrology-Stabilized Map Preview",
+        "description": "World map controller applies hydrology shield + river/lake feedback to keep cave/river/lake previews stitched to server profile",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      },
+      {
+        "id": "C016-CORE-02",
+        "name": "Shared World Feature DLL",
+        "description": "Unity consumes GameCommon.dll for shared enums/config signatures aligned with server",
+        "files": [
+          "Assets/Plugins/GameCommon.dll",
+          "GameCommon/GameCommon.csproj"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "C016-CONTENT-01",
+        "name": "Cave/River/Lake Visual Parity",
+        "description": "Client-side terrain previews mirror hydrology shield and riparian smoothing used on server",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "status": "in-progress",
+        "priority": "medium"
+      }
+    ],
+    "utility": [
+      {
+        "id": "C016-UTIL-01",
+        "name": "Protocol Dummy Client Hook",
+        "description": "Unity tooling and CI can invoke dummy protocol client for packet roundtrips",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"
+        ],
+        "status": "in-progress",
+        "priority": "medium"
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "C016-CORE-03",
+        "name": "Hydrology Shield & Feedback",
+        "description": "ImprovedTerrainCoordinator applies subterranean shield and river/lake feedback loops before carving caves",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      },
+      {
+        "id": "C016-CORE-04",
+        "name": "World Map Control Signature",
+        "description": "World map control profiles carry hydrology signature for client/server parity",
+        "files": [
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "C016-CONTENT-02",
+        "name": "Cave/River/Lake Coupling",
+        "description": "Server-side masks factor erosion, curvature, and riparian feedback to stabilize caves, rivers, and lakes",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "in-progress",
+        "priority": "medium"
+      }
+    ],
+    "utility": [
+      {
+        "id": "C016-UTIL-02",
+        "name": "Protocol Dummy Client",
+        "description": "Lightweight EnhancedMinecraftProtocol roundtrip tester aligned to SharedProtocol",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "SharedProtocol/EnhancedMinecraft/MinecraftMessageDispatcher.cs"
+        ],
+        "status": "in-progress",
+        "priority": "medium"
+      },
+      {
+        "id": "C016-UTIL-03",
+        "name": "Shared Feature Contracts",
+        "description": "GameCommon exposes shared enums + descriptors for both server and Unity to assert feature coverage",
+        "files": [
+          "GameCommon/World/SharedFeatureCatalog.cs",
+          "Assets/Plugins/GameCommon.dll"
+        ],
+        "status": "in-progress",
+        "priority": "medium"
+      }
+    ]
+  }
+}

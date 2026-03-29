@@ -5,6 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using Google.Protobuf;
+using SharedProtocol.EnhancedMinecraft;
+using Enhanced = EnhancedMinecraftProtocol;
 
 namespace GameServerApp.Handlers
 {
@@ -39,6 +42,11 @@ namespace GameServerApp.Handlers
             _sessions = sessions;
             _worldManager = worldManager;
             _minecraftDispatcher = minecraftDispatcher;
+
+            ProtoRuntime.EnsureInitialized();
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.PlayerActionRequest);
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.PlayerActionResponse);
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.BlockChangeNotification);
         }
 
         public MessageType Type => (MessageType)MinecraftMessageType.PlayerActionRequest;
@@ -65,15 +73,27 @@ namespace GameServerApp.Handlers
         {
             try
             {
-                var actionRequest = ProtoBuf.Serializer.Deserialize<PlayerActionRequestMessage>(new MemoryStream(messageData));
                 var response = new PlayerActionResponseMessage();
+                bool preferEnhanced = session.UseEnhancedMinecraftProtocol || LooksLikeEnhancedPlayerActionRequest(messageData);
+
+                PlayerActionRequestMessage actionRequest;
+                if (preferEnhanced && TryParseEnhancedPlayerActionRequest(messageData, out var enhancedRequest))
+                {
+                    session.UseEnhancedMinecraftProtocol = true;
+                    actionRequest = ConvertEnhancedPlayerActionRequest(enhancedRequest!);
+                }
+                else
+                {
+                    using var stream = new MemoryStream(messageData);
+                    actionRequest = ProtoBuf.Serializer.Deserialize<PlayerActionRequestMessage>(stream);
+                }
 
                 var playerState = _sessions.GetPlayerState(session.UserName!);
                 if (playerState == null)
                 {
                     response.Success = false;
                     response.Message = "플레이어 상태를 찾을 수 없습니다.";
-                    await SendResponseAsync(session, response);
+                    await SendPlayerActionResponseAsync(session, response);
                     return;
                 }
 
@@ -111,7 +131,7 @@ namespace GameServerApp.Handlers
                 }
 
                 response.Sequence = actionRequest.Sequence;
-                await SendResponseAsync(session, response);
+                await SendPlayerActionResponseAsync(session, response);
 
             }
             catch (Exception ex)
@@ -122,7 +142,7 @@ namespace GameServerApp.Handlers
                     Success = false,
                     Message = "서버에서 액션 처리 중 오류가 발생했습니다."
                 };
-                await SendResponseAsync(session, errorResponse);
+                await SendPlayerActionResponseAsync(session, errorResponse);
             }
         }
 
@@ -301,7 +321,7 @@ namespace GameServerApp.Handlers
             response.Message = "블록 설치 완료";
 
             // 다른 플레이어들에게 블록 변경 알림
-            await BroadcastBlockChange(session.UserName!, placePos, 0, request.UsedItem.ItemId);
+            await BroadcastBlockChange(session.UserName!, placePos, 0, request.UsedItem.ItemId, Enhanced.ChangeReason.PlayerPlace);
         }
 
         /// <summary>
@@ -375,7 +395,7 @@ namespace GameServerApp.Handlers
                 }
             }
 
-            await BroadcastBlockChange(session.UserName!, position, blockInfo.BlockId, 0, drops);
+            await BroadcastBlockChange(session.UserName!, position, blockInfo.BlockId, 0, Enhanced.ChangeReason.PlayerBreak, drops);
         }
 
         /// <summary>
@@ -414,6 +434,17 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 응답 메시지 전송
         /// </summary>
+        private Task SendPlayerActionResponseAsync(Session session, PlayerActionResponseMessage response)
+        {
+            if (session.UseEnhancedMinecraftProtocol)
+            {
+                var enhancedResponse = BuildEnhancedPlayerActionResponse(response);
+                return session.SendAsync((int)MinecraftMessageType.PlayerActionResponse, enhancedResponse.ToByteArray());
+            }
+
+            return SendResponseAsync(session, response);
+        }
+
         private async Task SendResponseAsync(Session session, PlayerActionResponseMessage response)
         {
             using var stream = new MemoryStream();
@@ -421,10 +452,176 @@ namespace GameServerApp.Handlers
             await session.SendAsync((int)MinecraftMessageType.PlayerActionResponse, stream.ToArray());
         }
 
+        private static bool LooksLikeEnhancedPlayerActionRequest(byte[] messageData)
+        {
+            if (messageData == null || messageData.Length == 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                var input = new CodedInputStream(messageData);
+                uint tag;
+
+                while ((tag = input.ReadTag()) != 0)
+                {
+                    int fieldNumber = WireFormat.GetTagFieldNumber(tag);
+                    if (fieldNumber == 7)
+                    {
+                        return WireFormat.GetTagWireType(tag) == WireFormat.WireType.LengthDelimited;
+                    }
+
+                    input.SkipLastField();
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        private static bool TryParseEnhancedPlayerActionRequest(byte[] messageData, out Enhanced.PlayerActionRequest? request)
+        {
+            try
+            {
+                request = Enhanced.PlayerActionRequest.Parser.ParseFrom(messageData);
+                if (request == null || request.TargetPosition == null)
+                {
+                    request = null;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                request = null;
+                return false;
+            }
+        }
+
+        private static PlayerActionRequestMessage ConvertEnhancedPlayerActionRequest(Enhanced.PlayerActionRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            return new PlayerActionRequestMessage
+            {
+                Action = request.Action switch
+                {
+                    Enhanced.PlayerAction.StartDestroyBlock => PlayerActionType.StartDestroyBlock,
+                    Enhanced.PlayerAction.AbortDestroyBlock => PlayerActionType.AbortDestroyBlock,
+                    Enhanced.PlayerAction.FinishDestroyBlock => PlayerActionType.StopDestroyBlock,
+                    Enhanced.PlayerAction.PlaceBlock => PlayerActionType.PlaceBlock,
+                    Enhanced.PlayerAction.RightClickBlock => PlayerActionType.RightClickBlock,
+                    Enhanced.PlayerAction.UseItem => PlayerActionType.UseItem,
+                    Enhanced.PlayerAction.DropItem => PlayerActionType.DropItem,
+                    Enhanced.PlayerAction.DropItemStack => PlayerActionType.DropItem,
+                    _ => PlayerActionType.UseItem
+                },
+                TargetPosition = new Vector3I(request.TargetPosition.X, request.TargetPosition.Y, request.TargetPosition.Z),
+                Face = request.Face,
+                CursorPosition = request.CursorPosition == null
+                    ? new Vector3D()
+                    : new Vector3D(request.CursorPosition.X, request.CursorPosition.Y, request.CursorPosition.Z),
+                UsedItem = request.UsedItem == null
+                    ? new InventoryItemInfo()
+                    : ConvertToLegacyInventoryItem(request.UsedItem),
+                Sequence = request.Sequence,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+        }
+
+        private static InventoryItemInfo ConvertToLegacyInventoryItem(Enhanced.ItemStack item)
+        {
+            if (item == null) throw new ArgumentNullException(nameof(item));
+
+            return new InventoryItemInfo
+            {
+                ItemId = item.ItemId,
+                ItemName = item.ItemName ?? string.Empty,
+                Quantity = item.Count,
+                Durability = item.Durability,
+                MaxDurability = item.MaxDurability,
+                CustomData = item.NbtData ?? string.Empty,
+                ItemType = item.ItemType switch
+                {
+                    Enhanced.ItemType.Block => ItemType.Block,
+                    Enhanced.ItemType.Tool => ItemType.Tool,
+                    Enhanced.ItemType.Weapon => ItemType.Weapon,
+                    Enhanced.ItemType.Armor => ItemType.Armor,
+                    Enhanced.ItemType.Food => ItemType.Food,
+                    Enhanced.ItemType.Material => ItemType.Material,
+                    _ => ItemType.Misc
+                }
+            };
+        }
+
+        private static Enhanced.PlayerActionResponse BuildEnhancedPlayerActionResponse(PlayerActionResponseMessage legacy)
+        {
+            if (legacy == null) throw new ArgumentNullException(nameof(legacy));
+
+            var result = new Enhanced.ActionResult
+            {
+                HealthChange = 0f,
+                HungerChange = 0f,
+                ExperienceChange = 0
+            };
+
+            if (legacy.UpdatedItems != null)
+            {
+                foreach (var updated in legacy.UpdatedItems)
+                {
+                    if (updated == null)
+                    {
+                        continue;
+                    }
+
+                    result.UpdatedItems.Add(ConvertToEnhancedItemStack(updated));
+                }
+            }
+
+            return new Enhanced.PlayerActionResponse
+            {
+                Success = legacy.Success,
+                Message = legacy.Message ?? string.Empty,
+                Sequence = legacy.Sequence,
+                Result = result
+            };
+        }
+
+        private static Enhanced.ItemStack ConvertToEnhancedItemStack(InventoryItemInfo item)
+        {
+            if (item == null) throw new ArgumentNullException(nameof(item));
+
+            return new Enhanced.ItemStack
+            {
+                ItemId = item.ItemId,
+                ItemName = item.ItemName ?? string.Empty,
+                Count = item.Quantity,
+                Durability = item.Durability,
+                MaxDurability = item.MaxDurability,
+                NbtData = item.CustomData ?? string.Empty,
+                ItemType = item.ItemType switch
+                {
+                    ItemType.Block => Enhanced.ItemType.Block,
+                    ItemType.Tool => Enhanced.ItemType.Tool,
+                    ItemType.Weapon => Enhanced.ItemType.Weapon,
+                    ItemType.Armor => Enhanced.ItemType.Armor,
+                    ItemType.Food => Enhanced.ItemType.Food,
+                    ItemType.Material => Enhanced.ItemType.Material,
+                    _ => Enhanced.ItemType.Misc
+                },
+                Rarity = Enhanced.ItemRarity.Common
+            };
+        }
+
         /// <summary>
         /// 블록 변경 브로드캐스트
         /// </summary>
-        private async Task BroadcastBlockChange(string playerName, Vector3I position, int oldBlockId, int newBlockId, IReadOnlyCollection<ItemDropInfo>? drops = null)
+        private async Task BroadcastBlockChange(string playerName, Vector3I position, int oldBlockId, int newBlockId, Enhanced.ChangeReason reason, IReadOnlyCollection<ItemDropInfo>? drops = null)
         {
             var notification = new BlockChangeNotificationMessage
             {
@@ -440,12 +637,36 @@ namespace GameServerApp.Handlers
                 notification.Drops.AddRange(drops);
             }
 
+            var broadcast = new Enhanced.BlockChangeBroadcast
+            {
+                Position = new MinecraftGame.Common.Vector3Int { X = position.X, Y = position.Y, Z = position.Z },
+                OldBlockId = oldBlockId,
+                NewBlockId = newBlockId,
+                Metadata = 0,
+                PlayerId = playerName,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Reason = reason
+            };
+
+            if (drops != null)
+            {
+                foreach (var drop in drops)
+                {
+                    if (drop?.Item == null)
+                    {
+                        continue;
+                    }
+
+                    broadcast.Drops.Add(ConvertToEnhancedItemStack(drop.Item));
+                }
+            }
+
             var playerState = _sessions.GetPlayerState(playerName);
             var worldId = playerState?.CurrentWorldId ?? 1;
             var chunkX = position.X >> 4;
             var chunkZ = position.Z >> 4;
 
-            await _sessions.BroadcastToAreaAsync(worldId, chunkX, chunkZ, (MessageType)MinecraftMessageType.BlockChangeNotification, notification);
+            await _sessions.BroadcastMinecraftToAreaDualAsync(worldId, chunkX, chunkZ, MinecraftMessageType.BlockChangeNotification, notification, broadcast);
 
             Console.WriteLine($"Block changed at [{position.X}, {position.Y}, {position.Z}]: {oldBlockId} -> {newBlockId} by {playerName}");
         }

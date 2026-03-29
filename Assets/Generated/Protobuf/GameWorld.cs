@@ -24,24 +24,24 @@ namespace Game.World {
     static GameWorldReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "ChBnYW1lX3dvcmxkLnByb3RvEgpHYW1lLldvcmxkGg9nYW1lX2NvcmUucHJv",
-            "dG8ilgEKF1dvcmxkQmxvY2tDaGFuZ2VSZXF1ZXN0Eg8KB2FyZWFfaWQYASAB",
-            "KAkSEwoLc3Vid29ybGRfaWQYAiABKAkSLQoOYmxvY2tfcG9zaXRpb24YAyAB",
-            "KAsyFS5HYW1lLkNvcmUuVmVjdG9yM0ludBISCgpibG9ja190eXBlGAQgASgF",
-            "EhIKCmNodW5rX3R5cGUYBSABKAUiTwoYV29ybGRCbG9ja0NoYW5nZVJlc3Bv",
-            "bnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCRIRCgl0aW1l",
-            "c3RhbXAYAyABKAMivgEKGVdvcmxkQmxvY2tDaGFuZ2VCcm9hZGNhc3QSDwoH",
-            "YXJlYV9pZBgBIAEoCRITCgtzdWJ3b3JsZF9pZBgCIAEoCRItCg5ibG9ja19w",
-            "b3NpdGlvbhgDIAEoCzIVLkdhbWUuQ29yZS5WZWN0b3IzSW50EhIKCmJsb2Nr",
-            "X3R5cGUYBCABKAUSEgoKY2h1bmtfdHlwZRgFIAEoBRIRCglwbGF5ZXJfaWQY",
-            "BiABKAkSEQoJdGltZXN0YW1wGAcgASgDIksKEENodW5rRGF0YVJlcXVlc3QS",
-            "DwoHY2h1bmtfeBgBIAEoBRIPCgdjaHVua196GAIgASgFEhUKDXZpZXdfZGlz",
-            "dGFuY2UYAyABKAUiZQoRQ2h1bmtEYXRhUmVzcG9uc2USDwoHY2h1bmtfeBgB",
-            "IAEoBRIPCgdjaHVua196GAIgASgFEg8KB3N1Y2Nlc3MYAyABKAgSHQoVY29t",
-            "cHJlc3NlZF9ibG9ja19kYXRhGAQgASgMQg2qAgpHYW1lLldvcmxkYgZwcm90",
-            "bzM="));
+            "ChBnYW1lX3dvcmxkLnByb3RvEgpHYW1lLldvcmxkGgxjb21tb24ucHJvdG8a",
+            "D2dhbWVfY29yZS5wcm90byKhAQoXV29ybGRCbG9ja0NoYW5nZVJlcXVlc3QS",
+            "DwoHYXJlYV9pZBgBIAEoCRITCgtzdWJ3b3JsZF9pZBgCIAEoCRI4Cg5ibG9j",
+            "a19wb3NpdGlvbhgDIAEoCzIgLk1pbmVjcmFmdEdhbWUuQ29tbW9uLlZlY3Rv",
+            "cjNJbnQSEgoKYmxvY2tfdHlwZRgEIAEoBRISCgpjaHVua190eXBlGAUgASgF",
+            "Ik8KGFdvcmxkQmxvY2tDaGFuZ2VSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgI",
+            "Eg8KB21lc3NhZ2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgDIskBChlXb3Js",
+            "ZEJsb2NrQ2hhbmdlQnJvYWRjYXN0Eg8KB2FyZWFfaWQYASABKAkSEwoLc3Vi",
+            "d29ybGRfaWQYAiABKAkSOAoOYmxvY2tfcG9zaXRpb24YAyABKAsyIC5NaW5l",
+            "Y3JhZnRHYW1lLkNvbW1vbi5WZWN0b3IzSW50EhIKCmJsb2NrX3R5cGUYBCAB",
+            "KAUSEgoKY2h1bmtfdHlwZRgFIAEoBRIRCglwbGF5ZXJfaWQYBiABKAkSEQoJ",
+            "dGltZXN0YW1wGAcgASgDIksKEENodW5rRGF0YVJlcXVlc3QSDwoHY2h1bmtf",
+            "eBgBIAEoBRIPCgdjaHVua196GAIgASgFEhUKDXZpZXdfZGlzdGFuY2UYAyAB",
+            "KAUiZQoRQ2h1bmtEYXRhUmVzcG9uc2USDwoHY2h1bmtfeBgBIAEoBRIPCgdj",
+            "aHVua196GAIgASgFEg8KB3N1Y2Nlc3MYAyABKAgSHQoVY29tcHJlc3NlZF9i",
+            "bG9ja19kYXRhGAQgASgMQg2qAgpHYW1lLldvcmxkYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Game.Core.GameCoreReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::MinecraftGame.Common.CommonReflection.Descriptor, global::Game.Core.GameCoreReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Game.World.WorldBlockChangeRequest), global::Game.World.WorldBlockChangeRequest.Parser, new[]{ "AreaId", "SubworldId", "BlockPosition", "BlockType", "ChunkType" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Game.World.WorldBlockChangeResponse), global::Game.World.WorldBlockChangeResponse.Parser, new[]{ "Success", "Message", "Timestamp" }, null, null, null, null),
@@ -129,10 +129,10 @@ namespace Game.World {
 
     /// <summary>Field number for the "block_position" field.</summary>
     public const int BlockPositionFieldNumber = 3;
-    private global::Game.Core.Vector3Int blockPosition_;
+    private global::MinecraftGame.Common.Vector3Int blockPosition_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Game.Core.Vector3Int BlockPosition {
+    public global::MinecraftGame.Common.Vector3Int BlockPosition {
       get { return blockPosition_; }
       set {
         blockPosition_ = value;
@@ -308,7 +308,7 @@ namespace Game.World {
       }
       if (other.blockPosition_ != null) {
         if (blockPosition_ == null) {
-          BlockPosition = new global::Game.Core.Vector3Int();
+          BlockPosition = new global::MinecraftGame.Common.Vector3Int();
         }
         BlockPosition.MergeFrom(other.BlockPosition);
       }
@@ -343,7 +343,7 @@ namespace Game.World {
           }
           case 26: {
             if (blockPosition_ == null) {
-              BlockPosition = new global::Game.Core.Vector3Int();
+              BlockPosition = new global::MinecraftGame.Common.Vector3Int();
             }
             input.ReadMessage(BlockPosition);
             break;
@@ -381,7 +381,7 @@ namespace Game.World {
           }
           case 26: {
             if (blockPosition_ == null) {
-              BlockPosition = new global::Game.Core.Vector3Int();
+              BlockPosition = new global::MinecraftGame.Common.Vector3Int();
             }
             input.ReadMessage(BlockPosition);
             break;
@@ -742,10 +742,10 @@ namespace Game.World {
 
     /// <summary>Field number for the "block_position" field.</summary>
     public const int BlockPositionFieldNumber = 3;
-    private global::Game.Core.Vector3Int blockPosition_;
+    private global::MinecraftGame.Common.Vector3Int blockPosition_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Game.Core.Vector3Int BlockPosition {
+    public global::MinecraftGame.Common.Vector3Int BlockPosition {
       get { return blockPosition_; }
       set {
         blockPosition_ = value;
@@ -971,7 +971,7 @@ namespace Game.World {
       }
       if (other.blockPosition_ != null) {
         if (blockPosition_ == null) {
-          BlockPosition = new global::Game.Core.Vector3Int();
+          BlockPosition = new global::MinecraftGame.Common.Vector3Int();
         }
         BlockPosition.MergeFrom(other.BlockPosition);
       }
@@ -1012,7 +1012,7 @@ namespace Game.World {
           }
           case 26: {
             if (blockPosition_ == null) {
-              BlockPosition = new global::Game.Core.Vector3Int();
+              BlockPosition = new global::MinecraftGame.Common.Vector3Int();
             }
             input.ReadMessage(BlockPosition);
             break;
@@ -1058,7 +1058,7 @@ namespace Game.World {
           }
           case 26: {
             if (blockPosition_ == null) {
-              BlockPosition = new global::Game.Core.Vector3Int();
+              BlockPosition = new global::MinecraftGame.Common.Vector3Int();
             }
             input.ReadMessage(BlockPosition);
             break;

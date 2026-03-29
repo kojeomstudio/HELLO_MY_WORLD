@@ -1,0 +1,265 @@
+﻿{
+    "version":  "2026-02-27-session-131",
+    "generated_at_utc":  "2026-02-27T06:45:00.0000000Z",
+    "signature":  "2026-02-27-hydrology-riverlake-cave-v58",
+    "mapControlProfileVersion":  62,
+    "features":  [
+                     {
+                         "id":  "S31-CORE-01",
+                         "name":  "Shared DLL Contract Baseline",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "GameCommon.dll and SharedProtocol.dll provide shared enums, constants, and runtime contracts.",
+                         "order":  1,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameCommon/GameCommon.csproj",
+                                           "SharedProtocol/SharedProtocol.csproj",
+                                           "Assets/Plugins/GameCommon.dll"
+                                       ],
+                         "dependencies":  [
+
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CORE-02",
+                         "name":  "Hydrology Signature v58 + Profile v62",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Server, client, and protocol probe align on hydrology signature v58 and map-control profile version 62.",
+                         "order":  2,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameCommon/World/SharedFeatureCatalog.cs",
+                                           "GameCommon/World/WorldMapSignature.cs",
+                                           "config/world_map_control_profile.json",
+                                           "Assets/StreamingAssets/world-map-control.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CORE-03",
+                         "name":  "Data-Driven Feature Manifest Load Order",
+                         "category":  "Core",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "GameServer startup resolves the newest session feature manifest before fallback manifests.",
+                         "order":  3,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/Program.cs",
+                                           "GameCommon/DataDriven/FeatureManifest.cs",
+                                           "config/minecraft_feature_client_server_core_content_util_2026-02-27-session-131.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CORE-04",
+                         "name":  "Shared Queue Policy Stale-Prune Emergency Multiplier",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Queue stale-prune max budget and emergency multiplier are data-driven and synchronized across server and client map-control loops.",
+                         "order":  4,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/Configuration/ConfigurationModels.cs",
+                                           "GameServer/World/WorldMapControlManager.cs",
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                                           "config/world_map_control_queue_policy.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CORE-05",
+                         "name":  "JSON Config Parity (Server/Client)",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "World and queue-control settings remain data-driven in JSON with mirrored runtime copies.",
+                         "order":  5,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "config/world.json",
+                                           "GameServer/config/world.json",
+                                           "Assets/StreamingAssets/world-config.json",
+                                           "config/enhanced_world_map_control_server.json",
+                                           "config/enhanced_world_map_control_client.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-04"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CONTENT-01",
+                         "name":  "subsurface conduit + riparian aquifer continuity bridge (Server)",
+                         "category":  "Content",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Improved terrain coordinator applies cave-river-lake subsurface conduit exchange and cave conduit carving heuristics.",
+                         "order":  6,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+                                           "config/world.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02",
+                                              "S31-CORE-05"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CONTENT-02",
+                         "name":  "subsurface conduit + riparian aquifer continuity bridge (Client)",
+                         "category":  "Content",
+                         "layer":  "Client",
+                         "side":  "client",
+                         "description":  "Unity terrain preview mirrors subsurface conduit exchange logic to reduce server-client generation drift.",
+                         "order":  7,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                                           "Assets/StreamingAssets/world-config.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CONTENT-01",
+                                              "S31-CORE-05"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CONTENT-03",
+                         "name":  "Hydrology-Aware Cave Stability",
+                         "category":  "Content",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Cave generation remains hydrology-aware with riparian suppression and groundwater connectivity controls.",
+                         "order":  8,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+                                           "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CONTENT-04",
+                         "name":  "River Continuity + Confluence Coupling",
+                         "category":  "Content",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "River generation keeps continuity and confluence handling aligned between server and client preview paths.",
+                         "order":  9,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-CONTENT-05",
+                         "name":  "Lake Spillway + Wetland Retention",
+                         "category":  "Content",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Lake mask and spillway continuity tuning remain synchronized for server generation and Unity preview.",
+                         "order":  10,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-UTIL-01",
+                         "name":  "Proto Registry + Fingerprint Validation",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Generated protobuf packets are validated through registry binding, descriptor coverage, and fingerprint checks.",
+                         "order":  11,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+                                           "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+                                           "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S31-CORE-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-UTIL-02",
+                         "name":  "Dummy Protocol Client Probe",
+                         "category":  "Utility",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Dummy protocol client validates required packet round-trip and optional network probe behavior.",
+                         "order":  12,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/Testing/DummyProtocolClient.cs",
+                                           "config/protocol_dummy_client.json",
+                                           "GameServer/config/protocol_dummy_client.json"
+                                       ],
+                         "dependencies":  [
+                                              "S31-UTIL-01",
+                                              "S31-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-UTIL-03",
+                         "name":  "Build/Reference Integrity Checks",
+                         "category":  "Utility",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Compilation and self-test/proto-probe paths verify using/import references and protobuf handling.",
+                         "order":  13,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "SharedProtocol/SharedProtocol.csproj",
+                                           "GameCommon/GameCommon.csproj",
+                                           "GameServer/GameServer.csproj",
+                                           "GameServer/Program.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S31-UTIL-01",
+                                              "S31-UTIL-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S31-UTIL-04",
+                         "name":  "Session Documentation Update",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Session 129 updates are documented in README and docs with markdown artifacts.",
+                         "order":  14,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "README.md",
+                                           "docs/session-131-implementation-and-validation.md",
+                                           "plans/2026-02-27-session-131-comprehensive-work-plan.md"
+                                       ],
+                         "dependencies":  [
+                                              "S31-UTIL-03"
+                                          ]
+                     }
+                 ]
+}
+

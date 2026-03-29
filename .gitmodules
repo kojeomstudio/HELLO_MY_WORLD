@@ -1,0 +1,3 @@
+[submodule "minetest_project"]
+	path = minetest_project
+	url = git@github.com:kojeomstudio/minetest.git

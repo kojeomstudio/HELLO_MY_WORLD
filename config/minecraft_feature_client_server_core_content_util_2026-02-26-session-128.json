@@ -1,0 +1,840 @@
+{
+  "updatedAt": "2026-02-26T12:29:00Z",
+  "source": "session-128-comprehensive-implementation",
+  "session": 128,
+  "hydrologySignature": "2026-02-26-hydrology-riverlake-cave-v56",
+  "mapControlProfileVersion": 60,
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-parity",
+        "id": "S20-CORE-01",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ],
+        "shared": [
+          "GameCommon/World/WorldMapControlProfile.cs",
+          "GameCommon/World/WorldMapControlProfileUtility.cs",
+          "GameCommon/World/WorldMapQueuePolicy.cs",
+          "GameCommon/World/WorldMapSignature.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "terrain-generation-caves-rivers-lakes",
+        "id": "S20-CORE-02",
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Constants/TerrainGenerationConstants.cs",
+          "SharedProtocol/Common/Enums/TerrainGenerationEnums.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "chunk-streaming-and-networking",
+        "id": "S20-CORE-03",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/Scripts/Minecraft/Network/ChunkClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/UnifiedMessageHandler.cs"
+        ],
+        "data": [
+          "proto/game_world.proto",
+          "Assets/Generated/Protobuf/GameWorld.cs"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "player-state-and-auth",
+        "id": "S20-CORE-04",
+        "client": [
+          "Assets/MyAssets/Scripts/Network/NetworkPlayer.cs",
+          "Assets/MyAssets/Scripts/Network/AuthenticationClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/Sessions/SessionManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Session.cs",
+          "SharedProtocol/Common/Enums/CoreEnums.cs"
+        ],
+        "data": [
+          "proto/game_auth.proto",
+          "Assets/Generated/Protobuf/GameAuth.cs",
+          "config/server.json"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "shared-dll-and-proto-contracts",
+        "id": "S20-CORE-05",
+        "client": [
+          "Assets/Plugins/GameCommon.dll",
+          "Assets/Plugins/SharedProtocol.dll"
+        ],
+        "server": [
+          "GameCommon/GameCommon.csproj",
+          "SharedProtocol/SharedProtocol.csproj"
+        ],
+        "shared": [
+          "GameCommon/Blocks/BlockRegistry.cs",
+          "GameCommon/Blocks/BlockType.cs",
+          "GameCommon/World/SharedFeatureCatalog.cs",
+          "SharedProtocol/Common/Enums/*",
+          "SharedProtocol/Common/Constants/*",
+          "SharedProtocol/Common/Interfaces/*"
+        ],
+        "data": [
+          "proto/*.proto",
+          "Assets/Generated/Protobuf/*.cs"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      }
+    ],
+    "content": [
+      {
+        "feature": "blocks-items-recipes",
+        "id": "S20-CONTENT-01",
+        "client": [
+          "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+          "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/ItemHandler.cs",
+          "GameServer/Handlers/CraftingHandler.cs"
+        ],
+        "shared": [
+          "GameCommon/Blocks/BlockProperties.cs",
+          "GameCommon/Blocks/BlockRegistry.cs",
+          "SharedProtocol/Common/Enums/ItemEnums.cs"
+        ],
+        "data": [
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json",
+          "Assets/StreamingAssets/blocks.json",
+          "Assets/StreamingAssets/items.json"
+        ],
+        "status": "stable",
+        "priority": "medium",
+        "dependencies": []
+      },
+      {
+        "feature": "mobs-and-spawning",
+        "id": "S20-CONTENT-02",
+        "client": [
+          "Assets/MyAssets/Scripts/AI/MobSpawner.cs",
+          "Assets/MyAssets/Scripts/AI/MobController.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MobHandler.cs",
+          "GameServer/Simulation/MobSpawnService.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Enums/CombatEnums.cs"
+        ],
+        "data": [
+          "config/gameplay.json",
+          "docs/mob_spawn_rules.md"
+        ],
+        "status": "planned",
+        "priority": "medium",
+        "dependencies": ["S20-CORE-01"]
+      },
+      {
+        "feature": "structures-and-decorators",
+        "id": "S20-CONTENT-03",
+        "client": [
+          "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/StructureGenerator.cs",
+          "GameServer/World/Generation/TreeGenerator.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Enums/BiomeEnums.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "docs/world-generation.md"
+        ],
+        "status": "in-progress",
+        "priority": "medium",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "hydrology-aware-caves",
+        "id": "S20-CONTENT-04",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs",
+          "SharedProtocol/Common/Constants/TerrainGenerationConstants.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "river-curvature-oxbow-cutoff",
+        "id": "S20-CONTENT-05",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "lake-shoreline-alluvial-backwater",
+        "id": "S20-CONTENT-06",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      }
+    ],
+    "util": [
+      {
+        "feature": "config-and-hotreload",
+        "id": "S20-UTIL-01",
+        "client": [
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/Configuration/WorldGenerationConfig.cs"
+        ],
+        "shared": [
+          "GameCommon/Configuration/ConfigManager.cs",
+          "GameCommon/Configuration/ConfigModels.cs",
+          "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "GameCommon/DataDriven/DataManager.cs",
+          "GameCommon/DataDriven/DataModels.cs",
+          "GameCommon/DataDriven/FeatureManifest.cs"
+        ],
+        "data": [
+          "config/*.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "telemetry-and-diagnostics",
+        "id": "S20-UTIL-02",
+        "client": [
+          "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+        ],
+        "server": [
+          "GameServer/Diagnostics/Metrics/MetricsCollector.cs",
+          "GameServer/Handlers/DiagHandler.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/TerrainGenerationMessages.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "data": [
+          "config/server.json",
+          "docs/diagnostics.md"
+        ],
+        "status": "planned",
+        "priority": "low",
+        "dependencies": []
+      },
+      {
+        "feature": "tooling-and-proto-sync",
+        "id": "S20-UTIL-03",
+        "client": [
+          "scripts/generate_proto.ps1",
+          "Assets/Generated/Protobuf"
+        ],
+        "server": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "scripts/verify_proto.ps1"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "data": [
+          "proto/*.proto",
+          "docs/protobuf_protocol_validation_analysis.md"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "dummy-protocol-client",
+        "id": "S20-UTIL-04",
+        "client": [],
+        "server": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "GameServer/DummyMinecraftClient.cs",
+          "GameServer/DummyProtocolTestClient.cs",
+          "GameServer/TestClient.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ],
+        "data": [
+          "config/dummy_minecraft_client.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": ["S20-CORE-05"]
+      },
+      {
+        "feature": "proto-registry-fingerprint-validation",
+        "id": "S20-UTIL-05",
+        "client": [],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+        ],
+        "data": [],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-UTIL-03"]
+      },
+      {
+        "feature": "data-driven-config-parity",
+        "id": "S20-UTIL-06",
+        "client": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs"
+        ],
+        "shared": [
+          "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "GameCommon/DataDriven/DataManager.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-UTIL-01"]
+      }
+    ]
+  },
+  "summary": {
+    "totalFeatures": 16,
+    "coreFeatures": 5,
+    "contentFeatures": 6,
+    "utilFeatures": 5,
+    "implemented": 4,
+    "inProgress": 5,
+    "stable": 3,
+    "planned": 4
+  }
+}
+  "updatedAt": "2026-02-26T12:29:00Z",
+  "source": "session-128-comprehensive-implementation",
+  "session": 128,
+  "hydrologySignature": "2026-02-26-hydrology-riverlake-cave-v56",
+  "mapControlProfileVersion": 60,
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-parity",
+        "id": "S20-CORE-01",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ],
+        "shared": [
+          "GameCommon/World/WorldMapControlProfile.cs",
+          "GameCommon/World/WorldMapControlProfileUtility.cs",
+          "GameCommon/World/WorldMapQueuePolicy.cs",
+          "GameCommon/World/WorldMapSignature.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "terrain-generation-caves-rivers-lakes",
+        "id": "S20-CORE-02",
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Constants/TerrainGenerationConstants.cs",
+          "SharedProtocol/Common/Enums/TerrainGenerationEnums.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "chunk-streaming-and-networking",
+        "id": "S20-CORE-03",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/Scripts/Minecraft/Network/ChunkClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/UnifiedMessageHandler.cs"
+        ],
+        "data": [
+          "proto/game_world.proto",
+          "Assets/Generated/Protobuf/GameWorld.cs"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "player-state-and-auth",
+        "id": "S20-CORE-04",
+        "client": [
+          "Assets/MyAssets/Scripts/Network/NetworkPlayer.cs",
+          "Assets/MyAssets/Scripts/Network/AuthenticationClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/Sessions/SessionManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Session.cs",
+          "SharedProtocol/Common/Enums/CoreEnums.cs"
+        ],
+        "data": [
+          "proto/game_auth.proto",
+          "Assets/Generated/Protobuf/GameAuth.cs",
+          "config/server.json"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "shared-dll-and-proto-contracts",
+        "id": "S20-CORE-05",
+        "client": [
+          "Assets/Plugins/GameCommon.dll",
+          "Assets/Plugins/SharedProtocol.dll"
+        ],
+        "server": [
+          "GameCommon/GameCommon.csproj",
+          "SharedProtocol/SharedProtocol.csproj"
+        ],
+        "shared": [
+          "GameCommon/Blocks/BlockRegistry.cs",
+          "GameCommon/Blocks/BlockType.cs",
+          "GameCommon/World/SharedFeatureCatalog.cs",
+          "SharedProtocol/Common/Enums/*",
+          "SharedProtocol/Common/Constants/*",
+          "SharedProtocol/Common/Interfaces/*"
+        ],
+        "data": [
+          "proto/*.proto",
+          "Assets/Generated/Protobuf/*.cs"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      }
+    ],
+    "content": [
+      {
+        "feature": "blocks-items-recipes",
+        "id": "S20-CONTENT-01",
+        "client": [
+          "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+          "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/ItemHandler.cs",
+          "GameServer/Handlers/CraftingHandler.cs"
+        ],
+        "shared": [
+          "GameCommon/Blocks/BlockProperties.cs",
+          "GameCommon/Blocks/BlockRegistry.cs",
+          "SharedProtocol/Common/Enums/ItemEnums.cs"
+        ],
+        "data": [
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json",
+          "Assets/StreamingAssets/blocks.json",
+          "Assets/StreamingAssets/items.json"
+        ],
+        "status": "stable",
+        "priority": "medium",
+        "dependencies": []
+      },
+      {
+        "feature": "mobs-and-spawning",
+        "id": "S20-CONTENT-02",
+        "client": [
+          "Assets/MyAssets/Scripts/AI/MobSpawner.cs",
+          "Assets/MyAssets/Scripts/AI/MobController.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MobHandler.cs",
+          "GameServer/Simulation/MobSpawnService.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Enums/CombatEnums.cs"
+        ],
+        "data": [
+          "config/gameplay.json",
+          "docs/mob_spawn_rules.md"
+        ],
+        "status": "planned",
+        "priority": "medium",
+        "dependencies": ["S20-CORE-01"]
+      },
+      {
+        "feature": "structures-and-decorators",
+        "id": "S20-CONTENT-03",
+        "client": [
+          "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/StructureGenerator.cs",
+          "GameServer/World/Generation/TreeGenerator.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Common/Enums/BiomeEnums.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "docs/world-generation.md"
+        ],
+        "status": "in-progress",
+        "priority": "medium",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "hydrology-aware-caves",
+        "id": "S20-CONTENT-04",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs",
+          "SharedProtocol/Common/Constants/TerrainGenerationConstants.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "river-curvature-oxbow-cutoff",
+        "id": "S20-CONTENT-05",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      },
+      {
+        "feature": "lake-shoreline-alluvial-backwater",
+        "id": "S20-CONTENT-06",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/HydrologyMessages.cs"
+        ],
+        "data": [
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-CORE-02"]
+      }
+    ],
+    "util": [
+      {
+        "feature": "config-and-hotreload",
+        "id": "S20-UTIL-01",
+        "client": [
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/Configuration/WorldGenerationConfig.cs"
+        ],
+        "shared": [
+          "GameCommon/Configuration/ConfigManager.cs",
+          "GameCommon/Configuration/ConfigModels.cs",
+          "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "GameCommon/DataDriven/DataManager.cs",
+          "GameCommon/DataDriven/DataModels.cs",
+          "GameCommon/DataDriven/FeatureManifest.cs"
+        ],
+        "data": [
+          "config/*.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "telemetry-and-diagnostics",
+        "id": "S20-UTIL-02",
+        "client": [
+          "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+        ],
+        "server": [
+          "GameServer/Diagnostics/Metrics/MetricsCollector.cs",
+          "GameServer/Handlers/DiagHandler.cs"
+        ],
+        "shared": [
+          "SharedProtocol/Messages/TerrainGenerationMessages.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "data": [
+          "config/server.json",
+          "docs/diagnostics.md"
+        ],
+        "status": "planned",
+        "priority": "low",
+        "dependencies": []
+      },
+      {
+        "feature": "tooling-and-proto-sync",
+        "id": "S20-UTIL-03",
+        "client": [
+          "scripts/generate_proto.ps1",
+          "Assets/Generated/Protobuf"
+        ],
+        "server": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "scripts/verify_proto.ps1"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "data": [
+          "proto/*.proto",
+          "docs/protobuf_protocol_validation_analysis.md"
+        ],
+        "status": "stable",
+        "priority": "high",
+        "dependencies": []
+      },
+      {
+        "feature": "dummy-protocol-client",
+        "id": "S20-UTIL-04",
+        "client": [],
+        "server": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "GameServer/DummyMinecraftClient.cs",
+          "GameServer/DummyProtocolTestClient.cs",
+          "GameServer/TestClient.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ],
+        "data": [
+          "config/dummy_minecraft_client.json"
+        ],
+        "status": "in-progress",
+        "priority": "high",
+        "dependencies": ["S20-CORE-05"]
+      },
+      {
+        "feature": "proto-registry-fingerprint-validation",
+        "id": "S20-UTIL-05",
+        "client": [],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "shared": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+        ],
+        "data": [],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-UTIL-03"]
+      },
+      {
+        "feature": "data-driven-config-parity",
+        "id": "S20-UTIL-06",
+        "client": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs"
+        ],
+        "shared": [
+          "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "GameCommon/DataDriven/DataManager.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced_terrain_generation.json"
+        ],
+        "status": "implemented",
+        "priority": "high",
+        "dependencies": ["S20-UTIL-01"]
+      }
+    ]
+  },
+  "summary": {
+    "totalFeatures": 16,
+    "coreFeatures": 5,
+    "contentFeatures": 6,
+    "utilFeatures": 5,
+    "implemented": 4,
+    "inProgress": 5,
+    "stable": 3,
+    "planned": 4
+  }
+}
+

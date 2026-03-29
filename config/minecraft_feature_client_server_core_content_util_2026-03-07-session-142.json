@@ -1,0 +1,391 @@
+{
+  "version": "session-142-2026-03-07",
+  "generated_at_utc": "2026-03-07T12:00:00Z",
+  "features": [
+    {
+      "id": "S24-CORE-01",
+      "name": "Shared DLL Contracts",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Client and server share enums/types through GameCommon.dll.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/Configuration/ConfigManager.cs",
+        "GameCommon/Blocks/BlockType.cs",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S24-CORE-02",
+      "name": "Google Protobuf Registry and Diagnostics",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Generated protobuf packets are bound and validated by ProtocolRegistry and ProtoDiagnostics.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "proto/game_world.proto",
+        "proto/game_core.proto",
+        "proto/enhanced_minecraft_game.proto",
+        "Assets/Generated/Protobuf"
+      ],
+      "dependencies": ["S24-CORE-01"]
+    },
+    {
+      "id": "S24-CORE-03",
+      "name": "Authoritative JSON World Config",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World generation, map control, and runtime parameters are loaded from JSON and mirrored.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "config/server_config.json",
+        "config/terrain_generation_comprehensive_config.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": ["S24-CORE-01"]
+    },
+    {
+      "id": "S24-CORE-04",
+      "name": "Hydrology Signature v66 + Profile v70",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client/probe enforce hydrology signature and minimum map-control profile version with improved continuity bridges.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapControlProfile.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": ["S24-CORE-03"]
+    },
+    {
+      "id": "S24-CORE-05",
+      "name": "World Map Queue and Runtime Control",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Chunk queue pressure, emergency brake, and policy controls are managed in data-driven runtime flow.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": ["S24-CORE-03"]
+    },
+    {
+      "id": "S24-CORE-06",
+      "name": "Session and Network Lifecycle",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "SessionManager and protocol handlers orchestrate login, keepalive, request dispatch, and disconnect flow.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs",
+        "GameServer/Network/EnhancedProtocolHandler.cs",
+        "GameServer/Program.cs",
+        "GameServer/Handlers/"
+      ],
+      "dependencies": ["S24-CORE-02"]
+    },
+    {
+      "id": "S24-CONTENT-01",
+      "name": "Deterministic Base Terrain and Biomes",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Terrain height, biome bands, and erosion-aware masks are generated deterministically from seed and config.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S24-CORE-03"]
+    },
+    {
+      "id": "S24-CONTENT-02",
+      "name": "Improved River Generator with Continuity Bridges",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Hydrology-flow coupled river generation with confluence, delta, avulsion, edge continuity bridges, and seam relaxation.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "dependencies": ["S24-CONTENT-01"]
+    },
+    {
+      "id": "S24-CONTENT-03",
+      "name": "Improved Lake Generator with Lagoon Exchange",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake basin, spillway, riparian retention, groundwater latch, floodplain exchange, and backwater-lagoon coupling stabilized.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "dependencies": ["S24-CONTENT-02"]
+    },
+    {
+      "id": "S24-CONTENT-04",
+      "name": "Improved Cave Generator with Karst Ceiling Seal",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation applies hydrology, flow, aquifer suppression, ceiling stability seals, lagoon/karst roof sealing.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "dependencies": ["S24-CONTENT-01"]
+    },
+    {
+      "id": "S24-CONTENT-05",
+      "name": "World Map Control Client Preview Parity",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity world-map preview uses shared profile fields and map-control verification to keep terrain previews server-aligned.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+      ],
+      "dependencies": ["S24-CORE-04"]
+    },
+    {
+      "id": "S24-CONTENT-06",
+      "name": "Data-Driven Blocks, Items, and Biomes",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "In-game content catalogs are loaded from JSON for blocks, items, and biome/gameplay parameters.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/biomes.json",
+        "config/gameplay.json",
+        "config/recipes.json",
+        "GameCommon/Blocks/BlockRegistry.cs",
+        "GameCommon/DataDriven/DataManager.cs"
+      ],
+      "dependencies": ["S24-CORE-03"]
+    },
+    {
+      "id": "S24-CONTENT-07",
+      "name": "Player Actions and Inventory",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player block placement, breaking, inventory management, and crafting systems.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftPlayerActionHandler.cs",
+        "GameServer/Handlers/InventoryHandler.cs",
+        "GameServer/Handlers/CraftingHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs"
+      ],
+      "dependencies": ["S24-CONTENT-06"]
+    },
+    {
+      "id": "S24-CONTENT-08",
+      "name": "Health, Hunger, and Food System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player health, hunger mechanics, and food consumption systems.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+        "config/hunger_config.json"
+      ],
+      "dependencies": ["S24-CONTENT-07"]
+    },
+    {
+      "id": "S24-CONTENT-09",
+      "name": "Chunk and World Block Management",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chunk loading/unloading, block modification, and world state synchronization.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/MinecraftChunkHandler.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/TerrainChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/WaterChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs"
+      ],
+      "dependencies": ["S24-CORE-06"]
+    },
+    {
+      "id": "S24-UTIL-01",
+      "name": "Config Parity Manifest Automation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Canonical config parity manifest mirrors JSON configs between server and client streaming assets.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "config/config_parity_manifest.json",
+        "GameServer/config/config_parity_manifest.json",
+        "Assets/StreamingAssets/config_parity_manifest.json"
+      ],
+      "dependencies": ["S24-CORE-03"]
+    },
+    {
+      "id": "S24-UTIL-02",
+      "name": "Server Dummy Protocol Probe",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "DummyProtocolClient validates packet encode/decode round-trips, descriptor coverage, and version/signature guards.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "GameServer/DummyProtocolTestClient.cs",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": ["S24-CORE-02", "S24-CORE-04"]
+    },
+    {
+      "id": "S24-UTIL-03",
+      "name": "Standalone Dummy Minecraft Client",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Standalone dummy client executable exists for packet flow smoke tests between client and server.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "GameServer/DummyMinecraftClient.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": ["S24-UTIL-02"]
+    },
+    {
+      "id": "S24-UTIL-04",
+      "name": "Generated Protobuf Source Audit",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server startup verifies generated protobuf source files and descriptor health.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Generated/Protobuf",
+        "GameServer/Program.cs",
+        "SharedProtocol/SharedProtocol.csproj"
+      ],
+      "dependencies": ["S24-CORE-02"]
+    },
+    {
+      "id": "S24-UTIL-05",
+      "name": "Using and Reference Compile Verification",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Cross-project compile checks validate using directives and type references.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj"
+      ],
+      "dependencies": ["S24-UTIL-04"]
+    },
+    {
+      "id": "S24-UTIL-06",
+      "name": "Session Planning and Documentation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Work plan and implementation reports are continuously updated in plans/docs markdown.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "plans/2026-03-07-session-142-comprehensive-work-plan.md",
+        "docs/session-142-terrain-mapcontrol-proto-validation.md",
+        "README.md"
+      ],
+      "dependencies": ["S24-UTIL-05"]
+    },
+    {
+      "id": "S24-UTIL-07",
+      "name": "Network Infrastructure and P2P",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Network management, connection handling, and P2P lobby functionality.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs",
+        "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+        "Assets/MyAssets/Scripts/Network/p2p/MultiPlayLobbyManager.cs"
+      ],
+      "dependencies": ["S24-CORE-06"]
+    },
+    {
+      "id": "S24-UTIL-08",
+      "name": "Game State and Scene Management",
+      "category": "Utility",
+      "layer": "Client",
+      "side": "client",
+      "description": "Game state machine, scene loading, and UI management.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/StateMachine/GameStateManager.cs",
+        "Assets/MyAssets/Scripts/Utility/GameSceneLoader.cs",
+        "Assets/MyAssets/Scripts/CentralSupervisor/GameSupervisor.cs"
+      ],
+      "dependencies": ["S24-UTIL-07"]
+    }
+  ]
+}

@@ -1,0 +1,282 @@
+{
+  "version": "2026-02-28-session-134",
+  "generated_at_utc": "2026-02-28T12:40:00.0000000Z",
+  "signature": "2026-02-28-hydrology-riverlake-cave-v60",
+  "mapControlProfileVersion": 64,
+  "features": [
+    {
+      "id": "S34-CORE-01",
+      "name": "Shared DLL Contract Baseline",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll remain the shared source for enums/constants/protocol contracts.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S34-CORE-02",
+      "name": "Hydrology Signature v60 + Profile v64",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client/probe paths are aligned to hydrology v60 and map-control profile version 64.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapControlProfile.cs",
+        "GameCommon/World/WorldMapControlProfileUtility.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "S34-CORE-01"
+      ]
+    },
+    {
+      "id": "S34-CORE-03",
+      "name": "Queue Policy Parity Guard",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Program startup validates and auto-mirrors server/client queue policy JSON when drift is detected.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S34-CORE-02"
+      ]
+    },
+    {
+      "id": "S34-CORE-04",
+      "name": "Data-Driven JSON Config Parity",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World generation and map-control knobs remain synchronized via JSON across server/client/runtime assets.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S34-CORE-02"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-01",
+      "name": "River Thalweg Stabilization",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "ImprovedRiverGenerator introduces thalweg stability weighting for pressure continuity in relief transitions.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/WorldGenerationConfig.cs"
+      ],
+      "dependencies": [
+        "S34-CORE-02"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-02",
+      "name": "Lake Continuity Thalweg Blend",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "ImprovedLakeGenerator blends continuity with thalweg stability to reduce basin seam drift.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ],
+      "dependencies": [
+        "S34-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-03",
+      "name": "Cave-River-Lake Thalweg Relay Bridge",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "ImprovedTerrainCoordinator adds an extra relay bridge pass to stabilize cave conduit generation near river/lake thalwegs.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": [
+        "S34-CONTENT-01",
+        "S34-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-04",
+      "name": "Client WorldMap Thalweg Coupling",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity world-map hydrology coupling formulas now include thalweg stability for preview parity.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+      ],
+      "dependencies": [
+        "S34-CONTENT-03"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-05",
+      "name": "World Map Control Architecture Sync",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Profile hash/signature/version and queue policy parity are enforced during server startup and mirrored to client assets.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S34-CORE-03",
+        "S34-CONTENT-04"
+      ]
+    },
+    {
+      "id": "S34-CONTENT-06",
+      "name": "Data-Driven Gameplay Content",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Gameplay data (blocks/items/recipes) remain JSON data-driven and loaded through shared data managers.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/recipes.json",
+        "GameCommon/DataDriven/DataManager.cs"
+      ],
+      "dependencies": [
+        "S34-CORE-04"
+      ]
+    },
+    {
+      "id": "S34-UTIL-01",
+      "name": "Proto Registry + Fingerprint Diagnostics",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Generated protobuf packets are checked via binding registry, descriptor validation, and reference report drift guards.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "S34-CORE-01"
+      ]
+    },
+    {
+      "id": "S34-UTIL-02",
+      "name": "Server Dummy Protocol Probe",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "DummyProtocolClient validates required packet coverage, type consistency, and profile version/signature constraints.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S34-UTIL-01",
+        "S34-CORE-02"
+      ]
+    },
+    {
+      "id": "S34-UTIL-03",
+      "name": "External Dummy Client Tooling",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Standalone dummy client verifies shared DLL contract usage and protobuf encode/decode round-trips.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S34-UTIL-01"
+      ]
+    },
+    {
+      "id": "S34-UTIL-04",
+      "name": "Compile + Reference Integrity",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Build/probe workflow validates `using` references, project references, and protobuf handling paths.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": [
+        "S34-UTIL-02",
+        "S34-UTIL-03"
+      ]
+    },
+    {
+      "id": "S34-UTIL-05",
+      "name": "Session 134 Documentation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Session-134 implementation/validation is documented in plans, docs, and README updates.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "README.md",
+        "docs/session-134-implementation-and-validation.md",
+        "plans/2026-02-28-session-134-comprehensive-work-plan.md"
+      ],
+      "dependencies": [
+        "S34-UTIL-04"
+      ]
+    }
+  ]
+}

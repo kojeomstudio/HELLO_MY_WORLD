@@ -229,4 +229,58 @@ public abstract class ActorController : MonoBehaviour
         RigidbodyInstance.useGravity = false;
         StopAI();
     }
+
+    // ============================================================
+    // AI INTEGRATION (BlackBoard 자동 동기화)
+    // ============================================================
+
+    /// <summary>
+    /// 체력 비율 업데이트 (Actor에서 자동 호출됨)
+    /// </summary>
+    public void UpdateHealthRatio(float ratio)
+    {
+        if (AIGroup[(int)CurAIType] != null)
+        {
+            BlackBoard bb = AIGroup[(int)CurAIType].GetBlackBoard();
+            if (bb != null)
+            {
+                bb.HealthRatio = ratio;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 데미지 받았을 때 호출 (Actor.TakeDamage에서 자동 호출)
+    /// PerceptionSystem에 이벤트 전달
+    /// </summary>
+    public void OnDamageReceived(GameObject attacker, Vector3 damagePosition, int damageAmount)
+    {
+        // PerceptionSystem 찾기
+        PerceptionSystem perception = GetComponent<PerceptionSystem>();
+        if (perception != null)
+        {
+            perception.OnDamageReceived(attacker, damagePosition, damageAmount);
+        }
+
+        // 직접 BlackBoard 업데이트 (PerceptionSystem 없을 경우 대비)
+        if (AIGroup[(int)CurAIType] != null)
+        {
+            BlackBoard bb = AIGroup[(int)CurAIType].GetBlackBoard();
+            if (bb != null && attacker != null)
+            {
+                bb.AddAggro(attacker, damageAmount * 2f);
+                bb.Memory.LastAttacker = attacker;
+                bb.Memory.LastDamagedPosition = damagePosition;
+                bb.Memory.LastDamagedTime = Time.time;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor 인스턴스 가져오기
+    /// </summary>
+    public Actor GetActorInstance()
+    {
+        return ActorInstance;
+    }
 }

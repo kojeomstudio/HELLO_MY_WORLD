@@ -1,0 +1,125 @@
+{
+  "version": "2026-01-22",
+  "description": "Minecraft client/server features grouped by core, content, and util after hydrology/lake/cave updates.",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json"
+          ],
+          "description": "Unity map controller consumes the v4 map-control profile and hydrates preview chunks with lake seepage-aware hydrology."
+        },
+        {
+          "id": "client_core_hydrology_preview",
+          "name": "Hydrology/flow preview",
+          "status": "in-progress",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+          ],
+          "description": "Preview generator blends flow memory and lake seepage to match server-side hydrology masks around rivers/lakes."
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_waterways",
+          "name": "River/lake visualization",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Render stitched river and lake overlays using the updated map-control profile hash/signature."
+        }
+      ],
+      "util": [
+        {
+          "id": "client_util_proto_guard",
+          "name": "Proto fingerprint guard",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Generated/Protobuf"
+          ],
+          "description": "Client asserts EnhancedMinecraft proto fingerprints before building preview chunks."
+        },
+        {
+          "id": "client_util_config_sync",
+          "name": "StreamingAssets config sync",
+          "status": "implemented",
+          "files": [
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "description": "Data-driven world config and map-control JSON stay aligned with server signatures."
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_terrain_pipeline_lake_seep",
+          "name": "Hydrology-aware terrain pipeline",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "config/world.json"
+          ],
+          "description": "Server hydrology/flow masks now apply lake seepage and edge normalization before carving rivers, lakes, and caves."
+        },
+        {
+          "id": "server_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs",
+            "config/world_map_control_profile.json"
+          ],
+          "description": "Map-control profile regenerated with lake seepage tuning and pipeline signature 2026-01-22-lake-seepage+proto-guard."
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_cave_stability",
+          "name": "Cave stability tuning",
+          "status": "in-progress",
+          "files": [
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ],
+          "description": "Cave masks consume seepage-adjusted hydrology and retain edge sealing for rivers and lakes."
+        }
+      ],
+      "util": [
+        {
+          "id": "server_util_proto_validation",
+          "name": "Enhanced proto validation",
+          "status": "implemented",
+          "files": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/GameServer.cs"
+          ],
+          "description": "Handler bindings now fail fast when a generated prototype is missing, ensuring Google.Protobuf DTOs stay referenced."
+        },
+        {
+          "id": "server_util_config_pipeline_signature",
+          "name": "Config/profile signature",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs"
+          ],
+          "description": "Generation signatures include proto fingerprints and hydrology/lake seepage knobs for cache invalidation."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1248 @@
+{
+  "metadata": {
+    "title": "Minecraft Feature Implementation Plan",
+    "version": "2026-01-09",
+    "status": "comprehensive",
+    "description": "Complete categorization of Minecraft features into Core, Content, and Util categories with implementation status"
+  },
+  "categories": {
+    "core": {
+      "description": "Core systems and fundamental game mechanics",
+      "features": [
+        {
+          "id": "core-001",
+          "name": "World Map Control Parity",
+          "description": "Synchronize world map control between client and server",
+          "client_files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+          ],
+          "server_files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/world_map_control_profile.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto",
+            "Assets/Generated/Protobuf/GameWorld.cs"
+          ],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-002",
+          "name": "Terrain Generation - Caves, Rivers, Lakes",
+          "description": "Advanced terrain generation with hydrology-aware algorithms",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+            "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+            "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+            "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/enhanced-terrain-config.json",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/enhanced-terrain-config.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto"
+          ],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-003",
+          "name": "Chunk Streaming and Networking",
+          "description": "Efficient chunk data transmission and synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/ChunkManager.cs",
+            "Assets/Scripts/Minecraft/World/ImprovedChunkManager.cs",
+            "Assets/Scripts/Minecraft/World/ChunkRenderer.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MinecraftChunkHandler.cs",
+            "GameServer/World/WorldManager.cs",
+            "GameServer/Synchronization/ChunkSyncCoordinator.cs"
+          ],
+          "data_files": [
+            "config/server.json",
+            "config/world.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto",
+            "Assets/Generated/Protobuf/GameWorld.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-001"]
+        },
+        {
+          "id": "core-004",
+          "name": "Player State and Authentication",
+          "description": "Player session management and authentication",
+          "client_files": [
+            "Assets/Scripts/Minecraft/Player/NetworkPlayer.cs",
+            "Assets/Scripts/Networking/NetworkManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/LoginHandler.cs",
+            "GameServer/SessionManager.cs",
+            "GameServer/Models/Character.cs"
+          ],
+          "data_files": [
+            "config/server.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_auth.proto",
+            "Assets/Generated/Protobuf/GameAuth.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-005",
+          "name": "Movement and Physics",
+          "description": "Player and entity movement with collision detection",
+          "client_files": [
+            "Assets/Scripts/Minecraft/Player/PlayerController.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MovementHandler.cs",
+            "GameServer/Systems/PhysicsSystem.cs",
+            "GameServer/World/Physics/EntityCollisionSystem.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_move.proto",
+            "Assets/Generated/Protobuf/GameMove.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "core-006",
+          "name": "Block Manipulation",
+          "description": "Block placement, destruction, and synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/WorldBlockHandler.cs",
+            "GameServer/Synchronization/BlockSyncCoordinator.cs"
+          ],
+          "data_files": [
+            "config/blocks.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "core-007",
+          "name": "World Time and Weather",
+          "description": "Day/night cycle and weather systems",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldTimeController.cs",
+            "Assets/Scripts/Minecraft/World/WorldWeatherController.cs"
+          ],
+          "server_files": [
+            "GameServer/Systems/WorldTimeSystem.cs",
+            "GameServer/Systems/WeatherSystem.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": []
+        },
+        {
+          "id": "core-008",
+          "name": "Entity Synchronization",
+          "description": "Real-time entity state synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/RemoteEntityManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Synchronization/EntitySyncCoordinator.cs",
+            "GameServer/Systems/EntitySyncService.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-004"]
+        },
+        {
+          "id": "core-009",
+          "name": "Combat System",
+          "description": "Player and entity combat mechanics",
+          "client_files": [
+            "Assets/Scripts/Minecraft/UI/CombatFeedbackUI.cs",
+            "Assets/Scripts/Minecraft/UI/CombatHitFeedbackEffects.cs",
+            "Assets/Scripts/Minecraft/UI/CombatDamagePopupController.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/PlayerAttackHandler.cs",
+            "GameServer/Systems/CombatSystem.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json",
+            "config/hunger_config.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-005"]
+        },
+        {
+          "id": "core-010",
+          "name": "Health and Hunger System",
+          "description": "Player health and hunger mechanics",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/HealthHandler.cs",
+            "GameServer/Handlers/FoodSystemHandler.cs",
+            "GameServer/Systems/HealthAndHungerSystem.cs"
+          ],
+          "data_files": [
+            "config/hunger_config.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        }
+      ]
+    },
+    "content": {
+      "description": "Game content including blocks, items, mobs, and structures",
+      "features": [
+        {
+          "id": "content-001",
+          "name": "Blocks, Items, and Recipes",
+          "description": "Block types, items, and crafting recipes",
+          "client_files": [
+            "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+            "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/InventoryHandler.cs",
+            "GameServer/Handlers/CraftingHandler.cs",
+            "GameServer/Handlers/RecipeListHandler.cs",
+            "GameServer/Systems/InventorySystem.cs"
+          ],
+          "data_files": [
+            "config/blocks.json",
+            "config/items.json",
+            "config/items_config.json",
+            "config/recipes.json",
+            "Assets/StreamingAssets/blocks.json",
+            "Assets/StreamingAssets/items.json"
+          ],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "content-002",
+          "name": "Mobs and Spawning",
+          "description": "Mob AI, spawning, and behavior",
+          "client_files": [
+            "Assets/MyAssets/Scripts/AI/MobSpawner.cs",
+            "Assets/MyAssets/Scripts/AI/MobController.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Spawning/MobSpawningSystem.cs",
+            "GameServer/World/Spawning/MobSpawningConfig.cs",
+            "GameServer/AI/ServerAIManager.cs",
+            "GameServer/Handlers/AIHandlers.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json",
+            "config/mob_spawn_rules.md"
+          ],
+          "protobuf_files": [],
+          "status": "planned",
+          "priority": "medium",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "content-003",
+          "name": "Structures and Decorators",
+          "description": "World structures and decoration",
+          "client_files": [
+            "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+            "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+            "GameServer/World/Generation/Stages/DungeonGenerationStage.cs",
+            "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/biomes.json"
+          ],
+          "protobuf_files": [],
+          "status": "in-progress",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-004",
+          "name": "Biomes",
+          "description": "Different biome types with unique characteristics",
+          "client_files": [],
+          "server_files": [
+            "GameServer/World/Generation/BiomeGenerationSystem.cs",
+            "GameServer/Models/BiomeType.cs"
+          ],
+          "data_files": [
+            "config/biomes.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-005",
+          "name": "Ore Distribution",
+          "description": "Ore generation and distribution",
+          "client_files": [],
+          "server_files": [
+            "GameServer/World/Generation/OreDistributionSystem.cs",
+            "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-006",
+          "name": "Containers",
+          "description": "Chests and other storage containers",
+          "client_files": [
+            "Assets/Scripts/Minecraft/UI/ContainerPanelUI.cs",
+            "Assets/Scripts/Minecraft/UI/ContainerSlotView.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MinecraftContainerHandlers.cs",
+            "GameServer/Systems/ContainerSystem.cs",
+            "GameServer/Models/ContainerRecord.cs"
+          ],
+          "data_files": [
+            "config/items.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["content-001"]
+        },
+        {
+          "id": "content-007",
+          "name": "Chat System",
+          "description": "In-game chat and messaging",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/ChatHandler.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [
+            "proto/game_chat.proto",
+            "Assets/Generated/Protobuf/GameChat.cs"
+          ],
+          "status": "stable",
+          "priority": "low",
+          "dependencies": ["core-004"]
+        }
+      ]
+    },
+    "util": {
+      "description": "Utility systems including configuration, diagnostics, and tooling",
+      "features": [
+        {
+          "id": "util-001",
+          "name": "Configuration and Hot Reload",
+          "description": "Dynamic configuration management",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+            "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+          ],
+          "server_files": [
+            "GameServer/Configuration/DataDrivenConfigManager.cs",
+            "GameServer/Configuration/WorldGenerationConfig.cs",
+            "GameServer/Configuration/ConfigurationModels.cs"
+          ],
+          "data_files": [
+            "config/*.json",
+            "Assets/StreamingAssets/*.json"
+          ],
+          "protobuf_files": [],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-002",
+          "name": "Telemetry and Diagnostics",
+          "description": "Performance monitoring and diagnostics",
+          "client_files": [
+            "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+          ],
+          "server_files": [
+            "GameServer/Utils/PerformanceMonitor.cs",
+            "GameServer/Utils/Logger.cs",
+            "GameServer/Utils/ErrorHandler.cs",
+            "GameServer/Systems/ServerMetricsService.cs",
+            "GameServer/Handlers/DiagHandler.cs"
+          ],
+          "data_files": [
+            "config/server.json"
+          ],
+          "protobuf_files": [
+            "proto/game_diag.proto",
+            "Assets/Generated/Protobuf/GameDiag.cs"
+          ],
+          "status": "planned",
+          "priority": "low",
+          "dependencies": []
+        },
+        {
+          "id": "util-003",
+          "name": "Tooling and Proto Sync",
+          "description": "Protobuf generation and validation tools",
+          "client_files": [
+            "scripts/generate_proto.ps1",
+            "Assets/Generated/Protobuf/*.cs"
+          ],
+          "server_files": [
+            "SharedProtocol/SharedProtocol.csproj",
+            "scripts/verify_proto.ps1"
+          ],
+          "data_files": [
+            "proto/*.proto"
+          ],
+          "protobuf_files": [
+            "proto/*.proto",
+            "Assets/Generated/Protobuf/*.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-004",
+          "name": "Noise Generation Utilities",
+          "description": "Procedural noise generation algorithms",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/Noise.cs",
+            "GameServer/Utils/SimplexNoise.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-005",
+          "name": "Terrain Mask Utilities",
+          "description": "Utilities for terrain mask generation and processing",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/TerrainMaskUtility.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["util-004"]
+        },
+        {
+          "id": "util-006",
+          "name": "Config Validation",
+          "description": "Configuration file validation",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/ConfigValidator.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["util-001"]
+        },
+        {
+          "id": "util-007",
+          "name": "Database Helper",
+          "description": "Database operations and management",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Database/DatabaseHelper.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": []
+        },
+        {
+          "id": "util-008",
+          "name": "Permission System",
+          "description": "Player permission and role management",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Systems/PermissionSystem.cs"
+          ],
+          "data_files": [
+            "config/server.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-004"]
+        },
+        {
+          "id": "util-009",
+          "name": "Command System",
+          "description": "In-game command processing",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/CommandHandler.cs",
+            "GameServer/Systems/CommandSystem.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["util-008"]
+        },
+        {
+          "id": "util-010",
+          "name": "Anti-Cheat Middleware",
+          "description": "Anti-cheat detection and prevention",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Middleware/AntiCheatMiddleware.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-005"]
+        }
+      ]
+    }
+  },
+  "implementation_order": [
+    "core-001",
+    "core-002",
+    "core-003",
+    "core-004",
+    "core-005",
+    "core-006",
+    "core-007",
+    "core-008",
+    "core-009",
+    "core-010",
+    "content-001",
+    "content-004",
+    "content-005",
+    "content-003",
+    "content-006",
+    "content-002",
+    "content-007",
+    "util-001",
+    "util-003",
+    "util-004",
+    "util-005",
+    "util-006",
+    "util-007",
+    "util-008",
+    "util-009",
+    "util-010",
+    "util-002"
+  ],
+  "summary": {
+    "total_features": 27,
+    "core_features": 10,
+    "content_features": 7,
+    "util_features": 10,
+    "status_breakdown": {
+      "stable": 14,
+      "in-progress": 4,
+      "planned": 2
+    },
+    "priority_breakdown": {
+      "high": 14,
+      "medium": 11,
+      "low": 2
+    }
+  }
+}
+  "metadata": {
+    "title": "Minecraft Feature Implementation Plan",
+    "version": "2026-01-09",
+    "status": "comprehensive",
+    "description": "Complete categorization of Minecraft features into Core, Content, and Util categories with implementation status"
+  },
+  "categories": {
+    "core": {
+      "description": "Core systems and fundamental game mechanics",
+      "features": [
+        {
+          "id": "core-001",
+          "name": "World Map Control Parity",
+          "description": "Synchronize world map control between client and server",
+          "client_files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+          ],
+          "server_files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/world_map_control_profile.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto",
+            "Assets/Generated/Protobuf/GameWorld.cs"
+          ],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-002",
+          "name": "Terrain Generation - Caves, Rivers, Lakes",
+          "description": "Advanced terrain generation with hydrology-aware algorithms",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+            "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+            "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+            "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/enhanced-terrain-config.json",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/enhanced-terrain-config.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto"
+          ],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-003",
+          "name": "Chunk Streaming and Networking",
+          "description": "Efficient chunk data transmission and synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/ChunkManager.cs",
+            "Assets/Scripts/Minecraft/World/ImprovedChunkManager.cs",
+            "Assets/Scripts/Minecraft/World/ChunkRenderer.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MinecraftChunkHandler.cs",
+            "GameServer/World/WorldManager.cs",
+            "GameServer/Synchronization/ChunkSyncCoordinator.cs"
+          ],
+          "data_files": [
+            "config/server.json",
+            "config/world.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto",
+            "Assets/Generated/Protobuf/GameWorld.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-001"]
+        },
+        {
+          "id": "core-004",
+          "name": "Player State and Authentication",
+          "description": "Player session management and authentication",
+          "client_files": [
+            "Assets/Scripts/Minecraft/Player/NetworkPlayer.cs",
+            "Assets/Scripts/Networking/NetworkManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/LoginHandler.cs",
+            "GameServer/SessionManager.cs",
+            "GameServer/Models/Character.cs"
+          ],
+          "data_files": [
+            "config/server.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_auth.proto",
+            "Assets/Generated/Protobuf/GameAuth.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "core-005",
+          "name": "Movement and Physics",
+          "description": "Player and entity movement with collision detection",
+          "client_files": [
+            "Assets/Scripts/Minecraft/Player/PlayerController.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MovementHandler.cs",
+            "GameServer/Systems/PhysicsSystem.cs",
+            "GameServer/World/Physics/EntityCollisionSystem.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_move.proto",
+            "Assets/Generated/Protobuf/GameMove.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "core-006",
+          "name": "Block Manipulation",
+          "description": "Block placement, destruction, and synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/WorldBlockHandler.cs",
+            "GameServer/Synchronization/BlockSyncCoordinator.cs"
+          ],
+          "data_files": [
+            "config/blocks.json"
+          ],
+          "protobuf_files": [
+            "proto/game_world.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "core-007",
+          "name": "World Time and Weather",
+          "description": "Day/night cycle and weather systems",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldTimeController.cs",
+            "Assets/Scripts/Minecraft/World/WorldWeatherController.cs"
+          ],
+          "server_files": [
+            "GameServer/Systems/WorldTimeSystem.cs",
+            "GameServer/Systems/WeatherSystem.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": []
+        },
+        {
+          "id": "core-008",
+          "name": "Entity Synchronization",
+          "description": "Real-time entity state synchronization",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/RemoteEntityManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Synchronization/EntitySyncCoordinator.cs",
+            "GameServer/Systems/EntitySyncService.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-004"]
+        },
+        {
+          "id": "core-009",
+          "name": "Combat System",
+          "description": "Player and entity combat mechanics",
+          "client_files": [
+            "Assets/Scripts/Minecraft/UI/CombatFeedbackUI.cs",
+            "Assets/Scripts/Minecraft/UI/CombatHitFeedbackEffects.cs",
+            "Assets/Scripts/Minecraft/UI/CombatDamagePopupController.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/PlayerAttackHandler.cs",
+            "GameServer/Systems/CombatSystem.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json",
+            "config/hunger_config.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["core-005"]
+        },
+        {
+          "id": "core-010",
+          "name": "Health and Hunger System",
+          "description": "Player health and hunger mechanics",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/HealthHandler.cs",
+            "GameServer/Handlers/FoodSystemHandler.cs",
+            "GameServer/Systems/HealthAndHungerSystem.cs"
+          ],
+          "data_files": [
+            "config/hunger_config.json",
+            "config/gameplay.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        }
+      ]
+    },
+    "content": {
+      "description": "Game content including blocks, items, mobs, and structures",
+      "features": [
+        {
+          "id": "content-001",
+          "name": "Blocks, Items, and Recipes",
+          "description": "Block types, items, and crafting recipes",
+          "client_files": [
+            "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+            "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/InventoryHandler.cs",
+            "GameServer/Handlers/CraftingHandler.cs",
+            "GameServer/Handlers/RecipeListHandler.cs",
+            "GameServer/Systems/InventorySystem.cs"
+          ],
+          "data_files": [
+            "config/blocks.json",
+            "config/items.json",
+            "config/items_config.json",
+            "config/recipes.json",
+            "Assets/StreamingAssets/blocks.json",
+            "Assets/StreamingAssets/items.json"
+          ],
+          "protobuf_files": [
+            "proto/game_core.proto"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "content-002",
+          "name": "Mobs and Spawning",
+          "description": "Mob AI, spawning, and behavior",
+          "client_files": [
+            "Assets/MyAssets/Scripts/AI/MobSpawner.cs",
+            "Assets/MyAssets/Scripts/AI/MobController.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Spawning/MobSpawningSystem.cs",
+            "GameServer/World/Spawning/MobSpawningConfig.cs",
+            "GameServer/AI/ServerAIManager.cs",
+            "GameServer/Handlers/AIHandlers.cs"
+          ],
+          "data_files": [
+            "config/gameplay.json",
+            "config/mob_spawn_rules.md"
+          ],
+          "protobuf_files": [],
+          "status": "planned",
+          "priority": "medium",
+          "dependencies": ["core-003"]
+        },
+        {
+          "id": "content-003",
+          "name": "Structures and Decorators",
+          "description": "World structures and decoration",
+          "client_files": [
+            "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+            "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+          ],
+          "server_files": [
+            "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+            "GameServer/World/Generation/Stages/DungeonGenerationStage.cs",
+            "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json",
+            "config/biomes.json"
+          ],
+          "protobuf_files": [],
+          "status": "in-progress",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-004",
+          "name": "Biomes",
+          "description": "Different biome types with unique characteristics",
+          "client_files": [],
+          "server_files": [
+            "GameServer/World/Generation/BiomeGenerationSystem.cs",
+            "GameServer/Models/BiomeType.cs"
+          ],
+          "data_files": [
+            "config/biomes.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-005",
+          "name": "Ore Distribution",
+          "description": "Ore generation and distribution",
+          "client_files": [],
+          "server_files": [
+            "GameServer/World/Generation/OreDistributionSystem.cs",
+            "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+          ],
+          "data_files": [
+            "config/world.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-002"]
+        },
+        {
+          "id": "content-006",
+          "name": "Containers",
+          "description": "Chests and other storage containers",
+          "client_files": [
+            "Assets/Scripts/Minecraft/UI/ContainerPanelUI.cs",
+            "Assets/Scripts/Minecraft/UI/ContainerSlotView.cs"
+          ],
+          "server_files": [
+            "GameServer/Handlers/MinecraftContainerHandlers.cs",
+            "GameServer/Systems/ContainerSystem.cs",
+            "GameServer/Models/ContainerRecord.cs"
+          ],
+          "data_files": [
+            "config/items.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["content-001"]
+        },
+        {
+          "id": "content-007",
+          "name": "Chat System",
+          "description": "In-game chat and messaging",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/ChatHandler.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [
+            "proto/game_chat.proto",
+            "Assets/Generated/Protobuf/GameChat.cs"
+          ],
+          "status": "stable",
+          "priority": "low",
+          "dependencies": ["core-004"]
+        }
+      ]
+    },
+    "util": {
+      "description": "Utility systems including configuration, diagnostics, and tooling",
+      "features": [
+        {
+          "id": "util-001",
+          "name": "Configuration and Hot Reload",
+          "description": "Dynamic configuration management",
+          "client_files": [
+            "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+            "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+          ],
+          "server_files": [
+            "GameServer/Configuration/DataDrivenConfigManager.cs",
+            "GameServer/Configuration/WorldGenerationConfig.cs",
+            "GameServer/Configuration/ConfigurationModels.cs"
+          ],
+          "data_files": [
+            "config/*.json",
+            "Assets/StreamingAssets/*.json"
+          ],
+          "protobuf_files": [],
+          "status": "in-progress",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-002",
+          "name": "Telemetry and Diagnostics",
+          "description": "Performance monitoring and diagnostics",
+          "client_files": [
+            "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+          ],
+          "server_files": [
+            "GameServer/Utils/PerformanceMonitor.cs",
+            "GameServer/Utils/Logger.cs",
+            "GameServer/Utils/ErrorHandler.cs",
+            "GameServer/Systems/ServerMetricsService.cs",
+            "GameServer/Handlers/DiagHandler.cs"
+          ],
+          "data_files": [
+            "config/server.json"
+          ],
+          "protobuf_files": [
+            "proto/game_diag.proto",
+            "Assets/Generated/Protobuf/GameDiag.cs"
+          ],
+          "status": "planned",
+          "priority": "low",
+          "dependencies": []
+        },
+        {
+          "id": "util-003",
+          "name": "Tooling and Proto Sync",
+          "description": "Protobuf generation and validation tools",
+          "client_files": [
+            "scripts/generate_proto.ps1",
+            "Assets/Generated/Protobuf/*.cs"
+          ],
+          "server_files": [
+            "SharedProtocol/SharedProtocol.csproj",
+            "scripts/verify_proto.ps1"
+          ],
+          "data_files": [
+            "proto/*.proto"
+          ],
+          "protobuf_files": [
+            "proto/*.proto",
+            "Assets/Generated/Protobuf/*.cs"
+          ],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-004",
+          "name": "Noise Generation Utilities",
+          "description": "Procedural noise generation algorithms",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/Noise.cs",
+            "GameServer/Utils/SimplexNoise.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": []
+        },
+        {
+          "id": "util-005",
+          "name": "Terrain Mask Utilities",
+          "description": "Utilities for terrain mask generation and processing",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/TerrainMaskUtility.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "high",
+          "dependencies": ["util-004"]
+        },
+        {
+          "id": "util-006",
+          "name": "Config Validation",
+          "description": "Configuration file validation",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Utils/ConfigValidator.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["util-001"]
+        },
+        {
+          "id": "util-007",
+          "name": "Database Helper",
+          "description": "Database operations and management",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Database/DatabaseHelper.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": []
+        },
+        {
+          "id": "util-008",
+          "name": "Permission System",
+          "description": "Player permission and role management",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Systems/PermissionSystem.cs"
+          ],
+          "data_files": [
+            "config/server.json"
+          ],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-004"]
+        },
+        {
+          "id": "util-009",
+          "name": "Command System",
+          "description": "In-game command processing",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Handlers/CommandHandler.cs",
+            "GameServer/Systems/CommandSystem.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["util-008"]
+        },
+        {
+          "id": "util-010",
+          "name": "Anti-Cheat Middleware",
+          "description": "Anti-cheat detection and prevention",
+          "client_files": [],
+          "server_files": [
+            "GameServer/Middleware/AntiCheatMiddleware.cs"
+          ],
+          "data_files": [],
+          "protobuf_files": [],
+          "status": "stable",
+          "priority": "medium",
+          "dependencies": ["core-005"]
+        }
+      ]
+    }
+  },
+  "implementation_order": [
+    "core-001",
+    "core-002",
+    "core-003",
+    "core-004",
+    "core-005",
+    "core-006",
+    "core-007",
+    "core-008",
+    "core-009",
+    "core-010",
+    "content-001",
+    "content-004",
+    "content-005",
+    "content-003",
+    "content-006",
+    "content-002",
+    "content-007",
+    "util-001",
+    "util-003",
+    "util-004",
+    "util-005",
+    "util-006",
+    "util-007",
+    "util-008",
+    "util-009",
+    "util-010",
+    "util-002"
+  ],
+  "summary": {
+    "total_features": 27,
+    "core_features": 10,
+    "content_features": 7,
+    "util_features": 10,
+    "status_breakdown": {
+      "stable": 14,
+      "in-progress": 4,
+      "planned": 2
+    },
+    "priority_breakdown": {
+      "high": 14,
+      "medium": 11,
+      "low": 2
+    }
+  }
+}
+

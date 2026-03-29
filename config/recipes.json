@@ -1,0 +1,597 @@
+{
+  "recipes": [
+    {
+      "recipeId": "wood_planks_from_log",
+      "displayName": "Wood Planks",
+      "description": "Craft wood planks from logs.",
+      "category": "basic",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "log",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 4,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 0.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "sticks_from_planks",
+      "displayName": "Sticks",
+      "description": "Craft sticks from wood planks.",
+      "category": "basic",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "stick",
+          "quantity": 4,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 0.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "torch_from_coal_stick",
+      "displayName": "Torch",
+      "description": "Craft torches from coal and sticks.",
+      "category": "basic",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "coal",
+          "quantity": 1,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "torch",
+          "quantity": 4,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 0.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "wooden_pickaxe",
+      "displayName": "Wooden Pickaxe",
+      "description": "Craft a wooden pickaxe for basic mining.",
+      "category": "tools",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "wooden_pickaxe",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 2.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "wooden_sword",
+      "displayName": "Wooden Sword",
+      "description": "Craft a wooden sword for basic combat.",
+      "category": "weapons",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 2,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "wooden_sword",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 2.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "wooden_shovel",
+      "displayName": "Wooden Shovel",
+      "description": "Craft a wooden shovel for digging.",
+      "category": "tools",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 1,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "wooden_shovel",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 2.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "wooden_axe",
+      "displayName": "Wooden Axe",
+      "description": "Craft a wooden axe for chopping wood.",
+      "category": "tools",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "wooden_axe",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 2.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "stone_pickaxe",
+      "displayName": "Stone Pickaxe",
+      "description": "Craft a stone pickaxe for better mining.",
+      "category": "tools",
+      "requiredLevel": 2,
+      "experienceCost": 5,
+      "ingredients": [
+        {
+          "itemId": "cobblestone",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "stone_pickaxe",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 3.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "stone_sword",
+      "displayName": "Stone Sword",
+      "description": "Craft a stone sword for better combat.",
+      "category": "weapons",
+      "requiredLevel": 2,
+      "experienceCost": 5,
+      "ingredients": [
+        {
+          "itemId": "cobblestone",
+          "quantity": 2,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "stone_sword",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 3.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "iron_pickaxe",
+      "displayName": "Iron Pickaxe",
+      "description": "Craft an iron pickaxe for advanced mining.",
+      "category": "tools",
+      "requiredLevel": 5,
+      "experienceCost": 20,
+      "ingredients": [
+        {
+          "itemId": "iron_ingot",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "iron_pickaxe",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 5.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "diamond_pickaxe",
+      "displayName": "Diamond Pickaxe",
+      "description": "Craft a diamond pickaxe for elite mining.",
+      "category": "tools",
+      "requiredLevel": 10,
+      "experienceCost": 50,
+      "ingredients": [
+        {
+          "itemId": "diamond",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "stick",
+          "quantity": 2,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "diamond_pickaxe",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 8.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "crafting_table",
+      "displayName": "Crafting Table",
+      "description": "Craft a crafting table for advanced recipes.",
+      "category": "basic",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 4,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "crafting_table",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 2.0,
+      "craftingStation": "hand"
+    },
+    {
+      "recipeId": "furnace",
+      "displayName": "Furnace",
+      "description": "Craft a furnace for smelting ores and cooking food.",
+      "category": "basic",
+      "requiredLevel": 3,
+      "experienceCost": 10,
+      "ingredients": [
+        {
+          "itemId": "cobblestone",
+          "quantity": 8,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "furnace",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 5.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "iron_ingot_from_ore",
+      "displayName": "Iron Ingot",
+      "description": "Smelt iron ore to create iron ingots.",
+      "category": "smelting",
+      "requiredLevel": 3,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "iron_ore",
+          "quantity": 1,
+          "metadata": 0
+        },
+        {
+          "itemId": "coal",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "iron_ingot",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 10.0,
+      "craftingStation": "furnace"
+    },
+    {
+      "recipeId": "gold_ingot_from_ore",
+      "displayName": "Gold Ingot",
+      "description": "Smelt gold ore to create gold ingots.",
+      "category": "smelting",
+      "requiredLevel": 5,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "gold_ore",
+          "quantity": 1,
+          "metadata": 0
+        },
+        {
+          "itemId": "coal",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "gold_ingot",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 10.0,
+      "craftingStation": "furnace"
+    },
+    {
+      "recipeId": "cooked_beef_from_raw",
+      "displayName": "Cooked Beef",
+      "description": "Cook raw beef to restore more hunger.",
+      "category": "cooking",
+      "requiredLevel": 1,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "raw_beef",
+          "quantity": 1,
+          "metadata": 0
+        },
+        {
+          "itemId": "coal",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "cooked_beef",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 8.0,
+      "craftingStation": "furnace"
+    },
+    {
+      "recipeId": "bread_from_wheat",
+      "displayName": "Bread",
+      "description": "Bake bread from wheat.",
+      "category": "cooking",
+      "requiredLevel": 2,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "wheat",
+          "quantity": 3,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "bread",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 5.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "water_bottle",
+      "displayName": "Water Bottle",
+      "description": "Fill a glass bottle with water.",
+      "category": "basic",
+      "requiredLevel": 0,
+      "experienceCost": 0,
+      "ingredients": [
+        {
+          "itemId": "glass_bottle",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "water_bottle",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 1.0,
+      "craftingStation": "water_source"
+    },
+    {
+      "recipeId": "leather_helmet",
+      "displayName": "Leather Helmet",
+      "description": "Craft a leather helmet for basic protection.",
+      "category": "armor",
+      "requiredLevel": 1,
+      "experienceCost": 5,
+      "ingredients": [
+        {
+          "itemId": "leather",
+          "quantity": 5,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "leather_helmet",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 4.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "iron_chestplate",
+      "displayName": "Iron Chestplate",
+      "description": "Craft an iron chestplate for good protection.",
+      "category": "armor",
+      "requiredLevel": 8,
+      "experienceCost": 30,
+      "ingredients": [
+        {
+          "itemId": "iron_ingot",
+          "quantity": 8,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "iron_chestplate",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 10.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "chest",
+      "displayName": "Chest",
+      "description": "Craft a chest for storage.",
+      "category": "storage",
+      "requiredLevel": 2,
+      "experienceCost": 10,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 8,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "chest",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 4.0,
+      "craftingStation": "crafting_table"
+    },
+    {
+      "recipeId": "bed",
+      "displayName": "Bed",
+      "description": "Craft a bed to sleep through the night.",
+      "category": "decoration",
+      "requiredLevel": 2,
+      "experienceCost": 15,
+      "ingredients": [
+        {
+          "itemId": "wood_planks",
+          "quantity": 3,
+          "metadata": 0
+        },
+        {
+          "itemId": "wool",
+          "quantity": 3,
+          "metadata": 0
+        }
+      ],
+      "results": [
+        {
+          "itemId": "bed",
+          "quantity": 1,
+          "metadata": 0
+        }
+      ],
+      "craftingTime": 6.0,
+      "craftingStation": "crafting_table"
+    }
+  ]
+}

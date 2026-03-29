@@ -1,0 +1,364 @@
+{
+  "hungerSystem": {
+    "enabled": true,
+    "updateIntervalSeconds": 5,
+    "maxHungerLevel": 100.0,
+    "maxThirstLevel": 100.0,
+    "maxSaturationLevel": 20.0,
+    "hungerDecayStartSeconds": 30,
+    "hungerDecayMultiplierSeconds": 60,
+    "thirstDecayStartSeconds": 20,
+    "thirstDecayMultiplierSeconds": 45,
+    "saturationDecayRate": 0.5,
+    "saturationModifier": 2.0,
+    "drinkCooldownSeconds": 2,
+    "exhaustionThreshold": 80,
+    "hungerWarningThreshold": 50,
+    "hungerCriticalThreshold": 20,
+    "thirstWarningThreshold": 40,
+    "thirstCriticalThreshold": 15
+  },
+  "foodItems": {
+    "apple": {
+      "itemId": "apple",
+      "displayName": "Apple",
+      "nutrition": 4.0,
+      "hydration": 2.0,
+      "saturation": 2.4,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "fruit"
+    },
+    "bread": {
+      "itemId": "bread",
+      "displayName": "Bread",
+      "nutrition": 5.0,
+      "hydration": 1.0,
+      "saturation": 6.0,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "grain"
+    },
+    "cooked_beef": {
+      "itemId": "cooked_beef",
+      "displayName": "Cooked Beef",
+      "nutrition": 8.0,
+      "hydration": 3.0,
+      "saturation": 12.8,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "meat"
+    },
+    "cooked_chicken": {
+      "itemId": "cooked_chicken",
+      "displayName": "Cooked Chicken",
+      "nutrition": 6.0,
+      "hydration": 2.5,
+      "saturation": 7.2,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "meat"
+    },
+    "cooked_pork": {
+      "itemId": "cooked_pork",
+      "displayName": "Cooked Pork",
+      "nutrition": 7.0,
+      "hydration": 2.0,
+      "saturation": 8.4,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "meat"
+    },
+    "fish": {
+      "itemId": "fish",
+      "displayName": "Fish",
+      "nutrition": 4.0,
+      "hydration": 4.0,
+      "saturation": 4.8,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "seafood"
+    },
+    "carrot": {
+      "itemId": "carrot",
+      "displayName": "Carrot",
+      "nutrition": 3.0,
+      "hydration": 1.5,
+      "saturation": 3.6,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "vegetable"
+    },
+    "potato": {
+      "itemId": "potato",
+      "displayName": "Potato",
+      "nutrition": 2.0,
+      "hydration": 1.0,
+      "saturation": 2.4,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "vegetable"
+    },
+    "golden_apple": {
+      "itemId": "golden_apple",
+      "displayName": "Golden Apple",
+      "nutrition": 4.0,
+      "hydration": 2.0,
+      "saturation": 9.6,
+      "stackSize": 64,
+      "rarity": "legendary",
+      "category": "fruit",
+      "effects": [
+        {
+          "type": "regeneration",
+          "duration": 30,
+          "amplifier": 2
+        },
+        {
+          "type": "absorption",
+          "duration": 120,
+          "amplifier": 1
+        },
+        {
+          "type": "fire_resistance",
+          "duration": 300,
+          "amplifier": 1
+        }
+      ]
+    },
+    "enchanted_golden_apple": {
+      "itemId": "enchanted_golden_apple",
+      "displayName": "Enchanted Golden Apple",
+      "nutrition": 4.0,
+      "hydration": 2.0,
+      "saturation": 9.6,
+      "stackSize": 64,
+      "rarity": "legendary",
+      "category": "fruit",
+      "effects": [
+        {
+          "type": "regeneration",
+          "duration": 60,
+          "amplifier": 5
+        },
+        {
+          "type": "absorption",
+          "duration": 240,
+          "amplifier": 3
+        },
+        {
+          "type": "fire_resistance",
+          "duration": 600,
+          "amplifier": 2
+        },
+        {
+          "type": "resistance",
+          "duration": 300,
+          "amplifier": 1
+        }
+      ]
+    },
+    "mushroom_stew": {
+      "itemId": "mushroom_stew",
+      "displayName": "Mushroom Stew",
+      "nutrition": 6.0,
+      "hydration": 4.0,
+      "saturation": 7.2,
+      "stackSize": 1,
+      "rarity": "uncommon",
+      "category": "soup",
+      "effects": [
+        {
+          "type": "saturation",
+          "duration": 30,
+          "amplifier": 0
+        }
+      ]
+    }
+  },
+  "drinkItems": {
+    "water_bottle": {
+      "itemId": "water_bottle",
+      "displayName": "Water Bottle",
+      "nutrition": 0.0,
+      "hydration": 10.0,
+      "saturation": 0.0,
+      "stackSize": 64,
+      "rarity": "common",
+      "category": "drink"
+    },
+    "milk_bucket": {
+      "itemId": "milk_bucket",
+      "displayName": "Milk Bucket",
+      "nutrition": 2.0,
+      "hydration": 5.0,
+      "saturation": 2.4,
+      "stackSize": 1,
+      "rarity": "common",
+      "category": "drink",
+      "effects": [
+        {
+          "type": "clear_effects",
+          "duration": 30,
+          "amplifier": 0
+        }
+      ]
+    },
+    "potion_healing": {
+      "itemId": "potion_healing",
+      "displayName": "Potion of Healing",
+      "nutrition": 0.0,
+      "hydration": 2.0,
+      "saturation": 0.0,
+      "stackSize": 64,
+      "rarity": "uncommon",
+      "category": "potion",
+      "effects": [
+        {
+          "type": "instant_health",
+          "duration": 0,
+          "amplifier": 2
+        }
+      ]
+    },
+    "potion_regeneration": {
+      "itemId": "potion_regeneration",
+      "displayName": "Potion of Regeneration",
+      "nutrition": 0.0,
+      "hydration": 1.0,
+      "saturation": 0.0,
+      "stackSize": 64,
+      "rarity": "rare",
+      "category": "potion",
+      "effects": [
+        {
+          "type": "regeneration",
+          "duration": 45,
+          "amplifier": 1
+        }
+      ]
+    },
+    "potion_strength": {
+      "itemId": "potion_strength",
+      "displayName": "Potion of Strength",
+      "nutrition": 0.0,
+      "hydration": 1.0,
+      "saturation": 0.0,
+      "stackSize": 64,
+      "rarity": "uncommon",
+      "category": "potion",
+      "effects": [
+        {
+          "type": "strength",
+          "duration": 180,
+          "amplifier": 1
+        }
+      ]
+    },
+    "potion_speed": {
+      "itemId": "potion_speed",
+      "displayName": "Potion of Swiftness",
+      "nutrition": 0.0,
+      "hydration": 1.0,
+      "saturation": 0.0,
+      "stackSize": 64,
+      "rarity": "uncommon",
+      "category": "potion",
+      "effects": [
+        {
+          "type": "speed",
+          "duration": 180,
+          "amplifier": 1
+        }
+      ]
+    }
+  },
+  "effects": {
+    "hunger": {
+      "displayName": "Hunger",
+      "description": "Increased hunger consumption rate",
+      "icon": "hunger",
+      "color": "#FF6B35"
+    },
+    "thirst": {
+      "displayName": "Thirst",
+      "description": "Increased thirst consumption rate",
+      "icon": "thirst",
+      "color": "#4169E1"
+    },
+    "critical_hunger": {
+      "displayName": "Critical Hunger",
+      "description": "Severe hunger with health damage",
+      "icon": "critical_hunger",
+      "color": "#8B0000"
+    },
+    "critical_thirst": {
+      "displayName": "Critical Thirst",
+      "description": "Severe thirst with health damage",
+      "icon": "critical_thirst",
+      "color": "#000080"
+    },
+    "exhaustion": {
+      "displayName": "Exhaustion",
+      "description": "Reduced movement speed and mining efficiency",
+      "icon": "exhaustion",
+      "color": "#808080"
+    },
+    "saturation": {
+      "displayName": "Saturation",
+      "description": "Prevents hunger decay temporarily",
+      "icon": "saturation",
+      "color": "#FFD700"
+    },
+    "regeneration": {
+      "displayName": "Regeneration",
+      "description": "Health regeneration over time",
+      "icon": "regeneration",
+      "color": "#00FF00"
+    },
+    "absorption": {
+      "displayName": "Absorption",
+      "description": "Temporary health boost",
+      "icon": "absorption",
+      "color": "#FF69B4"
+    },
+    "fire_resistance": {
+      "displayName": "Fire Resistance",
+      "description": "Immunity to fire damage",
+      "icon": "fire_resistance",
+      "color": "#FF4500"
+    },
+    "resistance": {
+      "displayName": "Resistance",
+      "description": "Reduced damage from all sources",
+      "icon": "resistance",
+      "color": "#8B4513"
+    },
+    "strength": {
+      "displayName": "Strength",
+      "description": "Increased melee damage",
+      "icon": "strength",
+      "color": "#DC143C"
+    },
+    "speed": {
+      "displayName": "Speed",
+      "description": "Increased movement speed",
+      "icon": "speed",
+      "color": "#00FFFF"
+    },
+    "instant_health": {
+      "displayName": "Instant Health",
+      "description": "Immediate health restoration",
+      "icon": "instant_health",
+      "color": "#FF0000"
+    },
+    "clear_effects": {
+      "displayName": "Clear Effects",
+      "description": "Removes all status effects",
+      "icon": "clear_effects",
+      "color": "#FFFFFF"
+    }
+  },
+  "version": "1.0.0",
+  "lastModified": "2025-12-09T10:15:00Z"
+}

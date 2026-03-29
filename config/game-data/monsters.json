@@ -1,0 +1,33 @@
+[
+  {
+    "id": "zombie",
+    "tier": 1,
+    "health": 20,
+    "attack": 3,
+    "speed": 0.23,
+    "drops": [
+      "rotten_flesh"
+    ]
+  },
+  {
+    "id": "skeleton",
+    "tier": 1,
+    "health": 20,
+    "attack": 4,
+    "speed": 0.25,
+    "drops": [
+      "bone",
+      "arrow"
+    ]
+  },
+  {
+    "id": "creeper",
+    "tier": 1,
+    "health": 20,
+    "attack": 12,
+    "speed": 0.25,
+    "drops": [
+      "gunpowder"
+    ]
+  }
+]

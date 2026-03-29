@@ -1,0 +1,199 @@
+{
+  "generated_at": "2026-01-17",
+  "categories": {
+    "core": [
+      {
+        "id": "core.worldgen",
+        "name": "World Generation",
+        "status": "planned",
+        "client": [
+          "Hydrology-aware preview generator (caves/rivers/lakes seam control)",
+          "World map control stitching based on JSON profiles"
+        ],
+        "server": [
+          "EnhancedTerrainGenerationPipeline hydrology seam blending",
+          "Cave/rive/lake masks derived from data-driven config"
+        ]
+      },
+      {
+        "id": "core.networking",
+        "name": "Networking",
+        "status": "partial",
+        "client": [
+          "ProtobufNetworkClient bootstrap and reconnect",
+          "Packet compression and validation against registry"
+        ],
+        "server": [
+          "EnhancedProtocolHandler with size limits and compression",
+          "ProtocolRegistry.ValidateBindings fingerprint guard"
+        ]
+      },
+      {
+        "id": "core.chunk_streaming",
+        "name": "Chunk Streaming",
+        "status": "partial",
+        "client": [
+          "Chunk request batching and mesh refresh",
+          "Block updates diff application"
+        ],
+        "server": [
+          "Chunk build/diff and compression",
+          "Chunk payload protobuf generation"
+        ]
+      },
+      {
+        "id": "core.session_sync",
+        "name": "Session/State Sync",
+        "status": "planned",
+        "client": [
+          "Spawn/respawn flow, time/weather rendering",
+          "HUD sync for health/hunger/oxygen"
+        ],
+        "server": [
+          "Session auth and lifecycle",
+          "Time/weather broadcast"
+        ]
+      },
+      {
+        "id": "core.worldmap_control",
+        "name": "World Map Control",
+        "status": "in_progress",
+        "client": [
+          "Profile loader, preview stitching, cache invalidation",
+          "Map control hash verification"
+        ],
+        "server": [
+          "World map control hash/profile export",
+          "Hydrology/flow profile alignment to client previews"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content.blocks_items",
+        "name": "Blocks & Items",
+        "status": "partial",
+        "client": [
+          "Block/item assets and placement/break UX",
+          "Inventory UI wiring"
+        ],
+        "server": [
+          "Canonical block/item registry",
+          "Drop tables and validation"
+        ]
+      },
+      {
+        "id": "content.biomes_structures",
+        "name": "Biomes & Structures",
+        "status": "planned",
+        "client": [
+          "Biome-based visuals and map markers"
+        ],
+        "server": [
+          "Biome mask and structure placement hooks"
+        ]
+      },
+      {
+        "id": "content.entities",
+        "name": "Entities",
+        "status": "planned",
+        "client": [
+          "Interpolation and culling",
+          "Basic AI client hints"
+        ],
+        "server": [
+          "Entity spawn/despawn/state updates"
+        ]
+      },
+      {
+        "id": "content.audio_vfx",
+        "name": "Audio/VFX",
+        "status": "planned",
+        "client": [
+          "Effect registry aligned to protobuf packets"
+        ],
+        "server": [
+          "Triggers for sound/particle packets"
+        ]
+      },
+      {
+        "id": "content.ui_flows",
+        "name": "UI Flows",
+        "status": "partial",
+        "client": [
+          "World select, settings, HUD wiring"
+        ],
+        "server": [
+          "Menu/session state exposure"
+        ]
+      }
+    ],
+    "util": [
+      {
+        "id": "util.config_data",
+        "name": "Config/Data",
+        "status": "in_progress",
+        "client": [
+          "StreamingAssets JSON configs for worldgen/map control"
+        ],
+        "server": [
+          "DataDrivenConfigManager JSON configs for worldgen/networking"
+        ]
+      },
+      {
+        "id": "util.proto_tooling",
+        "name": "Proto Tooling",
+        "status": "partial",
+        "client": [
+          "Generated Google.Protobuf DTO references",
+          "Bindings validated at startup"
+        ],
+        "server": [
+          "ProtocolRegistry.ValidateBindings and fingerprint guard",
+          "Protoc regeneration from proto/*.proto"
+        ]
+      },
+      {
+        "id": "util.telemetry",
+        "name": "Telemetry/Diagnostics",
+        "status": "planned",
+        "client": [
+          "Hydrology/cave debug overlays"
+        ],
+        "server": [
+          "Worldgen timings and network throughput metrics"
+        ]
+      },
+      {
+        "id": "util.build_test",
+        "name": "Build/Test",
+        "status": "partial",
+        "client": [
+          "Unity test runner hooks"
+        ],
+        "server": [
+          "dotnet build/test and selftest smoke"
+        ]
+      },
+      {
+        "id": "util.data_pipelines",
+        "name": "Data Pipelines",
+        "status": "planned",
+        "client": [
+          "JSON-driven game data ingestion"
+        ],
+        "server": [
+          "Config validation/migration scripts"
+        ]
+      }
+    ]
+  },
+  "implementation_order": [
+    "core.worldgen",
+    "core.worldmap_control",
+    "core.chunk_streaming",
+    "content.blocks_items",
+    "util.proto_tooling",
+    "util.telemetry"
+  ]
+}

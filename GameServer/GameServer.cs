@@ -5,9 +5,13 @@ using GameServerApp.Database;
 using GameServerApp.Handlers;
 using GameServerApp.Systems;
 using GameServerApp.World;
+using GameServerApp.AI;
 using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
+using GameProtocol;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Diagnostics;
 
 namespace GameServerApp
 {
@@ -22,15 +26,29 @@ namespace GameServerApp
         private readonly ServerMetricsService _metrics;
         private readonly Rooms.RoomManager _rooms;
         private readonly WorldManager _worldManager;
+        private readonly WorldSynchronizationManager _worldSync;
+        private readonly ServerAIManager _aiManager;
         private readonly Timer _maintenanceTimer;
+        private readonly Timer _aiUpdateTimer;
+        private readonly Timer _aiSyncTimer;
+        private readonly Timer _worldSyncTimer;
         private readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _rateCounters = new();
         private readonly ServerConfig _config;
         private readonly WorldTimeSystem _worldTimeSystem;
         private readonly WeatherSystem _weatherSystem;
+        private readonly PhysicsSystem _physicsSystem;
+        private readonly PermissionSystem _permissionSystem;
+        private readonly CombatSystem _combatSystem;
+        private readonly CommandSystem _commandSystem;
+        private readonly Middleware.AntiCheatMiddleware _antiCheat;
         private bool _isRunning;
+        private readonly Stopwatch _gameTimer = new Stopwatch();
+        private DateTime _lastAIUpdateTime = DateTime.UtcNow;
 
         public GameServer(int port = 9000, string databaseFile = "minecraft_game.db", ServerConfig? config = null)
         {
+            ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateEnhancedContracts();
             _config = config ?? ServerConfig.LoadFromFile();
 
             var resolvedPort = config?.Network.Port ?? port;
@@ -43,15 +61,39 @@ namespace GameServerApp
             _entitySync = new EntitySyncService(_sessions);
             _metrics = new ServerMetricsService(_sessions);
             _rooms = new Rooms.RoomManager(_sessions);
-            _worldManager = new WorldManager(_database);
+            var worldGenConfig = WorldGenerationConfig.Load(_config.World.WorldConfigPath);
+            _worldManager = new WorldManager(_database, _config.World, worldGenConfig);
+            _worldSync = new WorldSynchronizationManager(_worldManager, _sessions, _database, _rooms);
             _minecraftDispatcher = new MinecraftMessageDispatcher(_dispatcher);
             _worldTimeSystem = new WorldTimeSystem(_sessions, _config.World);
             _weatherSystem = new WeatherSystem(_sessions, _config.World);
+            _aiManager = new ServerAIManager();
+
+            // 새로운 시스템들 초기화
+            _physicsSystem = new PhysicsSystem();
+            _permissionSystem = new PermissionSystem();
+            _combatSystem = new CombatSystem();
+            _commandSystem = new CommandSystem(_permissionSystem);
+            _antiCheat = new Middleware.AntiCheatMiddleware();
 
             RegisterMessageHandlers();
+            ProtocolValidator.ValidateHandlerBindings(_minecraftDispatcher);
 
             _maintenanceTimer = new Timer(PerformMaintenance, null,
                 TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+
+            // AI 업데이트 타이머 (60Hz - 16.67ms 간격)
+            _aiUpdateTimer = new Timer(PerformAIUpdate, null,
+                TimeSpan.FromMilliseconds(16), TimeSpan.FromMilliseconds(16));
+
+            // AI 동기화 타이머 (10Hz - 100ms 간격)
+            _aiSyncTimer = new Timer(BroadcastAIState, null,
+                TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+
+            _worldSyncTimer = new Timer(_ => _ = _worldSync.ProcessWorldChangeQueueAsync(), null,
+                TimeSpan.FromMilliseconds(125), TimeSpan.FromMilliseconds(125));
+            _gameTimer.Start();
+            _lastAIUpdateTime = DateTime.UtcNow;
         }
 
         private void RegisterMessageHandlers()
@@ -102,11 +144,11 @@ namespace GameServerApp
 
             // World & Block Management (Server-Synchronized)
             //_dispatcher.Register(new ChunkHandler(_database, _sessions, _worldManager));
-            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms));
+            _dispatcher.Register(new WorldBlockHandler(_database, _sessions, _worldManager, _rooms, _worldSync));
 
             // Game Mechanics & Interactions
             var craftingSystem = new CraftingSystem(inventorySystem);
-            var healthSystem = new HealthAndHungerSystem(_database, _sessions);
+            var healthSystem = new HealthAndHungerSystem(_database, _sessions, _metrics);
 
             _dispatcher.Register(new InventoryHandler(_database, _sessions, inventorySystem));
             _dispatcher.Register(new CraftingHandler(_database, _sessions, craftingSystem));
@@ -115,12 +157,22 @@ namespace GameServerApp
             _dispatcher.Register(new RoomEnterHandler(_sessions, _rooms));
             _dispatcher.Register(new RoomLeaveHandler(_sessions, _rooms));
             _dispatcher.Register(new HealthHandler(_database, _sessions, healthSystem));
-            _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem));
+            _dispatcher.Register(new RespawnHandler(_database, _sessions, healthSystem, _metrics));
 
             // Communication & Network
             _dispatcher.Register(new ChatHandler(_database, _sessions, _rooms));
             _dispatcher.Register(new PingHandler(_database, _sessions));
             _dispatcher.Register(new ServerStatusHandler(_sessions, _metrics));
+
+            // AI System (Server-Authoritative)
+            _dispatcher.Register(new AISpawnHandler(_aiManager, _sessions));
+            _dispatcher.Register(new AIDebugInfoHandler(_aiManager, _sessions));
+
+            // Combat System (PvP/PvE)
+            _dispatcher.Register(new PlayerAttackHandler(_combatSystem, healthSystem, _sessions));
+
+            // Command System (GM Commands)
+            _dispatcher.Register(new CommandHandler(_commandSystem, _sessions));
 
             // === 마인?�래?�트 ?�용 ?�들???�록 ===
             RegisterMinecraftHandlers(containerSystem);
@@ -141,6 +193,13 @@ namespace GameServerApp
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerOpen, new MinecraftContainerOpenHandler(containerSystem));
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerClose, new MinecraftContainerCloseHandler(containerSystem));
             _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ContainerUpdate, new MinecraftContainerUpdateHandler(containerSystem));
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.InventoryUpdate, new MinecraftInventoryUpdateHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.EntityUpdate, new MinecraftEntityUpdateHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemUse, new MinecraftItemUseHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemDrop, new MinecraftItemDropHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.MultiBlockChange, new MinecraftMultiBlockChangeHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.ItemPickup, new MinecraftItemPickupHandler());
+            _minecraftDispatcher.RegisterHandler(MinecraftMessageType.EntityInteract, new MinecraftEntityInteractHandler());
             
             Console.WriteLine("=== Minecraft Enhanced Features Enabled ===");
             Console.WriteLine("✓ Advanced Block Breaking System");
@@ -150,6 +209,17 @@ namespace GameServerApp
             Console.WriteLine("✓ Biome-based World Generation");
             Console.WriteLine("✓ Item Drop & Pickup System");
             Console.WriteLine("===========================================");
+
+            _minecraftDispatcher.AssertHandlerCoverage(new[]
+            {
+                MinecraftMessageType.ChunkUnloadNotification,
+                MinecraftMessageType.ContainerOpen,
+                MinecraftMessageType.ContainerClose,
+                MinecraftMessageType.ContainerUpdate
+            });
+            Console.WriteLine("[MinecraftDispatcher] Required Minecraft message handlers registered.");
+            ProtoDiagnostics.LogHandlerCoverage(_minecraftDispatcher);
+            ProtocolValidator.ValidateHandlerBindings(_minecraftDispatcher);
         }
 
         public async Task StartAsync()
@@ -187,7 +257,11 @@ namespace GameServerApp
             _weatherSystem?.Dispose();
             _worldTimeSystem?.Dispose();
             _maintenanceTimer?.Dispose();
+            _aiUpdateTimer?.Dispose();
+            _aiSyncTimer?.Dispose();
+            _worldSyncTimer?.Dispose();
             _sessions?.Dispose();
+            _gameTimer?.Stop();
             _metrics.MarkServerStopped();
             Console.WriteLine("Server stopped.");
         }
@@ -324,17 +398,59 @@ namespace GameServerApp
             try
             {
                 Console.WriteLine("Performing server maintenance...");
-                
+
                 await _worldManager.SaveModifiedChunksAsync();
-                
+
                 _worldManager.UnloadOldChunks(TimeSpan.FromMinutes(30));
-                
+
                 var onlinePlayers = _sessions.OnlinePlayerCount;
                 Console.WriteLine($"Maintenance complete. Online players: {onlinePlayers}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during maintenance: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// AI 업데이트 (60Hz)
+        /// </summary>
+        private void PerformAIUpdate(object? state)
+        {
+            try
+            {
+                var now = DateTime.UtcNow;
+                float deltaTime = (float)(now - _lastAIUpdateTime).TotalSeconds;
+                _lastAIUpdateTime = now;
+
+                // ServerAIManager 업데이트
+                _aiManager.Update(deltaTime);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during AI update: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// AI 상태 동기화 브로드캐스트 (10Hz)
+        /// </summary>
+        private async void BroadcastAIState(object? state)
+        {
+            try
+            {
+                // AI 상태 브로드캐스트 메시지 생성
+                var broadcast = _aiManager.GetStateSyncBroadcast();
+
+                // 모든 활성 세션에 JSON 브로드캐스트 (Unity JsonUtility 호환)
+                if (broadcast.Actors.Count > 0)
+                {
+                    await _sessions.BroadcastToAllAsJsonAsync(MessageType.AIStateSyncBroadcast, broadcast);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting AI state: {ex.Message}");
             }
         }
     }

@@ -1,0 +1,121 @@
+[
+  {
+    "id": "wooden_pickaxe",
+    "type": "tool",
+    "name": "Wooden Pickaxe",
+    "stack_max": 1,
+    "durability": 59,
+    "groups": [
+      "tool",
+      "pickaxe",
+      "wood"
+    ]
+  },
+  {
+    "id": "plank",
+    "type": "material",
+    "name": "Wood Planks",
+    "stack_max": 64,
+    "groups": [
+      "material",
+      "wood",
+      "flammable"
+    ]
+  },
+  {
+    "id": "stick",
+    "type": "material",
+    "name": "Stick",
+    "stack_max": 64,
+    "groups": [
+      "material",
+      "wood",
+      "flammable"
+    ]
+  },
+  {
+    "id": "wheat",
+    "type": "material",
+    "name": "Wheat",
+    "stack_max": 64,
+    "groups": [
+      "material",
+      "grain",
+      "plant"
+    ]
+  },
+  {
+    "id": "iron_ore",
+    "type": "material",
+    "name": "Iron Ore",
+    "stack_max": 64,
+    "groups": [
+      "material",
+      "ore"
+    ]
+  },
+  {
+    "id": "iron_ingot",
+    "type": "material",
+    "name": "Iron Ingot",
+    "stack_max": 64,
+    "groups": [
+      "material",
+      "metal",
+      "iron"
+    ]
+  },
+  {
+    "id": "coal",
+    "type": "resource",
+    "name": "Coal",
+    "stack_max": 64,
+    "groups": [
+      "resource",
+      "fuel"
+    ]
+  },
+  {
+    "id": "bucket",
+    "type": "tool",
+    "name": "Bucket",
+    "stack_max": 16,
+    "groups": [
+      "tool",
+      "container"
+    ]
+  },
+  {
+    "id": "milk_bucket",
+    "type": "food",
+    "name": "Milk Bucket",
+    "stack_max": 1,
+    "groups": [
+      "food",
+      "container",
+      "bucket_filled"
+    ]
+  },
+  {
+    "id": "bread",
+    "type": "food",
+    "name": "Bread",
+    "stack_max": 64,
+    "hunger_restore": 5,
+    "groups": [
+      "food",
+      "edible"
+    ]
+  },
+  {
+    "id": "cake",
+    "type": "food",
+    "name": "Cake",
+    "stack_max": 1,
+    "hunger_restore": 14,
+    "groups": [
+      "food",
+      "edible"
+    ]
+  }
+]

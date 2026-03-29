@@ -1,0 +1,68 @@
+﻿{
+    "version": 1,
+    "description": "Canonical JSON config parity map for server/client/tooling synchronization.",
+    "groups": [
+        {
+            "name": "world-config",
+            "source": "config/world.json",
+            "mirrors": [
+                "GameServer/config/world.json",
+                "Assets/StreamingAssets/world-config.json"
+            ]
+        },
+        {
+            "name": "world-map-profile",
+            "source": "config/world_map_control_profile.json",
+            "mirrors": [
+                "GameServer/config/world_map_control_profile.json",
+                "Assets/StreamingAssets/world-map-control.json"
+            ]
+        },
+        {
+            "name": "world-map-queue-policy",
+            "source": "config/world_map_control_queue_policy.json",
+            "mirrors": [
+                "GameServer/config/world_map_control_queue_policy.json",
+                "Assets/StreamingAssets/world_map_control_queue_policy.json"
+            ]
+        },
+        {
+            "name": "enhanced-world-map-server",
+            "source": "config/enhanced_world_map_control_server.json",
+            "mirrors": [
+                "GameServer/config/enhanced_world_map_control_server.json"
+            ]
+        },
+        {
+            "name": "enhanced-world-map-client",
+            "source": "config/enhanced_world_map_control_client.json",
+            "mirrors": [
+                "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+            ]
+        },
+        {
+            "name": "proto-probe-config",
+            "source": "config/protocol_dummy_client.json",
+            "mirrors": [
+                "GameServer/config/protocol_dummy_client.json"
+            ]
+        },
+        {
+            "name": "dummy-client-config",
+            "source": "config/dummy_minecraft_client.json",
+            "mirrors": [
+                "GameServer/config/dummy_minecraft_client.json"
+            ]
+        },
+        {
+            "name": "parity-manifest-self",
+            "source": "config/config_parity_manifest.json",
+            "mirrors": [
+                "GameServer/config/config_parity_manifest.json",
+                "Assets/StreamingAssets/config_parity_manifest.json"
+            ]
+        }
+    ]
+}
+
+

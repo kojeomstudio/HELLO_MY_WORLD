@@ -1,0 +1,225 @@
+{
+  "graphics": {
+    "resolution": {
+      "width": 1920,
+      "height": 1080,
+      "fullscreen": false,
+      "borderless": false,
+      "refreshRate": 60
+    },
+    "quality": {
+      "preset": "high",
+      "textureQuality": "high",
+      "shadowQuality": "medium",
+      "particleQuality": "high",
+      "waterQuality": "high",
+      "renderDistance": 10,
+      "maxFps": 60,
+      "vsync": true,
+      "antiAliasing": 4
+    },
+    "advanced": {
+      "enableFog": true,
+      "enableVolumetricLighting": false,
+      "enableAmbientOcclusion": true,
+      "enableBloom": false,
+      "enableMotionBlur": false,
+      "enableDepthOfField": false,
+      "enableScreenSpaceReflections": false,
+      "enableTessellation": false
+    }
+  },
+  "audio": {
+    "masterVolume": 1.0,
+    "musicVolume": 0.7,
+    "soundVolume": 0.8,
+    "ambientVolume": 0.6,
+    "voiceVolume": 0.9,
+    "enableMusic": true,
+    "enableSound": true,
+    "enableAmbient": true,
+    "enableVoice": true,
+    "audioDevice": "default"
+  },
+  "controls": {
+    "mouse": {
+      "sensitivity": 2.0,
+      "invertY": false,
+      "smoothMouse": true
+    },
+    "keyboard": {
+      "forward": "W",
+      "backward": "S",
+      "left": "A",
+      "right": "D",
+      "jump": "Space",
+      "sneak": "LeftShift",
+      "sprint": "LeftControl",
+      "inventory": "I",
+      "chat": "T",
+      "drop": "Q",
+      "attack": "Mouse0",
+      "use": "Mouse1",
+      "pickBlock": "Mouse2",
+      "hotbar1": "Alpha1",
+      "hotbar2": "Alpha2",
+      "hotbar3": "Alpha3",
+      "hotbar4": "Alpha4",
+      "hotbar5": "Alpha5",
+      "hotbar6": "Alpha6",
+      "hotbar7": "Alpha7",
+      "hotbar8": "Alpha8",
+      "hotbar9": "Alpha9",
+      "pause": "Escape",
+      "screenshot": "F2",
+      "debug": "F3",
+      "togglePerspective": "F5"
+    },
+    "gamepad": {
+      "enabled": true,
+      "vibration": true,
+      "deadzone": 0.1,
+      "lookSensitivity": 1.0,
+      "moveSensitivity": 1.0
+    }
+  },
+  "gameplay": {
+    "difficulty": "normal",
+    "gamemode": "survival",
+    "enableTutorial": true,
+    "enableCrosshair": true,
+    "enableBobbing": true,
+    "enableSwaying": true,
+    "enableFOVChanges": true,
+    "defaultFOV": 75,
+    "sprintFOV": 85,
+    "enableAutoJump": false,
+    "enableAutoSprint": true
+  },
+  "interface": {
+    "hud": {
+      "showHealth": true,
+      "showHunger": true,
+      "showArmor": true,
+      "showExperience": true,
+      "showHotbar": true,
+      "showCrosshair": true,
+      "showCoordinates": false,
+      "showFPS": false,
+      "showPing": true,
+      "scale": 1.0,
+      "opacity": 1.0
+    },
+    "chat": {
+      "enabled": true,
+      "historySize": 100,
+      "opacity": 0.8,
+      "scale": 1.0,
+      "position": "bottom-left",
+      "enableTimestamps": true,
+      "enableColors": true
+    },
+    "inventory": {
+      "enableTooltips": true,
+      "enableAnimations": true,
+      "enableSounds": true,
+      "enableDragAndDrop": true,
+      "enableRightClickActions": true
+    },
+    "debug": {
+      "enabled": false,
+      "showChunkBorders": false,
+      "showChunkCoordinates": false,
+      "showEntityHitboxes": false,
+      "showBlockHitboxes": false,
+      "showLightLevels": false
+    }
+  },
+  "multiplayer": {
+    "servers": [
+      {
+        "name": "Local Server",
+        "address": "localhost",
+        "port": 9000,
+        "lastConnected": null
+      }
+    ],
+    "playerName": "Player",
+    "enableChatFilter": true,
+    "enableServerResourcePack": true,
+    "autoReconnect": true,
+    "reconnectDelay": 5000,
+    "maxReconnectAttempts": 5
+  },
+  "network": {
+    "compression": {
+      "enabled": true,
+      "threshold": 256
+    },
+    "timeouts": {
+      "connectionTimeout": 10000,
+      "readTimeout": 5000,
+      "writeTimeout": 5000
+    },
+    "rateLimit": {
+      "enabled": true,
+      "maxPacketsPerSecond": 20,
+      "maxBytesPerSecond": 32768
+    }
+  },
+  "performance": {
+    "threading": {
+      "enableMultithreading": true,
+      "workerThreads": 4,
+      "enableAsyncChunkLoading": true,
+      "enableAsyncMeshGeneration": true
+    },
+    "memory": {
+      "maxMemoryMB": 2048,
+      "enableGarbageCollection": true,
+      "gcInterval": 60
+    },
+    "chunks": {
+      "renderDistance": 10,
+      "simulationDistance": 8,
+      "maxLoadedChunks": 500,
+      "chunkUpdateInterval": 0.1,
+      "enableChunkCulling": true,
+      "enableFrustumCulling": true
+    },
+    "entities": {
+      "maxRenderDistance": 128,
+      "maxEntities": 100,
+      "enableEntityCulling": true,
+      "enableLOD": true
+    }
+  },
+  "accessibility": {
+    "colorBlindMode": "none",
+    "subtitleEnabled": false,
+    "subtitleScale": 1.0,
+    "subtitleOpacity": 1.0,
+    "highContrastMode": false,
+    "largeTextMode": false,
+    "screenReaderEnabled": false
+  },
+  "logging": {
+    "level": "INFO",
+    "file": {
+      "enabled": true,
+      "path": "logs/client.log",
+      "maxSize": "10MB",
+      "maxFiles": 3,
+      "rotate": true
+    },
+    "categories": {
+      "network": true,
+      "world": true,
+      "player": true,
+      "combat": true,
+      "inventory": true,
+      "crafting": true,
+      "errors": true
+    }
+  }
+}

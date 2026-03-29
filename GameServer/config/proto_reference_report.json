@@ -1,0 +1,181 @@
+{
+  "FileName": "enhanced_minecraft_game.proto",
+  "Package": "EnhancedMinecraftProtocol",
+  "DescriptorFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
+  "ComputedFingerprint": "4922CE79B7C3DB9E6F55FB02AD41358F9A682F502D05F9E6229783527F1FA1B4",
+  "BoundDescriptorCount": 14,
+  "GeneratedDescriptorCount": 54,
+  "DescriptorCoverageRatio": 0.25925925925925924,
+  "DeclaredMessages": [
+    "PlayerInfo",
+    "PlayerStats",
+    "PlayerInventory",
+    "InventorySlot",
+    "ItemStack",
+    "Enchantment",
+    "BlockBreakStartRequest",
+    "BlockBreakStartResponse",
+    "BlockBreakProgressUpdate",
+    "BlockBreakCompleteRequest",
+    "BlockBreakCompleteResponse",
+    "BlockPlaceRequest",
+    "BlockPlaceResponse",
+    "BlockChangeBroadcast",
+    "ChunkLoadRequest",
+    "ChunkLoadResponse",
+    "ChunkUnloadNotification",
+    "ChunkUnloadAck",
+    "ChunkData",
+    "TileEntityData",
+    "EntityData",
+    "EntityMetadata",
+    "EntitySpawnBroadcast",
+    "EntityDespawnBroadcast",
+    "PlayerActionRequest",
+    "ActionData",
+    "PlayerActionResponse",
+    "ActionResult",
+    "CraftingRequest",
+    "CraftingResponse",
+    "RecipeDiscoveryBroadcast",
+    "CombatEvent",
+    "DeathEvent",
+    "ExperienceUpdateBroadcast",
+    "ExperienceOrbSpawnBroadcast",
+    "EnchantingRequest",
+    "EnchantingResponse",
+    "ActiveEffect",
+    "EffectUpdateBroadcast",
+    "ParticleEffect",
+    "SoundEffect",
+    "ChatMessage",
+    "ChatStyle",
+    "CommandExecuteRequest",
+    "CommandExecuteResponse",
+    "WorldInfo",
+    "WeatherInfo",
+    "WorldBorder",
+    "ServerStatusResponse",
+    "TimeUpdateBroadcast",
+    "WeatherUpdateBroadcast",
+    "AchievementUnlockBroadcast",
+    "StatisticUpdateBroadcast",
+    "StatisticEntry"
+  ],
+  "Registered": [
+    {
+      "MessageType": "PlayerStateUpdate",
+      "PrototypeName": "PlayerInfo"
+    },
+    {
+      "MessageType": "PlayerActionRequest",
+      "PrototypeName": "PlayerActionRequest"
+    },
+    {
+      "MessageType": "PlayerActionResponse",
+      "PrototypeName": "PlayerActionResponse"
+    },
+    {
+      "MessageType": "ChunkDataRequest",
+      "PrototypeName": "ChunkLoadRequest"
+    },
+    {
+      "MessageType": "ChunkDataResponse",
+      "PrototypeName": "ChunkLoadResponse"
+    },
+    {
+      "MessageType": "ChunkUnloadNotification",
+      "PrototypeName": "ChunkUnloadNotification"
+    },
+    {
+      "MessageType": "ChunkUnloadAcknowledge",
+      "PrototypeName": "ChunkUnloadAck"
+    },
+    {
+      "MessageType": "BlockChangeNotification",
+      "PrototypeName": "BlockChangeBroadcast"
+    },
+    {
+      "MessageType": "EntitySpawn",
+      "PrototypeName": "EntitySpawnBroadcast"
+    },
+    {
+      "MessageType": "EntityDespawn",
+      "PrototypeName": "EntityDespawnBroadcast"
+    },
+    {
+      "MessageType": "TimeUpdate",
+      "PrototypeName": "TimeUpdateBroadcast"
+    },
+    {
+      "MessageType": "WeatherChange",
+      "PrototypeName": "WeatherUpdateBroadcast"
+    },
+    {
+      "MessageType": "SoundEffect",
+      "PrototypeName": "SoundEffect"
+    },
+    {
+      "MessageType": "ParticleEffect",
+      "PrototypeName": "ParticleEffect"
+    }
+  ],
+  "MissingRegistrations": [],
+  "UnregisteredMessageTypes": [],
+  "OptionalUnregistered": [
+    "MultiBlockChange",
+    "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
+    "ItemPickup",
+    "EntityUpdate",
+    "EntityInteract",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
+  ],
+  "MissingGeneratedRequiredDescriptors": [],
+  "UnboundDescriptors": [
+    "PlayerStats",
+    "PlayerInventory",
+    "InventorySlot",
+    "ItemStack",
+    "Enchantment",
+    "BlockBreakStartRequest",
+    "BlockBreakStartResponse",
+    "BlockBreakProgressUpdate",
+    "BlockBreakCompleteRequest",
+    "BlockBreakCompleteResponse",
+    "BlockPlaceRequest",
+    "BlockPlaceResponse",
+    "ChunkData",
+    "TileEntityData",
+    "EntityData",
+    "EntityMetadata",
+    "ActionData",
+    "ActionResult",
+    "CraftingRequest",
+    "CraftingResponse",
+    "RecipeDiscoveryBroadcast",
+    "CombatEvent",
+    "DeathEvent",
+    "ExperienceUpdateBroadcast",
+    "ExperienceOrbSpawnBroadcast",
+    "EnchantingRequest",
+    "EnchantingResponse",
+    "ActiveEffect",
+    "EffectUpdateBroadcast",
+    "ChatMessage",
+    "ChatStyle",
+    "CommandExecuteRequest",
+    "CommandExecuteResponse",
+    "WorldInfo",
+    "WeatherInfo",
+    "WorldBorder",
+    "ServerStatusResponse",
+    "AchievementUnlockBroadcast",
+    "StatisticUpdateBroadcast",
+    "StatisticEntry"
+  ],
+  "OrphanedDescriptors": []
+}

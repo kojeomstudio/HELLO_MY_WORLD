@@ -7,6 +7,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Google.Protobuf;
+using EnhancedProto = EnhancedMinecraftProtocol;
 using UnityEngine;
 using Networking.Core;
 using SharedProtocol;
@@ -30,6 +32,7 @@ namespace Minecraft.Core
         [Header("Game Settings")]
         [SerializeField] private int renderDistance = 8;
         [SerializeField] private float networkTickRate = 20f;
+        [SerializeField] private int maxChunksPerChunkRequest = 8;
 
         [Header("Server Status")]
         [SerializeField] private bool autoRefreshServerStatus = true;
@@ -43,6 +46,7 @@ namespace Minecraft.Core
         private PlayerStateInfo _playerState = new();
         private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
         private readonly HashSet<Vector2Int> _pendingChunkRequests = new();
+        private readonly Queue<Vector2Int> _chunkRequestBacklog = new();
         private readonly List<Vector2Int> _chunksToUnload = new();
         private readonly Dictionary<string, EntityInfo> _entities = new();
         private readonly Dictionary<string, RecipeData> _knownRecipes = new();
@@ -62,11 +66,16 @@ namespace Minecraft.Core
         public event Action<bool> ConnectionStatusChanged;
         public event Action<string> ErrorOccurred;
         public event Action<PlayerStateInfo> PlayerStateUpdated;
+        public event Action<PlayerRespawnBroadcast> PlayerRespawned;
+        public event Action<PlayerDeathMessage> PlayerDeathNotified;
+
+        public event Action<CombatEventMessage> CombatEventReceived;
         public event Action<ChunkSnapshot> ChunkLoaded;
         public event Action<Vector2Int, ChunkSnapshot> ChunkUnloaded;
         public event Action<Vector3Int, int, int> BlockChanged;
         public event Action<Vector3Int, IReadOnlyList<ItemDropInfo>> BlockDropsReceived;
         public event Action<EntityInfo> EntitySpawned;
+        public event Action<EntityInfo> EntityUpdated;
         public event Action<string> EntityDespawned;
         public event Action<ChatMessage> ChatMessageReceived;
         public event Action<IReadOnlyList<RecipeData>> RecipeListReceived;
@@ -140,6 +149,11 @@ namespace Minecraft.Core
 
         private void Update()
         {
+            if (_isConnected)
+            {
+                FlushChunkRequests();
+            }
+
             ProcessOutgoingMessages();
             ProcessIncomingMessages();
 
@@ -303,13 +317,32 @@ namespace Minecraft.Core
             }
 
             _pendingChunkRequests.Add(chunkKey);
+            _chunkRequestBacklog.Enqueue(chunkKey);
+        }
 
-            var request = new ChunkDataRequestMessage
+        private void FlushChunkRequests()
+        {
+            if (!_isConnected || _chunkRequestBacklog.Count == 0)
             {
-                ChunkX = chunkX,
-                ChunkZ = chunkZ,
+                return;
+            }
+
+            var batchSize = Mathf.Clamp(maxChunksPerChunkRequest, 1, 64);
+            var request = new EnhancedProto.ChunkLoadRequest
+            {
                 ViewDistance = renderDistance
             };
+
+            while (_chunkRequestBacklog.Count > 0 && request.ChunkPositions.Count < batchSize)
+            {
+                var chunkKey = _chunkRequestBacklog.Dequeue();
+                request.ChunkPositions.Add(new EnhancedProto.Vector3Int
+                {
+                    X = chunkKey.x,
+                    Y = 0,
+                    Z = chunkKey.y
+                });
+            }
 
             EnqueueMessage((int)MinecraftMessageType.ChunkDataRequest, request);
         }
@@ -523,9 +556,26 @@ namespace Minecraft.Core
 
         private void SendMessageToTransport(OutgoingMessage message)
         {
-            using var payloadStream = new MemoryStream();
-            ProtoBuf.Serializer.Serialize(payloadStream, message.Payload);
-            var payload = payloadStream.ToArray();
+            byte[] payload;
+            switch (message.Payload)
+            {
+                case null:
+                    payload = Array.Empty<byte>();
+                    break;
+                case byte[] rawBytes:
+                    payload = rawBytes;
+                    break;
+                case IMessage protoMessage:
+                    payload = protoMessage.ToByteArray();
+                    break;
+                default:
+                    using (var payloadStream = new MemoryStream())
+                    {
+                        ProtoBuf.Serializer.Serialize(payloadStream, message.Payload);
+                        payload = payloadStream.ToArray();
+                    }
+                    break;
+            }
 
             var typeBytes = BitConverter.GetBytes(message.TypeCode);
             var framed = new byte[typeBytes.Length + payload.Length];
@@ -594,26 +644,39 @@ namespace Minecraft.Core
                         MessageType.RoomQueueUpdate => ProtoBuf.Serializer.Deserialize<RoomQueueUpdateMessage>(stream),
                         MessageType.RoomPromotionNotice => ProtoBuf.Serializer.Deserialize<RoomPromotionMessage>(stream),
                         MessageType.PlayerInfoUpdate => ProtoBuf.Serializer.Deserialize<PlayerInfoUpdate>(stream),
+                        MessageType.PlayerDeath => ProtoBuf.Serializer.Deserialize<PlayerDeathMessage>(stream),
+
+                        MessageType.PlayerRespawnBroadcast => ProtoBuf.Serializer.Deserialize<PlayerRespawnBroadcast>(stream),
+
+                        MessageType.CombatEvent => ProtoBuf.Serializer.Deserialize<CombatEventMessage>(stream),
                         _ => null
                     };
                 }
 
-                if (Enum.IsDefined(typeof(MinecraftMessageType), typeCode))
-                {
-                    var minecraftType = (MinecraftMessageType)typeCode;
-                    return minecraftType switch
-                    {
-                        MinecraftMessageType.PlayerActionResponse => ProtoBuf.Serializer.Deserialize<PlayerActionResponseMessage>(stream),
-                        MinecraftMessageType.ChunkDataResponse => ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream),
-                        MinecraftMessageType.ChunkUnloadAcknowledge => ProtoBuf.Serializer.Deserialize<ChunkUnloadAcknowledgeMessage>(stream),
-                        MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
-                        MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
-                        MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
-                        MinecraftMessageType.TimeUpdate => ProtoBuf.Serializer.Deserialize<TimeUpdateMessage>(stream),
-                        MinecraftMessageType.WeatherChange => ProtoBuf.Serializer.Deserialize<WeatherChangeMessage>(stream),
-                        _ => null
-                    };
-                }
+                  if (Enum.IsDefined(typeof(MinecraftMessageType), typeCode))
+                  {
+                      var minecraftType = (MinecraftMessageType)typeCode;
+                      return minecraftType switch
+                      {
+                          MinecraftMessageType.PlayerActionResponse => ProtoBuf.Serializer.Deserialize<PlayerActionResponseMessage>(stream),
+                          MinecraftMessageType.ChunkDataResponse => TryDecodeChunkLoadResponse(payload, out var enhancedChunkResponse)
+                              ? enhancedChunkResponse
+                              : ProtoBuf.Serializer.Deserialize<ChunkDataResponseMessage>(stream),
+                          MinecraftMessageType.ChunkUnloadAcknowledge => TryDecodeChunkUnloadAck(payload, out var enhancedUnloadAck)
+                              ? enhancedUnloadAck
+                              : ProtoBuf.Serializer.Deserialize<ChunkUnloadAcknowledgeMessage>(stream),
+                          MinecraftMessageType.BlockChangeNotification => ProtoBuf.Serializer.Deserialize<BlockChangeNotificationMessage>(stream),
+                          MinecraftMessageType.EntitySpawn => ProtoBuf.Serializer.Deserialize<EntitySpawnMessage>(stream),
+                          MinecraftMessageType.EntityUpdate => ProtoBuf.Serializer.Deserialize<EntityUpdateMessage>(stream),
+                          MinecraftMessageType.EntityDespawn => ProtoBuf.Serializer.Deserialize<EntityDespawnMessage>(stream),
+                          MinecraftMessageType.TimeUpdate => ProtoBuf.Serializer.Deserialize<TimeUpdateMessage>(stream),
+                          MinecraftMessageType.WeatherChange => ProtoBuf.Serializer.Deserialize<WeatherChangeMessage>(stream),
+                          MinecraftMessageType.ContainerOpen => ProtoBuf.Serializer.Deserialize<ContainerOpenResponseMessage>(stream),
+                          MinecraftMessageType.ContainerUpdate => ProtoBuf.Serializer.Deserialize<ContainerUpdateBroadcastMessage>(stream),
+                          MinecraftMessageType.ContainerClose => ProtoBuf.Serializer.Deserialize<ContainerCloseNotificationMessage>(stream),
+                          _ => null
+                      };
+                  }
             }
             catch (Exception ex)
             {
@@ -621,11 +684,60 @@ namespace Minecraft.Core
                 return null;
             }
 
-            Debug.LogWarning($"Unknown message type received: {typeCode}");
-            return null;
-        }
+              Debug.LogWarning($"Unknown message type received: {typeCode}");
+              return null;
+          }
 
-        #endregion
+          private static bool TryDecodeChunkLoadResponse(byte[] payload, out EnhancedProto.ChunkLoadResponse response)
+          {
+              try
+              {
+                  response = EnhancedProto.ChunkLoadResponse.Parser.ParseFrom(payload);
+                  if (response == null || response.Chunks == null || response.Chunks.Count == 0)
+                  {
+                      response = null;
+                      return false;
+                  }
+
+                  return true;
+              }
+              catch (InvalidProtocolBufferException)
+              {
+                  response = null;
+                  return false;
+              }
+          }
+
+          private static bool TryDecodeChunkUnloadAck(byte[] payload, out EnhancedProto.ChunkUnloadAck ack)
+          {
+              try
+              {
+                  ack = EnhancedProto.ChunkUnloadAck.Parser.ParseFrom(payload);
+                  if (ack == null)
+                  {
+                      return false;
+                  }
+
+                  if (!string.IsNullOrEmpty(ack.Note) ||
+                      ack.Accepted ||
+                      ack.RemainingChunks != 0 ||
+                      ack.ChunkX != 0 ||
+                      ack.ChunkZ != 0)
+                  {
+                      return true;
+                  }
+
+                  ack = null;
+                  return false;
+              }
+              catch (InvalidProtocolBufferException)
+              {
+                  ack = null;
+                  return false;
+              }
+          }
+
+          #endregion
 
         #region Message Handlers
 
@@ -639,17 +751,23 @@ namespace Minecraft.Core
                 case MoveResponse moveResponse:
                     HandleMoveResponse(moveResponse);
                     break;
-                case PlayerInfoUpdate infoUpdate:
-                    HandlePlayerInfoUpdate(infoUpdate);
-                    break;
-                case ChunkDataResponseMessage chunkResponse:
-                    HandleChunkResponse(chunkResponse);
-                    break;
-                case ChunkUnloadAcknowledgeMessage unloadAck:
-                    HandleChunkUnloadAcknowledge(unloadAck);
-                    break;
-                case PlayerActionResponseMessage actionResponse:
-                    HandlePlayerActionResponse(actionResponse);
+                  case PlayerInfoUpdate infoUpdate:
+                      HandlePlayerInfoUpdate(infoUpdate);
+                      break;
+                  case EnhancedProto.ChunkLoadResponse enhancedChunkResponse:
+                      HandleChunkLoadResponse(enhancedChunkResponse);
+                      break;
+                  case ChunkDataResponseMessage chunkResponse:
+                      HandleChunkResponse(chunkResponse);
+                      break;
+                  case EnhancedProto.ChunkUnloadAck enhancedUnloadAck:
+                      HandleChunkUnloadAcknowledge(enhancedUnloadAck);
+                      break;
+                  case ChunkUnloadAcknowledgeMessage unloadAck:
+                      HandleChunkUnloadAcknowledge(unloadAck);
+                      break;
+                  case PlayerActionResponseMessage actionResponse:
+                      HandlePlayerActionResponse(actionResponse);
                     break;
                 case BlockChangeNotificationMessage blockChange:
                     HandleBlockChange(blockChange);
@@ -687,6 +805,9 @@ namespace Minecraft.Core
                 case EntitySpawnMessage spawnMessage:
                     HandleEntitySpawn(spawnMessage);
                     break;
+                case EntityUpdateMessage updateMessage:
+                    HandleEntityUpdate(updateMessage);
+                    break;
                 case EntityDespawnMessage despawnMessage:
                     HandleEntityDespawn(despawnMessage);
                     break;
@@ -710,6 +831,15 @@ namespace Minecraft.Core
                     break;
                 case WeatherChangeMessage weatherChange:
                     HandleWeatherChange(weatherChange);
+                    break;
+                case PlayerDeathMessage deathMessage:
+                    PlayerDeathNotified?.Invoke(deathMessage);
+                    break;
+                case CombatEventMessage combatEvent:
+                    CombatEventReceived?.Invoke(combatEvent);
+                    break;
+                case PlayerRespawnBroadcast respawnBroadcast:
+                    HandlePlayerRespawn(respawnBroadcast);
                     break;
                 default:
                     Debug.LogWarning($"Unhandled message type: {message.GetType().Name}");
@@ -750,6 +880,88 @@ namespace Minecraft.Core
             WeatherChanged?.Invoke(_lastWeatherChange);
         }
 
+        private void HandlePlayerRespawn(PlayerRespawnBroadcast message)
+        {
+            if (message == null)
+            {
+                return;
+            }
+
+            var playerName = message.PlayerName;
+            var isLocalPlayer = !string.IsNullOrWhiteSpace(playerName)
+                && _playerState != null
+                && !string.IsNullOrWhiteSpace(_playerState.Username)
+                && string.Equals(_playerState.Username, playerName, StringComparison.OrdinalIgnoreCase);
+
+            if (isLocalPlayer)
+            {
+                if (message.RespawnPosition != null)
+                {
+                    var respawn = message.RespawnPosition;
+                    _playerState.Position = new Vector3D
+                    {
+                        X = respawn.X,
+                        Y = respawn.Y,
+                        Z = respawn.Z
+                    };
+                }
+
+                PlayerStateUpdated?.Invoke(_playerState);
+            }
+            else
+            {
+                UpdateRemoteRespawnState(playerName, message.RespawnPosition);
+            }
+
+            PlayerRespawned?.Invoke(message);
+        }
+
+        private void UpdateRemoteRespawnState(string playerName, SharedProtocol.Vector3? respawnPosition)
+        {
+            if (string.IsNullOrWhiteSpace(playerName))
+            {
+                return;
+            }
+
+            if (!_entities.TryGetValue(playerName, out var stored))
+            {
+                return;
+            }
+
+            var snapshot = CloneEntity(stored);
+
+            if (respawnPosition != null)
+            {
+                snapshot.Position = new Vector3D
+                {
+                    X = respawnPosition.X,
+                    Y = respawnPosition.Y,
+                    Z = respawnPosition.Z
+                };
+            }
+
+            snapshot.Velocity = new Vector3D();
+
+            if (snapshot.MaxHealth > 0f)
+            {
+                snapshot.Health = snapshot.MaxHealth;
+            }
+            else
+            {
+                const float defaultHealth = 20f;
+                snapshot.MaxHealth = defaultHealth;
+                if (snapshot.Health <= 0f)
+                {
+                    snapshot.Health = defaultHealth;
+                }
+            }
+
+            snapshot.EntityType = EntityType.Player;
+
+            _entities[playerName] = snapshot;
+            EntityUpdated?.Invoke(CloneEntity(snapshot));
+        }
+
         private void HandleLoginResponse(LoginResponse response)
         {
             if (!response.Success)
@@ -780,17 +992,116 @@ namespace Minecraft.Core
             };
         }
 
-        private void HandlePlayerInfoUpdate(PlayerInfoUpdate update)
-        {
-            if (update.PlayerInfo == null) return;
-            _playerState = ConvertToPlayerStateInfo(update.PlayerInfo);
-            PlayerStateUpdated?.Invoke(_playerState);
-        }
+          private void HandlePlayerInfoUpdate(PlayerInfoUpdate update)
+          {
+              if (update.PlayerInfo == null) return;
+              _playerState = ConvertToPlayerStateInfo(update.PlayerInfo);
+              PlayerStateUpdated?.Invoke(_playerState);
+          }
 
-        private void HandleChunkResponse(ChunkDataResponseMessage response)
-        {
-            var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
-            _pendingChunkRequests.Remove(chunkKey);
+          private void HandleChunkLoadResponse(EnhancedProto.ChunkLoadResponse response)
+          {
+              if (response == null || response.Chunks == null || response.Chunks.Count == 0)
+              {
+                  return;
+              }
+
+              foreach (var chunk in response.Chunks)
+              {
+                  var chunkKey = new Vector2Int(chunk.ChunkX, chunk.ChunkZ);
+                  _pendingChunkRequests.Remove(chunkKey);
+
+                  if (chunk.BlockData == null || chunk.BlockData.Length == 0)
+                  {
+                      ErrorOccurred?.Invoke($"Failed to load chunk {chunk.ChunkX},{chunk.ChunkZ} from server.");
+                      continue;
+                  }
+
+                  var blocks = ChunkCompression.DecodeBlocks(chunk.BlockData.ToByteArray());
+                  var biome = DecodeBiomeInfo(chunk.BiomeData);
+                  var entities = DecodeEntities(chunk);
+                  var metadata = new EnhancedChunkMetadata(
+                      chunk.GenerationTimestamp,
+                      response.TotalRequested,
+                      response.TotalSent,
+                      chunk.BlockData.Length,
+                      chunk.BiomeData?.Length ?? 0,
+                      chunk);
+
+                  var snapshot = new ChunkSnapshot(chunk.ChunkX, chunk.ChunkZ, blocks, biome, entities, isFromCache: false, metadata);
+                  _loadedChunks[chunkKey] = snapshot;
+                  ChunkLoaded?.Invoke(snapshot);
+              }
+          }
+
+          private static BiomeInfo DecodeBiomeInfo(ByteString biomeBytes)
+          {
+              if (biomeBytes == null || biomeBytes.Length == 0)
+              {
+                  return new BiomeInfo();
+              }
+
+              var ids = new List<int>(biomeBytes.Length);
+              foreach (var id in biomeBytes.ToByteArray())
+              {
+                  ids.Add(id);
+              }
+
+              return new BiomeInfo
+              {
+                  BiomeIds = ids,
+                  Temperature = 0.5f,
+                  Humidity = 0.5f
+              };
+          }
+
+          private IReadOnlyList<EntityInfo> DecodeEntities(EnhancedProto.ChunkData chunk)
+          {
+              if (chunk == null || chunk.Entities == null || chunk.Entities.Count == 0)
+              {
+                  return Array.Empty<EntityInfo>();
+              }
+
+              var list = new List<EntityInfo>(chunk.Entities.Count);
+              foreach (var entity in chunk.Entities)
+              {
+                  if (entity == null)
+                  {
+                      continue;
+                  }
+
+                  list.Add(ConvertEntity(entity));
+              }
+
+              return list;
+          }
+
+          private EntityInfo ConvertEntity(EnhancedProto.EntityData entity)
+          {
+              var position = entity.Position ?? new EnhancedProto.Vector3();
+              var rotation = entity.Rotation ?? new EnhancedProto.Vector3();
+              var velocity = entity.Velocity ?? new EnhancedProto.Vector3();
+
+              var typeValue = (int)entity.EntityType;
+              var legacyType = Enum.IsDefined(typeof(EntityType), typeValue) ? (EntityType)typeValue : EntityType.Unknown;
+
+              return new EntityInfo
+              {
+                  EntityId = entity.EntityId ?? string.Empty,
+                  EntityType = legacyType,
+                  Position = new Vector3D(position.X, position.Y, position.Z),
+                  Rotation = new Vector3D(rotation.X, rotation.Y, rotation.Z),
+                  Velocity = new Vector3D(velocity.X, velocity.Y, velocity.Z),
+                  Health = entity.Health,
+                  MaxHealth = entity.MaxHealth,
+                  CustomData = entity.CustomData ?? string.Empty
+              };
+          }
+
+          private void HandleChunkResponse(ChunkDataResponseMessage response)
+          {
+              var chunkKey = new Vector2Int(response.ChunkX, response.ChunkZ);
+              _pendingChunkRequests.Remove(chunkKey);
 
             if (!response.Success)
             {
@@ -800,7 +1111,8 @@ namespace Minecraft.Core
 
             var blocks = ChunkCompression.DecodeBlocks(response.CompressedBlockData);
             var entities = response.Entities ?? new List<EntityInfo>();
-            var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache);
+            var metadata = EnhancedChunkPayloadBridge.Decode(response, warning => Debug.LogWarning($"[Chunks] {warning}"));
+            var snapshot = new ChunkSnapshot(response.ChunkX, response.ChunkZ, blocks, response.BiomeData, entities, response.IsFromCache, metadata);
 
             _loadedChunks[chunkKey] = snapshot;
 
@@ -869,46 +1181,68 @@ namespace Minecraft.Core
             SendChunkUnloadNotification(chunkKey, reason);
         }
 
-        private void SendChunkUnloadNotification(Vector2Int chunkKey, ChunkUnloadReason reason)
-        {
-            if (!_isConnected)
-            {
-                return;
-            }
+          private void SendChunkUnloadNotification(Vector2Int chunkKey, ChunkUnloadReason reason)
+          {
+              if (!_isConnected)
+              {
+                  return;
+              }
 
-            var notification = new ChunkUnloadNotificationMessage
-            {
-                PlayerId = _playerState?.PlayerId ?? string.Empty,
-                ChunkX = chunkKey.x,
-                ChunkZ = chunkKey.y,
-                Reason = reason,
-                ViewDistance = renderDistance,
-                TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
+              var notification = new EnhancedProto.ChunkUnloadNotification
+              {
+                  PlayerId = _playerState?.PlayerId ?? string.Empty,
+                  ChunkX = chunkKey.x,
+                  ChunkZ = chunkKey.y,
+                  Reason = reason switch
+                  {
+                      ChunkUnloadReason.Manual => EnhancedProto.ChunkUnloadReason.UnloadManual,
+                      ChunkUnloadReason.WorldTransfer => EnhancedProto.ChunkUnloadReason.UnloadWorldTransfer,
+                      ChunkUnloadReason.Shutdown => EnhancedProto.ChunkUnloadReason.UnloadShutdown,
+                      _ => EnhancedProto.ChunkUnloadReason.UnloadViewDistance
+                  },
+                  ViewDistance = renderDistance,
+                  TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+              };
 
-            EnqueueMessage((int)MinecraftMessageType.ChunkUnloadNotification, notification);
-        }
+              EnqueueMessage((int)MinecraftMessageType.ChunkUnloadNotification, notification);
+          }
 
-        private void HandleChunkUnloadAcknowledge(ChunkUnloadAcknowledgeMessage ack)
-        {
-            if (ack == null)
-            {
-                return;
-            }
+          private void HandleChunkUnloadAcknowledge(ChunkUnloadAcknowledgeMessage ack)
+          {
+              if (ack == null)
+              {
+                  return;
+              }
 
             if (!ack.Accepted)
             {
                 Debug.LogWarning($"Server rejected chunk unload {ack.ChunkX},{ack.ChunkZ}: {ack.Note}");
                 return;
             }
+  
+              Debug.Log($"Server acknowledged chunk unload {ack.ChunkX},{ack.ChunkZ} (remaining tracked: {ack.RemainingChunks})");
+          }
 
-            Debug.Log($"Server acknowledged chunk unload {ack.ChunkX},{ack.ChunkZ} (remaining tracked: {ack.RemainingChunks})");
-        }
+          private void HandleChunkUnloadAcknowledge(EnhancedProto.ChunkUnloadAck ack)
+          {
+              if (ack == null)
+              {
+                  return;
+              }
 
-        private void HandlePlayerActionResponse(PlayerActionResponseMessage response)
-        {
-            if (!response.Success && !string.IsNullOrEmpty(response.Message))
-            {
+              if (!ack.Accepted)
+              {
+                  Debug.LogWarning($"Server rejected chunk unload {ack.ChunkX},{ack.ChunkZ}: {ack.Note}");
+                  return;
+              }
+
+              Debug.Log($"Server acknowledged chunk unload {ack.ChunkX},{ack.ChunkZ} (remaining tracked: {ack.RemainingChunks})");
+          }
+  
+          private void HandlePlayerActionResponse(PlayerActionResponseMessage response)
+          {
+              if (!response.Success && !string.IsNullOrEmpty(response.Message))
+              {
                 ErrorOccurred?.Invoke(response.Message);
             }
         }

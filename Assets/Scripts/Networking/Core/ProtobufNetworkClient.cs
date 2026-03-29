@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Google.Protobuf;
 using Game.Auth;
+using GameProtocol;
+using SharedProtocol.EnhancedMinecraft;
 #if HMW_PROTO
 using Game.Move;
 #endif
@@ -38,6 +40,20 @@ namespace Networking.Core
         public event Action<Game.Diag.PingResponse> PingResponseReceived;
         #endif
 
+        // EnhancedMinecraft protocol events
+        public event Action<EnhancedMinecraftProtocol.BlockChangeBroadcast> EnhancedBlockChangeReceived;
+        public event Action<EnhancedMinecraftProtocol.EntitySpawnBroadcast> EntitySpawnBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.EntityDespawnBroadcast> EntityDespawnBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.TimeUpdateBroadcast> TimeUpdateBroadcastReceived;
+        public event Action<EnhancedMinecraftProtocol.WeatherUpdateBroadcast> WeatherUpdateBroadcastReceived;
+
+        // AI System events (Server-Authoritative)
+        public event Action<AIStateSyncBroadcast> AIStateSyncReceived;
+        public event Action<AIAttackEventBroadcast> AIAttackEventReceived;
+        public event Action<AIDeathEventBroadcast> AIDeathEventReceived;
+        public event Action<AISpawnResponse> AISpawnResponseReceived;
+        public event Action<AIDebugInfoResponse> AIDebugInfoResponseReceived;
+
         public bool IsConnected => _transport?.IsConnected ?? false;
         public string ServerAddress => serverAddress;
         public int ServerPort => serverPort;
@@ -50,7 +66,8 @@ namespace Networking.Core
         private void InitializeClient()
         {
             if (_isInitialized) return;
-            
+
+            ValidateProtocolContracts();
             _transport = new TcpNetworkTransport();
             _transport.ConnectionStatusChanged += OnConnectionStatusChanged;
             _transport.Received += OnDataReceived;
@@ -63,12 +80,38 @@ namespace Networking.Core
             _messageDispatcher.RegisterHandler<WorldBlockChangeBroadcast>(OnBlockChangeBroadcast);
             _messageDispatcher.RegisterHandler<PingResponse>(OnPingResponse);
             
+            // Register enhanced protocol handlers
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.BlockChangeBroadcast>(OnEnhancedBlockChangeBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntitySpawnBroadcast>(OnEntitySpawnBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.EntityDespawnBroadcast>(OnEntityDespawnBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.TimeUpdateBroadcast>(OnTimeUpdateBroadcast);
+            _messageDispatcher.RegisterHandler<EnhancedMinecraftProtocol.WeatherUpdateBroadcast>(OnWeatherUpdateBroadcast);
+            
             _isInitialized = true;
             Debug.Log("ProtobufNetworkClient initialized");
         }
 
+        private void ValidateProtocolContracts()
+        {
+            try
+            {
+                // Validate enhanced protocol contracts using the existing ProtocolValidator
+                ProtoRuntime.EnsureInitialized();
+                ProtocolValidator.ValidateEnhancedContracts();
+                ProtoDiagnostics.AssertRegistryClean();
+#if UNITY_EDITOR
+                ProtoDiagnostics.LogSummary();
+#endif
+                Debug.Log("[ProtobufNetworkClient] Protocol contracts validated successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ProtobufNetworkClient] Protobuf contract validation warning: {ex.Message}");
+            }
+        }
+
         /// <summary>
-        /// Connects to the server asynchronously.
+        /// Connects to server asynchronously.
         /// </summary>
         public async Task<bool> ConnectAsync()
         {
@@ -101,7 +144,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Disconnects from the server.
+        /// Disconnects from server.
         /// </summary>
         public async Task DisconnectAsync()
         {
@@ -208,6 +251,34 @@ namespace Networking.Core
         }
 
         /// <summary>
+        /// Sends an AI spawn request (GM command).
+        /// </summary>
+        public void SendAISpawnRequest(string aiType, UnityEngine.Vector3 spawnPosition, string worldId = "main_world")
+        {
+            var request = new AISpawnRequest
+            {
+                AIType = aiType,
+                SpawnPosition = new GameProtocol.Vector3(spawnPosition.x, spawnPosition.y, spawnPosition.z),
+                WorldId = worldId
+            };
+            SendJsonMessageWithHeader(request, ClientMessageType.AISpawnRequest);
+            Debug.Log($"Sent AI spawn request: Type={aiType}, Position={spawnPosition}");
+        }
+
+        /// <summary>
+        /// Sends an AI debug info request.
+        /// </summary>
+        public void SendAIDebugInfoRequest(int actorId = 0)
+        {
+            var request = new AIDebugInfoRequest
+            {
+                ActorId = actorId // 0 = all AI actors
+            };
+            SendJsonMessageWithHeader(request, ClientMessageType.AIDebugInfoRequest);
+            Debug.Log($"Sent AI debug info request: ActorId={actorId}");
+        }
+
+        /// <summary>
         /// Serialize protobuf and send with header (length set by transport, type prepended here).
         /// </summary>
         private void SendMessageWithHeader(IMessage message, ClientMessageType type)
@@ -239,7 +310,37 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Called when data is received from the server.
+        /// Serialize JSON and send with header (for GameProtocol classes).
+        /// </summary>
+        private void SendJsonMessageWithHeader(object message, ClientMessageType type)
+        {
+            if (!IsConnected)
+            {
+                Debug.LogWarning($"Cannot send {message.GetType().Name}: not connected to server");
+                return;
+            }
+
+            try
+            {
+                string json = JsonUtility.ToJson(message);
+                var payload = System.Text.Encoding.UTF8.GetBytes(json);
+
+                // Build [type:int][payload]
+                var typeBytes = BitConverter.GetBytes((int)type);
+                var framed = new byte[typeBytes.Length + payload.Length];
+                Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+                Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+                _transport.Send(new ArraySegment<byte>(framed));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to send JSON message {message.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Called when data is received from server.
         /// </summary>
         private void OnDataReceived(ArraySegment<byte> data)
         {
@@ -295,6 +396,39 @@ namespace Networking.Core
                         }
                         break;
                     #endif
+
+                    // AI System messages (JSON serialization)
+                    case ClientMessageType.AIStateSyncBroadcast:
+                        if (TryParseJsonMessage<AIStateSyncBroadcast>(payload, out var aiStateSync))
+                        {
+                            AIStateSyncReceived?.Invoke(aiStateSync);
+                        }
+                        break;
+                    case ClientMessageType.AIAttackEventBroadcast:
+                        if (TryParseJsonMessage<AIAttackEventBroadcast>(payload, out var aiAttack))
+                        {
+                            AIAttackEventReceived?.Invoke(aiAttack);
+                        }
+                        break;
+                    case ClientMessageType.AIDeathEventBroadcast:
+                        if (TryParseJsonMessage<AIDeathEventBroadcast>(payload, out var aiDeath))
+                        {
+                            AIDeathEventReceived?.Invoke(aiDeath);
+                        }
+                        break;
+                    case ClientMessageType.AISpawnResponse:
+                        if (TryParseJsonMessage<AISpawnResponse>(payload, out var aiSpawnResp))
+                        {
+                            AISpawnResponseReceived?.Invoke(aiSpawnResp);
+                        }
+                        break;
+                    case ClientMessageType.AIDebugInfoResponse:
+                        if (TryParseJsonMessage<AIDebugInfoResponse>(payload, out var aiDebugResp))
+                        {
+                            AIDebugInfoResponseReceived?.Invoke(aiDebugResp);
+                        }
+                        break;
+
                     default:
                         Debug.LogWarning($"Unknown or unhandled message type: {type}");
                         break;
@@ -307,7 +441,7 @@ namespace Networking.Core
         }
 
         /// <summary>
-        /// Attempts to parse a message.
+        /// Attempts to parse a protobuf message.
         /// </summary>
         private bool TryParseMessage<T>(byte[] data, out T message) where T : IMessage, new()
         {
@@ -317,8 +451,33 @@ namespace Networking.Core
                 message.MergeFrom(data);
                 return true;
             }
+            catch (Google.Protobuf.InvalidProtocolBufferException)
+            {
+                message = default(T);
+                return false;
+            }
             catch
             {
+                message = default(T);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to parse a JSON message (for GameProtocol classes).
+        /// Uses Unity JsonUtility for simple serialization.
+        /// </summary>
+        private bool TryParseJsonMessage<T>(byte[] data, out T message)
+        {
+            try
+            {
+                string json = System.Text.Encoding.UTF8.GetString(data);
+                message = JsonUtility.FromJson<T>(json);
+                return message != null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to parse JSON message of type {typeof(T).Name}: {ex.Message}");
                 message = default(T);
                 return false;
             }
@@ -331,7 +490,59 @@ namespace Networking.Core
             LoginResponseReceived?.Invoke(response);
         }
 
-        // Placeholder handlers for future messages (Move/Chat/Block/Ping) will be implemented when .proto is ready.
+#if HMW_PROTO
+        private void OnMoveResponse(Game.Move.MoveResponse response)
+        {
+            Debug.Log($"Move response: Status={response.Status}, Position=({response.NewPosition.X}, {response.NewPosition.Y}, {response.NewPosition.Z})");
+            MoveResponseReceived?.Invoke(response);
+        }
+
+        private void OnChatMessage(Game.Chat.ChatMessage message)
+        {
+            Debug.Log($"Chat message: {message.Sender}: {message.Message}");
+            ChatMessageReceived?.Invoke(message);
+        }
+
+        private void OnBlockChangeBroadcast(Game.World.WorldBlockChangeBroadcast broadcast)
+        {
+            Debug.Log($"Block change: ({broadcast.BlockPosition.X}, {broadcast.BlockPosition.Y}, {broadcast.BlockPosition.Z}) -> {broadcast.BlockType}");
+            BlockChangeBroadcastReceived?.Invoke(broadcast);
+        }
+
+        private void OnPingResponse(Game.Diag.PingResponse response)
+        {
+            Debug.Log($"Ping response: {response.ClientTimestamp} -> {response.ServerTimestamp}");
+            PingResponseReceived?.Invoke(response);
+        }
+#endif
+
+        // Enhanced protocol handlers
+        private void OnEnhancedBlockChangeBroadcast(EnhancedMinecraftProtocol.BlockChangeBroadcast broadcast)
+        {
+            EnhancedBlockChangeReceived?.Invoke(broadcast);
+        }
+
+        private void OnEntitySpawnBroadcast(EnhancedMinecraftProtocol.EntitySpawnBroadcast notification)
+        {
+            Debug.Log($"Entity spawned: {notification.Entity?.EntityId} ({notification.Entity?.Type})");
+            EntitySpawnBroadcastReceived?.Invoke(notification);
+        }
+
+        private void OnEntityDespawnBroadcast(EnhancedMinecraftProtocol.EntityDespawnBroadcast notification)
+        {
+            Debug.Log($"Entity despawned: {notification.EntityId} ({notification.Reason})");
+            EntityDespawnBroadcastReceived?.Invoke(notification);
+        }
+
+        private void OnTimeUpdateBroadcast(EnhancedMinecraftProtocol.TimeUpdateBroadcast timeUpdate)
+        {
+            TimeUpdateBroadcastReceived?.Invoke(timeUpdate);
+        }
+
+        private void OnWeatherUpdateBroadcast(EnhancedMinecraftProtocol.WeatherUpdateBroadcast weatherUpdate)
+        {
+            WeatherUpdateBroadcastReceived?.Invoke(weatherUpdate);
+        }
 
         private void OnConnectionStatusChanged(bool isConnected)
         {
@@ -364,40 +575,4 @@ namespace Networking.Core
         Whisper = 2,
         System = 3
     }
-}
-
-/// <summary>
-/// Client-side mirror of server MessageType enum for framing.
-/// Keep values in sync with SharedProtocol.MessageType.
-/// </summary>
-public enum ClientMessageType
-{
-    // 인증 관련
-    LoginRequest = 1,
-    LoginResponse = 2,
-    LogoutRequest = 3,
-    LogoutResponse = 4,
-
-    // 이동 관련
-    MoveRequest = 10,
-    MoveResponse = 11,
-
-    // 월드/블록 관련
-    WorldBlockChangeRequest = 20,
-    WorldBlockChangeResponse = 21,
-    WorldBlockChangeBroadcast = 22,
-
-    // 채팅 관련
-    ChatRequest = 30,
-    ChatResponse = 31,
-    ChatMessage = 32,
-
-    // 서버 상태/진단
-    PingRequest = 40,
-    PingResponse = 41,
-    ServerStatusRequest = 42,
-    ServerStatusResponse = 43,
-
-    // 플레이어 정보 업데이트
-    PlayerInfoUpdate = 50,
 }

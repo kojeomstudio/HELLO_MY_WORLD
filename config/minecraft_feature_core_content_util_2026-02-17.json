@@ -1,0 +1,330 @@
+{
+  "version": "2026-02-17-session-89",
+  "scope": "minecraft-client-server-shared",
+  "summary": "Hydrology v37 / map-control v41 session catalog with queue pressure parity, terrain refinement, protobuf reference validation, and JSON data-driven operations.",
+  "categories": {
+    "core": [
+      {
+        "id": "core.shared_dll_contracts",
+        "name": "Shared DLL contracts and enums",
+        "status": "completed",
+        "files": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "GameCommon/GameCommon.csproj",
+          "GameCommon/World/WorldMapContracts.cs"
+        ]
+      },
+      {
+        "id": "core.protobuf_generated_contract_binding",
+        "name": "Generated protobuf contract binding",
+        "status": "completed",
+        "files": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+        ]
+      },
+      {
+        "id": "core.world_map_control_profile_sync",
+        "name": "World-map control profile synchronization",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameCommon/World/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ]
+      },
+      {
+        "id": "core.queue_policy_shared_logic",
+        "name": "Shared queue pressure policy",
+        "status": "completed",
+        "files": [
+          "GameCommon/World/WorldMapQueuePolicy.cs",
+          "GameServer/World/WorldMapControlManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ]
+      },
+      {
+        "id": "core.json_config_runtime_loading",
+        "name": "JSON runtime configuration loading",
+        "status": "completed",
+        "files": [
+          "config/world.json",
+          "config/server.json",
+          "GameServer/Configuration/DataDrivenConfigManager.cs"
+        ]
+      },
+      {
+        "id": "core.chunk_streaming_pipeline",
+        "name": "Chunk streaming and cache pipeline",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ]
+      },
+      {
+        "id": "core.protocol_packet_dispatch",
+        "name": "Packet dispatch and protocol runtime guard",
+        "status": "completed",
+        "files": [
+          "SharedProtocol/MinecraftMessageDispatcher.cs",
+          "GameServer/Network/EnhancedProtocolHandler.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ]
+      },
+      {
+        "id": "core.signature_hash_alignment",
+        "name": "Hydrology signature/hash alignment",
+        "status": "completed",
+        "files": [
+          "GameCommon/World/SharedFeatureCatalog.cs",
+          "GameCommon/World/WorldMapSignature.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content.base_terrain_generation",
+        "name": "Base terrain generation",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ]
+      },
+      {
+        "id": "content.hydrology_mask_generation",
+        "name": "Hydrology and flow-mask generation",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ]
+      },
+      {
+        "id": "content.cave_generation",
+        "name": "Cave generation and cave stabilization",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ]
+      },
+      {
+        "id": "content.river_generation",
+        "name": "River generation and meander/erosion shaping",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+        ]
+      },
+      {
+        "id": "content.lake_generation",
+        "name": "Lake generation and outflow shaping",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ]
+      },
+      {
+        "id": "content.terrain_refine_cave_aquifer",
+        "name": "Cave aquifer pocket refinement",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs"
+        ]
+      },
+      {
+        "id": "content.terrain_refine_river_floodplain",
+        "name": "River floodplain hydraulic erosion refinement",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs"
+        ]
+      },
+      {
+        "id": "content.terrain_refine_lake_spillway",
+        "name": "Lake spillway ramp refinement",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs"
+        ]
+      },
+      {
+        "id": "content.world_map_preview_generation",
+        "name": "Client world-map preview generation",
+        "status": "completed",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ]
+      },
+      {
+        "id": "content.environmental_blocks_water_sand",
+        "name": "Environmental block carving (water/sand/dirt)",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldManager.cs"
+        ]
+      }
+    ],
+    "utility": [
+      {
+        "id": "util.proto_registry_validation",
+        "name": "Protocol registry validation",
+        "status": "completed",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ]
+      },
+      {
+        "id": "util.proto_diagnostics_report",
+        "name": "Descriptor fingerprint diagnostics/report",
+        "status": "completed",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "config/proto_reference_report.json"
+        ]
+      },
+      {
+        "id": "util.dummy_protocol_client_server",
+        "name": "Server-side dummy protocol probe client",
+        "status": "completed",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "config/protocol_dummy_client.json"
+        ]
+      },
+      {
+        "id": "util.dummy_protocol_client_tool",
+        "name": "Standalone dummy protocol client tool",
+        "status": "completed",
+        "files": [
+          "Tools/DummyMinecraftClient/Program.cs",
+          "config/dummy_minecraft_client.json"
+        ]
+      },
+      {
+        "id": "util.build_pipeline_verification",
+        "name": "Build and compile verification",
+        "status": "completed",
+        "files": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "GameCommon/GameCommon.csproj",
+          "GameServer/GameServer.csproj"
+        ]
+      },
+      {
+        "id": "util.reference_integrity_check",
+        "name": "Using/class reference integrity check",
+        "status": "completed",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+        ]
+      },
+      {
+        "id": "util.queue_policy_json_sync",
+        "name": "Queue policy JSON synchronization",
+        "status": "completed",
+        "files": [
+          "config/world_map_control_queue_policy.json",
+          "Assets/StreamingAssets/world_map_control_queue_policy.json"
+        ]
+      },
+      {
+        "id": "util.docs_and_plan_governance",
+        "name": "Plan/docs governance",
+        "status": "completed",
+        "files": [
+          "plans/2026-02-17-session-89-comprehensive-work-plan.md",
+          "docs/2026-02-17-session-89-worldgen-map-proto-report.md",
+          "README.md"
+        ]
+      }
+    ]
+  },
+  "implementation_sequence": [
+    {
+      "order": 1,
+      "category": "core",
+      "featureId": "core.queue_policy_shared_logic",
+      "status": "completed"
+    },
+    {
+      "order": 2,
+      "category": "content",
+      "featureId": "content.terrain_refine_cave_aquifer",
+      "status": "completed"
+    },
+    {
+      "order": 3,
+      "category": "content",
+      "featureId": "content.terrain_refine_river_floodplain",
+      "status": "completed"
+    },
+    {
+      "order": 4,
+      "category": "content",
+      "featureId": "content.terrain_refine_lake_spillway",
+      "status": "completed"
+    },
+    {
+      "order": 5,
+      "category": "utility",
+      "featureId": "util.proto_registry_validation",
+      "status": "completed"
+    },
+    {
+      "order": 6,
+      "category": "utility",
+      "featureId": "util.dummy_protocol_client_server",
+      "status": "completed"
+    },
+    {
+      "order": 7,
+      "category": "utility",
+      "featureId": "util.build_pipeline_verification",
+      "status": "completed"
+    },
+    {
+      "order": 8,
+      "category": "utility",
+      "featureId": "util.docs_and_plan_governance",
+      "status": "completed"
+    }
+  ],
+  "session_changes": {
+    "hydrologySignature": "2026-02-17-hydrology-riverlake-cave-v37",
+    "mapControlProfileVersion": 41,
+    "queuePolicyVersion": 10
+  },
+  "data_driven_sources": {
+    "server_config": [
+      "config/server.json",
+      "config/world.json",
+      "config/world_map_control_queue_policy.json",
+      "config/world_map_control_profile.json"
+    ],
+    "client_config": [
+      "Assets/StreamingAssets/client-config.json",
+      "Assets/StreamingAssets/world-config.json",
+      "Assets/StreamingAssets/world_map_control_queue_policy.json",
+      "Assets/StreamingAssets/world-map-control.json"
+    ],
+    "ingame_data": [
+      "config/blocks.json",
+      "config/items.json",
+      "config/biomes.json",
+      "config/recipes.json",
+      "config/gameplay.json"
+    ]
+  }
+}

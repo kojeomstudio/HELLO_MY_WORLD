@@ -1,0 +1,768 @@
+{
+  "version": "2026-01-22-session-10",
+  "description": "Comprehensive Minecraft client/server features categorized by core, content, and util for session-10 implementation.",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json"
+          ],
+          "description": "Unity map controller consumes v4 map-control profile and hydrates preview chunks with lake seepage-aware hydrology."
+        },
+        {
+          "id": "client_core_hydrology_preview",
+          "name": "Hydrology/flow preview",
+          "status": "in-progress",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+          ],
+          "description": "Preview generator blends flow memory and lake seepage to match server-side hydrology masks around rivers/lakes."
+        },
+        {
+          "id": "client_core_chunk_management",
+          "name": "Chunk load/unload management",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Client manages chunk loading, unloading, and caching with view distance optimization."
+        },
+        {
+          "id": "client_core_networking",
+          "name": "Network packet handling",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Networking/NetworkManager.cs",
+            "Assets/Scripts/Networking/Handlers/",
+            "Assets/Scripts/Networking/Protocol/GameProtocol.cs"
+          ],
+          "description": "Client handles all network communication using protobuf-generated packet classes."
+        },
+        {
+          "id": "client_core_player_controller",
+          "name": "Player controller and state",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/Player/PlayerController.cs",
+            "Assets/Scripts/Minecraft/Player/PlayerState.cs"
+          ],
+          "description": "Client manages player movement, actions, inventory, and game state synchronization."
+        },
+        {
+          "id": "client_core_block_interaction",
+          "name": "Block break/place system",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/World/BlockInteraction.cs",
+            "Assets/Scripts/Minecraft/World/BlockBreakHandler.cs"
+          ],
+          "description": "Client handles block breaking progress, placement, and interaction validation."
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_waterways",
+          "name": "River/lake visualization",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Render stitched river and lake overlays using the updated map-control profile hash/signature."
+        },
+        {
+          "id": "client_content_terrain_rendering",
+          "name": "Terrain rendering and visualization",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/ChunkRenderer.cs"
+          ],
+          "description": "Client renders terrain chunks with proper lighting, water, and biome visualization."
+        },
+        {
+          "id": "client_content_entity_rendering",
+          "name": "Entity rendering and animation",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/Entities/EntityRenderer.cs",
+            "Assets/Scripts/Minecraft/Entities/EntityAnimator.cs"
+          ],
+          "description": "Client renders mobs, animals, and other entities with proper animations."
+        },
+        {
+          "id": "client_content_inventory_ui",
+          "name": "Inventory UI system",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/UI/InventoryUI.cs",
+            "Assets/Scripts/UI/HotbarUI.cs"
+          ],
+          "description": "Client displays player inventory, hotbar, and crafting interface."
+        },
+        {
+          "id": "client_content_effects_particles",
+          "name": "Particle and visual effects",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Effects/ParticleSystem.cs",
+            "Assets/Scripts/Effects/ParticleManager.cs"
+          ],
+          "description": "Client renders block break particles, explosions, and other visual effects."
+        }
+      ],
+      "util": [
+        {
+          "id": "client_util_proto_guard",
+          "name": "Proto fingerprint guard",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Generated/Protobuf"
+          ],
+          "description": "Client asserts EnhancedMinecraft proto fingerprints before building preview chunks."
+        },
+        {
+          "id": "client_util_config_sync",
+          "name": "StreamingAssets config sync",
+          "status": "implemented",
+          "files": [
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "description": "Data-driven world config and map-control JSON stay aligned with server signatures."
+        },
+        {
+          "id": "client_util_data_loading",
+          "name": "Data-driven asset loading",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Data/BlockDataLoader.cs",
+            "Assets/Scripts/Data/ItemDataLoader.cs",
+            "Assets/StreamingAssets/blocks.json",
+            "Assets/StreamingAssets/items.json"
+          ],
+          "description": "Client loads block and item data from JSON files for data-driven configuration."
+        },
+        {
+          "id": "client_util_validation",
+          "name": "Input validation and error handling",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Validation/InputValidator.cs",
+            "Assets/Scripts/Validation/ErrorHandler.cs"
+          ],
+          "description": "Client validates all user inputs and handles errors gracefully."
+        },
+        {
+          "id": "client_util_performance",
+          "name": "Performance monitoring and optimization",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Performance/PerformanceMonitor.cs",
+            "Assets/Scripts/Performance/ObjectPool.cs"
+          ],
+          "description": "Client monitors FPS, memory usage, and optimizes object pooling."
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_terrain_pipeline_lake_seep",
+          "name": "Hydrology-aware terrain pipeline",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "config/world.json"
+          ],
+          "description": "Server hydrology/flow masks now apply lake seepage and edge normalization before carving rivers, lakes, and caves."
+        },
+        {
+          "id": "server_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs",
+            "config/world_map_control_profile.json"
+          ],
+          "description": "Map-control profile regenerated with lake seepage tuning and pipeline signature 2026-01-22-lake-seepage+proto-guard."
+        },
+        {
+          "id": "server_core_chunk_management",
+          "name": "Chunk generation and management",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/ChunkManager.cs",
+            "GameServer/World/ChunkData.cs"
+          ],
+          "description": "Server generates, caches, and serves chunk data to clients with proper compression."
+        },
+        {
+          "id": "server_core_networking",
+          "name": "Network session management",
+          "status": "implemented",
+          "files": [
+            "GameServer/SessionManager.cs",
+            "GameServer/Network/PacketHandler.cs"
+          ],
+          "description": "Server manages player sessions, packet routing, and connection handling."
+        },
+        {
+          "id": "server_core_player_management",
+          "name": "Player state and persistence",
+          "status": "implemented",
+          "files": [
+            "GameServer/Player/PlayerManager.cs",
+            "GameServer/Player/PlayerData.cs"
+          ],
+          "description": "Server manages player data, inventory persistence, and state synchronization."
+        },
+        {
+          "id": "server_core_block_validation",
+          "name": "Block change validation",
+          "status": "planned",
+          "files": [
+            "GameServer/World/BlockValidator.cs",
+            "GameServer/World/BlockChangeHandler.cs"
+          ],
+          "description": "Server validates block break/place requests and broadcasts changes to nearby players."
+        },
+        {
+          "id": "server_core_world_generation",
+          "name": "World generation coordinator",
+          "status": "planned",
+          "files": [
+            "GameServer/World/WorldGenerator.cs",
+            "GameServer/World/WorldSeedManager.cs"
+          ],
+          "description": "Server coordinates world generation with proper seeding and biome distribution."
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_cave_stability",
+          "name": "Cave stability tuning",
+          "status": "in-progress",
+          "files": [
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ],
+          "description": "Cave masks consume seepage-adjusted hydrology and retain edge sealing for rivers and lakes."
+        },
+        {
+          "id": "server_content_river_generation",
+          "name": "River generation system",
+          "status": "planned",
+          "files": [
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/RiverPathfinder.cs"
+          ],
+          "description": "Server generates realistic river paths with proper width, depth, and biome integration."
+        },
+        {
+          "id": "server_content_lake_generation",
+          "name": "Lake generation system",
+          "status": "planned",
+          "files": [
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/LakeBedManager.cs"
+          ],
+          "description": "Server generates lakes with proper depth, shoreline, and vegetation integration."
+        },
+        {
+          "id": "server_content_mob_spawning",
+          "name": "Mob spawning system",
+          "status": "planned",
+          "files": [
+            "GameServer/Mobs/MobSpawner.cs",
+            "GameServer/Mobs/MobTypeRegistry.cs"
+          ],
+          "description": "Server spawns mobs based on biome, time of day, and player proximity."
+        },
+        {
+          "id": "server_content_crafting",
+          "name": "Crafting system",
+          "status": "planned",
+          "files": [
+            "GameServer/Crafting/CraftingManager.cs",
+            "GameServer/Crafting/RecipeRegistry.cs"
+          ],
+          "description": "Server handles crafting requests and validates recipes against data-driven recipe database."
+        },
+        {
+          "id": "server_content_inventory_management",
+          "name": "Inventory management",
+          "status": "planned",
+          "files": [
+            "GameServer/Inventory/InventoryManager.cs",
+            "GameServer/Inventory/ItemStackManager.cs"
+          ],
+          "description": "Server manages player inventory operations with proper item stacking and validation."
+        }
+      ],
+      "util": [
+        {
+          "id": "server_util_proto_validation",
+          "name": "Enhanced proto validation",
+          "status": "implemented",
+          "files": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/GameServer.cs"
+          ],
+          "description": "Handler bindings now fail fast when a generated prototype is missing, ensuring Google.Protobuf DTOs stay referenced."
+        },
+        {
+          "id": "server_util_config_pipeline_signature",
+          "name": "Config/profile signature",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs"
+          ],
+          "description": "Generation signatures include proto fingerprints and hydrology/lake seepage knobs for cache invalidation."
+        },
+        {
+          "id": "server_util_data_driven_config",
+          "name": "Data-driven configuration",
+          "status": "planned",
+          "files": [
+            "GameServer/Config/ServerConfig.cs",
+            "GameServer/Config/WorldGenerationConfig.cs",
+            "config/server.json",
+            "config/world.json",
+            "config/biomes.json",
+            "config/blocks.json",
+            "config/items.json",
+            "config/recipes.json"
+          ],
+          "description": "Server loads all configuration from JSON files for data-driven behavior tuning."
+        },
+        {
+          "id": "server_util_logging",
+          "name": "Logging and diagnostics",
+          "status": "planned",
+          "files": [
+            "GameServer/Logging/ServerLogger.cs",
+            "GameServer/Logging/DiagnosticsManager.cs"
+          ],
+          "description": "Server provides comprehensive logging for debugging and performance monitoring."
+        },
+        {
+          "id": "server_util_data_persistence",
+          "name": "Data persistence",
+          "status": "planned",
+          "files": [
+            "GameServer/Persistence/WorldDataPersistence.cs",
+            "GameServer/Persistence/PlayerDataPersistence.cs"
+          ],
+          "description": "Server handles saving and loading world and player data to persistent storage."
+        },
+        {
+          "id": "server_util_performance",
+          "name": "Performance optimization",
+          "status": "planned",
+          "files": [
+            "GameServer/Performance/ThreadPoolManager.cs",
+            "GameServer/Performance/CacheManager.cs"
+          ],
+          "description": "Server optimizes performance with thread pooling and intelligent caching strategies."
+        }
+      ]
+    }
+  }
+}
+  "version": "2026-01-22-session-10",
+  "description": "Comprehensive Minecraft client/server features categorized by core, content, and util for session-10 implementation.",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json"
+          ],
+          "description": "Unity map controller consumes v4 map-control profile and hydrates preview chunks with lake seepage-aware hydrology."
+        },
+        {
+          "id": "client_core_hydrology_preview",
+          "name": "Hydrology/flow preview",
+          "status": "in-progress",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+          ],
+          "description": "Preview generator blends flow memory and lake seepage to match server-side hydrology masks around rivers/lakes."
+        },
+        {
+          "id": "client_core_chunk_management",
+          "name": "Chunk load/unload management",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Client manages chunk loading, unloading, and caching with view distance optimization."
+        },
+        {
+          "id": "client_core_networking",
+          "name": "Network packet handling",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Networking/NetworkManager.cs",
+            "Assets/Scripts/Networking/Handlers/",
+            "Assets/Scripts/Networking/Protocol/GameProtocol.cs"
+          ],
+          "description": "Client handles all network communication using protobuf-generated packet classes."
+        },
+        {
+          "id": "client_core_player_controller",
+          "name": "Player controller and state",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/Player/PlayerController.cs",
+            "Assets/Scripts/Minecraft/Player/PlayerState.cs"
+          ],
+          "description": "Client manages player movement, actions, inventory, and game state synchronization."
+        },
+        {
+          "id": "client_core_block_interaction",
+          "name": "Block break/place system",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/World/BlockInteraction.cs",
+            "Assets/Scripts/Minecraft/World/BlockBreakHandler.cs"
+          ],
+          "description": "Client handles block breaking progress, placement, and interaction validation."
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_waterways",
+          "name": "River/lake visualization",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Render stitched river and lake overlays using the updated map-control profile hash/signature."
+        },
+        {
+          "id": "client_content_terrain_rendering",
+          "name": "Terrain rendering and visualization",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/ChunkRenderer.cs"
+          ],
+          "description": "Client renders terrain chunks with proper lighting, water, and biome visualization."
+        },
+        {
+          "id": "client_content_entity_rendering",
+          "name": "Entity rendering and animation",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Minecraft/Entities/EntityRenderer.cs",
+            "Assets/Scripts/Minecraft/Entities/EntityAnimator.cs"
+          ],
+          "description": "Client renders mobs, animals, and other entities with proper animations."
+        },
+        {
+          "id": "client_content_inventory_ui",
+          "name": "Inventory UI system",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/UI/InventoryUI.cs",
+            "Assets/Scripts/UI/HotbarUI.cs"
+          ],
+          "description": "Client displays player inventory, hotbar, and crafting interface."
+        },
+        {
+          "id": "client_content_effects_particles",
+          "name": "Particle and visual effects",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Effects/ParticleSystem.cs",
+            "Assets/Scripts/Effects/ParticleManager.cs"
+          ],
+          "description": "Client renders block break particles, explosions, and other visual effects."
+        }
+      ],
+      "util": [
+        {
+          "id": "client_util_proto_guard",
+          "name": "Proto fingerprint guard",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Generated/Protobuf"
+          ],
+          "description": "Client asserts EnhancedMinecraft proto fingerprints before building preview chunks."
+        },
+        {
+          "id": "client_util_config_sync",
+          "name": "StreamingAssets config sync",
+          "status": "implemented",
+          "files": [
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "description": "Data-driven world config and map-control JSON stay aligned with server signatures."
+        },
+        {
+          "id": "client_util_data_loading",
+          "name": "Data-driven asset loading",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Data/BlockDataLoader.cs",
+            "Assets/Scripts/Data/ItemDataLoader.cs",
+            "Assets/StreamingAssets/blocks.json",
+            "Assets/StreamingAssets/items.json"
+          ],
+          "description": "Client loads block and item data from JSON files for data-driven configuration."
+        },
+        {
+          "id": "client_util_validation",
+          "name": "Input validation and error handling",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Validation/InputValidator.cs",
+            "Assets/Scripts/Validation/ErrorHandler.cs"
+          ],
+          "description": "Client validates all user inputs and handles errors gracefully."
+        },
+        {
+          "id": "client_util_performance",
+          "name": "Performance monitoring and optimization",
+          "status": "planned",
+          "files": [
+            "Assets/Scripts/Performance/PerformanceMonitor.cs",
+            "Assets/Scripts/Performance/ObjectPool.cs"
+          ],
+          "description": "Client monitors FPS, memory usage, and optimizes object pooling."
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_terrain_pipeline_lake_seep",
+          "name": "Hydrology-aware terrain pipeline",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "config/world.json"
+          ],
+          "description": "Server hydrology/flow masks now apply lake seepage and edge normalization before carving rivers, lakes, and caves."
+        },
+        {
+          "id": "server_core_world_map_control_v4",
+          "name": "World map control profile v4",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs",
+            "config/world_map_control_profile.json"
+          ],
+          "description": "Map-control profile regenerated with lake seepage tuning and pipeline signature 2026-01-22-lake-seepage+proto-guard."
+        },
+        {
+          "id": "server_core_chunk_management",
+          "name": "Chunk generation and management",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/ChunkManager.cs",
+            "GameServer/World/ChunkData.cs"
+          ],
+          "description": "Server generates, caches, and serves chunk data to clients with proper compression."
+        },
+        {
+          "id": "server_core_networking",
+          "name": "Network session management",
+          "status": "implemented",
+          "files": [
+            "GameServer/SessionManager.cs",
+            "GameServer/Network/PacketHandler.cs"
+          ],
+          "description": "Server manages player sessions, packet routing, and connection handling."
+        },
+        {
+          "id": "server_core_player_management",
+          "name": "Player state and persistence",
+          "status": "implemented",
+          "files": [
+            "GameServer/Player/PlayerManager.cs",
+            "GameServer/Player/PlayerData.cs"
+          ],
+          "description": "Server manages player data, inventory persistence, and state synchronization."
+        },
+        {
+          "id": "server_core_block_validation",
+          "name": "Block change validation",
+          "status": "planned",
+          "files": [
+            "GameServer/World/BlockValidator.cs",
+            "GameServer/World/BlockChangeHandler.cs"
+          ],
+          "description": "Server validates block break/place requests and broadcasts changes to nearby players."
+        },
+        {
+          "id": "server_core_world_generation",
+          "name": "World generation coordinator",
+          "status": "planned",
+          "files": [
+            "GameServer/World/WorldGenerator.cs",
+            "GameServer/World/WorldSeedManager.cs"
+          ],
+          "description": "Server coordinates world generation with proper seeding and biome distribution."
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_cave_stability",
+          "name": "Cave stability tuning",
+          "status": "in-progress",
+          "files": [
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ],
+          "description": "Cave masks consume seepage-adjusted hydrology and retain edge sealing for rivers and lakes."
+        },
+        {
+          "id": "server_content_river_generation",
+          "name": "River generation system",
+          "status": "planned",
+          "files": [
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/RiverPathfinder.cs"
+          ],
+          "description": "Server generates realistic river paths with proper width, depth, and biome integration."
+        },
+        {
+          "id": "server_content_lake_generation",
+          "name": "Lake generation system",
+          "status": "planned",
+          "files": [
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/LakeBedManager.cs"
+          ],
+          "description": "Server generates lakes with proper depth, shoreline, and vegetation integration."
+        },
+        {
+          "id": "server_content_mob_spawning",
+          "name": "Mob spawning system",
+          "status": "planned",
+          "files": [
+            "GameServer/Mobs/MobSpawner.cs",
+            "GameServer/Mobs/MobTypeRegistry.cs"
+          ],
+          "description": "Server spawns mobs based on biome, time of day, and player proximity."
+        },
+        {
+          "id": "server_content_crafting",
+          "name": "Crafting system",
+          "status": "planned",
+          "files": [
+            "GameServer/Crafting/CraftingManager.cs",
+            "GameServer/Crafting/RecipeRegistry.cs"
+          ],
+          "description": "Server handles crafting requests and validates recipes against data-driven recipe database."
+        },
+        {
+          "id": "server_content_inventory_management",
+          "name": "Inventory management",
+          "status": "planned",
+          "files": [
+            "GameServer/Inventory/InventoryManager.cs",
+            "GameServer/Inventory/ItemStackManager.cs"
+          ],
+          "description": "Server manages player inventory operations with proper item stacking and validation."
+        }
+      ],
+      "util": [
+        {
+          "id": "server_util_proto_validation",
+          "name": "Enhanced proto validation",
+          "status": "implemented",
+          "files": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/GameServer.cs"
+          ],
+          "description": "Handler bindings now fail fast when a generated prototype is missing, ensuring Google.Protobuf DTOs stay referenced."
+        },
+        {
+          "id": "server_util_config_pipeline_signature",
+          "name": "Config/profile signature",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs"
+          ],
+          "description": "Generation signatures include proto fingerprints and hydrology/lake seepage knobs for cache invalidation."
+        },
+        {
+          "id": "server_util_data_driven_config",
+          "name": "Data-driven configuration",
+          "status": "planned",
+          "files": [
+            "GameServer/Config/ServerConfig.cs",
+            "GameServer/Config/WorldGenerationConfig.cs",
+            "config/server.json",
+            "config/world.json",
+            "config/biomes.json",
+            "config/blocks.json",
+            "config/items.json",
+            "config/recipes.json"
+          ],
+          "description": "Server loads all configuration from JSON files for data-driven behavior tuning."
+        },
+        {
+          "id": "server_util_logging",
+          "name": "Logging and diagnostics",
+          "status": "planned",
+          "files": [
+            "GameServer/Logging/ServerLogger.cs",
+            "GameServer/Logging/DiagnosticsManager.cs"
+          ],
+          "description": "Server provides comprehensive logging for debugging and performance monitoring."
+        },
+        {
+          "id": "server_util_data_persistence",
+          "name": "Data persistence",
+          "status": "planned",
+          "files": [
+            "GameServer/Persistence/WorldDataPersistence.cs",
+            "GameServer/Persistence/PlayerDataPersistence.cs"
+          ],
+          "description": "Server handles saving and loading world and player data to persistent storage."
+        },
+        {
+          "id": "server_util_performance",
+          "name": "Performance optimization",
+          "status": "planned",
+          "files": [
+            "GameServer/Performance/ThreadPoolManager.cs",
+            "GameServer/Performance/CacheManager.cs"
+          ],
+          "description": "Server optimizes performance with thread pooling and intelligent caching strategies."
+        }
+      ]
+    }
+  }
+}
+

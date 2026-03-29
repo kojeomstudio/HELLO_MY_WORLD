@@ -1,0 +1,12 @@
+{
+  "base": {
+    "max_health": 20,
+    "max_hunger": 20,
+    "move_speed": 0.1,
+    "attack_power": 1
+  },
+  "growth_per_level": {
+    "max_health": 1,
+    "attack_power": 0.3
+  }
+}

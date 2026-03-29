@@ -1,0 +1,264 @@
+{
+  "version": "2026-02-16-session-87",
+  "generated_at_utc": "2026-02-16T12:30:00Z",
+  "metadata": {
+    "session": "87",
+    "date": "2026-02-16",
+    "hydrologySignature": "2026-02-16-hydrology-riverlake-cave-v36",
+    "mapControlProfileVersion": 40,
+    "description": "Session 87 feature inventory with Core/Content/Utility sequence and v36-v40 upgrades."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S87-CORE-001",
+      "name": "Shared DLL contracts and enums",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "SharedProtocol.dll and GameCommon.dll provide packet contracts, queue policy helpers, and world-map signatures.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameCommon/World/WorldMapContracts.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S87-CORE-002",
+      "name": "Hydrology signature v36 and map-control profile v40",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client generation profile synchronization upgraded to v36 signature and v40 profile version.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "S87-CORE-001"
+      ]
+    },
+    {
+      "id": "S87-CORE-003",
+      "name": "Shared distance-priority queue policy",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Queue policy adds deterministic distance-priority ordering with duplicate suppression.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-001"
+      ]
+    },
+    {
+      "id": "S87-CORE-004",
+      "name": "Server world-map chunk update prioritization",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server map control manager prioritizes chunk update requests around player chunk and updates player position snapshots.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-003"
+      ]
+    },
+    {
+      "id": "S87-CORE-005",
+      "name": "Client queue drain prioritization",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity world-map controller reorders queued requests by player distance during overload drain.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-003"
+      ]
+    },
+    {
+      "id": "S87-CORE-006",
+      "name": "JSON runtime queue configuration",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client queue thresholds and backoff values are tuned via shared JSON policies.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S87-CORE-004",
+        "S87-CORE-005"
+      ]
+    },
+    {
+      "id": "S87-CONTENT-001",
+      "name": "Hydrology-aware cave lithified roof bridge",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation adds lithified roof stability sealing for wet/thin roof zones near riparian terrain.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-002"
+      ]
+    },
+    {
+      "id": "S87-CONTENT-002",
+      "name": "Hydrology-aware river floodplain retention anchor",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "River generation adds floodplain retention anchor bridge to reduce channel cutoff under queue pressure and terrain slope variance.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-002"
+      ]
+    },
+    {
+      "id": "S87-CONTENT-003",
+      "name": "Hydrology-aware lake spillway retention anchor",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake generation adds spillway retention anchor to stabilize outflow continuity under floodplain transitions.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-002"
+      ]
+    },
+    {
+      "id": "S87-CONTENT-004",
+      "name": "Integrated terrain pipeline usage",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Enhanced terrain pipeline applies cave/river/lake bridges through improved generation stages.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": [
+        "S87-CONTENT-001",
+        "S87-CONTENT-002",
+        "S87-CONTENT-003"
+      ]
+    },
+    {
+      "id": "S87-UTIL-001",
+      "name": "Protocol message-set partition guard",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Protocol validator now checks required/optional set overlap and duplicate required bindings.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "dependencies": [
+        "S87-CORE-001"
+      ]
+    },
+    {
+      "id": "S87-UTIL-002",
+      "name": "Protobuf descriptor/fingerprint verification",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Fingerprint validation, registry diagnostics, and proto-source freshness checks are executed in CI/session runs.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "scripts/verify_protobuf.ps1",
+        "config/proto_reference_report.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": [
+        "S87-UTIL-001"
+      ]
+    },
+    {
+      "id": "S87-UTIL-003",
+      "name": "Dummy client packet round-trip probe",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Dummy clients validate required packet round-trip and optional packet prototype gaps with explicit diagnostics.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/dummy_minecraft_client.json",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S87-CORE-001"
+      ]
+    },
+    {
+      "id": "S87-UTIL-004",
+      "name": "Compile-time reference integrity",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Build/test passes validate that using-referenced classes and projects resolve correctly.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": [
+        "S87-CORE-001"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,509 @@
+{
+  "version": "2026-02-15-session-83",
+  "generated_at_utc": "2026-02-15T21:20:00Z",
+  "metadata": {
+    "session": "83",
+    "date": "2026-02-15",
+    "hydrologySignature": "2026-02-15-hydrology-riverlake-cave-v34",
+    "mapControlProfileVersion": 38,
+    "description": "Core/Content/Utility feature catalog and sequential implementation snapshot for client/server shared architecture improvements."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S81-CORE-001",
+      "name": "Shared DLL contracts and enums",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll + SharedProtocol.dll supply common world-map enums, contracts, and packet abstractions.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/World/WorldMapContracts.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S81-CORE-002",
+      "name": "Hydrology signature and profile versioning",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v34 and map-control profile version 38 keep server/client deterministic parity.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": [
+        "S81-CORE-001"
+      ]
+    },
+    {
+      "id": "S81-CORE-003",
+      "name": "Server world-map queue architecture",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Adaptive queue policy with EMA/hysteresis to prevent oscillation under chunk-generation bursts.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs",
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": [
+        "S81-CORE-002"
+      ]
+    },
+    {
+      "id": "S81-CORE-004",
+      "name": "Client world-map queue architecture",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Chunk update dedupe + per-frame budget + throttle loaded from JSON runtime config.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json",
+        "config/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S81-CORE-003"
+      ]
+    },
+    {
+      "id": "S81-CORE-005",
+      "name": "World generation pipeline core",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Enhanced terrain pipeline and coordinator build deterministic chunk terrain masks.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/TerrainGenerationPipeline.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-002"
+      ]
+    },
+    {
+      "id": "S81-CORE-006",
+      "name": "Chunk lifecycle and synchronization",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Chunk caching, load/unload, and world sync layers between server and client.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs",
+        "GameServer/World/WorldSynchronizationManager.cs",
+        "Assets/Scripts/Minecraft/World/ChunkManager.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-005"
+      ]
+    },
+    {
+      "id": "S81-CORE-007",
+      "name": "Network and session foundation",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "TCP session lifecycle, dispatcher registration, and login/session handling.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/GameServer.cs",
+        "GameServer/SessionManager.cs",
+        "SharedProtocol/Session.cs",
+        "SharedProtocol/MessageDispatcher.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-001"
+      ]
+    },
+    {
+      "id": "S81-CORE-008",
+      "name": "JSON configuration orchestration",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server and client runtime knobs are JSON-driven and reloadable.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "GameCommon/Configuration/ConfigManager.cs",
+        "config/server_config.json",
+        "config/client_config.json"
+      ],
+      "dependencies": [
+        "S81-CORE-001"
+      ]
+    },
+    {
+      "id": "S81-CORE-009",
+      "name": "Data-driven feature manifest loader",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Feature manifest is loaded on server startup for core/content/utility coverage checks.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-15-session-83.json"
+      ],
+      "dependencies": [
+        "S81-CORE-008"
+      ]
+    },
+    {
+      "id": "S81-CORE-010",
+      "name": "Dummy protocol client harness",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Headless dummy client validates packet encode/decode and optional network probes.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/protocol_dummy_client.json",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S81-CORE-001"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-001",
+      "name": "Base terrain and biome shaping",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Noise-driven base terrain with biome-layer modulation.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-005"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-002",
+      "name": "Hydrology-aware cave generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave stability/sealing with floodplain roof arch + talus buttress reinforcement near wet river/lake zones.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S81-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-003",
+      "name": "Hydrology-aware river generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "River mask generation improved with headwater spring continuity + floodplain meander stability bridge.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S81-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-004",
+      "name": "Hydrology-aware lake generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake basin generation improved with karst overflow retention + wetland leakage clamp bridge.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S81-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-005",
+      "name": "Cave-river-lake coupling coordinator",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Coordinator adds aquifer exchange stability to synchronize wetness/flow/erosion before cave carving.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": [
+        "S81-CONTENT-002",
+        "S81-CONTENT-003",
+        "S81-CONTENT-004"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-006",
+      "name": "Ore and structure passes",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Ore, vegetation, cloud, and dungeon stages run as deterministic post terrain passes.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs",
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S81-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-007",
+      "name": "Inventory, crafting, and items",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Item data and crafting flows are data-driven JSON backed systems.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/InventorySystem.cs",
+        "GameServer/Systems/CraftingSystem.cs",
+        "config/items.json",
+        "config/recipes.json"
+      ],
+      "dependencies": [
+        "S81-CORE-008"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-008",
+      "name": "Combat, AI, and entity gameplay",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Entity spawn/update/combat handlers and AI behavior loops.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/CombatSystem.cs",
+        "GameServer/Systems/AIManager.cs",
+        "GameServer/Handlers/PlayerAttackHandler.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-007"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-009",
+      "name": "World time, weather, and events",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Time/weather packets and world simulation updates for client visualization.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldManager.cs",
+        "Assets/Scripts/Minecraft/World/WorldTimeController.cs",
+        "Assets/Scripts/Minecraft/World/WorldWeatherController.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-006"
+      ]
+    },
+    {
+      "id": "S81-CONTENT-010",
+      "name": "Chat and room collaboration",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Room lifecycle and chat broadcasting with protocol handlers.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Handlers/ChatHandler.cs",
+        "GameServer/Handlers/RoomListHandler.cs",
+        "GameServer/Handlers/RoomEnterHandler.cs",
+        "GameServer/Handlers/RoomLeaveHandler.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-007"
+      ]
+    },
+    {
+      "id": "S81-UTIL-001",
+      "name": "Protobuf registry diagnostics",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Registry/type/descriptor diagnostics detect stale generated packet references.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-001"
+      ]
+    },
+    {
+      "id": "S81-UTIL-002",
+      "name": "Proto fingerprint and report export",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Startup and probes emit proto reference reports to JSON for CI verification.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+        "config/proto_reference_report.json",
+        "GameServer/Program.cs"
+      ],
+      "dependencies": [
+        "S81-UTIL-001"
+      ]
+    },
+    {
+      "id": "S81-UTIL-003",
+      "name": "Dummy packet probe reports",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Dummy client writes packet round-trip/network probe reports for validation pipelines.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": [
+        "S81-CORE-010"
+      ]
+    },
+    {
+      "id": "S81-UTIL-004",
+      "name": "World-map profile hash parity checks",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Profile hash/signature checks ensure generated profile parity across server and streaming assets.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapControlProfileUtility.cs",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-002"
+      ]
+    },
+    {
+      "id": "S81-UTIL-005",
+      "name": "JSON queue policy management",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Queue pressure/backoff/emergency brake controls are managed from JSON policy files.",
+      "order": 25,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "GameServer/Program.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-008"
+      ]
+    },
+    {
+      "id": "S81-UTIL-006",
+      "name": "Build and selftest verification",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Build and selftest command paths validate packet handling and chunk generation integration.",
+      "order": 26,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "README.md",
+        "docs/"
+      ],
+      "dependencies": [
+        "S81-CORE-007",
+        "S81-UTIL-001"
+      ]
+    },
+    {
+      "id": "S81-UTIL-007",
+      "name": "Operational metrics and logs",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Queue pressure, protocol diagnostics, and world-map lifecycle logs support runtime auditing.",
+      "order": 27,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/GameServer.cs",
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldMapControlManager.cs"
+      ],
+      "dependencies": [
+        "S81-CORE-003"
+      ]
+    }
+  ]
+}

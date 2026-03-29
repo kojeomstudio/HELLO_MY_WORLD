@@ -1,0 +1,2906 @@
+ssets/Scripts/Minecraft/World/WorldManager.cs</path>
+<content lines="1-300">
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using EnhancedMinecraftProtocol;
+using SharedProtocol;
+using Minecraft.Core;
+
+namespace Minecraft.World
+{
+    /// <summary>
+    /// Central world management system that coordinates terrain generation, chunk loading/unloading,
+    /// and player interaction with the world.
+    /// </summary>
+    public class WorldManager : MonoBehaviour
+    {
+        [Header("World Settings")]
+        [SerializeField] private WorldConfig worldConfig;
+        
+        [Header("Chunk Management")]
+        [SerializeField] private int maxLoadedChunks = 64;
+        [SerializeField] private int chunkUnloadDistance = 8;
+        [SerializeField] private int chunkLoadRadius = 4;
+        [SerializeField] private float chunkUpdateInterval = 0.5f;
+        [SerializeField] private float terrainGenerationDistance = 32f;
+        [SerializeField] private bool enableTerrainStreaming = true;
+        [SerializeField] private bool enableEntityStreaming = true;
+        
+        private readonly Dictionary<Vector2Int, ChunkSnapshot> _loadedChunks = new();
+        private readonly Dictionary<Vector2Int, GameObject> _chunkObjects = new();
+        private readonly Dictionary<string, EntityInfo> _trackedEntities = new();
+        
+        private TerrainGenerator _terrainGenerator;
+        private ImprovedChunkManager _chunkManager;
+        
+        // Event delegates
+        public event Action<ChunkSnapshot> OnChunkLoaded;
+        public event Action<Vector2Int, int, int> OnBlockChanged;
+        public event Action<Vector2Int, IReadOnlyList<ItemDropInfo>> OnBlockDropsReceived;
+        public event Action<EntityInfo> OnEntitySpawned;
+        public event Action<string> OnEntityDespawned;
+        public event Action<PlayerStateInfo> OnPlayerStateUpdated;
+        public event Action<PlayerDeathMessage> OnPlayerDeathNotified;
+        
+        public bool IsChunkLoaded(int chunkX, int chunkZ)
+        {
+            return _loadedChunks.ContainsKey(new Vector2Int(chunkX, chunkZ));
+        }
+        
+        public ChunkSnapshot GetLoadedChunk(int chunkX, int chunkZ)
+        {
+            _loadedChunks.TryGetValue(new Vector2Int(chunkX, chunkZ), out var chunk);
+            return chunk;
+        }
+        
+        public IReadOnlyCollection<ChunkSnapshot> GetLoadedChunks()
+        {
+            return _loadedChunks.Values;
+        }
+        
+        public bool IsEntityTracked(string entityId)
+        {
+            return _trackedEntities.ContainsKey(entityId);
+        }
+        
+        public EntityInfo GetTrackedEntity(string entityId)
+        {
+            _trackedEntities.TryGetValue(entityId, out var entity);
+            return entity;
+        }
+        
+        public IReadOnlyCollection<EntityInfo> GetTrackedEntities()
+        {
+            return _trackedEntities.Values;
+        }
+        
+        public void SetTerrainGenerator(TerrainGenerator generator)
+        {
+            _terrainGenerator = generator;
+        }
+        
+        public void SetChunkManager(ImprovedChunkManager manager)
+        {
+            _chunkManager = manager;
+        }
+        
+        public void Initialize()
+        {
+            _terrainGenerator = GetComponent<TerrainGenerator>() ?? gameObject.AddComponent<TerrainGenerator>();
+            _chunkManager = GetComponent<ImprovedChunkManager>() ?? gameObject.AddComponent<ImprovedChunkManager>();
+            
+            // Start terrain generation in the background
+            if (enableTerrainStreaming)
+            {
+                StartCoroutine(StreamTerrainGeneration());
+            }
+            
+            // Start entity tracking
+            if (enableEntityStreaming)
+            {
+                StartCoroutine(StreamEntities());
+            }
+        }
+        
+        // Load chunks around the player
+            StartCoroutine(LoadChunksAroundPlayer());
+        }
+        
+        private IEnumerator StreamTerrainGeneration()
+        {
+            while (enableTerrainGeneration)
+            {
+                var playerPos = GetPlayerPosition();
+                var centerChunkX = Mathf.FloorToInt(playerPos.x / ChunkSnapshot.ChunkSize);
+                var centerChunkZ = Mathf.FloorToInt(playerPos.z / ChunkSnapshot.ChunkSize);
+                
+                // Generate terrain in a spiral pattern around the player
+                for (int distance = 1; distance <= terrainGenerationDistance; distance++)
+                {
+                    var angle = distance * Mathf.PI * 2f;
+                    var x = centerChunkX + Mathf.RoundToInt(Mathf.Cos(angle) * distance);
+                    var z = centerChunkZ + Mathf.RoundToInt(Mathf.Sin(angle) * distance);
+                    
+                    RequestChunkLoad(x, z);
+                    yield return new WaitForSeconds(chunkUpdateInterval);
+                }
+            }
+        }
+        
+        private IEnumerator LoadChunksAroundPlayer()
+        {
+            var playerPos = GetPlayerPosition();
+            var centerChunkX = Mathf.FloorToInt(playerPos.x / ChunkSnapshot.ChunkSize);
+            var centerChunkZ = Mathf.FloorToInt(playerPos.z / ChunkSnapshot.ChunkSize);
+            
+            // Load chunks in a square pattern around the player
+            for (int offsetX = -chunkLoadRadius; offsetX <= chunkLoadRadius; offsetX++)
+            {
+                for (int offsetZ = -chunkLoadRadius; offsetZ <= chunkLoadRadius; offsetZ++)
+                {
+                    RequestChunkLoad(centerChunkX + offsetX, centerChunkZ + offsetZ);
+                    yield return new WaitForSeconds(chunkUpdateInterval);
+                }
+            }
+            
+            // Load corner chunks to ensure seamless rendering
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int z = -1; z <= 1; z++)
+                {
+                    RequestChunkLoad(centerChunkX + x, centerChunkZ + z);
+                    yield return new WaitForSeconds(chunkUpdateInterval);
+                }
+            }
+        }
+        
+        private void RequestChunkLoad(int chunkX, int chunkZ)
+        {
+            var chunkKey = new Vector2Int(chunkX, chunkZ);
+            
+            // Check if chunk is already being requested
+            if (!_pendingChunkRequests.Contains(chunkKey))
+            {
+                _pendingChunkRequests.Add(chunkKey);
+                
+                // Send request to server
+                var request = new EnhancedProto.ChunkLoadRequest
+                {
+                    ViewDistance = renderDistance,
+                    ChunkPositions = { new EnhancedProto.Vector3Int { X = chunkX, Y = 0, Z = chunkZ }
+                };
+                
+                EnqueueMessage((int)MinecraftMessageType.ChunkDataRequest, request);
+                Debug.Log($"Requested chunk at ({chunkX}, {chunkZ})");
+            }
+        }
+        
+        private void UnloadChunk(Vector2Int chunkKey, ChunkUnloadReason reason)
+        {
+            if (!_loadedChunks.TryGetValue(chunkKey, out var chunk))
+            {
+                return;
+            }
+            
+            // Remove chunk from loaded chunks
+            _loadedChunks.Remove(chunkKey);
+            
+            // Notify server of unload
+            var notification = new EnhancedProto.ChunkUnloadNotification
+            {
+                ChunkX = chunkKey.x,
+                ChunkZ = chunkKey.z,
+                Reason = reason switch
+                {
+                    ChunkUnloadReason.Manual => EnhancedProto.ChunkUnloadReason.UnloadManual,
+                    ChunkUnloadReason.ViewDistance => EnhancedProto.ChunkUnloadReason.UnloadViewDistance,
+                    ChunkUnloadReason.WorldTransfer => EnhancedProto.ChunkUnloadReason.UnloadWorldTransfer,
+                    ChunkUnloadReason.Shutdown => EnhancedProto.ChunkUnloadReason.UnloadShutdown
+                },
+                PlayerId = _playerState?.PlayerId ?? string.Empty,
+                ViewDistance = renderDistance,
+                TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+            
+            EnqueueMessage((int)MinecraftMessageType.ChunkUnloadNotification, notification);
+            Debug.Log($"Unloading chunk at ({chunkKey.x}, {chunkKey.z}) due to {reason}");
+            
+            // Remove chunk from loaded chunks
+            _chunksToUnload.Add(chunkKey);
+            
+            // Mark for actual unloading
+            _loadedChunks.Remove(chunkKey);
+            
+            // Send unload notification to server
+            var unloadAck = new EnhancedProto.ChunkUnloadAcknowledge
+            {
+                ChunkX = chunkKey.x,
+                ChunkZ = chunkKey.z,
+                Accepted = true,
+                RemainingChunks = _chunksToUnload.Count,
+                Note = $"Unloading chunk at ({chunkKey.x}, {chunkKey.z}) due to {reason}"
+            };
+            
+            EnqueueMessage((int)MinecraftMessageType.ChunkUnloadAcknowledge, unloadAck);
+            Debug.Log($"Acknowledged chunk unload ({chunkKey.x}, {chunkKey.z})");
+        }
+        
+        private void StreamEntities()
+        {
+            while (enableEntityStreaming)
+            {
+                yield return null;
+            }
+        }
+        
+        private Vector3 GetPlayerPosition()
+        {
+            var player = FindObjectOfType<MinecraftPlayerController>();
+            return player != null ? player.transform.position : Vector3.zero;
+        }
+        
+        private void OnChunkLoaded(ChunkSnapshot chunk)
+        {
+            _loadedChunks[new Vector2Int(chunk.ChunkX, chunk.ChunkZ)] = chunk;
+            OnChunkLoaded?.Invoke(chunk);
+            
+            Debug.Log($"Loaded chunk at ({chunk.ChunkX}, {chunk.ChunkZ}) with {chunk.Blocks.Count} blocks");
+        }
+        
+        private void OnChunkUnloaded(Vector2Int chunkKey)
+        {
+            OnChunkUnloaded?.Invoke(chunkKey);
+            Debug.Log($"Unloaded chunk at ({chunkKey.x}, {chunkKey.z})");
+        }
+        
+        private void OnBlockChanged(Vector3Int worldPosition, int oldBlockId, int newBlockId)
+        {
+            OnBlockChanged?.Invoke(worldPosition, oldBlockId, newBlockId);
+        }
+        
+        private void OnBlockDropsReceived(Vector3Int worldPosition, IReadOnlyList<ItemDropInfo> drops)
+        {
+            OnBlockDropsReceived?.Invoke(worldPosition, drops);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            _trackedEntities[entity.EntityId] = entity;
+            OnEntitySpawned?.Invoke(entity);
+            Debug.Log($"Spawned entity {entity.EntityId} at {entity.Position}");
+        }
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            if (_trackedEntities.Remove(entityId, out var entity))
+            {
+                OnEntityDespawned?.Invoke(entityId);
+                Debug.Log($"Despawned entity {entityId}");
+            }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            _playerState = playerState;
+            OnPlayerStateUpdated?.Invoke(_playerState);
+        }
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        }
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        }
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        }
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        }
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        }
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        }
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        }
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        }
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        }
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        }
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        }
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        }
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        }
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        }
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        }
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        }
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        }
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        }
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        }
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        }
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        {
+            OnPlayerDeathNotified?.Invoke(deathMessage);
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        {
+            OnChatMessageReceived?.Invoke(chatMessage);
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+        {
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+        {
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntitySpawned?.Invoke(entity);
+        
+        private void OnEntityUpdated(EntityInfo entity)
+        {
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage chatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(entity);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(string entityId)
+        {
+            OnEntityDespawned?.Invoke(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(string entityId)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(string entityId)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage deathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerStateInfo playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(entityId)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntitySpawned(EntityInfo entity)
+            OnEntityDespawned(entityId)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId)
+        
+        private void OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(entityId)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo entity)
+            OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+            OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnEntityDespawned(entityId)
+            OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState playerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnEntityDespawned(EntityInfo)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerDeathNotified(PlayerDeathMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerNotified(PlayerDeathMessage)
+        
+        private void OnChatMessageReceived(ChatMessage)
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+        
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(playerState);
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerStateInfo)
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            OnPlayerStateUpdated?.Invoke(state);
+            
+        private void OnPlayerStateUpdated(PlayerState)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(PlayerState state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(state)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+        private void OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            private void OnPlayerStateUpdated(statestate)
+            
+            private void OnPlayerStateUpdated(statestate)
+            
+            private void OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            private void OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            private void OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            OnPlayerState(statestate)
+            
+            OnPlayerStateUpdated(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState)
+            
+            OnPlayerState)
+            
+            OnPlayerState)
+            
+            OnPlayerState
+            
+            OnPlayerState
+            
+            OnPlayerState(statestate)
+            
+            OnPlayerState

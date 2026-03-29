@@ -1,0 +1,1562 @@
+{
+  "version": "2026-02-09-session-60",
+  "generated_at_utc": "2026-02-09T06:30:00Z",
+  "metadata": {
+    "session": "60",
+    "date": "2026-02-09",
+    "description": "Comprehensive Core/Content/Utility feature inventory for server/client/shared architecture with detailed implementation status."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": {
+    "core": [
+      {
+        "id": "S60-CORE-01",
+        "name": "Shared Protocol and Communication Layer",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Protobuf-based communication protocol with packet registry, dispatcher, and validation.",
+        "order": 1,
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "SharedProtocol/GameProtocol.cs",
+          "SharedProtocol/MessageDispatcher.cs",
+          "SharedProtocol/Messages.cs",
+          "SharedProtocol/MinecraftContainerMessages.cs",
+          "SharedProtocol/MinecraftMessageDispatcher.cs",
+          "SharedProtocol/MinecraftMessages.cs",
+          "SharedProtocol/WorldSyncMessages.cs",
+          "SharedProtocol/Session.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "proto/common.proto",
+          "proto/game_core.proto",
+          "proto/game_world.proto",
+          "proto/enhanced_minecraft_game.proto",
+          "proto/game_auth.proto",
+          "proto/game_chat.proto",
+          "proto/game_diag.proto",
+          "proto/game_move.proto"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-CORE-02",
+        "name": "Shared Game Logic and Contracts",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Common game logic, block definitions, world contracts, and data structures shared between server and client.",
+        "order": 2,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/GameCommon.csproj",
+          "GameCommon/Blocks/",
+          "GameCommon/Configuration/",
+          "GameCommon/DataDriven/",
+          "GameCommon/World/"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-CORE-03",
+        "name": "Server Network and Session Management",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-side network handling, session management, and connection lifecycle.",
+        "order": 3,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/SessionManager.cs",
+          "GameServer/Network/",
+          "GameServer/Middleware/"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-04",
+        "name": "Client Network Layer",
+        "category": "Core",
+        "layer": "Client",
+        "side": "client",
+        "description": "Unity client network handling, connection management, and packet processing.",
+        "order": 4,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Network/"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-05",
+        "name": "World Map Control Architecture",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Deterministic world map control with signature computation, profile management, and drift detection.",
+        "order": 5,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-06",
+        "name": "World Generation Pipeline",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-authoritative world generation with staged pipeline and context management.",
+        "order": 6,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/TerrainGenerationContext.cs",
+          "GameServer/World/Generation/ITerrainGenerationStage.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedWorldGeneration.cs",
+          "GameServer/World/WorldGenerationConfig.cs",
+          "GameServer/World/WorldSeedConfig.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CORE-02", "S60-CORE-05"]
+      },
+      {
+        "id": "S60-CORE-07",
+        "name": "Chunk Management System",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Chunk data structures, loading, and management for both server and client.",
+        "order": 7,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/ChunkData.cs",
+          "Assets/MyAssets/Scripts/GameWorld/Chunk/",
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "dependencies": ["S60-CORE-02", "S60-CORE-06"]
+      },
+      {
+        "id": "S60-CORE-08",
+        "name": "World Synchronization",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-side world state synchronization and change broadcasting.",
+        "order": 8,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldSynchronizationManager.cs",
+          "SharedProtocol/WorldSyncMessages.cs"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-07"]
+      },
+      {
+        "id": "S60-CORE-09",
+        "name": "Player Controller and State",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player movement, state management, and input handling.",
+        "order": 9,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs",
+          "Assets/MyAssets/Scripts/Player/",
+          "proto/game_move.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-10",
+        "name": "World Border System",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "World boundary management and enforcement.",
+        "order": 10,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldBorderSystem.cs"
+        ],
+        "dependencies": ["S60-CORE-06"]
+      }
+    ],
+    "content": [
+      {
+        "id": "S60-CONTENT-01",
+        "name": "Terrain Generation - Base",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Base terrain heightmap generation using noise algorithms.",
+        "order": 11,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+          "config/enhanced-terrain-config.json"
+        ],
+        "dependencies": ["S60-CORE-06"]
+      },
+      {
+        "id": "S60-CONTENT-02",
+        "name": "River Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Hydrology-aware river generation with confluence memory, catchment bridge, and mouth continuity.",
+        "order": 12,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/Stages/RiverGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-03",
+        "name": "Lake Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Hydrology-aware lake generation with basin/outflow, spillway continuity, and lake-mouth stability.",
+        "order": 13,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/Stages/LakeGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-02"]
+      },
+      {
+        "id": "S60-CONTENT-04",
+        "name": "Cave Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Cave generation with riparian/aquifer boundary seal pass to prevent water-body puncture.",
+        "order": 14,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/EnhancedCaveGenerator.cs",
+          "GameServer/World/Generation/Stages/CaveGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-02", "S60-CONTENT-03"]
+      },
+      {
+        "id": "S60-CONTENT-05",
+        "name": "Biome Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Biome distribution and climate-based terrain variation.",
+        "order": 15,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "config/biomes.json"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-06",
+        "name": "Ore Distribution System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Ore and mineral distribution based on depth and biome.",
+        "order": 16,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-07",
+        "name": "Vegetation Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Tree and plant placement based on biome and terrain.",
+        "order": 17,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/VegetationGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-05"]
+      },
+      {
+        "id": "S60-CONTENT-08",
+        "name": "Dungeon Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Underground structure and dungeon generation.",
+        "order": 18,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-04"]
+      },
+      {
+        "id": "S60-CONTENT-09",
+        "name": "Cloud Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Cloud layer generation for atmospheric effects.",
+        "order": 19,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-10",
+        "name": "Block System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block definitions, types, and properties.",
+        "order": 20,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/Blocks/",
+          "config/blocks.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-11",
+        "name": "Item System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Item definitions, categories, and properties.",
+        "order": 21,
+        "status": "implemented",
+        "artifacts": [
+          "config/items.json",
+          "config/item_categories.json",
+          "config/items_config.json",
+          "proto/game_core.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-12",
+        "name": "Crafting System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Recipe definitions and crafting mechanics.",
+        "order": 22,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+          "config/recipes.json"
+        ],
+        "dependencies": ["S60-CONTENT-10", "S60-CONTENT-11"]
+      },
+      {
+        "id": "S60-CONTENT-13",
+        "name": "Inventory System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player inventory management and item storage.",
+        "order": 23,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+          "proto/game_core.proto"
+        ],
+        "dependencies": ["S60-CONTENT-11"]
+      },
+      {
+        "id": "S60-CONTENT-14",
+        "name": "Health and Hunger System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player health, hunger, and survival mechanics.",
+        "order": 24,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+          "config/hunger_config.json",
+          "config/gameplay.json"
+        ],
+        "dependencies": ["S60-CORE-09"]
+      },
+      {
+        "id": "S60-CONTENT-15",
+        "name": "World Modification",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block placement, destruction, and world modification.",
+        "order": 25,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs",
+          "proto/game_world.proto"
+        ],
+        "dependencies": ["S60-CORE-07", "S60-CONTENT-10"]
+      },
+      {
+        "id": "S60-CONTENT-16",
+        "name": "Mob Spawning System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Creature spawning based on biome, time, and conditions.",
+        "order": 26,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "GameServer/World/Spawning/MobSpawningConfig.cs"
+        ],
+        "dependencies": ["S60-CONTENT-05"]
+      },
+      {
+        "id": "S60-CONTENT-17",
+        "name": "Water Physics",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Water flow, physics, and interaction systems.",
+        "order": 27,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Physics/WaterPhysicsSystem.cs"
+        ],
+        "dependencies": ["S60-CONTENT-02", "S60-CONTENT-03"]
+      },
+      {
+        "id": "S60-CONTENT-18",
+        "name": "Entity Collision",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Entity collision detection and response.",
+        "order": 28,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Physics/EntityCollisionSystem.cs"
+        ],
+        "dependencies": ["S60-CORE-07"]
+      },
+      {
+        "id": "S60-CONTENT-19",
+        "name": "Weather System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Weather effects and environmental conditions.",
+        "order": 29,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs",
+          "proto/common.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-20",
+        "name": "Game Modes",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Survival, creative, adventure, and spectator game modes.",
+        "order": 30,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameMode/",
+          "proto/common.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      }
+    ],
+    "utility": [
+      {
+        "id": "S60-UTIL-01",
+        "name": "Configuration Management",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "JSON-based configuration loading and management.",
+        "order": 31,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/",
+          "config/server_config.json",
+          "config/client_config.json",
+          "config/network.default.json",
+          "config/world.default.json",
+          "config/world_map_control.default.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-UTIL-02",
+        "name": "Data-Driven Systems",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Data-driven approach for game content and configuration.",
+        "order": 32,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/DataDriven/",
+          "config/biomes.json",
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json",
+          "config/hunger_config.json",
+          "config/gameplay.json",
+          "config/item_categories.json"
+        ],
+        "dependencies": ["S60-UTIL-01"]
+      },
+      {
+        "id": "S60-UTIL-03",
+        "name": "Protocol Diagnostics",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Protocol validation, diagnostics, and reporting tools.",
+        "order": 33,
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "config/proto_reference_report.json"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-UTIL-04",
+        "name": "Dummy Protocol Client",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Test client for protocol validation and packet testing.",
+        "order": 34,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "GameServer/TestClient.cs",
+          "config/protocol_dummy_client.json"
+        ],
+        "dependencies": ["S60-UTIL-03"]
+      },
+      {
+        "id": "S60-UTIL-05",
+        "name": "Build and Test Automation",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Build scripts, test runners, and automation tools.",
+        "order": 35,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/TerrainGenerationTest.csproj",
+          "scripts/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-06",
+        "name": "Logging and Diagnostics",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Logging infrastructure and diagnostic tools.",
+        "order": 36,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/",
+          "proto/game_diag.proto"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-07",
+        "name": "Database Integration",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "SQLite database for persistent data storage.",
+        "order": 37,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Database/",
+          "SharedProtocol/SharedProtocol.csproj"
+        ],
+        "dependencies": ["S60-CORE-03"]
+      },
+      {
+        "id": "S60-UTIL-08",
+        "name": "Authentication System",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Player authentication and session management.",
+        "order": 38,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/",
+          "proto/game_auth.proto"
+        ],
+        "dependencies": ["S60-CORE-03"]
+      },
+      {
+        "id": "S60-UTIL-09",
+        "name": "Chat System",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "In-game chat and communication.",
+        "order": 39,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/",
+          "proto/game_chat.proto"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-UTIL-10",
+        "name": "AI System",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "AI behavior and pathfinding systems.",
+        "order": 40,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/AI/",
+          "Assets/MyAssets/Scripts/PathFinding/",
+          "GameServer/AI/"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-UTIL-11",
+        "name": "UI System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "User interface components and management.",
+        "order": 41,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/UI/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-12",
+        "name": "Input System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Input handling and player controls.",
+        "order": 42,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Input/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-13",
+        "name": "Animation System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Character and entity animation.",
+        "order": 43,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Animation/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-14",
+        "name": "Particle System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Visual effects and particle systems.",
+        "order": 44,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/ParticleSystem/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-15",
+        "name": "Map Generation Tools",
+        "category": "Utility",
+        "layer": "Tools",
+        "side": "tools",
+        "description": "Map generation and visualization tools.",
+        "order": 45,
+        "status": "implemented",
+        "artifacts": [
+          "CustomToolSet/MapTool/",
+          "MapGeneratorLib/"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "summary": {
+    "coreCount": 10,
+    "contentCount": 20,
+    "utilityCount": 15,
+    "total": 45,
+    "implemented": 45,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "implementationStatus": {
+    "core": {
+      "total": 10,
+      "implemented": 10,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    },
+    "content": {
+      "total": 20,
+      "implemented": 20,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    },
+    "utility": {
+      "total": 15,
+      "implemented": 15,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    }
+  }
+}
+  "version": "2026-02-09-session-60",
+  "generated_at_utc": "2026-02-09T06:30:00Z",
+  "metadata": {
+    "session": "60",
+    "date": "2026-02-09",
+    "description": "Comprehensive Core/Content/Utility feature inventory for server/client/shared architecture with detailed implementation status."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": {
+    "core": [
+      {
+        "id": "S60-CORE-01",
+        "name": "Shared Protocol and Communication Layer",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Protobuf-based communication protocol with packet registry, dispatcher, and validation.",
+        "order": 1,
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "SharedProtocol/GameProtocol.cs",
+          "SharedProtocol/MessageDispatcher.cs",
+          "SharedProtocol/Messages.cs",
+          "SharedProtocol/MinecraftContainerMessages.cs",
+          "SharedProtocol/MinecraftMessageDispatcher.cs",
+          "SharedProtocol/MinecraftMessages.cs",
+          "SharedProtocol/WorldSyncMessages.cs",
+          "SharedProtocol/Session.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "proto/common.proto",
+          "proto/game_core.proto",
+          "proto/game_world.proto",
+          "proto/enhanced_minecraft_game.proto",
+          "proto/game_auth.proto",
+          "proto/game_chat.proto",
+          "proto/game_diag.proto",
+          "proto/game_move.proto"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-CORE-02",
+        "name": "Shared Game Logic and Contracts",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Common game logic, block definitions, world contracts, and data structures shared between server and client.",
+        "order": 2,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/GameCommon.csproj",
+          "GameCommon/Blocks/",
+          "GameCommon/Configuration/",
+          "GameCommon/DataDriven/",
+          "GameCommon/World/"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-CORE-03",
+        "name": "Server Network and Session Management",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-side network handling, session management, and connection lifecycle.",
+        "order": 3,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/SessionManager.cs",
+          "GameServer/Network/",
+          "GameServer/Middleware/"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-04",
+        "name": "Client Network Layer",
+        "category": "Core",
+        "layer": "Client",
+        "side": "client",
+        "description": "Unity client network handling, connection management, and packet processing.",
+        "order": 4,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Network/"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-05",
+        "name": "World Map Control Architecture",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Deterministic world map control with signature computation, profile management, and drift detection.",
+        "order": 5,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-06",
+        "name": "World Generation Pipeline",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-authoritative world generation with staged pipeline and context management.",
+        "order": 6,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/TerrainGenerationContext.cs",
+          "GameServer/World/Generation/ITerrainGenerationStage.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedWorldGeneration.cs",
+          "GameServer/World/WorldGenerationConfig.cs",
+          "GameServer/World/WorldSeedConfig.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CORE-02", "S60-CORE-05"]
+      },
+      {
+        "id": "S60-CORE-07",
+        "name": "Chunk Management System",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Chunk data structures, loading, and management for both server and client.",
+        "order": 7,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/ChunkData.cs",
+          "Assets/MyAssets/Scripts/GameWorld/Chunk/",
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "dependencies": ["S60-CORE-02", "S60-CORE-06"]
+      },
+      {
+        "id": "S60-CORE-08",
+        "name": "World Synchronization",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-side world state synchronization and change broadcasting.",
+        "order": 8,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldSynchronizationManager.cs",
+          "SharedProtocol/WorldSyncMessages.cs"
+        ],
+        "dependencies": ["S60-CORE-01", "S60-CORE-07"]
+      },
+      {
+        "id": "S60-CORE-09",
+        "name": "Player Controller and State",
+        "category": "Core",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player movement, state management, and input handling.",
+        "order": 9,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs",
+          "Assets/MyAssets/Scripts/Player/",
+          "proto/game_move.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CORE-10",
+        "name": "World Border System",
+        "category": "Core",
+        "layer": "Server",
+        "side": "server",
+        "description": "World boundary management and enforcement.",
+        "order": 10,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/WorldBorderSystem.cs"
+        ],
+        "dependencies": ["S60-CORE-06"]
+      }
+    ],
+    "content": [
+      {
+        "id": "S60-CONTENT-01",
+        "name": "Terrain Generation - Base",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Base terrain heightmap generation using noise algorithms.",
+        "order": 11,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+          "config/enhanced-terrain-config.json"
+        ],
+        "dependencies": ["S60-CORE-06"]
+      },
+      {
+        "id": "S60-CONTENT-02",
+        "name": "River Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Hydrology-aware river generation with confluence memory, catchment bridge, and mouth continuity.",
+        "order": 12,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/Stages/RiverGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-03",
+        "name": "Lake Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Hydrology-aware lake generation with basin/outflow, spillway continuity, and lake-mouth stability.",
+        "order": 13,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/Stages/LakeGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-02"]
+      },
+      {
+        "id": "S60-CONTENT-04",
+        "name": "Cave Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Cave generation with riparian/aquifer boundary seal pass to prevent water-body puncture.",
+        "order": 14,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/EnhancedCaveGenerator.cs",
+          "GameServer/World/Generation/Stages/CaveGenerationStage.cs",
+          "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S60-CONTENT-02", "S60-CONTENT-03"]
+      },
+      {
+        "id": "S60-CONTENT-05",
+        "name": "Biome Generation System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Biome distribution and climate-based terrain variation.",
+        "order": 15,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "config/biomes.json"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-06",
+        "name": "Ore Distribution System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Ore and mineral distribution based on depth and biome.",
+        "order": 16,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "GameServer/World/Generation/Stages/OreGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-07",
+        "name": "Vegetation Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Tree and plant placement based on biome and terrain.",
+        "order": 17,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/VegetationGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-05"]
+      },
+      {
+        "id": "S60-CONTENT-08",
+        "name": "Dungeon Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Underground structure and dungeon generation.",
+        "order": 18,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-04"]
+      },
+      {
+        "id": "S60-CONTENT-09",
+        "name": "Cloud Generation",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Cloud layer generation for atmospheric effects.",
+        "order": 19,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/Stages/CloudGenerationStage.cs"
+        ],
+        "dependencies": ["S60-CONTENT-01"]
+      },
+      {
+        "id": "S60-CONTENT-10",
+        "name": "Block System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block definitions, types, and properties.",
+        "order": 20,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/Blocks/",
+          "config/blocks.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-11",
+        "name": "Item System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Item definitions, categories, and properties.",
+        "order": 21,
+        "status": "implemented",
+        "artifacts": [
+          "config/items.json",
+          "config/item_categories.json",
+          "config/items_config.json",
+          "proto/game_core.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-12",
+        "name": "Crafting System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Recipe definitions and crafting mechanics.",
+        "order": 22,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+          "config/recipes.json"
+        ],
+        "dependencies": ["S60-CONTENT-10", "S60-CONTENT-11"]
+      },
+      {
+        "id": "S60-CONTENT-13",
+        "name": "Inventory System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player inventory management and item storage.",
+        "order": 23,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+          "proto/game_core.proto"
+        ],
+        "dependencies": ["S60-CONTENT-11"]
+      },
+      {
+        "id": "S60-CONTENT-14",
+        "name": "Health and Hunger System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player health, hunger, and survival mechanics.",
+        "order": 24,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+          "config/hunger_config.json",
+          "config/gameplay.json"
+        ],
+        "dependencies": ["S60-CORE-09"]
+      },
+      {
+        "id": "S60-CONTENT-15",
+        "name": "World Modification",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block placement, destruction, and world modification.",
+        "order": 25,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs",
+          "proto/game_world.proto"
+        ],
+        "dependencies": ["S60-CORE-07", "S60-CONTENT-10"]
+      },
+      {
+        "id": "S60-CONTENT-16",
+        "name": "Mob Spawning System",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Creature spawning based on biome, time, and conditions.",
+        "order": 26,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "GameServer/World/Spawning/MobSpawningConfig.cs"
+        ],
+        "dependencies": ["S60-CONTENT-05"]
+      },
+      {
+        "id": "S60-CONTENT-17",
+        "name": "Water Physics",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Water flow, physics, and interaction systems.",
+        "order": 27,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Physics/WaterPhysicsSystem.cs"
+        ],
+        "dependencies": ["S60-CONTENT-02", "S60-CONTENT-03"]
+      },
+      {
+        "id": "S60-CONTENT-18",
+        "name": "Entity Collision",
+        "category": "Content",
+        "layer": "Server",
+        "side": "server",
+        "description": "Entity collision detection and response.",
+        "order": 28,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Physics/EntityCollisionSystem.cs"
+        ],
+        "dependencies": ["S60-CORE-07"]
+      },
+      {
+        "id": "S60-CONTENT-19",
+        "name": "Weather System",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Weather effects and environmental conditions.",
+        "order": 29,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs",
+          "proto/common.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-CONTENT-20",
+        "name": "Game Modes",
+        "category": "Content",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Survival, creative, adventure, and spectator game modes.",
+        "order": 30,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameMode/",
+          "proto/common.proto"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      }
+    ],
+    "utility": [
+      {
+        "id": "S60-UTIL-01",
+        "name": "Configuration Management",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "JSON-based configuration loading and management.",
+        "order": 31,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/",
+          "config/server_config.json",
+          "config/client_config.json",
+          "config/network.default.json",
+          "config/world.default.json",
+          "config/world_map_control.default.json"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-UTIL-02",
+        "name": "Data-Driven Systems",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Data-driven approach for game content and configuration.",
+        "order": 32,
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/DataDriven/",
+          "config/biomes.json",
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json",
+          "config/hunger_config.json",
+          "config/gameplay.json",
+          "config/item_categories.json"
+        ],
+        "dependencies": ["S60-UTIL-01"]
+      },
+      {
+        "id": "S60-UTIL-03",
+        "name": "Protocol Diagnostics",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Protocol validation, diagnostics, and reporting tools.",
+        "order": 33,
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "config/proto_reference_report.json"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-UTIL-04",
+        "name": "Dummy Protocol Client",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Test client for protocol validation and packet testing.",
+        "order": 34,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "GameServer/TestClient.cs",
+          "config/protocol_dummy_client.json"
+        ],
+        "dependencies": ["S60-UTIL-03"]
+      },
+      {
+        "id": "S60-UTIL-05",
+        "name": "Build and Test Automation",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Build scripts, test runners, and automation tools.",
+        "order": 35,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/TerrainGenerationTest.csproj",
+          "scripts/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-06",
+        "name": "Logging and Diagnostics",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Logging infrastructure and diagnostic tools.",
+        "order": 36,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/",
+          "proto/game_diag.proto"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-07",
+        "name": "Database Integration",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "SQLite database for persistent data storage.",
+        "order": 37,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Database/",
+          "SharedProtocol/SharedProtocol.csproj"
+        ],
+        "dependencies": ["S60-CORE-03"]
+      },
+      {
+        "id": "S60-UTIL-08",
+        "name": "Authentication System",
+        "category": "Utility",
+        "layer": "Server",
+        "side": "server",
+        "description": "Player authentication and session management.",
+        "order": 38,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/",
+          "proto/game_auth.proto"
+        ],
+        "dependencies": ["S60-CORE-03"]
+      },
+      {
+        "id": "S60-UTIL-09",
+        "name": "Chat System",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "In-game chat and communication.",
+        "order": 39,
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/",
+          "proto/game_chat.proto"
+        ],
+        "dependencies": ["S60-CORE-01"]
+      },
+      {
+        "id": "S60-UTIL-10",
+        "name": "AI System",
+        "category": "Utility",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "AI behavior and pathfinding systems.",
+        "order": 40,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/AI/",
+          "Assets/MyAssets/Scripts/PathFinding/",
+          "GameServer/AI/"
+        ],
+        "dependencies": ["S60-CORE-02"]
+      },
+      {
+        "id": "S60-UTIL-11",
+        "name": "UI System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "User interface components and management.",
+        "order": 41,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/UI/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-12",
+        "name": "Input System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Input handling and player controls.",
+        "order": 42,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Input/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-13",
+        "name": "Animation System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Character and entity animation.",
+        "order": 43,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/Animation/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-14",
+        "name": "Particle System",
+        "category": "Utility",
+        "layer": "Client",
+        "side": "client",
+        "description": "Visual effects and particle systems.",
+        "order": 44,
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/ParticleSystem/"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S60-UTIL-15",
+        "name": "Map Generation Tools",
+        "category": "Utility",
+        "layer": "Tools",
+        "side": "tools",
+        "description": "Map generation and visualization tools.",
+        "order": 45,
+        "status": "implemented",
+        "artifacts": [
+          "CustomToolSet/MapTool/",
+          "MapGeneratorLib/"
+        ],
+        "dependencies": []
+      }
+    ]
+  },
+  "summary": {
+    "coreCount": 10,
+    "contentCount": 20,
+    "utilityCount": 15,
+    "total": 45,
+    "implemented": 45,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "implementationStatus": {
+    "core": {
+      "total": 10,
+      "implemented": 10,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    },
+    "content": {
+      "total": 20,
+      "implemented": 20,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    },
+    "utility": {
+      "total": 15,
+      "implemented": 15,
+      "inProgress": 0,
+      "pending": 0,
+      "percentage": 100
+    }
+  }
+}
+

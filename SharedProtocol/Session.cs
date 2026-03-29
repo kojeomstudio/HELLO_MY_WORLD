@@ -60,24 +60,26 @@ public class Session
     public string? UserName { get; set; }
     
     /// <summary>
-    /// 세션 토큰 - 로그인 성공 후 생성됩니다.
+    /// ?�션 ?�큰 - 로그???�공 ???�성?�니??
     /// </summary>
     public string? SessionToken { get; set; }
     
     /// <summary>
-    /// 세션 생성 시간
+    /// ?�션 ?�성 ?�간
     /// </summary>
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     
     /// <summary>
-    /// 마지막 활동 시간
+    /// 마�?�??�동 ?�간
     /// </summary>
     public DateTime LastActivityAt { get; set; } = DateTime.UtcNow;
     
     /// <summary>
-    /// 플레이어 정보
+    /// ?�레?�어 ?�보
     /// </summary>
     public PlayerInfo? PlayerInfo { get; set; }
+
+    public bool UseEnhancedMinecraftProtocol { get; set; }
 
     public Session(TcpClient client)
     {
@@ -86,7 +88,7 @@ public class Session
     }
 
     /// <summary>
-    /// 메시지를 비동기적으로 직렬화하여 전송합니다.
+    /// 메시지�?비동기적?�로 직렬?�하???�송?�니??
     /// </summary>
     public async Task SendAsync<T>(MessageType type, T message)
     {
@@ -96,8 +98,8 @@ public class Session
             Serializer.Serialize(ms, message);
             var body = ms.ToArray();
             
-            // 메시지 크기 체크
-            if (body.Length > 1024 * 1024) // 1MB 제한
+            // 메시지 ?�기 체크
+            if (body.Length > 1024 * 1024) // 1MB ?�한
                 throw new InvalidDataException($"Message too large: {body.Length} bytes");
             
             var length = BitConverter.GetBytes(body.Length + sizeof(int));
@@ -108,7 +110,7 @@ public class Session
             await _stream.WriteAsync(body, 0, body.Length);
             await _stream.FlushAsync();
             
-            // 마지막 활동 시간 업데이트
+            // 마�?�??�동 ?�간 ?�데?�트
             LastActivityAt = DateTime.UtcNow;
         }
         catch (Exception ex)
@@ -117,9 +119,40 @@ public class Session
         }
     }
 
+
     /// <summary>
-    /// 원시 바이트 페이로드를 지정한 정수형 메시지 타입과 함께 전송합니다.
-    /// 마인크래프트 확장 메시지(MinecraftMessageType) 등 enum 외 타입 코드를 지원합니다.
+    /// JSON으로 메시지를 직렬화하여 전송합니다 (AI 메시지용).
+    /// ProtoBuf 대신 JSON을 사용하여 Unity JsonUtility와 호환됩니다.
+    /// </summary>
+    public async Task SendAsJsonAsync<T>(MessageType type, T message)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(message);
+            var body = System.Text.Encoding.UTF8.GetBytes(json);
+
+            if (body.Length > 1024 * 1024)
+                throw new InvalidDataException($"Message too large: {body.Length} bytes");
+
+            var length = BitConverter.GetBytes(body.Length + sizeof(int));
+            var typeBytes = BitConverter.GetBytes((int)type);
+
+            await _stream.WriteAsync(length, 0, length.Length);
+            await _stream.WriteAsync(typeBytes, 0, typeBytes.Length);
+            await _stream.WriteAsync(body, 0, body.Length);
+            await _stream.FlushAsync();
+
+            LastActivityAt = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to send JSON message of type {type}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// ?�시 바이???�이로드�?지?�한 ?�수??메시지 ?�?�과 ?�께 ?�송?�니??
+    /// 마인?�래?�트 ?�장 메시지(MinecraftMessageType) ??enum ???�??코드�?지?�합?�다.
     /// </summary>
     public async Task SendAsync(int rawMessageType, byte[] payload)
     {
@@ -127,7 +160,7 @@ public class Session
         {
             payload ??= Array.Empty<byte>();
 
-            if (payload.Length > 1024 * 1024) // 1MB 제한
+            if (payload.Length > 1024 * 1024) // 1MB ?�한
                 throw new InvalidDataException($"Message too large: {payload.Length} bytes");
 
             var length = BitConverter.GetBytes(payload.Length + sizeof(int));
@@ -150,7 +183,7 @@ public class Session
     }
 
     /// <summary>
-    /// 서버로부터 메시지를 비동기적으로 수신하고 역직렬화합니다.
+    /// ?�버로�???메시지�?비동기적?�로 ?�신?�고 ??��?�화?�니??
     /// </summary>
     public async Task<IncomingMessage> ReceiveAsync()
     {
@@ -159,8 +192,8 @@ public class Session
             var lenBuf = await ReadExactAsync(sizeof(int));
             var length = BitConverter.ToInt32(lenBuf, 0);
             
-            // 잘못된 길이 체크
-            if (length <= sizeof(int) || length > 1024 * 1024) // 1MB 제한
+            // ?�못??길이 체크
+            if (length <= sizeof(int) || length > 1024 * 1024) // 1MB ?�한
                 throw new InvalidDataException($"Invalid message length: {length}");
             
             var typeBuf = await ReadExactAsync(sizeof(int));
@@ -175,35 +208,51 @@ public class Session
                 using var ms = new MemoryStream(body);
                 message = knownType.Value switch
                 {
-                    // 인증 관련
+                    // ?�증 관??
                     MessageType.LoginRequest => Serializer.Deserialize<LoginRequest>(ms),
                     MessageType.LoginResponse => Serializer.Deserialize<LoginResponse>(ms),
                     MessageType.LogoutRequest => Serializer.Deserialize<LogoutRequest>(ms),
                     MessageType.LogoutResponse => Serializer.Deserialize<LogoutResponse>(ms),
 
-                    // 이동 관련
+                    // ?�동 관??
                     MessageType.MoveRequest => Serializer.Deserialize<MoveRequest>(ms),
                     MessageType.MoveResponse => Serializer.Deserialize<MoveResponse>(ms),
 
-                    // 월드/블록 관련
+                    // ?�드/블록 관??
                     MessageType.WorldBlockChangeRequest => Serializer.Deserialize<WorldBlockChangeRequest>(ms),
                     MessageType.WorldBlockChangeResponse => Serializer.Deserialize<WorldBlockChangeResponse>(ms),
                     MessageType.WorldBlockChangeBroadcast => Serializer.Deserialize<WorldBlockChangeBroadcast>(ms),
 
-                    // 채팅 관련
+                    // 채팅 관??
                     MessageType.ChatRequest => Serializer.Deserialize<ChatRequest>(ms),
                     MessageType.ChatResponse => Serializer.Deserialize<ChatResponse>(ms),
                     MessageType.ChatMessage => Serializer.Deserialize<ChatMessage>(ms),
 
-                    // 서버 상태/진단
+                    // ?�버 ?�태/진단
                     MessageType.PingRequest => Serializer.Deserialize<PingRequest>(ms),
                     MessageType.PingResponse => Serializer.Deserialize<PingResponse>(ms),
                     MessageType.ServerStatusRequest => Serializer.Deserialize<ServerStatusRequest>(ms),
                     MessageType.ServerStatusResponse => Serializer.Deserialize<ServerStatusResponse>(ms),
 
-                    // 플레이어 정보
+                    // ?�레?�어 ?�보
                     MessageType.PlayerInfoUpdate => Serializer.Deserialize<PlayerInfoUpdate>(ms),
+                    MessageType.HealthActionRequest => Serializer.Deserialize<HealthActionRequest>(ms),
+                    MessageType.HealthActionResponse => Serializer.Deserialize<HealthActionResponse>(ms),
+                    MessageType.HealthUpdate => Serializer.Deserialize<HealthUpdateMessage>(ms),
+                    MessageType.RespawnRequest => Serializer.Deserialize<RespawnRequest>(ms),
+                    MessageType.RespawnResponse => Serializer.Deserialize<RespawnResponse>(ms),
+                    MessageType.PlayerDeath => Serializer.Deserialize<PlayerDeathMessage>(ms),
+                    MessageType.PlayerRespawnBroadcast => Serializer.Deserialize<PlayerRespawnBroadcast>(ms),
 
+
+                    // AI System (Server-Authoritative) - JSON deserialization
+                    MessageType.AIStateSyncBroadcast => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AIStateSyncBroadcast>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AIAttackEventBroadcast => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AIAttackEventBroadcast>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AIDeathEventBroadcast => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AIDeathEventBroadcast>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AISpawnRequest => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AISpawnRequest>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AISpawnResponse => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AISpawnResponse>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AIDebugInfoRequest => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AIDebugInfoRequest>(System.Text.Encoding.UTF8.GetString(body)),
+                    MessageType.AIDebugInfoResponse => System.Text.Json.JsonSerializer.Deserialize<GameProtocol.AIDebugInfoResponse>(System.Text.Encoding.UTF8.GetString(body)),
                     _ => body
                 };
             }
@@ -221,7 +270,7 @@ public class Session
     }
 
     /// <summary>
-    /// 지정된 크기만큼 정확하게 데이터를 읽습니다.
+    /// 지?�된 ?�기만큼 ?�확?�게 ?�이?��? ?�습?�다.
     /// </summary>
     private async Task<byte[]> ReadExactAsync(int size)
     {
@@ -235,22 +284,22 @@ public class Session
             read += n;
         }
         
-        // 마지막 활동 시간 업데이트
+        // 마�?�??�동 ?�간 ?�데?�트
         LastActivityAt = DateTime.UtcNow;
         return buffer;
     }
     
     /// <summary>
-    /// 세션이 유효한지 확인합니다.
+    /// ?�션???�효?��? ?�인?�니??
     /// </summary>
     public bool IsValidSession(TimeSpan? timeout = null)
     {
-        timeout ??= TimeSpan.FromMinutes(30); // 기본 30분 타임아웃
+        timeout ??= TimeSpan.FromMinutes(30); // 기본 30�??�?�아??
         return DateTime.UtcNow - LastActivityAt <= timeout;
     }
     
     /// <summary>
-    /// 세션을 안전하게 종료합니다.
+    /// ?�션???�전?�게 종료?�니??
     /// </summary>
     public void Dispose()
     {
@@ -261,7 +310,8 @@ public class Session
         }
         catch (Exception)
         {
-            // 종료 시 예외 무시
+            // 종료 ???�외 무시
         }
     }
 }
+

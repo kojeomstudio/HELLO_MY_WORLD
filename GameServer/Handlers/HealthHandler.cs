@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using GameServerApp.Database;
 using GameServerApp.Systems;
 using SharedProtocol;
@@ -37,8 +41,27 @@ public class HealthHandler : MessageHandler<HealthActionRequest>
             switch (message.ActionType)
             {
                 case 0: // Damage
-                    success = await _healthSystem.DamagePlayerAsync(session.UserName, message.Amount, (DamageType)message.DamageType);
-                    resultMessage = success ? "데미지 적용 완료" : "데미지 적용 실패";
+                    var sourcePlayer = !string.IsNullOrWhiteSpace(message.SourcePlayerName)
+                        ? message.SourcePlayerName
+                        : session.UserName;
+
+                    var combatContext = new CombatEventContext
+                    {
+                        AttackerUserName = sourcePlayer,
+                        AttackerDisplayName = sourcePlayer,
+                        WeaponName = message.WeaponName,
+                        WeaponItemId = message.WeaponItemId,
+                        IsCritical = message.IsCritical,
+                        IsBlocked = message.IsBlocked,
+                        RawDamage = message.Amount
+                    };
+
+                    success = await _healthSystem.DamagePlayerAsync(
+                        session.UserName,
+                        message.Amount,
+                        (DamageType)message.DamageType,
+                        combatContext);
+                    resultMessage = success ? "?곕?吏 ?곸슜 ?꾨즺" : "?곕?吏 ?곸슜 ?ㅽ뙣";
                     break;
 
                 case 1: // Heal
@@ -99,13 +122,15 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
     private readonly DatabaseHelper _database;
     private readonly SessionManager _sessions;
     private readonly HealthAndHungerSystem _healthSystem;
+    private readonly ServerMetricsService _metrics;
 
-    public RespawnHandler(DatabaseHelper database, SessionManager sessions, HealthAndHungerSystem healthSystem)
+    public RespawnHandler(DatabaseHelper database, SessionManager sessions, HealthAndHungerSystem healthSystem, ServerMetricsService metrics)
         : base(MessageType.RespawnRequest)
     {
         _database = database;
         _sessions = sessions;
         _healthSystem = healthSystem;
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
     }
 
     protected override async Task HandleAsync(Session session, RespawnRequest message)
@@ -151,6 +176,7 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
             // 다른 플레이어들에게 리스폰 알림
             await BroadcastPlayerRespawn(session.UserName, respawnPosition);
 
+            _metrics.RecordPlayerRespawn(session.UserName);
             Console.WriteLine($"Player {session.UserName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z})");
         }
         catch (Exception ex)
@@ -169,8 +195,26 @@ public class RespawnHandler : MessageHandler<RespawnRequest>
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
 
-        // TODO: 모든 세션에 브로드캐스트 (SessionManager 개선 필요)
-        Console.WriteLine($"Player {userName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z})");
+        var recipients = _sessions.GetSessionsSnapshot()
+            .Where(session =>
+                !string.IsNullOrEmpty(session.UserName) &&
+                !string.Equals(session.UserName, userName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var sendTasks = new List<Task>(recipients.Count);
+        foreach (var targetSession in recipients)
+        {
+            sendTasks.Add(targetSession.SendAsync(MessageType.PlayerRespawnBroadcast, broadcast));
+        }
+
+        await Task.WhenAll(sendTasks);
+
+        Console.WriteLine($"Player {userName} respawned at ({respawnPosition.X}, {respawnPosition.Y}, {respawnPosition.Z}); notified {recipients.Count} session(s).");
     }
 
     private async Task SendFailureResponse(Session session, string errorMessage)

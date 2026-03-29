@@ -1,0 +1,201 @@
+{
+  "updatedAt": "2026-01-10T12:00:00Z",
+  "source": "codex-cli",
+  "implementationOrder": [
+    { "order": 1, "feature": "world-map-control-parity" },
+    { "order": 2, "feature": "terrain-generation-caves-rivers-lakes" },
+    { "order": 3, "feature": "enhanced-protobuf-registry" },
+    { "order": 4, "feature": "chunk-streaming-and-networking" },
+    { "order": 5, "feature": "biomes-and-surface-content" },
+    { "order": 6, "feature": "structures-and-underground-content" },
+    { "order": 7, "feature": "config-and-hotreload" },
+    { "order": 8, "feature": "telemetry-and-diagnostics" },
+    { "order": 9, "feature": "tooling-and-data-pipelines" }
+  ],
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-parity",
+        "status": "in-progress",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "data": [
+          "config/world_map_control_profile.json",
+          "config/world.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "notes": "Keep hydrology/flow/cave knobs aligned between server profile generation and Unity StreamingAssets; recompute profile hash when config changes."
+      },
+      {
+        "feature": "terrain-generation-caves-rivers-lakes",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "data": [
+          "config/enhanced-terrain-config.json",
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Hydrology-aware carving with flow memory, edge normalization, and basin/outflow coupling for caves, rivers, and lakes."
+      },
+      {
+        "feature": "enhanced-protobuf-registry",
+        "status": "stable",
+        "client": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+          "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs"
+        ],
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "GameServer/Network/EnhancedProtocolHandler.cs"
+        ],
+        "data": [
+          "proto/enhanced_minecraft_game.proto",
+          "SharedProtocol/Proto/enhanced_minecraft.proto"
+        ],
+        "notes": "Validate generated DTO fingerprints and registry bindings before message dispatch; prefer Google.Protobuf DTOs for enhanced sessions."
+      },
+      {
+        "feature": "chunk-streaming-and-networking",
+        "status": "stable",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/Scripts/Minecraft/Core/MinecraftGameClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs",
+          "GameServer/SessionManager.cs"
+        ],
+        "data": [
+          "proto/game_world.proto",
+          "SharedProtocol/MinecraftMessages.cs"
+        ],
+        "notes": "Honor render/simulation distances from world profile; stream chunk payloads with enhanced protocol payloads where available."
+      }
+    ],
+    "content": [
+      {
+        "feature": "biomes-and-surface-content",
+        "status": "planned",
+        "client": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/StreamingAssets/biomes.json"
+        ],
+        "server": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "data": [
+          "config/biomes.json",
+          "config/world.json"
+        ],
+        "notes": "Tune biome-specific height/cover distribution and surface blocks with JSON-driven biome definitions."
+      },
+      {
+        "feature": "structures-and-underground-content",
+        "status": "planned",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/Chunk/StructurePlacer.cs",
+          "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedWorldGeneration.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "data": [
+          "config/enhanced-terrain-config.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Anchor villages, caves, and underground points-of-interest to improved terrain masks and hydrology stability."
+      },
+      {
+        "feature": "blocks-items-recipes",
+        "status": "stable",
+        "client": [
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldMapDataFile.cs",
+          "Assets/StreamingAssets/items.json"
+        ],
+        "server": [
+          "GameServer/Handlers/InventoryHandler.cs",
+          "SharedProtocol/MinecraftMessages.cs"
+        ],
+        "data": [
+          "config/items.json",
+          "config/recipes.json"
+        ],
+        "notes": "Maintain parity between server inventory/recipes and client data-driven item catalogs."
+      }
+    ],
+    "utility": [
+      {
+        "feature": "config-and-hotreload",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "notes": "Centralize JSON configs and watch for changes; reload terrain/hydrology profile hashes without requiring a restart."
+      },
+      {
+        "feature": "telemetry-and-diagnostics",
+        "status": "planned",
+        "client": [
+          "Assets/Scripts/Minecraft/Core/MinecraftDiagnostics.cs"
+        ],
+        "server": [
+          "GameServer/Systems/Telemetry/TelemetryReporter.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "data": [
+          "config/network.default.json",
+          "config/world.json"
+        ],
+        "notes": "Track latency, packet sizes, and worldgen timings to surface regressions early."
+      },
+      {
+        "feature": "tooling-and-data-pipelines",
+        "status": "in-progress",
+        "client": [
+          "Assets/Generated/Protobuf",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "server": [
+          "scripts/generate_proto.ps1",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ],
+        "data": [
+          "proto/*.proto",
+          "config/enhanced-terrain-config.json"
+        ],
+        "notes": "Automate protobuf regeneration and terrain profile updates; keep manifest fingerprints in sync."
+      }
+    ]
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "version": "session-123",
+  "generated_at_utc": "2026-02-25T00:00:00Z",
+  "session": 123,
+  "date": "2026-02-25",
+  "signature": "2026-02-25-hydrology-riverlake-cave-v54",
+  "profileVersion": 58,
+  "features": [
+    {
+      "id": "S123-CORE-01",
+      "name": "Hydrology Signature v54 + Map-Control Profile v58 Baseline",
+      "category": "Core",
+      "side": "server-client-shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S123-CORE-02",
+      "name": "Shared Queue Near-Chunk Keep Budget (Server/Client)",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/ConfigurationModels.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "id": "S123-CORE-03",
+      "name": "SharedProtocol Message/Enum/Constant Deduplication",
+      "category": "Core",
+      "side": "shared-dll",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/Common/Constants/TerrainGenerationConstants.cs",
+        "SharedProtocol/Common/Constants/WorldMapControlConstants.cs",
+        "SharedProtocol/Common/Enums/TerrainGenerationEnums.cs",
+        "SharedProtocol/Common/Enums/WorldEnums.cs",
+        "SharedProtocol/Messages/TerrainGenerationMessages.cs",
+        "SharedProtocol/Messages/HydrologyMessages.cs",
+        "SharedProtocol/Messages/WorldMapControlMessages.cs"
+      ]
+    },
+    {
+      "id": "S123-CONTENT-01",
+      "name": "Karst Spring Floodplain Coupling (Server Terrain Pipeline)",
+      "category": "Content",
+      "side": "server",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "config/world.json"
+      ]
+    },
+    {
+      "id": "S123-CONTENT-02",
+      "name": "Karst Spring Floodplain Coupling (Unity Preview Pipeline)",
+      "category": "Content",
+      "side": "client",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S123-CONTENT-03",
+      "name": "Queue Policy Runtime Parity for World-Map Control",
+      "category": "Content",
+      "side": "server-client",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S123-UTIL-01",
+      "name": "Feature Manifest Priority Upgrade to Session-123",
+      "category": "Utility",
+      "side": "server",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-25-session-123.json"
+      ]
+    },
+    {
+      "id": "S123-UTIL-02",
+      "name": "Proto Dummy Client Min Profile Version Guard v58",
+      "category": "Utility",
+      "side": "server-tooling",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ]
+    },
+    {
+      "id": "S123-UTIL-03",
+      "name": "Build/Proto/Using Validation and Session Documentation",
+      "category": "Utility",
+      "side": "repo",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "docs/session-123-implementation-summary.md",
+        "docs/session-123-protobuf-and-build-validation.md",
+        "plans/2026-02-25-session-123-comprehensive-work-plan.md"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S123-CORE-01",
+      "S123-CORE-02",
+      "S123-CORE-03"
+    ],
+    "content": [
+      "S123-CONTENT-01",
+      "S123-CONTENT-02",
+      "S123-CONTENT-03"
+    ],
+    "utility": [
+      "S123-UTIL-01",
+      "S123-UTIL-02",
+      "S123-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Pre-commit/push baseline and update plan doc",
+    "2. Clean SharedProtocol duplicates for stable shared DLL builds",
+    "3. Raise signature/profile baseline to v54/v58",
+    "4. Add server cave-river-lake karst spring floodplain coupling",
+    "5. Mirror coupling pass in Unity world-map preview generator",
+    "6. Add near-chunk keep queue architecture to server/client runtime policy",
+    "7. Refresh JSON data-driven configs and profile/probe version guards",
+    "8. Run compile + protobuf validation + probe/selftest",
+    "9. Update docs/README and push"
+  ],
+  "summary": {
+    "totalFeatures": 9,
+    "implemented": 9,
+    "inProgress": 0,
+    "pending": 0,
+    "coreFeatures": 3,
+    "contentFeatures": 3,
+    "utilityFeatures": 3
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "version": "session-95",
+  "generated_at_utc": "2026-02-18T12:20:00Z",
+  "session": 95,
+  "date": "2026-02-18",
+  "signature": "2026-02-18-hydrology-riverlake-cave-v40",
+  "profileVersion": 44,
+  "features": [
+    {
+      "id": "S95-CORE-01",
+      "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Shared contracts and enums packaged as DLL for server/client.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S95-CORE-02",
+      "name": "World-Map Control Pipeline (Trend-Aware Queue v44)",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "server-client",
+      "description": "Server/client queue policy upgraded with EMA+release+trend boost.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S95-CORE-01"
+      ]
+    },
+    {
+      "id": "S95-CORE-03",
+      "name": "Data-Driven World Profile and Signature Sync",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World profile version/signature are synchronized from JSON configuration.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/world_map_control_profile.json",
+        "GameCommon/World/SharedFeatureCatalog.cs"
+      ],
+      "dependencies": [
+        "S95-CORE-02"
+      ]
+    },
+    {
+      "id": "S95-CONTENT-01",
+      "name": "Cave Groundwater/Ventilation Stability",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved cave mask with groundwater connectivity and ventilation bias.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S95-CORE-03"
+      ]
+    },
+    {
+      "id": "S95-CONTENT-02",
+      "name": "River Tributary Capture + Avulsion Resistance",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved river pressure routing with tributary capture and avulsion damping.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S95-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S95-CONTENT-03",
+      "name": "Lake Terrace Bias + Spill Retention",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved lake weighting with terrace potential and spill retention stability.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S95-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S95-UTIL-01",
+      "name": "Queue Policy JSON Governance",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "server-client",
+      "description": "Runtime queue policy fields synchronized through JSON files.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S95-CORE-02"
+      ]
+    },
+    {
+      "id": "S95-UTIL-02",
+      "name": "Protobuf Registry/Fingerprint Validation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Registry and descriptor fingerprint validations are enforced at runtime.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+      ],
+      "dependencies": [
+        "S95-CORE-01"
+      ]
+    },
+    {
+      "id": "S95-UTIL-03",
+      "name": "Dummy Client Hydrology Signature Guard",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "tooling",
+      "description": "Dummy client validates profile hydrology signature before packet probe.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S95-UTIL-02",
+        "S95-CORE-03"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S95-CORE-01",
+      "S95-CORE-02",
+      "S95-CORE-03"
+    ],
+    "content": [
+      "S95-CONTENT-01",
+      "S95-CONTENT-02",
+      "S95-CONTENT-03"
+    ],
+    "utility": [
+      "S95-UTIL-01",
+      "S95-UTIL-02",
+      "S95-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Plan update + recent commit gap review",
+    "2. Core/Content/Utility feature catalog refresh",
+    "3. Queue trend-weight shared policy wiring (server/client)",
+    "4. Cave groundwater/ventilation stability pass",
+    "5. River tributary/avulsion stability pass",
+    "6. Lake terrace/spill retention pass",
+    "7. Runtime queue policy JSON sync",
+    "8. Shared signature/profile version bump",
+    "9. Protobuf/dummy client hydrology-profile guard",
+    "10. Build + proto probe + docs/README update"
+  ]
+}

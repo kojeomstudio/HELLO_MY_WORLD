@@ -1,0 +1,343 @@
+{
+  "version": "2026-02-16-session-85",
+  "generated_at_utc": "2026-02-16T06:00:00Z",
+  "metadata": {
+    "session": "85",
+    "date": "2026-02-16",
+    "hydrologySignature": "2026-02-16-hydrology-riverlake-cave-v35",
+    "mapControlProfileVersion": 39,
+    "description": "Session 85 client/server shared feature inventory with sequential implementation order."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S85-CORE-001",
+      "name": "Shared DLL contracts and enums",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll provide shared contracts, enums, and world-map policy utilities.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/World/WorldMapContracts.cs",
+        "GameCommon/World/WorldMapQueuePolicy.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S85-CORE-002",
+      "name": "Hydrology signature and profile versioning",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v35 and profile version 39 synchronize server/client world generation behavior.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": [
+        "S85-CORE-001"
+      ]
+    },
+    {
+      "id": "S85-CORE-003",
+      "name": "Server world-map queue architecture",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server world-map queue uses shared EMA/latch policy and distance-priority preload ordering.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S85-CORE-002"
+      ]
+    },
+    {
+      "id": "S85-CORE-004",
+      "name": "Client world-map queue architecture",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client preview queue applies shared pressure-band logic and distance-priority enqueue order.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S85-CORE-003"
+      ]
+    },
+    {
+      "id": "S85-CORE-005",
+      "name": "Server runtime configuration orchestration",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "World-map runtime settings are loaded and applied from JSON config files.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "GameServer/Configuration/ConfigurationModels.cs",
+        "config/enhanced_world_map_control_server.json",
+        "config/server_config.json"
+      ],
+      "dependencies": [
+        "S85-CORE-003"
+      ]
+    },
+    {
+      "id": "S85-CORE-006",
+      "name": "Dummy protocol validation harness",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Headless dummy client validates protobuf packet registration, round-trip, and optional network probe.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/dummy_minecraft_client.json",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S85-CORE-001"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-001",
+      "name": "Base terrain and biome generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Base terrain heightmap and biome generation for chunk construction.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs"
+      ],
+      "dependencies": [
+        "S85-CORE-005"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-002",
+      "name": "Hydrology-aware cave generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved cave algorithm with subsurface shear seal pass plus existing wet stability passes.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S85-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-003",
+      "name": "Hydrology-aware river generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved river algorithm with alluvial channel anchor bridge for floodplain continuity.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S85-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-004",
+      "name": "Hydrology-aware lake generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Improved lake algorithm with oxbow retention anchor bridge and wetland leakage control.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs"
+      ],
+      "dependencies": [
+        "S85-CONTENT-001"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-005",
+      "name": "Terrain coordinator coupling",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Coordinator applies combined cave/river/lake masks with hydrology and erosion coupling.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+      ],
+      "dependencies": [
+        "S85-CONTENT-002",
+        "S85-CONTENT-003",
+        "S85-CONTENT-004"
+      ]
+    },
+    {
+      "id": "S85-CONTENT-006",
+      "name": "Client world-map terrain preview",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client terrain preview consumes shared profile/config to mirror server map-control intent.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+      ],
+      "dependencies": [
+        "S85-CORE-004"
+      ]
+    },
+    {
+      "id": "S85-UTIL-001",
+      "name": "Protobuf registry validation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Registry validates descriptor coverage, assembly/source consistency, and duplicate enum bindings.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "dependencies": [
+        "S85-CORE-001"
+      ]
+    },
+    {
+      "id": "S85-UTIL-002",
+      "name": "Generated protobuf reference audit",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Proto diagnostics and scripts verify generated DTO references remain in sync with .proto schemas.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "scripts/verify_protobuf.ps1",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "S85-UTIL-001"
+      ]
+    },
+    {
+      "id": "S85-UTIL-003",
+      "name": "Feature manifest loader",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server startup loads the categorized feature manifest for coverage diagnostics.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/DataDriven/FeatureManifest.cs",
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-16-session-85.json"
+      ],
+      "dependencies": [
+        "S85-CORE-005"
+      ]
+    },
+    {
+      "id": "S85-UTIL-004",
+      "name": "JSON config parity management",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Runtime JSON settings are mirrored for server and client streaming assets.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ],
+      "dependencies": [
+        "S85-CORE-002"
+      ]
+    },
+    {
+      "id": "S85-UTIL-005",
+      "name": "Map-control profile generation",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server command regenerates map-control profile and mirrors it to client streaming assets.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "S85-CORE-002"
+      ]
+    },
+    {
+      "id": "S85-UTIL-006",
+      "name": "Build-time reference integrity",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Build/test commands validate using-linked classes and project references end-to-end.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/GameServer.csproj",
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": [
+        "S85-CORE-006"
+      ]
+    }
+  ]
+}
+

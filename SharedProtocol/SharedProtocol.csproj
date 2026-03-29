@@ -5,7 +5,39 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="3.2.30" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+    <PackageReference Include="Google.Protobuf" Version="3.27.2" />
+    <PackageReference Include="protobuf-net" Version="3.2.26" />
+    <PackageReference Include="Grpc.Tools" Version="2.64.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Assets\Generated\Protobuf\Common.cs">
+      <Link>Generated\Common.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\EnhancedMinecraftGame.cs">
+      <Link>Generated\EnhancedMinecraftGame.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameAuth.cs">
+      <Link>Generated\GameAuth.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameChat.cs">
+      <Link>Generated\GameChat.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameCore.cs">
+      <Link>Generated\GameCore.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameDiag.cs">
+      <Link>Generated\GameDiag.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameMove.cs">
+      <Link>Generated\GameMove.cs</Link>
+    </Compile>
+    <Compile Include="..\Assets\Generated\Protobuf\GameWorld.cs">
+      <Link>Generated\GameWorld.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
+

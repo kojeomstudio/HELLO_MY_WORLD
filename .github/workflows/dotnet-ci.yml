@@ -1,0 +1,79 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [ master, dev ]
+    paths:
+      - 'GameServer/**'
+      - 'SharedProtocol/**'
+      - 'GameCommon/**'
+      - 'proto/**'
+      - 'Assets/Generated/Protobuf/**'
+      - '.github/workflows/dotnet-ci.yml'
+  pull_request:
+    branches: [ master, dev ]
+    paths:
+      - 'GameServer/**'
+      - 'SharedProtocol/**'
+      - 'GameCommon/**'
+      - 'proto/**'
+      - 'Assets/Generated/Protobuf/**'
+      - '.github/workflows/dotnet-ci.yml'
+
+env:
+  DOTNET_VERSION: '6.0.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: |
+        dotnet restore SharedProtocol/SharedProtocol.csproj
+        dotnet restore GameServer/GameServer.csproj
+    
+    - name: Build SharedProtocol
+      run: dotnet build SharedProtocol/SharedProtocol.csproj --configuration Release --no-restore
+    
+    - name: Build GameServer
+      run: dotnet build GameServer/GameServer.csproj --configuration Release --no-restore
+    
+    - name: Run tests (if any)
+      run: |
+        if [ -d "GameServer/Tests" ] || [ -f "GameServer/Tests/*.csproj" ]; then
+          dotnet test --configuration Release --no-build --verbosity normal
+        else
+          echo "No test projects found, skipping tests"
+        fi
+      continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Check code style
+      run: |
+        dotnet format --verify-no-changes --verbosity diagnostic SharedProtocol/SharedProtocol.csproj || true
+        dotnet format --verify-no-changes --verbosity diagnostic GameServer/GameServer.csproj || true
+      continue-on-error: true

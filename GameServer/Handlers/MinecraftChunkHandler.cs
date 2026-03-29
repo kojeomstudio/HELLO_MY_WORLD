@@ -1,11 +1,15 @@
-using GameServerApp.Database;
+﻿using GameServerApp.Database;
 using GameServerApp.Systems;
 using GameServerApp.World;
+using GameServerApp.Models;
 using SharedProtocol;
+using SharedProtocol.EnhancedMinecraft;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using Google.Protobuf;
 
 namespace GameServerApp.Handlers
 {
@@ -13,7 +17,7 @@ namespace GameServerApp.Handlers
     /// 마인크래프트 청크 데이터 요청을 처리하는 핸들러
     /// 클라이언트의 시야 거리에 따른 청크 로딩 및 언로딩을 관리합니다.
     /// </summary>
-    public class MinecraftChunkHandler : IMessageHandler, IMinecraftMessageHandler<ChunkUnloadNotificationMessage>
+    public class MinecraftChunkHandler : IMessageHandler, IMinecraftMessageHandler<EnhancedMinecraftProtocol.ChunkUnloadNotification>
     {
         private sealed record PlayerChunkResidency(int ChunkX, int ChunkZ, DateTime LastServedUtc);
 
@@ -53,6 +57,13 @@ namespace GameServerApp.Handlers
             _worldSettings = worldSettings;
             _metrics = metrics;
             _chunkResidencyTimeout = TimeSpan.FromMinutes(Math.Max(1, _worldSettings.ChunkUnloadTimeoutMinutes));
+            ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateChunkContracts();
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkDataRequest);
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkDataResponse);
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkUnloadNotification);
+            ProtocolRegistry.EnsureRegistered(MinecraftMessageType.ChunkUnloadAcknowledge);
+            ProtoDiagnostics.AssertRegistryClean();
         }
 
         public MessageType Type => (MessageType)MinecraftMessageType.ChunkDataRequest;
@@ -72,16 +83,346 @@ namespace GameServerApp.Handlers
             }
         }
 
-        async Task IMinecraftMessageHandler.HandleAsync(Session session, byte[] messageData)
+        private bool TryParseEnhancedChunkLoadRequest(byte[] messageData, out EnhancedMinecraftProtocol.ChunkLoadRequest? request)
         {
-            using var stream = new MemoryStream(messageData);
-            var message = ProtoBuf.Serializer.Deserialize<ChunkUnloadNotificationMessage>(stream);
-            await HandleAsync(session, message);
+            try
+            {
+                request = EnhancedMinecraftProtocol.ChunkLoadRequest.Parser.ParseFrom(messageData);
+                if (request.ChunkPositions.Count == 0)
+                {
+                    request = null;
+                    return false;
+                }
+                return true;
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                request = null;
+                return false;
+            }
         }
 
-        public Task HandleAsync(Session session, ChunkUnloadNotificationMessage message)
+        private static bool TryParseEnhancedChunkUnloadNotification(byte[] messageData, out EnhancedMinecraftProtocol.ChunkUnloadNotification? notification)
         {
-            return HandleChunkUnloadAsync(session, message);
+            try
+            {
+                notification = EnhancedMinecraftProtocol.ChunkUnloadNotification.Parser.ParseFrom(messageData);
+                if (notification == null)
+                {
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(notification.PlayerId) && notification.ChunkX == 0 && notification.ChunkZ == 0 && notification.TimestampMs == 0)
+                {
+                    notification = null;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                notification = null;
+                return false;
+            }
+        }
+
+        private static EnhancedMinecraftProtocol.ChunkUnloadNotification ConvertLegacyUnloadNotification(ChunkUnloadNotificationMessage legacy, Session session)
+        {
+            var playerId = !string.IsNullOrWhiteSpace(legacy.PlayerId)
+                ? legacy.PlayerId
+                : (session.UserName ?? string.Empty);
+
+            return new EnhancedMinecraftProtocol.ChunkUnloadNotification
+            {
+                PlayerId = playerId,
+                ChunkX = legacy.ChunkX,
+                ChunkZ = legacy.ChunkZ,
+                Reason = legacy.Reason switch
+                {
+                    ChunkUnloadReason.Manual => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadManual,
+                    ChunkUnloadReason.WorldTransfer => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadWorldTransfer,
+                    ChunkUnloadReason.Shutdown => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadShutdown,
+                    _ => EnhancedMinecraftProtocol.ChunkUnloadReason.UnloadViewDistance
+                },
+                ViewDistance = legacy.ViewDistance,
+                TimestampMs = legacy.TimestampMs
+            };
+        }
+
+        private int ClampViewDistance(int requestedViewDistance)
+        {
+            int resolved = requestedViewDistance > 0 ? requestedViewDistance : _worldSettings.ChunkLoadRadius;
+            int maxAllowed = _worldManager.MapControlProfile?.RenderDistance ?? _worldSettings.ChunkLoadRadius;
+            int minAllowed = 1;
+            return Math.Min(Math.Max(resolved, minAllowed), Math.Max(minAllowed, maxAllowed));
+        }
+
+        private async Task HandleEnhancedChunkRequestAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadRequest request)
+        {
+            var playerId = session.UserName ?? string.Empty;
+            var playerState = string.IsNullOrWhiteSpace(playerId) ? null : _sessions.GetPlayerState(playerId);
+            if (playerState == null)
+            {
+                if (request.ChunkPositions.Count > 0)
+                {
+                    var first = request.ChunkPositions[0];
+                    await SendEnhancedChunkLoadErrorAsync(session, first.X, first.Z, Math.Max(1, request.ChunkPositions.Count));
+                }
+                return;
+            }
+
+            var requestedViewDistance = ClampViewDistance(request.ViewDistance);
+            var totalRequested = Math.Max(1, request.ChunkPositions.Count);
+            await SendEnhancedChunkLoadResponsesAsync(session, playerId, playerState, request.ChunkPositions, requestedViewDistance, totalRequested);
+        }
+
+        private async Task HandleLegacyChunkRequestAsync(Session session, ChunkDataRequestMessage chunkRequest)
+        {
+            var playerId = session.UserName ?? string.Empty;
+            var playerState = string.IsNullOrWhiteSpace(playerId) ? null : _sessions.GetPlayerState(playerId);
+            if (playerState == null)
+            {
+                await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "플레이어 상태를 찾을 수 없습니다.");
+                return;
+            }
+
+            var viewDistance = ClampViewDistance(chunkRequest.ViewDistance);
+            await HandleSingleChunkAsync(session, playerId, playerState, chunkRequest.ChunkX, chunkRequest.ChunkZ, viewDistance, totalRequested: 1);
+        }
+
+        private const int EnhancedChunkResponseMaxBytes = 900 * 1024;
+
+        private async Task SendEnhancedChunkLoadErrorAsync(Session session, int chunkX, int chunkZ, int totalRequested)
+        {
+            var response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+            {
+                TotalRequested = totalRequested,
+                TotalSent = 1
+            };
+
+            response.Chunks.Add(ChunkPayloadBuilder.BuildChunkData(
+                chunkX,
+                chunkZ,
+                ReadOnlySpan<byte>.Empty,
+                ReadOnlySpan<byte>.Empty,
+                generationTimestamp: 0));
+
+            await SendEnhancedChunkLoadResponseAsync(session, response);
+        }
+
+        private async Task SendEnhancedChunkLoadResponsesAsync(
+            Session session,
+            string playerId,
+            PlayerState playerState,
+            IEnumerable<MinecraftGame.Common.Vector3Int> chunkPositions,
+            int requestedViewDistance,
+            int totalRequested)
+        {
+            var response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+            {
+                TotalRequested = totalRequested
+            };
+
+            foreach (var position in chunkPositions)
+            {
+                int chunkX = position.X;
+                int chunkZ = position.Z;
+
+                var chunkData = await BuildEnhancedChunkDataAsync(playerId, playerState, chunkX, chunkZ, requestedViewDistance);
+                response.Chunks.Add(chunkData);
+                response.TotalSent = response.Chunks.Count;
+
+                if (response.Chunks.Count > 1 && response.CalculateSize() >= EnhancedChunkResponseMaxBytes)
+                {
+                    var lastIndex = response.Chunks.Count - 1;
+                    var lastChunk = response.Chunks[lastIndex];
+                    response.Chunks.RemoveAt(lastIndex);
+                    response.TotalSent = response.Chunks.Count;
+
+                    await SendEnhancedChunkLoadResponseAsync(session, response);
+
+                    response = new EnhancedMinecraftProtocol.ChunkLoadResponse
+                    {
+                        TotalRequested = totalRequested
+                    };
+
+                    response.Chunks.Add(lastChunk);
+                    response.TotalSent = 1;
+                }
+            }
+
+            if (response.Chunks.Count > 0)
+            {
+                await SendEnhancedChunkLoadResponseAsync(session, response);
+            }
+        }
+
+        private async Task<EnhancedMinecraftProtocol.ChunkData> BuildEnhancedChunkDataAsync(
+            string playerId,
+            PlayerState playerState,
+            int chunkX,
+            int chunkZ,
+            int requestedViewDistance)
+        {
+            var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
+            var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
+            var distance = Math.Max(Math.Abs(chunkX - playerChunkX), Math.Abs(chunkZ - playerChunkZ));
+
+            if (distance > requestedViewDistance)
+            {
+                return ChunkPayloadBuilder.BuildChunkData(
+                    chunkX,
+                    chunkZ,
+                    ReadOnlySpan<byte>.Empty,
+                    ReadOnlySpan<byte>.Empty,
+                    generationTimestamp: 0);
+            }
+
+            var chunkResult = await LoadOrGenerateChunkPayload(chunkX, chunkZ);
+            if (chunkResult == null)
+            {
+                return ChunkPayloadBuilder.BuildChunkData(
+                    chunkX,
+                    chunkZ,
+                    ReadOnlySpan<byte>.Empty,
+                    ReadOnlySpan<byte>.Empty,
+                    generationTimestamp: 0);
+            }
+
+            var (compressedBlockData, biomeBytes, _, _) = chunkResult.Value;
+            var generationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var chunkData = ChunkPayloadBuilder.BuildChunkData(
+                chunkX,
+                chunkZ,
+                compressedBlockData,
+                biomeBytes,
+                generationTimestamp);
+
+            var entities = await _worldManager.GetEntitiesInChunk(chunkX, chunkZ);
+            foreach (var entity in entities)
+            {
+                chunkData.Entities.Add(ConvertToEnhancedEntityData(entity));
+            }
+
+            await UpdatePlayerLoadedChunks(playerId, chunkX, chunkZ, requestedViewDistance);
+            return chunkData;
+        }
+
+        private static EnhancedMinecraftProtocol.EntityData ConvertToEnhancedEntityData(Models.Entity entity)
+        {
+            return new EnhancedMinecraftProtocol.EntityData
+            {
+                EntityId = entity.Id ?? string.Empty,
+                EntityType = (EnhancedMinecraftProtocol.EntityType)entity.Type,
+                Position = new MinecraftGame.Common.Vector3
+                {
+                    X = entity.X,
+                    Y = entity.Y,
+                    Z = entity.Z
+                },
+                Rotation = new MinecraftGame.Common.Vector3
+                {
+                    X = entity.RotationX,
+                    Y = entity.RotationY,
+                    Z = entity.RotationZ
+                },
+                Velocity = new MinecraftGame.Common.Vector3
+                {
+                    X = entity.VelocityX,
+                    Y = entity.VelocityY,
+                    Z = entity.VelocityZ
+                },
+                Health = entity.Health,
+                MaxHealth = entity.MaxHealth,
+                CustomData = entity.Data ?? string.Empty,
+                Metadata = new EnhancedMinecraftProtocol.EntityMetadata()
+            };
+        }
+
+        private static async Task SendEnhancedChunkLoadResponseAsync(Session session, EnhancedMinecraftProtocol.ChunkLoadResponse response)
+        {
+            await session.SendAsync((int)MinecraftMessageType.ChunkDataResponse, response.ToByteArray());
+        }
+
+        private async Task<bool> HandleSingleChunkAsync(Session session, string playerId, PlayerState playerState, int chunkX, int chunkZ, int viewDistance, int totalRequested)
+        {
+            if (string.IsNullOrWhiteSpace(playerId))
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "Unauthenticated session");
+                return false;
+            }
+
+            var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
+            var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
+            var distance = Math.Max(Math.Abs(chunkX - playerChunkX), Math.Abs(chunkZ - playerChunkZ));
+
+            if (distance > viewDistance)
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "요청된 청크가 시야 거리를 벗어났습니다.");
+                return false;
+            }
+
+            var chunkResult = await LoadOrGenerateChunkPayload(chunkX, chunkZ);
+            if (chunkResult == null)
+            {
+                await SendErrorResponse(session, chunkX, chunkZ, "Unable to load chunk data.");
+                return false;
+            }
+
+            var (compressedBlockData, biomeBytes, biomeInfo, isFromStorage) = chunkResult.Value;
+            var alreadyServed = HasPlayerLoadedChunk(playerId, chunkX, chunkZ);
+
+            var entities = await _worldManager.GetEntitiesInChunk(chunkX, chunkZ);
+
+            var response = new ChunkDataResponseMessage
+            {
+                ChunkX = chunkX,
+                ChunkZ = chunkZ,
+                Success = true,
+                CompressedBlockData = compressedBlockData,
+                Entities = entities.Select(ConvertToEntityInfo).ToList(),
+                BiomeData = biomeInfo,
+                IsFromCache = isFromStorage || alreadyServed
+            };
+
+            var generationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var enhancedResponse = ChunkPayloadBuilder.BuildLoadResponse(
+                chunkX,
+                chunkZ,
+                compressedBlockData,
+                biomeBytes,
+                generationTimestamp,
+                totalRequested);
+            response.EnhancedPayload = enhancedResponse.ToByteArray();
+
+            ChunkPayloadBuilder.ValidateChunkPayload(chunkX, chunkZ, compressedBlockData, biomeBytes);
+            await SendChunkResponse(session, response);
+
+            await UpdatePlayerLoadedChunks(playerId, chunkX, chunkZ, viewDistance);
+
+            Console.WriteLine($"청크 [{chunkX}, {chunkZ}] 데이터를 플레이어 {playerId}에게 전송 완료");
+            return true;
+        }
+
+        async Task IMinecraftMessageHandler.HandleAsync(Session session, byte[] messageData)
+        {
+            if (TryParseEnhancedChunkUnloadNotification(messageData, out var enhancedNotification))
+            {
+                session.UseEnhancedMinecraftProtocol = true;
+                await HandleChunkUnloadAsync(session, enhancedNotification!, useEnhancedAck: true);
+                return;
+            }
+
+            using var stream = new MemoryStream(messageData);
+            var legacyNotification = ProtoBuf.Serializer.Deserialize<ChunkUnloadNotificationMessage>(stream);
+            var converted = ConvertLegacyUnloadNotification(legacyNotification, session);
+            await HandleChunkUnloadAsync(session, converted, useEnhancedAck: false);
+        }
+
+        public Task HandleAsync(Session session, EnhancedMinecraftProtocol.ChunkUnloadNotification message)
+        {
+            return HandleChunkUnloadAsync(session, message, useEnhancedAck: true);
         }
 
         /// <summary>
@@ -91,57 +432,16 @@ namespace GameServerApp.Handlers
         {
             try
             {
-                var chunkRequest = ProtoBuf.Serializer.Deserialize<ChunkDataRequestMessage>(new MemoryStream(messageData));
-                
-                var playerState = _sessions.GetPlayerState(session.UserName!);
-                if (playerState == null)
+                if (TryParseEnhancedChunkLoadRequest(messageData, out var enhancedRequest))
                 {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "플레이어 상태를 찾을 수 없습니다.");
+                    session.UseEnhancedMinecraftProtocol = true;
+                    await HandleEnhancedChunkRequestAsync(session, enhancedRequest!);
                     return;
                 }
 
-                // 플레이어의 현재 위치와 요청된 청크의 거리 확인
-                var playerChunkX = (int)Math.Floor(playerState.Position.X / CHUNK_SIZE_X);
-                var playerChunkZ = (int)Math.Floor(playerState.Position.Z / CHUNK_SIZE_Z);
-                var distance = Math.Max(Math.Abs(chunkRequest.ChunkX - playerChunkX), Math.Abs(chunkRequest.ChunkZ - playerChunkZ));
-
-                if (distance > chunkRequest.ViewDistance)
-                {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "요청된 청크가 시야 거리를 벗어났습니다.");
-                    return;
-                }
-
-                // 청크 데이터 로드 또는 생성
-                var chunkResult = await LoadOrGenerateChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                if (chunkResult == null)
-                {
-                    await SendErrorResponse(session, chunkRequest.ChunkX, chunkRequest.ChunkZ, "Unable to load chunk data.");
-                    return;
-                }
-
-                var (chunkData, isFromCache) = chunkResult.Value;
-                var alreadyServed = HasPlayerLoadedChunk(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ);
-
-                var entities = await _worldManager.GetEntitiesInChunk(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-                var biomeData = GenerateBiomeData(chunkRequest.ChunkX, chunkRequest.ChunkZ);
-
-                var response = new ChunkDataResponseMessage
-                {
-                    ChunkX = chunkRequest.ChunkX,
-                    ChunkZ = chunkRequest.ChunkZ,
-                    Success = true,
-                    CompressedBlockData = chunkData,
-                    Entities = entities.Select(ConvertToEntityInfo).ToList(),
-                    BiomeData = biomeData,
-                    IsFromCache = isFromCache || alreadyServed
-                };
-
-                await SendChunkResponse(session, response);
-
-                await UpdatePlayerLoadedChunks(session.UserName!, chunkRequest.ChunkX, chunkRequest.ChunkZ, chunkRequest.ViewDistance);
-
-                Console.WriteLine($"청크 [{chunkRequest.ChunkX}, {chunkRequest.ChunkZ}] 데이터를 플레이어 {session.UserName}에게 전송 완료");
-
+                using var stream = new MemoryStream(messageData);
+                var chunkRequest = ProtoBuf.Serializer.Deserialize<ChunkDataRequestMessage>(stream);
+                await HandleLegacyChunkRequestAsync(session, chunkRequest);
             }
             catch (Exception ex)
             {
@@ -150,26 +450,28 @@ namespace GameServerApp.Handlers
         }
 
         /// <summary>
-        /// 청크 데이터를 로드하거나 새로 생성
+        /// 청크 데이터를 로드하거나 새로 생성하고 전송에 필요한 메타데이터를 준비한다.
         /// </summary>
-        private async Task<(byte[] Data, bool IsFromCache)?> LoadOrGenerateChunk(int chunkX, int chunkZ)
+        private async Task<(byte[] CompressedBlockData, byte[] BiomeBytes, BiomeInfo BiomeInfo, bool IsFromDatabase)?> LoadOrGenerateChunkPayload(int chunkX, int chunkZ)
         {
             try
             {
-                var existingChunkData = await _database.GetChunkDataAsync(chunkX, chunkZ);
-                if (existingChunkData != null)
+                bool isPersisted = await _database.ChunkExistsAsync(chunkX, chunkZ);
+
+                var chunk = await _worldManager.GetChunkAsync(chunkX, chunkZ);
+                if (chunk == null)
                 {
-                    return (CompressChunkData(existingChunkData), true);
+                    return null;
                 }
 
-                var generatedData = await GenerateNewChunk(chunkX, chunkZ);
-                if (generatedData != null)
-                {
-                    await _database.SaveChunkDataAsync(chunkX, chunkZ, generatedData);
-                    return (CompressChunkData(generatedData), false);
-                }
+                var (blockBytes, storedBiomeBytes) = chunk.ToBytes();
+                var compressed = CompressChunkData(blockBytes);
+                var biomeInfo = BuildBiomeInfo(chunkX, chunkZ, storedBiomeBytes, chunk);
+                var biomeBytes = storedBiomeBytes.Length > 0
+                    ? storedBiomeBytes
+                    : ConvertBiomeIdsToBytes(biomeInfo.BiomeIds);
 
-                return null;
+                return (compressed, biomeBytes, biomeInfo, isPersisted);
             }
             catch (Exception ex)
             {
@@ -178,140 +480,51 @@ namespace GameServerApp.Handlers
             }
         }
 
-        /// <summary>
-        /// 새로운 청크 생성 (지형 생성 알고리즘)
-        /// </summary>
-        private async Task<byte[]> GenerateNewChunk(int chunkX, int chunkZ)
+        private BiomeInfo BuildBiomeInfo(int chunkX, int chunkZ, byte[] storedBiomeBytes, ChunkData chunk)
         {
-            // 청크 블록 데이터 (16x256x16 = 65536 블록)
-            var blockData = new byte[CHUNK_SIZE_X * CHUNK_HEIGHT * CHUNK_SIZE_Z];
-            
-            // 간단한 지형 생성 알고리즘
-            var random = new Random(GetChunkSeed(chunkX, chunkZ));
-            
-            for (int x = 0; x < CHUNK_SIZE_X; x++)
+            var biomeIds = new List<int>(CHUNK_SIZE_X * CHUNK_SIZE_Z);
+            double tempSum = 0;
+            double humiditySum = 0;
+
+            if (storedBiomeBytes.Length >= CHUNK_SIZE_X * CHUNK_SIZE_Z)
+            {
+                for (int index = 0; index < CHUNK_SIZE_X * CHUNK_SIZE_Z; index++)
+                {
+                    var biome = (BiomeType)storedBiomeBytes[index];
+                    biomeIds.Add((int)biome);
+
+                    var climate = GetBiomeClimate(biome);
+                    tempSum += climate.temp;
+                    humiditySum += climate.humidity;
+                }
+            }
+            else
             {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++)
                 {
-                    // 높이 계산 (간단한 노이즈 기반)
-                    int worldX = chunkX * CHUNK_SIZE_X + x;
-                    int worldZ = chunkZ * CHUNK_SIZE_Z + z;
-                    int surfaceHeight = CalculateTerrainHeight(worldX, worldZ);
-                    
-                    for (int y = 0; y < CHUNK_HEIGHT; y++)
+                    for (int x = 0; x < CHUNK_SIZE_X; x++)
                     {
-                        int blockIndex = GetBlockIndex(x, y, z);
-                        
-                        if (y == 0)
-                        {
-                            blockData[blockIndex] = 7; // 기반암
-                        }
-                        else if (y <= surfaceHeight - 4)
-                        {
-                            blockData[blockIndex] = 1; // 돌
-                        }
-                        else if (y <= surfaceHeight - 1)
-                        {
-                            blockData[blockIndex] = 2; // 흙
-                        }
-                        else if (y == surfaceHeight)
-                        {
-                            blockData[blockIndex] = (byte)(surfaceHeight > 62 ? 6 : 2); // 잔디 또는 흙 (해수면 기준)
-                        }
-                        else if (y <= 62) // 해수면
-                        {
-                            blockData[blockIndex] = 8; // 물
-                        }
-                        else
-                        {
-                            blockData[blockIndex] = 0; // 공기
-                        }
-                    }
-                    
-                    // 나무 생성 (확률적)
-                    if (surfaceHeight > 62 && random.NextDouble() < 0.05) // 5% 확률
-                    {
-                        await GenerateTree(blockData, x, surfaceHeight + 1, z);
+                        var biome = chunk?.GetBiome(x, z)
+                                     ?? _worldManager.SampleBiome(chunkX * CHUNK_SIZE_X + x, chunkZ * CHUNK_SIZE_Z + z);
+                        biomeIds.Add((int)biome);
+
+                        var climate = GetBiomeClimate(biome);
+                        tempSum += climate.temp;
+                        humiditySum += climate.humidity;
                     }
                 }
             }
 
-            return blockData;
-        }
+            var sampleCount = biomeIds.Count;
+            float averageTemp = sampleCount > 0 ? (float)(tempSum / sampleCount) : 0.5f;
+            float averageHumidity = sampleCount > 0 ? (float)(humiditySum / sampleCount) : 0.5f;
 
-        /// <summary>
-        /// 지형 높이 계산 (간단한 노이즈 함수)
-        /// </summary>
-        private int CalculateTerrainHeight(int x, int z)
-        {
-            // 간단한 사인파 기반 높이 맵
-            double noise1 = Math.Sin(x * 0.01) * Math.Sin(z * 0.01) * 20;
-            double noise2 = Math.Sin(x * 0.05) * Math.Cos(z * 0.05) * 10;
-            double noise3 = Math.Sin(x * 0.1) * Math.Sin(z * 0.1) * 5;
-            
-            int baseHeight = 64; // 해수면
-            int height = baseHeight + (int)(noise1 + noise2 + noise3);
-            
-            return Math.Clamp(height, 1, CHUNK_HEIGHT - 50); // 최소/최대 높이 제한
-        }
-
-        /// <summary>
-        /// 나무 생성
-        /// </summary>
-        private async Task GenerateTree(byte[] blockData, int x, int y, int z)
-        {
-            if (y + 5 >= CHUNK_HEIGHT) return; // 높이 체크
-            
-            // 나무 줄기 (5블록 높이)
-            for (int treeY = y; treeY < y + 5; treeY++)
+            return new BiomeInfo
             {
-                int trunkIndex = GetBlockIndex(x, treeY, z);
-                if (trunkIndex < blockData.Length)
-                {
-                    blockData[trunkIndex] = 3; // 나무 블록
-                }
-            }
-            
-            // 나무 잎 (간단한 구형)
-            for (int leafX = x - 2; leafX <= x + 2; leafX++)
-            {
-                for (int leafZ = z - 2; leafZ <= z + 2; leafZ++)
-                {
-                    for (int leafY = y + 3; leafY <= y + 6; leafY++)
-                    {
-                        if (leafX >= 0 && leafX < CHUNK_SIZE_X && leafZ >= 0 && leafZ < CHUNK_SIZE_Z)
-                        {
-                            // 중심에서의 거리 계산
-                            double distance = Math.Sqrt((leafX - x) * (leafX - x) + (leafZ - z) * (leafZ - z) + (leafY - (y + 4.5)) * (leafY - (y + 4.5)));
-                            if (distance <= 2.5)
-                            {
-                                int leafIndex = GetBlockIndex(leafX, leafY, leafZ);
-                                if (leafIndex < blockData.Length && blockData[leafIndex] == 0) // 공기인 경우만
-                                {
-                                    blockData[leafIndex] = 5; // 잎 블록
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 청크 시드 계산
-        /// </summary>
-        private int GetChunkSeed(int chunkX, int chunkZ)
-        {
-            // 월드 시드와 청크 좌표를 조합하여 고유한 시드 생성
-            return (chunkX * 1000000 + chunkZ) ^ 12345; // 간단한 해시
-        }
-
-        /// <summary>
-        /// 3D 좌표를 1D 배열 인덱스로 변환
-        /// </summary>
-        private int GetBlockIndex(int x, int y, int z)
-        {
-            return y * (CHUNK_SIZE_X * CHUNK_SIZE_Z) + z * CHUNK_SIZE_X + x;
+                BiomeIds = biomeIds,
+                Temperature = averageTemp,
+                Humidity = averageHumidity
+            };
         }
 
         /// <summary>
@@ -336,41 +549,22 @@ namespace GameServerApp.Handlers
             return compressed.Length < data.Length * 0.9 ? compressed : data;
         }
 
-        /// <summary>
-        /// 바이옴 데이터 생성
-        /// </summary>
-        private BiomeInfo GenerateBiomeData(int chunkX, int chunkZ)
+
+
+        private static byte[] ConvertBiomeIdsToBytes(IReadOnlyList<int> biomeIds)
         {
-            var biomeIds = new List<int>(16 * 16);
-            double accumulatedTemperature = 0;
-            double accumulatedHumidity = 0;
-
-            for (int z = 0; z < 16; z++)
+            if (biomeIds.Count == 0)
             {
-                for (int x = 0; x < 16; x++)
-                {
-                    int worldX = chunkX * 16 + x;
-                    int worldZ = chunkZ * 16 + z;
-
-                    var biome = _worldManager.SampleBiome(worldX, worldZ);
-                    biomeIds.Add((int)biome);
-
-                    var climate = GetBiomeClimate(biome);
-                    accumulatedTemperature += climate.temp;
-                    accumulatedHumidity += climate.humidity;
-                }
+                return Array.Empty<byte>();
             }
 
-            int sampleCount = biomeIds.Count;
-            float averageTemperature = sampleCount > 0 ? (float)(accumulatedTemperature / sampleCount) : 0.5f;
-            float averageHumidity = sampleCount > 0 ? (float)(accumulatedHumidity / sampleCount) : 0.5f;
-
-            return new BiomeInfo
+            var buffer = new byte[biomeIds.Count];
+            for (int i = 0; i < biomeIds.Count; i++)
             {
-                BiomeIds = biomeIds,
-                Temperature = averageTemperature,
-                Humidity = averageHumidity
-            };
+                buffer[i] = (byte)Math.Clamp(biomeIds[i], 0, 255);
+            }
+
+            return buffer;
         }
 
         private (double temp, double humidity) GetBiomeClimate(BiomeType biome)
@@ -439,7 +633,7 @@ namespace GameServerApp.Handlers
         /// <summary>
         /// 플레이어의 로드된 청크 목록 업데이트
         /// </summary>
-        private async Task HandleChunkUnloadAsync(Session session, ChunkUnloadNotificationMessage message)
+        private async Task HandleChunkUnloadAsync(Session session, EnhancedMinecraftProtocol.ChunkUnloadNotification message, bool useEnhancedAck)
         {
             var playerId = session.UserName;
             if (string.IsNullOrWhiteSpace(playerId))
@@ -449,15 +643,14 @@ namespace GameServerApp.Handlers
 
             if (string.IsNullOrWhiteSpace(playerId))
             {
-                var ack = new ChunkUnloadAcknowledgeMessage
-                {
-                    ChunkX = message.ChunkX,
-                    ChunkZ = message.ChunkZ,
-                    Accepted = false,
-                    RemainingChunks = 0,
-                    Note = "Unauthenticated session"
-                };
-                await SendChunkUnloadAckAsync(session, ack);
+                await SendChunkUnloadAckAsync(
+                    session,
+                    message.ChunkX,
+                    message.ChunkZ,
+                    accepted: false,
+                    remainingChunks: 0,
+                    note: "Unauthenticated session",
+                    useEnhancedAck);
                 return;
             }
 
@@ -468,15 +661,14 @@ namespace GameServerApp.Handlers
 
             if (!_playerLoadedChunks.TryGetValue(playerId, out var chunkSet))
             {
-                var ack = new ChunkUnloadAcknowledgeMessage
-                {
-                    ChunkX = message.ChunkX,
-                    ChunkZ = message.ChunkZ,
-                    Accepted = false,
-                    RemainingChunks = 0,
-                    Note = "Chunk residency not tracked"
-                };
-                await SendChunkUnloadAckAsync(session, ack);
+                await SendChunkUnloadAckAsync(
+                    session,
+                    message.ChunkX,
+                    message.ChunkZ,
+                    accepted: false,
+                    remainingChunks: 0,
+                    note: "Chunk residency not tracked",
+                    useEnhancedAck);
                 return;
             }
 
@@ -494,16 +686,15 @@ namespace GameServerApp.Handlers
 
             var remaining = chunkSet.Count;
 
-            var ackMessage = new ChunkUnloadAcknowledgeMessage
-            {
-                ChunkX = message.ChunkX,
-                ChunkZ = message.ChunkZ,
-                Accepted = removed,
-                RemainingChunks = remaining,
-                Note = removed ? message.Reason.ToString() : "Chunk residency not found"
-            };
-
-            await SendChunkUnloadAckAsync(session, ackMessage);
+            var note = removed ? $"ENH:{message.Reason}" : "Chunk residency not found";
+            await SendChunkUnloadAckAsync(
+                session,
+                message.ChunkX,
+                message.ChunkZ,
+                accepted: removed,
+                remainingChunks: remaining,
+                note: note,
+                useEnhancedAck);
 
             if (removed)
             {
@@ -515,10 +706,41 @@ namespace GameServerApp.Handlers
             }
         }
 
-        private async Task SendChunkUnloadAckAsync(Session session, ChunkUnloadAcknowledgeMessage ack)
+        private async Task SendChunkUnloadAckAsync(
+            Session session,
+            int chunkX,
+            int chunkZ,
+            bool accepted,
+            int remainingChunks,
+            string note,
+            bool useEnhancedAck)
         {
+            if (useEnhancedAck)
+            {
+                var ack = new EnhancedMinecraftProtocol.ChunkUnloadAck
+                {
+                    ChunkX = chunkX,
+                    ChunkZ = chunkZ,
+                    Accepted = accepted,
+                    RemainingChunks = remainingChunks,
+                    Note = note ?? string.Empty
+                };
+
+                await session.SendAsync((int)MinecraftMessageType.ChunkUnloadAcknowledge, ack.ToByteArray());
+                return;
+            }
+
+            var legacyAck = new ChunkUnloadAcknowledgeMessage
+            {
+                ChunkX = chunkX,
+                ChunkZ = chunkZ,
+                Accepted = accepted,
+                RemainingChunks = remainingChunks,
+                Note = note ?? string.Empty
+            };
+
             using var stream = new MemoryStream();
-            ProtoBuf.Serializer.Serialize(stream, ack);
+            ProtoBuf.Serializer.Serialize(stream, legacyAck);
             await session.SendAsync((int)MinecraftMessageType.ChunkUnloadAcknowledge, stream.ToArray());
         }
 
@@ -572,6 +794,11 @@ namespace GameServerApp.Handlers
 
             var safeViewDistance = Math.Max(1, requestedViewDistance);
             var maxRadius = Math.Min(safeViewDistance, Math.Max(1, _worldSettings.ChunkLoadRadius));
+            if (_worldManager.MapControlProfile != null)
+            {
+                int simDistance = Math.Max(1, _worldManager.MapControlProfile.SimulationDistance);
+                maxRadius = Math.Min(maxRadius, simDistance);
+            }
 
             var playerChunkX = latestChunkX;
             var playerChunkZ = latestChunkZ;

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SharedProtocol.EnhancedMinecraft;
 
 namespace GameServerApp;
 
@@ -74,6 +75,7 @@ public class WorldSettings
 {
     public string DefaultWorldName { get; set; } = "default";
     public long WorldSeed { get; set; } = 12345;
+    public string WorldConfigPath { get; set; } = "config/world.json";
     public int ChunkLoadRadius { get; set; } = 8;
     public int ChunkUnloadTimeoutMinutes { get; set; } = 30;
     public long InitialWorldTime { get; set; } = 0;
@@ -91,6 +93,9 @@ public class WorldSettings
     public bool EnableTerrainGeneration { get; set; } = true;
     public bool EnableOreGeneration { get; set; } = true;
     public bool EnableVegetationGeneration { get; set; } = true;
+    public bool EnableCaves { get; set; } = true;
+    public bool EnableRivers { get; set; } = true;
+    public bool EnableLakes { get; set; } = true;
     public int MaxWorldHeight { get; set; } = 256;
     public int MinWorldHeight { get; set; } = -64;
 }
@@ -143,6 +148,8 @@ public static class ServerLauncher
 
         try
         {
+            ProtoRuntime.EnsureInitialized();
+
             var config = ServerConfig.LoadFromFile();
             var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 
@@ -151,6 +158,7 @@ public static class ServerLauncher
             Console.WriteLine($"  Max Connections: {config.Network.MaxConnections}");
             Console.WriteLine($"  Database: {config.Database.DatabaseFile}");
             Console.WriteLine($"  World Seed: {config.World.WorldSeed}");
+            Console.WriteLine($"  World Gen Config: {config.World.WorldConfigPath}");
             Console.WriteLine($"  Max Players: {config.Gameplay.MaxPlayersPerWorld}");
             Console.WriteLine($"  Authentication: {(config.Security.RequireAuthentication ? "Enabled" : "Disabled")}");
             Console.WriteLine();

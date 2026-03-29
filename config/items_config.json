@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "configDirectory": "config",
+  "reloadIntervalMinutes": 5,
+  "maxItemsPerPlayer": 1000,
+  "allowCustomItems": false,
+  "enableItemDurability": true,
+  "enableEnchanting": true,
+  "enableRepair": true,
+  "enableCrafting": true,
+  "enableTrading": true,
+  "enableItemStacking": true,
+  "enableItemPermissions": true,
+  "logItemUsage": true,
+  "logCrafting": true,
+  "logTrading": true,
+  "version": "1.0.0"
+}

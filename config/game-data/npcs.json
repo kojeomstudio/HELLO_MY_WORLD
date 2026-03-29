@@ -1,0 +1,20 @@
+[
+  {
+    "id": "villager_farmer",
+    "role": "farmer",
+    "shop_tier": 1,
+    "dialogue_pool": [
+      "hello_farmer_01",
+      "trade_offer_01"
+    ]
+  },
+  {
+    "id": "villager_blacksmith",
+    "role": "blacksmith",
+    "shop_tier": 2,
+    "dialogue_pool": [
+      "hello_smith_01",
+      "trade_offer_05"
+    ]
+  }
+]

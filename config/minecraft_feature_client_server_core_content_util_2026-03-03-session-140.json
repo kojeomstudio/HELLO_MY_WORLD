@@ -1,0 +1,417 @@
+{
+  "session": 140,
+  "date": "2026-03-03",
+  "version": "1.0.0",
+  "hydrologySignature": "hydro-v64-terrain-stable",
+  "mapControlProfileVersion": 68,
+  "features": {
+    "core": {
+      "description": "Core features - 핵심 기능 (서버/클라이언트 공통 필수)",
+      "client": [
+        {
+          "name": "NetworkManager",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Network/NetworkManager.cs",
+          "description": "서버 연결 및 패킷 송수신 관리"
+        },
+        {
+          "name": "WorldRenderer",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/GameWorld/WorldRenderer.cs",
+          "description": "청크 렌더링 및 메시 생성"
+        },
+        {
+          "name": "ChunkManager",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/GameWorld/ChunkManager.cs",
+          "description": "청크 로딩/언로딩 관리"
+        },
+        {
+          "name": "PlayerController",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Player/PlayerController.cs",
+          "description": "플레이어 이동 및 입력 처리"
+        },
+        {
+          "name": "BlockInteraction",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Player/BlockInteraction.cs",
+          "description": "블록 배치 및 파괴"
+        },
+        {
+          "name": "InventoryUI",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/UI/InventoryUI.cs",
+          "description": "인벤토리 UI"
+        },
+        {
+          "name": "ConfigLoader",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Config/ClientConfigLoader.cs",
+          "description": "JSON 설정 파일 로드"
+        },
+        {
+          "name": "ProtocolHandler",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Network/ProtocolHandler.cs",
+          "description": "프로토버프 패킷 처리"
+        }
+      ],
+      "server": [
+        {
+          "name": "SessionManager",
+          "status": "implemented",
+          "path": "GameServer/SessionManager.cs",
+          "description": "플레이어 세션 관리"
+        },
+        {
+          "name": "WorldManager",
+          "status": "implemented",
+          "path": "GameServer/World/WorldManager.cs",
+          "description": "월드 및 청크 관리"
+        },
+        {
+          "name": "ChunkGenerator",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+          "description": "청크 생성 파이프라인"
+        },
+        {
+          "name": "ProtocolHandler",
+          "status": "implemented",
+          "path": "GameServer/Network/EnhancedProtocolHandler.cs",
+          "description": "프로토버프 패킷 처리"
+        },
+        {
+          "name": "DatabaseHelper",
+          "status": "implemented",
+          "path": "GameServer/Database/DatabaseHelper.cs",
+          "description": "SQLite 데이터베이스 관리"
+        },
+        {
+          "name": "ConfigManager",
+          "status": "implemented",
+          "path": "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "description": "JSON 설정 관리"
+        },
+        {
+          "name": "WorldMapController",
+          "status": "implemented",
+          "path": "GameServer/World/WorldMapController.cs",
+          "description": "월드맵 제어 및 동기화"
+        }
+      ],
+      "shared": [
+        {
+          "name": "BlockType",
+          "status": "implemented",
+          "path": "GameCommon/Blocks/BlockType.cs",
+          "description": "블록 타입 열거형"
+        },
+        {
+          "name": "BiomeType",
+          "status": "implemented",
+          "path": "GameServer/Models/BiomeType.cs",
+          "description": "바이옴 타입 열거형"
+        },
+        {
+          "name": "WorldMapControlProfile",
+          "status": "implemented",
+          "path": "GameCommon/World/WorldMapControlProfile.cs",
+          "description": "월드맵 제어 프로파일"
+        },
+        {
+          "name": "SharedFeatureCatalog",
+          "status": "implemented",
+          "path": "GameCommon/World/SharedFeatureCatalog.cs",
+          "description": "공유 기능 카탈로그"
+        },
+        {
+          "name": "ConfigModels",
+          "status": "implemented",
+          "path": "GameCommon/Configuration/ConfigModels.cs",
+          "description": "설정 모델"
+        },
+        {
+          "name": "DataModels",
+          "status": "implemented",
+          "path": "GameCommon/DataDriven/DataModels.cs",
+          "description": "데이터 모델"
+        }
+      ]
+    },
+    "content": {
+      "description": "Content features - 콘텐츠 기능 (게임플레이 요소)",
+      "terrain_generation": [
+        {
+          "name": "BaseTerrainStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/BaseTerrainStage.cs",
+          "description": "기본 지형 생성"
+        },
+        {
+          "name": "ImprovedCaveGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/ImprovedCaveGenerationStage.cs",
+          "description": "개선된 동굴 생성"
+        },
+        {
+          "name": "ImprovedRiverGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/ImprovedRiverGenerationStage.cs",
+          "description": "개선된 강 생성"
+        },
+        {
+          "name": "ImprovedLakeGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/ImprovedLakeGenerationStage.cs",
+          "description": "개선된 호수 생성"
+        },
+        {
+          "name": "OreGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/OreGenerationStage.cs",
+          "description": "광물 생성"
+        },
+        {
+          "name": "VegetationGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+          "description": "식생 생성"
+        },
+        {
+          "name": "DungeonGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/DungeonGenerationStage.cs",
+          "description": "던전 생성"
+        },
+        {
+          "name": "CloudGenerationStage",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/Stages/CloudGenerationStage.cs",
+          "description": "구름 생성"
+        }
+      ],
+      "gameplay": [
+        {
+          "name": "MobSpawningSystem",
+          "status": "implemented",
+          "path": "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "description": "몹 스포닝 시스템"
+        },
+        {
+          "name": "WaterPhysicsSystem",
+          "status": "implemented",
+          "path": "GameServer/World/Physics/WaterPhysicsSystem.cs",
+          "description": "물리 시스템"
+        },
+        {
+          "name": "EntityCollisionSystem",
+          "status": "implemented",
+          "path": "GameServer/World/Physics/EntityCollisionSystem.cs",
+          "description": "엔티티 충돌 시스템"
+        },
+        {
+          "name": "OreDistributionSystem",
+          "status": "implemented",
+          "path": "GameServer/World/Generation/OreDistributionSystem.cs",
+          "description": "광물 분포 시스템"
+        }
+      ]
+    },
+    "utility": {
+      "description": "Utility features - 유틸리티 기능 (지원 도구)",
+      "configuration": [
+        {
+          "name": "UnifiedConfigManager",
+          "status": "implemented",
+          "path": "GameCommon/Configuration/UnifiedConfigManager.cs",
+          "description": "통합 설정 관리자"
+        },
+        {
+          "name": "WorldGenerationConfig",
+          "status": "implemented",
+          "path": "GameServer/World/WorldGenerationConfig.cs",
+          "description": "월드 생성 설정"
+        },
+        {
+          "name": "ClientConfigLoader",
+          "status": "implemented",
+          "path": "Assets/MyAssets/Scripts/Config/ClientConfigLoader.cs",
+          "description": "클라이언트 설정 로더"
+        }
+      ],
+      "data_driven": [
+        {
+          "name": "DataManager",
+          "status": "implemented",
+          "path": "GameCommon/DataDriven/DataManager.cs",
+          "description": "데이터 관리자"
+        },
+        {
+          "name": "FeatureManifest",
+          "status": "implemented",
+          "path": "GameCommon/DataDriven/FeatureManifest.cs",
+          "description": "기능 매니페스트"
+        },
+        {
+          "name": "BlockRegistry",
+          "status": "implemented",
+          "path": "GameCommon/Blocks/BlockRegistry.cs",
+          "description": "블록 레지스트리"
+        },
+        {
+          "name": "BlockProperties",
+          "status": "implemented",
+          "path": "GameCommon/Blocks/BlockProperties.cs",
+          "description": "블록 속성"
+        }
+      ],
+      "testing": [
+        {
+          "name": "DummyProtocolClient",
+          "status": "implemented",
+          "path": "Tools/DummyMinecraftClient/Program.cs",
+          "description": "더미 프로토콜 클라이언트"
+        },
+        {
+          "name": "ProtoDiagnostics",
+          "status": "implemented",
+          "path": "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "description": "프로토콜 진단"
+        },
+        {
+          "name": "ProtocolValidator",
+          "status": "implemented",
+          "path": "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "description": "프로토콜 검증"
+        }
+      ],
+      "security": [
+        {
+          "name": "AntiCheatMiddleware",
+          "status": "implemented",
+          "path": "GameServer/Middleware/AntiCheatMiddleware.cs",
+          "description": "안티치트 미들웨어"
+        }
+      ]
+    }
+  },
+  "protocol": {
+    "protobuf_files": [
+      "proto/common.proto",
+      "proto/game_world.proto",
+      "proto/game_core.proto",
+      "proto/game_move.proto",
+      "proto/game_auth.proto",
+      "proto/game_chat.proto",
+      "proto/game_diag.proto",
+      "proto/enhanced_minecraft_game.proto",
+      "SharedProtocol/Proto/enhanced_minecraft.proto",
+      "SharedProtocol/Proto/game.proto",
+      "SharedProtocol/Proto/minecraft_game.proto"
+    ],
+    "generated_files": [
+      "Assets/Generated/Protobuf/Common.cs",
+      "Assets/Generated/Protobuf/GameWorld.cs",
+      "Assets/Generated/Protobuf/GameCore.cs",
+      "Assets/Generated/Protobuf/GameMove.cs",
+      "Assets/Generated/Protobuf/GameAuth.cs",
+      "Assets/Generated/Protobuf/GameChat.cs",
+      "Assets/Generated/Protobuf/GameDiag.cs",
+      "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+    ]
+  },
+  "config_files": {
+    "server": [
+      "config/server_config.json",
+      "config/world_generation_config.json",
+      "config/enhanced_terrain_generation.json",
+      "config/biomes.json",
+      "config/blocks.json",
+      "config/items.json"
+    ],
+    "client": [
+      "config/client_config.json",
+      "config/dummy_minecraft_client.json"
+    ],
+    "shared": [
+      "config/config_parity_manifest.json",
+      "config/enhanced_world_map_control_server.json",
+      "config/enhanced_world_map_control_client.json"
+    ]
+  },
+  "architecture": {
+    "shared_dll": {
+      "project": "GameCommon/GameCommon.csproj",
+      "target_framework": "netstandard2.1",
+      "output": "GameCommon.dll",
+      "description": "Unity 6 호환 공유 라이브러리"
+    },
+    "server": {
+      "project": "GameServer/GameServer.csproj",
+      "target_framework": "net6.0",
+      "dependencies": ["SharedProtocol", "GameCommon"]
+    },
+    "protocol": {
+      "project": "SharedProtocol/SharedProtocol.csproj",
+      "target_framework": "net6.0",
+      "protobuf_version": "3.27.2"
+    }
+  },
+  "terrain_algorithms": {
+    "hydrology": {
+      "version": "v64",
+      "signature": "hydro-v64-terrain-stable",
+      "features": [
+        "flow_accumulation",
+        "erosion_modeling",
+        "water_table_simulation",
+        "riparian_zones",
+        "gradient_stability",
+        "edge_normalization",
+        "seam_relaxation",
+        "thalweg_tracking"
+      ]
+    },
+    "caves": {
+      "improved_version": "v67",
+      "features": [
+        "3d_perlin_noise",
+        "stability_fields",
+        "support_pillars",
+        "aquifer_channels",
+        "dripstone_features",
+        "vent_shafts",
+        "ribbon_terraces",
+        "ceiling_stabilization",
+        "chunk_edge_sealing"
+      ]
+    },
+    "rivers": {
+      "improved_version": "v63",
+      "features": [
+        "flow_alignment",
+        "confluence_boosting",
+        "headwater_stability",
+        "meander_patterns",
+        "floodplain_carving",
+        "delta_wetlands",
+        "bank_erosion",
+        "hydraulic_erosion"
+      ]
+    },
+    "lakes": {
+      "improved_version": "v61",
+      "features": [
+        "basin_formation",
+        "shoreline_blending",
+        "wetland_zones",
+        "outflow_carving",
+        "spillway_generation",
+        "shelf_depths",
+        "river_proximity_suppression"
+      ]
+    }
+  }
+}

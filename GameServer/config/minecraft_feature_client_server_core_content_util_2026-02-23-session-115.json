@@ -1,0 +1,144 @@
+{
+  "version": "session-115",
+  "generated_at_utc": "2026-02-23T00:00:00Z",
+  "session": 115,
+  "date": "2026-02-23",
+  "signature": "2026-02-23-hydrology-riverlake-cave-v50",
+  "profileVersion": 54,
+  "features": [
+    {
+      "id": "S115-CORE-01",
+      "name": "Hydrology Signature v50 + Map-Control Profile v54",
+      "category": "Core",
+      "side": "server-client",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world_map_control_profile.json",
+        "GameServer/config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "GameServer/Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "S115-CORE-02",
+      "name": "Shared DLL Contracts and Proto References",
+      "category": "Core",
+      "side": "shared",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+      ]
+    },
+    {
+      "id": "S115-CORE-03",
+      "name": "Server Focus-Aware Inflight Stale Pruning",
+      "category": "Core",
+      "side": "server",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "id": "S115-CONTENT-01",
+      "name": "Seasonal Runoff Coupling Parity (Server + Client)",
+      "category": "Content",
+      "side": "server-client",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "S115-CONTENT-02",
+      "name": "Hydrology-Coupled Cave/River/Lake Terrain Pipeline",
+      "category": "Content",
+      "side": "server-client",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "S115-UTIL-01",
+      "name": "Dummy Proto Probe Profile Guard v54",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ]
+    },
+    {
+      "id": "S115-UTIL-02",
+      "name": "Protocol Registry and Generated Packet Validation",
+      "category": "Utility",
+      "side": "shared",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "GameServer/Network/EnhancedProtocolHandler.cs"
+      ]
+    },
+    {
+      "id": "S115-UTIL-03",
+      "name": "Session Work Plan and Docs Sync",
+      "category": "Utility",
+      "side": "shared-tooling",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "plans/2026-02-23-session-115-comprehensive-work-plan.md",
+        "docs/2026-02-23-session-115-core-content-util-feature-list.md",
+        "docs/2026-02-23-session-115-comprehensive-implementation-report.md"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S115-CORE-01",
+      "S115-CORE-02",
+      "S115-CORE-03"
+    ],
+    "content": [
+      "S115-CONTENT-01",
+      "S115-CONTENT-02"
+    ],
+    "utility": [
+      "S115-UTIL-01",
+      "S115-UTIL-02",
+      "S115-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Baseline check (git clean + commit history + plan update)",
+    "2. Refresh session-115 Core/Content/Utility inventory",
+    "3. Add seasonal runoff coupling parity in Unity terrain preview pipeline",
+    "4. Add focus-aware stale prune in server world-map inflight control",
+    "5. Align signature/profile version and queue policy JSON",
+    "6. Re-check protobuf registry + dummy probe profile guards",
+    "7. Build/test, update docs, commit and push"
+  ]
+}

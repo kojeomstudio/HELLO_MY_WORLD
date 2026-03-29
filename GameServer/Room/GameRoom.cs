@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SharedProtocol;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
+using RoomStatus = SharedProtocol.Common.Enums.CoreEnums.RoomStatus;
+using RoomVisibility = SharedProtocol.Common.Enums.CoreEnums.RoomVisibility;
 
 namespace GameServerApp.Rooms;
 

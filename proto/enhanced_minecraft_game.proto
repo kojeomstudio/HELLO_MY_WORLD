@@ -1,24 +1,12 @@
 syntax = "proto3";
 package EnhancedMinecraftProtocol;
 option csharp_namespace = "EnhancedMinecraftProtocol";
+import "common.proto";
 
 // =============================================================================
 // 강화된 마인크래프트 프로토콜 정의
 // 모든 필수 게임 기능을 포함: 블록 파괴/생성, 인벤토리, 크래프팅, 전투, 경험치 등
 // =============================================================================
-
-// 기본 데이터 구조체
-message Vector3 {
-  double x = 1;
-  double y = 2;
-  double z = 3;
-}
-
-message Vector3Int {
-  int32 x = 1;
-  int32 y = 2;
-  int32 z = 3;
-}
 
 // =============================================================================
 // 플레이어 정보 및 상태
@@ -27,8 +15,8 @@ message Vector3Int {
 message PlayerInfo {
   string player_id = 1;
   string username = 2;
-  Vector3 position = 3;
-  Vector3 rotation = 4;
+  MinecraftGame.Common.Vector3 position = 3;
+  MinecraftGame.Common.Vector3 rotation = 4;
   int32 level = 5;
   int64 experience = 6;
   float experience_progress = 7;  // 0.0 - 1.0
@@ -37,18 +25,11 @@ message PlayerInfo {
   float hunger = 10;
   float max_hunger = 11;
   float saturation = 12;          // 포만감
-  GameMode game_mode = 13;
+  MinecraftGame.Common.GameMode game_mode = 13;
   PlayerInventory inventory = 14;
   int32 selected_slot = 15;       // 핫바에서 선택된 슬롯 (0-8)
   repeated ActiveEffect active_effects = 16;
   PlayerStats stats = 17;
-}
-
-enum GameMode {
-  SURVIVAL = 0;
-  CREATIVE = 1;
-  ADVENTURE = 2;
-  SPECTATOR = 3;
 }
 
 message PlayerStats {
@@ -123,7 +104,7 @@ message Enchantment {
 // =============================================================================
 
 message BlockBreakStartRequest {
-  Vector3Int block_position = 1;
+  MinecraftGame.Common.Vector3Int block_position = 1;
   int32 tool_item_id = 2;          // 사용 중인 도구
   int32 sequence_id = 3;           // 파괴 시퀀스 ID
 }
@@ -137,45 +118,45 @@ message BlockBreakStartResponse {
 }
 
 message BlockBreakProgressUpdate {
-  Vector3Int block_position = 1;
+  MinecraftGame.Common.Vector3Int block_position = 1;
   float progress = 2;              // 0.0 - 1.0
   int32 sequence_id = 3;
   string player_id = 4;
 }
 
 message BlockBreakCompleteRequest {
-  Vector3Int block_position = 1;
+  MinecraftGame.Common.Vector3Int block_position = 1;
   int32 sequence_id = 2;
 }
 
 message BlockBreakCompleteResponse {
   bool success = 1;
-  Vector3Int block_position = 2;
+  MinecraftGame.Common.Vector3Int block_position = 2;
   repeated ItemStack dropped_items = 3;
   int32 experience_dropped = 4;
   int32 sequence_id = 5;
 }
 
 message BlockPlaceRequest {
-  Vector3Int block_position = 1;
+  MinecraftGame.Common.Vector3Int block_position = 1;
   int32 block_id = 2;
   int32 block_metadata = 3;        // 방향, 상태 등
   int32 face = 4;                  // 배치할 면 (0-5)
-  Vector3 cursor_position = 5;     // 블록 내 세밀한 위치
+  MinecraftGame.Common.Vector3 cursor_position = 5;     // 블록 내 세밀한 위치
   ItemStack used_item = 6;
 }
 
 message BlockPlaceResponse {
   bool success = 1;
   string message = 2;
-  Vector3Int actual_position = 3;
+  MinecraftGame.Common.Vector3Int actual_position = 3;
   int32 actual_block_id = 4;
   ItemStack remaining_item = 5;
 }
 
 // 블록 변경 브로드캐스트
 message BlockChangeBroadcast {
-  Vector3Int position = 1;
+  MinecraftGame.Common.Vector3Int position = 1;
   int32 old_block_id = 2;
   int32 new_block_id = 3;
   int32 metadata = 4;
@@ -203,7 +184,7 @@ enum ChangeReason {
 // =============================================================================
 
 message ChunkLoadRequest {
-  repeated Vector3Int chunk_positions = 1;  // x,z 청크 좌표들
+  repeated MinecraftGame.Common.Vector3Int chunk_positions = 1;  // x,z 청크 좌표들
   int32 view_distance = 2;
 }
 
@@ -251,7 +232,7 @@ message ChunkData {
 }
 
 message TileEntityData {
-  Vector3Int position = 1;
+  MinecraftGame.Common.Vector3Int position = 1;
   TileEntityType type = 2;
   string data = 3;                // JSON 형태의 타일 엔티티 데이터
 }
@@ -274,9 +255,9 @@ enum TileEntityType {
 message EntityData {
   string entity_id = 1;
   EntityType entity_type = 2;
-  Vector3 position = 3;
-  Vector3 rotation = 4;
-  Vector3 velocity = 5;
+  MinecraftGame.Common.Vector3 position = 3;
+  MinecraftGame.Common.Vector3 rotation = 4;
+  MinecraftGame.Common.Vector3 velocity = 5;
   float health = 6;
   float max_health = 7;
   string custom_data = 8;
@@ -357,9 +338,9 @@ enum DespawnReason {
 
 message PlayerActionRequest {
   PlayerAction action = 1;
-  Vector3Int target_position = 2;
+  MinecraftGame.Common.Vector3Int target_position = 2;
   int32 face = 3;
-  Vector3 cursor_position = 4;
+  MinecraftGame.Common.Vector3 cursor_position = 4;
   ItemStack used_item = 5;
   int32 sequence = 6;
   ActionData action_data = 7;      // 액션별 추가 데이터
@@ -470,8 +451,8 @@ message CombatEvent {
   DamageType damage_type = 3;
   float damage_amount = 4;
   float final_damage = 5;          // 방어구, 저항 효과 적용 후
-  Vector3 damage_source_pos = 6;
-  Vector3 knockback_velocity = 7;
+  MinecraftGame.Common.Vector3 damage_source_pos = 6;
+  MinecraftGame.Common.Vector3 knockback_velocity = 7;
   ItemStack weapon_used = 8;
   bool is_critical = 9;
   bool is_blocked = 10;            // 방패로 막았는지
@@ -502,7 +483,7 @@ message DeathEvent {
   string player_id = 1;
   DamageType death_cause = 2;
   string killer_id = 3;           // null이면 환경사망
-  Vector3 death_position = 4;
+  MinecraftGame.Common.Vector3 death_position = 4;
   repeated ItemStack dropped_items = 5;
   int32 experience_dropped = 6;
   string death_message = 7;
@@ -522,7 +503,7 @@ message ExperienceUpdateBroadcast {
 message ExperienceOrbSpawnBroadcast {
   EntityData orb_entity = 1;
   int32 experience_value = 2;
-  Vector3 target_position = 3;     // 플레이어 위치 (이동 대상)
+  MinecraftGame.Common.Vector3 target_position = 3;     // 플레이어 위치 (이동 대상)
 }
 
 message EnchantingRequest {
@@ -571,8 +552,8 @@ message EffectUpdateBroadcast {
 
 message ParticleEffect {
   ParticleType particle_type = 1;
-  Vector3 position = 2;
-  Vector3 velocity = 3;
+  MinecraftGame.Common.Vector3 position = 2;
+  MinecraftGame.Common.Vector3 velocity = 3;
   int32 count = 4;
   float spread = 5;
   string particle_data = 6;        // 파티클별 추가 데이터 (JSON)
@@ -599,7 +580,7 @@ enum ParticleType {
 
 message SoundEffect {
   SoundType sound_type = 1;
-  Vector3 position = 2;
+  MinecraftGame.Common.Vector3 position = 2;
   float volume = 3;
   float pitch = 4;
   SoundCategory category = 5;
@@ -723,12 +704,12 @@ message WorldInfo {
   string world_name = 1;
   string world_seed = 2;
   WorldType world_type = 3;
-  GameMode default_game_mode = 4;
+  MinecraftGame.Common.GameMode default_game_mode = 4;
   bool hardcore_mode = 5;
   int64 world_time = 6;            // 게임 틱
   int64 day_time = 7;              // 하루 내 시간 (0-24000)
   WeatherInfo weather = 8;
-  Vector3 spawn_point = 9;
+  MinecraftGame.Common.Vector3 spawn_point = 9;
   WorldDifficulty difficulty = 10;
   WorldBorder world_border = 11;
 }
@@ -764,7 +745,7 @@ enum WeatherType {
 }
 
 message WorldBorder {
-  Vector3 center = 1;
+  MinecraftGame.Common.Vector3 center = 1;
   double diameter = 2;
   double target_diameter = 3;
   int64 time_to_target = 4;
@@ -788,6 +769,9 @@ message WorldBorder {
     int32 active_chunk_residency_players = 11;
     int32 peak_chunks_per_player = 12;
     string busiest_chunk_player = 13;
+    int64 total_deaths = 14;
+    int64 total_respawns = 15;
+    int64 deaths_last_ten_minutes = 16;
   }
 
 message TimeUpdateBroadcast {

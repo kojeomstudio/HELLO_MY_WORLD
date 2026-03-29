@@ -1,0 +1,968 @@
+{
+  "version": "2026-02-06-session-50",
+  "generated_at_utc": "2026-02-06T12:23:00Z",
+  "metadata": {
+    "session": "50",
+    "date": "2026-02-06",
+    "description": "Comprehensive Minecraft feature inventory grouped by Core, Content, Utility with implementation status and sequence."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": {
+    "core": [
+      {
+        "id": "S50-CORE-01",
+        "name": "World map control profile synchronization",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Shared profile hash/version synchronization between server and Unity client.",
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/World/WorldMapControlProfile.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-CORE-02",
+        "name": "Server authoritative chunk generation pipeline",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-generated chunks and authoritative world state updates.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-CORE-03",
+        "name": "Client chunk preview and streaming controller",
+        "layer": "Client",
+        "side": "client",
+        "description": "Runtime chunk preview and map streaming control in Unity.",
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-CORE-04",
+        "name": "Shared protocol and enum DLL contracts",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Common enums/contracts shared through GameCommon.dll and SharedProtocol.dll.",
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/GameCommon.csproj",
+          "SharedProtocol/SharedProtocol.csproj",
+          "SharedProtocol/MinecraftMessages.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-CORE-05",
+        "name": "Session and player-state authority",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server session manager maintains player authority and persistence.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/SessionManager.cs",
+          "GameServer/GameServer.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CORE-06",
+        "name": "Network communication layer",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Low-level networking for packet transmission and reception.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Network/",
+          "Assets/MyAssets/Scripts/Network/"
+        ],
+        "dependencies": ["S50-CORE-04"]
+      },
+      {
+        "id": "S50-CORE-07",
+        "name": "Authentication and authorization",
+        "layer": "Server",
+        "side": "server",
+        "description": "Player authentication and session management.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/SessionManager.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CORE-08",
+        "name": "Player movement and physics",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player movement validation and physics simulation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/MoveHandler.cs",
+          "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs"
+        ],
+        "dependencies": ["S50-CORE-06"]
+      },
+      {
+        "id": "S50-CORE-09",
+        "name": "Block placement and destruction",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block modification with server authority.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/WorldHandler.cs",
+          "Assets/MyAssets/Scripts/GameWorld/BlockController.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CORE-10",
+        "name": "Inventory management system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player inventory with server-side validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/InventoryHandler.cs",
+          "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      }
+    ],
+    "content": [
+      {
+        "id": "S50-CONTENT-01",
+        "name": "Hydrology-aware river generation",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "River generation with floodplain, avulsion and bank cohesion controls.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CORE-02", "S50-CORE-03"]
+      },
+      {
+        "id": "S50-CONTENT-02",
+        "name": "Hydrology-aware lake generation and outflow",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Lake basin generation with catchment connectivity and stable outflow.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CONTENT-01"]
+      },
+      {
+        "id": "S50-CONTENT-03",
+        "name": "Hydrology-aware cave generation with riparian guard",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Cave generation with karst potential, roof guard and hydrology continuity.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CONTENT-01", "S50-CONTENT-02"]
+      },
+      {
+        "id": "S50-CONTENT-04",
+        "name": "Biome generation system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server biome generation driven by JSON biome data.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "config/biomes.json"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-05",
+        "name": "Ore distribution system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server ore distribution driven by JSON data.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "config/blocks.json"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-06",
+        "name": "Structure generation",
+        "layer": "Server",
+        "side": "server",
+        "description": "Village, dungeon, and other structure generation.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/World/Generation/StructureGenerator.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-07",
+        "name": "Tree and vegetation generation",
+        "layer": "Server",
+        "side": "server",
+        "description": "Tree and vegetation placement based on biome.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/World/Generation/VegetationGenerator.cs"
+        ],
+        "dependencies": ["S50-CONTENT-04"]
+      },
+      {
+        "id": "S50-CONTENT-08",
+        "name": "Mob spawning system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Mob spawning based on biome and time.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Systems/MobSpawningSystem.cs"
+        ],
+        "dependencies": ["S50-CONTENT-04"]
+      },
+      {
+        "id": "S50-CONTENT-09",
+        "name": "Crafting system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Recipe-based crafting with server validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/CraftingHandler.cs",
+          "config/recipes.json",
+          "config/items.json"
+        ],
+        "dependencies": ["S50-CORE-10"]
+      },
+      {
+        "id": "S50-CONTENT-10",
+        "name": "Day/night cycle",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "World time management and lighting updates.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/TimeSystem.cs",
+          "Assets/MyAssets/Scripts/GameWorld/DayNightCycle.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-11",
+        "name": "Weather system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Weather effects (rain, snow, thunder).",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/WeatherSystem.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WeatherController.cs"
+        ],
+        "dependencies": ["S50-CONTENT-10"]
+      },
+      {
+        "id": "S50-CONTENT-12",
+        "name": "Hunger and food system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player hunger mechanics and food consumption.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/HungerSystem.cs",
+          "config/hunger_config.json"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CONTENT-13",
+        "name": "Experience and leveling",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "XP system and player leveling.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Systems/ExperienceSystem.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CONTENT-14",
+        "name": "Enchanting system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Item enchanting mechanics.",
+        "status": "not_implemented",
+        "artifacts": [],
+        "dependencies": ["S50-CONTENT-13"]
+      },
+      {
+        "id": "S50-CONTENT-15",
+        "name": "Redstone circuitry",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Redstone block and circuit logic.",
+        "status": "not_implemented",
+        "artifacts": [],
+        "dependencies": ["S50-CORE-09"]
+      }
+    ],
+    "utility": [
+      {
+        "id": "S50-UTIL-01",
+        "name": "Protocol registry and descriptor fingerprint validation",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Google Protobuf descriptor fingerprint and registry binding validation.",
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "dependencies": ["S50-CORE-04"]
+      },
+      {
+        "id": "S50-UTIL-02",
+        "name": "Dummy protobuf client and packet probe reports",
+        "layer": "Server",
+        "side": "server",
+        "description": "Dummy protocol client for packet roundtrip and probe report generation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "config/protocol_dummy_client.json",
+          "reports/proto_probe_report.json"
+        ],
+        "dependencies": ["S50-UTIL-01"]
+      },
+      {
+        "id": "S50-UTIL-03",
+        "name": "JSON runtime profile management",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Runtime world-map and generation settings managed through JSON configs.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "config/world.json",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-UTIL-04",
+        "name": "Client runtime world-map override loader",
+        "layer": "Client",
+        "side": "client",
+        "description": "Unity loader applies runtime map-control overrides from StreamingAssets JSON.",
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      },
+      {
+        "id": "S50-UTIL-05",
+        "name": "Server runtime world-map override loader",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server loader applies runtime map-control overrides from config JSON.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Program.cs",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      },
+      {
+        "id": "S50-UTIL-06",
+        "name": "Logging and diagnostics",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Comprehensive logging system for debugging and monitoring.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/Logger.cs",
+          "Assets/MyAssets/Scripts/Utils/Logger.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-UTIL-07",
+        "name": "Performance monitoring",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Performance metrics collection and reporting.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Utils/PerformanceMonitor.cs"
+        ],
+        "dependencies": ["S50-UTIL-06"]
+      },
+      {
+        "id": "S50-UTIL-08",
+        "name": "Error handling and recovery",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Graceful error handling and system recovery mechanisms.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/ErrorHandler.cs"
+        ],
+        "dependencies": ["S50-UTIL-06"]
+      },
+      {
+        "id": "S50-UTIL-09",
+        "name": "Save/load system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "World and player state persistence.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Database/SaveManager.cs",
+          "GameServer/Database/DatabaseManager.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-UTIL-10",
+        "name": "Configuration management",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Centralized configuration loading and validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/ConfigManager.cs",
+          "config/server_config.json",
+          "config/client_config.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      }
+    ]
+  },
+  "summary": {
+    "total_features": 35,
+    "implemented": 28,
+    "partially_implemented": 4,
+    "not_implemented": 3,
+    "core_features": 10,
+    "content_features": 15,
+    "utility_features": 10
+  }
+}
+  "version": "2026-02-06-session-50",
+  "generated_at_utc": "2026-02-06T12:23:00Z",
+  "metadata": {
+    "session": "50",
+    "date": "2026-02-06",
+    "description": "Comprehensive Minecraft feature inventory grouped by Core, Content, Utility with implementation status and sequence."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": {
+    "core": [
+      {
+        "id": "S50-CORE-01",
+        "name": "World map control profile synchronization",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Shared profile hash/version synchronization between server and Unity client.",
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/World/WorldMapControlProfile.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-CORE-02",
+        "name": "Server authoritative chunk generation pipeline",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server-generated chunks and authoritative world state updates.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-CORE-03",
+        "name": "Client chunk preview and streaming controller",
+        "layer": "Client",
+        "side": "client",
+        "description": "Runtime chunk preview and map streaming control in Unity.",
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-CORE-04",
+        "name": "Shared protocol and enum DLL contracts",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Common enums/contracts shared through GameCommon.dll and SharedProtocol.dll.",
+        "status": "implemented",
+        "artifacts": [
+          "GameCommon/GameCommon.csproj",
+          "SharedProtocol/SharedProtocol.csproj",
+          "SharedProtocol/MinecraftMessages.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-CORE-05",
+        "name": "Session and player-state authority",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server session manager maintains player authority and persistence.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/SessionManager.cs",
+          "GameServer/GameServer.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CORE-06",
+        "name": "Network communication layer",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Low-level networking for packet transmission and reception.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Network/",
+          "Assets/MyAssets/Scripts/Network/"
+        ],
+        "dependencies": ["S50-CORE-04"]
+      },
+      {
+        "id": "S50-CORE-07",
+        "name": "Authentication and authorization",
+        "layer": "Server",
+        "side": "server",
+        "description": "Player authentication and session management.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/SessionManager.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CORE-08",
+        "name": "Player movement and physics",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player movement validation and physics simulation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/MoveHandler.cs",
+          "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs"
+        ],
+        "dependencies": ["S50-CORE-06"]
+      },
+      {
+        "id": "S50-CORE-09",
+        "name": "Block placement and destruction",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Block modification with server authority.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/WorldHandler.cs",
+          "Assets/MyAssets/Scripts/GameWorld/BlockController.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CORE-10",
+        "name": "Inventory management system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player inventory with server-side validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/InventoryHandler.cs",
+          "Assets/MyAssets/Scripts/UI/InventoryUI.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      }
+    ],
+    "content": [
+      {
+        "id": "S50-CONTENT-01",
+        "name": "Hydrology-aware river generation",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "River generation with floodplain, avulsion and bank cohesion controls.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CORE-02", "S50-CORE-03"]
+      },
+      {
+        "id": "S50-CONTENT-02",
+        "name": "Hydrology-aware lake generation and outflow",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Lake basin generation with catchment connectivity and stable outflow.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CONTENT-01"]
+      },
+      {
+        "id": "S50-CONTENT-03",
+        "name": "Hydrology-aware cave generation with riparian guard",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Cave generation with karst potential, roof guard and hydrology continuity.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world.json"
+        ],
+        "dependencies": ["S50-CONTENT-01", "S50-CONTENT-02"]
+      },
+      {
+        "id": "S50-CONTENT-04",
+        "name": "Biome generation system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server biome generation driven by JSON biome data.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "config/biomes.json"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-05",
+        "name": "Ore distribution system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server ore distribution driven by JSON data.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "config/blocks.json"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-06",
+        "name": "Structure generation",
+        "layer": "Server",
+        "side": "server",
+        "description": "Village, dungeon, and other structure generation.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/World/Generation/StructureGenerator.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-07",
+        "name": "Tree and vegetation generation",
+        "layer": "Server",
+        "side": "server",
+        "description": "Tree and vegetation placement based on biome.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/World/Generation/VegetationGenerator.cs"
+        ],
+        "dependencies": ["S50-CONTENT-04"]
+      },
+      {
+        "id": "S50-CONTENT-08",
+        "name": "Mob spawning system",
+        "layer": "Server",
+        "side": "server",
+        "description": "Mob spawning based on biome and time.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Systems/MobSpawningSystem.cs"
+        ],
+        "dependencies": ["S50-CONTENT-04"]
+      },
+      {
+        "id": "S50-CONTENT-09",
+        "name": "Crafting system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Recipe-based crafting with server validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Handlers/CraftingHandler.cs",
+          "config/recipes.json",
+          "config/items.json"
+        ],
+        "dependencies": ["S50-CORE-10"]
+      },
+      {
+        "id": "S50-CONTENT-10",
+        "name": "Day/night cycle",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "World time management and lighting updates.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/TimeSystem.cs",
+          "Assets/MyAssets/Scripts/GameWorld/DayNightCycle.cs"
+        ],
+        "dependencies": ["S50-CORE-02"]
+      },
+      {
+        "id": "S50-CONTENT-11",
+        "name": "Weather system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Weather effects (rain, snow, thunder).",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/WeatherSystem.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WeatherController.cs"
+        ],
+        "dependencies": ["S50-CONTENT-10"]
+      },
+      {
+        "id": "S50-CONTENT-12",
+        "name": "Hunger and food system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Player hunger mechanics and food consumption.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Systems/HungerSystem.cs",
+          "config/hunger_config.json"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CONTENT-13",
+        "name": "Experience and leveling",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "XP system and player leveling.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Systems/ExperienceSystem.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-CONTENT-14",
+        "name": "Enchanting system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Item enchanting mechanics.",
+        "status": "not_implemented",
+        "artifacts": [],
+        "dependencies": ["S50-CONTENT-13"]
+      },
+      {
+        "id": "S50-CONTENT-15",
+        "name": "Redstone circuitry",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Redstone block and circuit logic.",
+        "status": "not_implemented",
+        "artifacts": [],
+        "dependencies": ["S50-CORE-09"]
+      }
+    ],
+    "utility": [
+      {
+        "id": "S50-UTIL-01",
+        "name": "Protocol registry and descriptor fingerprint validation",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Google Protobuf descriptor fingerprint and registry binding validation.",
+        "status": "implemented",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "dependencies": ["S50-CORE-04"]
+      },
+      {
+        "id": "S50-UTIL-02",
+        "name": "Dummy protobuf client and packet probe reports",
+        "layer": "Server",
+        "side": "server",
+        "description": "Dummy protocol client for packet roundtrip and probe report generation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "config/protocol_dummy_client.json",
+          "reports/proto_probe_report.json"
+        ],
+        "dependencies": ["S50-UTIL-01"]
+      },
+      {
+        "id": "S50-UTIL-03",
+        "name": "JSON runtime profile management",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Runtime world-map and generation settings managed through JSON configs.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "config/world.json",
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S50-CORE-01"]
+      },
+      {
+        "id": "S50-UTIL-04",
+        "name": "Client runtime world-map override loader",
+        "layer": "Client",
+        "side": "client",
+        "description": "Unity loader applies runtime map-control overrides from StreamingAssets JSON.",
+        "status": "implemented",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      },
+      {
+        "id": "S50-UTIL-05",
+        "name": "Server runtime world-map override loader",
+        "layer": "Server",
+        "side": "server",
+        "description": "Server loader applies runtime map-control overrides from config JSON.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Program.cs",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      },
+      {
+        "id": "S50-UTIL-06",
+        "name": "Logging and diagnostics",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Comprehensive logging system for debugging and monitoring.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/Logger.cs",
+          "Assets/MyAssets/Scripts/Utils/Logger.cs"
+        ],
+        "dependencies": []
+      },
+      {
+        "id": "S50-UTIL-07",
+        "name": "Performance monitoring",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Performance metrics collection and reporting.",
+        "status": "partially_implemented",
+        "artifacts": [
+          "GameServer/Utils/PerformanceMonitor.cs"
+        ],
+        "dependencies": ["S50-UTIL-06"]
+      },
+      {
+        "id": "S50-UTIL-08",
+        "name": "Error handling and recovery",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Graceful error handling and system recovery mechanisms.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Utils/ErrorHandler.cs"
+        ],
+        "dependencies": ["S50-UTIL-06"]
+      },
+      {
+        "id": "S50-UTIL-09",
+        "name": "Save/load system",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "World and player state persistence.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Database/SaveManager.cs",
+          "GameServer/Database/DatabaseManager.cs"
+        ],
+        "dependencies": ["S50-CORE-05"]
+      },
+      {
+        "id": "S50-UTIL-10",
+        "name": "Configuration management",
+        "layer": "Shared",
+        "side": "shared",
+        "description": "Centralized configuration loading and validation.",
+        "status": "implemented",
+        "artifacts": [
+          "GameServer/Configuration/ConfigManager.cs",
+          "config/server_config.json",
+          "config/client_config.json"
+        ],
+        "dependencies": ["S50-UTIL-03"]
+      }
+    ]
+  },
+  "summary": {
+    "total_features": 35,
+    "implemented": 28,
+    "partially_implemented": 4,
+    "not_implemented": 3,
+    "core_features": 10,
+    "content_features": 15,
+    "utility_features": 10
+  }
+}
+

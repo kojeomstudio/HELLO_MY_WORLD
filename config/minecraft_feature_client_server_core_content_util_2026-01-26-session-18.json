@@ -1,0 +1,210 @@
+{
+  "date": "2026-01-26",
+  "session": "18",
+  "meta": {
+    "source_commits": [
+      "93f18cce",
+      "6ed0fdf6",
+      "b3bbcbbd",
+      "02f827e4"
+    ],
+    "hydrology_signature": "2026-01-26-hydrology-shield-v2",
+    "notes": "Session 18 hydrology alignment, terrain refinement (caves/rivers/lakes), and proto validation with dummy client."
+  },
+  "client": {
+    "core": [
+      {
+        "id": "S18-CORE-01",
+        "name": "Hydrology Signature Alignment (-v2)",
+        "description": "Unity world map controller consumes the updated hydrology signature and refreshed map-control profile to stay in lock-step with the server.",
+        "order": 1,
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "planned",
+        "priority": "high"
+      },
+      {
+        "id": "S18-CORE-02",
+        "name": "Shared DLL Consumption",
+        "description": "Unity references GameCommon.dll/SharedProtocol.dll for shared enums, feature descriptors, and proto bindings.",
+        "order": 2,
+        "files": [
+          "Assets/Plugins/GameCommon.dll",
+          "Assets/Generated/Protobuf/*"
+        ],
+        "status": "planned",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "S18-CONTENT-02",
+        "name": "River Curvature + Hydrology Warp",
+        "description": "Client-side previews adopt river curvature smoothing and hydrology warp parameters from the updated profile.",
+        "order": 1,
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "planned",
+        "priority": "medium"
+      },
+      {
+        "id": "S18-CONTENT-03",
+        "name": "Lake Shoreline + Outflow Preview",
+        "description": "Lakes respect shoreline blend/outflow carve depth sourced from the JSON profile for consistent previews.",
+        "order": 2,
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "planned",
+        "priority": "medium"
+      }
+    ],
+    "utility": [
+      {
+        "id": "S18-UTIL-03",
+        "name": "Data-Driven Config Parity",
+        "description": "Client loads hydrology/cave/river/lake parameters from JSON to mirror server-side map-control generation.",
+        "order": 1,
+        "files": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "planned",
+        "priority": "high"
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "S18-CORE-01",
+        "name": "Hydrology Signature Alignment (-v2)",
+        "description": "Server world map control regenerates profiles with the new hydrology signature and propagates to clients.",
+        "order": 1,
+        "files": [
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/WorldMapControlManager.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      },
+      {
+        "id": "S18-CORE-02",
+        "name": "Shared DLL Build/Publish",
+        "description": "SharedProtocol and GameCommon DLL outputs remain the single source for enums/contracts consumed by server and Unity.",
+        "order": 2,
+        "files": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "GameCommon/GameCommon.csproj",
+          "Assets/Plugins/GameCommon.dll"
+        ],
+        "status": "planned",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "S18-CONTENT-01",
+        "name": "Hydrology-Aware Caves",
+        "description": "Cave carving blends stability with water-table masks and riparian suppression to avoid floods and seams.",
+        "order": 1,
+        "files": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "config/world.json"
+        ],
+        "status": "planned",
+        "priority": "high"
+      },
+      {
+        "id": "S18-CONTENT-02",
+        "name": "River Curvature + Hydrology Warp",
+        "description": "River masks incorporate curvature-aware flow alignment, seam-safe warp, and shoreline stability.",
+        "order": 2,
+        "files": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "config/world.json"
+        ],
+        "status": "planned",
+        "priority": "high"
+      },
+      {
+        "id": "S18-CONTENT-03",
+        "name": "Lake Shoreline + Outflow Harmonization",
+        "description": "Lake generation applies shoreline feather, outflow channels, and wetland buffers tuned by hydrology masks.",
+        "order": 3,
+        "files": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "config/world.json"
+        ],
+        "status": "planned",
+        "priority": "medium"
+      }
+    ],
+    "utility": [
+      {
+        "id": "S18-UTIL-01",
+        "name": "Dummy Protocol Client Round-Trip",
+        "description": "DummyProtocolClient validates TimeUpdateBroadcast and WorldGenerationRequest framing against SharedProtocol.",
+        "order": 1,
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+        ],
+        "status": "planned",
+        "priority": "medium"
+      },
+      {
+        "id": "S18-UTIL-02",
+        "name": "Proto Registry/Fingerprint Validation",
+        "description": "Server asserts descriptor fingerprint before serving map-control data and terrain masks.",
+        "order": 2,
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+        ],
+        "status": "planned",
+        "priority": "high"
+      }
+    ]
+  },
+  "shared": {
+    "core": [
+      {
+        "id": "S18-CORE-01",
+        "name": "Hydrology Signature Alignment (-v2)",
+        "description": "Shared hydrology signature carried through GameCommon and map-control JSON to keep caves/rivers/lakes in sync.",
+        "order": 1,
+        "files": [
+          "GameCommon/World/SharedFeatureCatalog.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      }
+    ],
+    "content": [],
+    "utility": [
+      {
+        "id": "S18-UTIL-03",
+        "name": "Data-Driven Config Parity",
+        "description": "World and map-control JSON documents remain the canonical source for hydrology/cave/river/lake parameters.",
+        "order": 1,
+        "files": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress",
+        "priority": "high"
+      }
+    ]
+  }
+}

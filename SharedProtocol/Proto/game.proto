@@ -138,3 +138,84 @@ message ServerStatusResponse {
     int64 server_uptime = 3;
     int64 container_hash_mismatches = 4;
 }
+
+// ============================================================
+// AI 시스템 메시지 (Server-authoritative AI)
+// ============================================================
+
+// AI 액터 상태
+enum AIState {
+    AI_IDLE = 0;
+    AI_WANDER = 1;
+    AI_CHASE = 2;
+    AI_ATTACK = 3;
+    AI_FLEE = 4;
+    AI_DEAD = 5;
+}
+
+// AI 액터 정보
+message AIActorInfo {
+    int32 actor_id = 1;
+    string actor_name = 2;
+    Vector3 position = 3;
+    AIState state = 4;
+    int32 target_id = 5; // 타겟 Actor ID (0이면 타겟 없음)
+    int32 health = 6;
+    int32 max_health = 7;
+}
+
+// AI 상태 동기화 (서버 → 클라이언트)
+message AIStateSyncBroadcast {
+    repeated AIActorInfo actors = 1;
+    int64 timestamp = 2;
+}
+
+// AI 공격 이벤트 (서버 → 클라이언트)
+message AIAttackEventBroadcast {
+    int32 attacker_id = 1;
+    int32 target_id = 2;
+    int32 damage = 3;
+    Vector3 attack_position = 4;
+    int64 timestamp = 5;
+}
+
+// AI 사망 이벤트 (서버 → 클라이언트)
+message AIDeathEventBroadcast {
+    int32 actor_id = 1;
+    int32 killer_id = 2; // 죽인 플레이어/Actor ID
+    Vector3 death_position = 3;
+    int64 timestamp = 4;
+}
+
+// AI 스폰 요청 (GM 명령어 등)
+message AISpawnRequest {
+    string ai_type = 1; // "Aggressive", "Defensive", "Boss", etc.
+    Vector3 spawn_position = 2;
+    string world_id = 3;
+}
+
+message AISpawnResponse {
+    bool success = 1;
+    string message = 2;
+    int32 spawned_actor_id = 3;
+}
+
+// AI 디버그 정보 요청
+message AIDebugInfoRequest {
+    int32 actor_id = 1; // 0이면 모든 AI
+}
+
+message AIDebugInfoResponse {
+    repeated AIActorDebugInfo actors = 1;
+}
+
+message AIActorDebugInfo {
+    int32 actor_id = 1;
+    string actor_name = 2;
+    AIState current_state = 3;
+    string current_behavior_tree_node = 4;
+    float aggro_level = 5;
+    int32 perceived_entities_count = 6;
+    string lod_level = 7; // LOD 레벨
+    float update_rate = 8; // 업데이트 빈도 (Hz)
+}

@@ -1,0 +1,688 @@
+{
+  "generatedAt": "2026-01-18T12:30:00Z",
+  "version": "2026-01-18-session-05",
+  "scope": "minecraft client/server feature classification - session 05",
+  "sessionGoals": [
+    "Compile Minecraft client/server core, content, and util feature lists; persist in docs and JSON for data-driven use.",
+    "Improve terrain generation algorithms for caves, rivers, and lakes; apply to world map control on server and client.",
+    "Review protobuf-generated packets and usages; ensure `using` targets exist and regenerate/fix references where needed.",
+    "Refine world map control architecture; keep server/client configs and environment values in JSON configs.",
+    "Validate protoc outputs are referenced correctly; solidify packet handling across client and server; run builds/selftest.",
+    "Update README and docs under `docs/` for protocol/worldgen/config changes; prepare commits and push."
+  ],
+  "categories": {
+    "core": {
+      "client": [
+        {
+          "id": "core-c-01",
+          "name": "world-map-preview-parity",
+          "status": "in-progress",
+          "description": "World map preview generator uses hydrology-aware profile hash and protobuf handshake for chunk tiles.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json"
+          ]
+        },
+        {
+          "id": "core-c-02",
+          "name": "protocol-client-bindings",
+          "status": "planned",
+          "description": "Client protobuf DTO references stay aligned with SharedProtocol registry and descriptor fingerprint; guards against stale generated assemblies.",
+          "paths": [
+            "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+            "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs",
+            "Assets/Generated/Protobuf"
+          ]
+        },
+        {
+          "id": "core-c-03",
+          "name": "player-controller",
+          "status": "needs-implementation",
+          "description": "Player movement, physics, block interaction, inventory management, and camera controls.",
+          "paths": []
+        },
+        {
+          "id": "core-c-04",
+          "name": "ui-system",
+          "status": "needs-implementation",
+          "description": "Main menu, HUD display, inventory interface, and settings menu.",
+          "paths": []
+        },
+        {
+          "id": "core-c-05",
+          "name": "network-client",
+          "status": "partially-complete",
+          "description": "Connection management, message handling, packet serialization/deserialization, and reconnection logic.",
+          "paths": [
+            "Assets/Scripts/Networking/NetworkManager.cs",
+            "Assets/Scripts/Networking/Protocol/GameProtocol.cs"
+          ]
+        }
+      ],
+      "server": [
+        {
+          "id": "core-s-01",
+          "name": "world-map-control-parity",
+          "status": "in-progress",
+          "description": "Server-side world map control system with hash validation and chunk caching.",
+          "paths": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "config/world_map_control_profile.json"
+          ]
+        },
+        {
+          "id": "core-s-02",
+          "name": "protocol-registry-validation",
+          "status": "in-progress",
+          "description": "Protocol registry with validation for protobuf message handlers.",
+          "paths": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/Network/EnhancedProtocolHandler.cs"
+          ]
+        },
+        {
+          "id": "core-s-03",
+          "name": "player-system",
+          "status": "needs-implementation",
+          "description": "Player management system with health, hunger, experience, and abilities.",
+          "paths": []
+        },
+        {
+          "id": "core-s-04",
+          "name": "block-system",
+          "status": "needs-enhancement",
+          "description": "Block system with states, entities, and physics.",
+          "paths": [
+            "GameServer/World/BlockManager.cs",
+            "GameServer/World/BlockState.cs",
+            "GameServer/World/BlockEntity.cs"
+          ]
+        },
+        {
+          "id": "core-s-05",
+          "name": "entity-system-foundation",
+          "status": "needs-implementation",
+          "description": "Entity spawning, AI, and synchronization system.",
+          "paths": []
+        },
+        {
+          "id": "core-s-06",
+          "name": "network-session-management",
+          "status": "partially-complete",
+          "description": "Session lifecycle and room-based architecture.",
+          "paths": [
+            "GameServer/Network/SessionManager.cs",
+            "GameServer/Network/RoomManager.cs",
+            "GameServer/Network/AuthManager.cs"
+          ]
+        }
+      ]
+    },
+    "content": {
+      "client": [
+        {
+          "id": "content-c-01",
+          "name": "map-visualization",
+          "status": "planned",
+          "description": "Preview renderer consumes hydrology/flow/river/lake masks with seam-safe smoothing to display stitched terrain in editor/runtime.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "content-c-02",
+          "name": "block-rendering",
+          "status": "needs-implementation",
+          "description": "Voxel mesh generation, block textures and materials, lighting calculations, and ambient occlusion.",
+          "paths": []
+        },
+        {
+          "id": "content-c-03",
+          "name": "entity-rendering",
+          "status": "needs-implementation",
+          "description": "Player model rendering, mob model rendering, animation system, and entity effects.",
+          "paths": []
+        },
+        {
+          "id": "content-c-04",
+          "name": "particle-effects",
+          "status": "needs-implementation",
+          "description": "Block break particles, weather particles, spell effects, and environmental effects.",
+          "paths": []
+        },
+        {
+          "id": "content-c-05",
+          "name": "sound-system",
+          "status": "needs-implementation",
+          "description": "Block interaction sounds, ambient sounds, music system, and 3D spatial audio.",
+          "paths": []
+        }
+      ],
+      "server": [
+        {
+          "id": "content-s-01",
+          "name": "cave-river-lake-continuity",
+          "status": "in-progress",
+          "description": "Hydrology-driven carving with edge continuity envelopes, seam-aware rivers/lakes, and ceiling sealing to keep subterranean water aligned with rivers and basins.",
+          "paths": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ]
+        },
+        {
+          "id": "content-s-02",
+          "name": "crafting-system",
+          "status": "needs-implementation",
+          "description": "Recipe management, crafting interface, recipe book implementation, and special recipe unlocks.",
+          "paths": []
+        },
+        {
+          "id": "content-s-03",
+          "name": "structure-generation",
+          "status": "needs-implementation",
+          "description": "Village generation, temple generation, dungeon generation, and mineshaft generation.",
+          "paths": []
+        },
+        {
+          "id": "content-s-04",
+          "name": "biome-system",
+          "status": "partially-complete",
+          "description": "Temperature/humidity gradients, vegetation distribution, ore distribution by biome, and biome-specific structures.",
+          "paths": [
+            "GameServer/World/Generation/BiomeGenerator.cs",
+            "config/biomes.json"
+          ]
+        },
+        {
+          "id": "content-s-05",
+          "name": "mob-spawning",
+          "status": "needs-implementation",
+          "description": "Hostile mob spawning, passive mob spawning, spawn conditions and rates, and mob AI behaviors.",
+          "paths": []
+        },
+        {
+          "id": "content-s-06",
+          "name": "weather-system",
+          "status": "needs-implementation",
+          "description": "Rain/snow effects, thunderstorms, weather transitions, and biome-specific weather.",
+          "paths": []
+        }
+      ]
+    },
+    "util": {
+      "client": [
+        {
+          "id": "util-c-01",
+          "name": "streaming-profile-hotload",
+          "status": "in-progress",
+          "description": "Hot-reloads map-control JSON and resets preview generator when hash or signature changes; keeps data-driven parameters synced during runtime.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+          ]
+        },
+        {
+          "id": "util-c-02",
+          "name": "asset-management",
+          "status": "needs-implementation",
+          "description": "Asset loading and caching, asset bundles, memory management, and asset streaming.",
+          "paths": []
+        },
+        {
+          "id": "util-c-03",
+          "name": "settings-management",
+          "status": "needs-implementation",
+          "description": "Graphics settings, audio settings, control bindings, and save/load settings.",
+          "paths": []
+        },
+        {
+          "id": "util-c-04",
+          "name": "performance-optimization",
+          "status": "needs-implementation",
+          "description": "LOD system, occlusion culling, texture streaming, and frame rate limiting.",
+          "paths": []
+        },
+        {
+          "id": "util-c-05",
+          "name": "debug-tools",
+          "status": "needs-implementation",
+          "description": "Debug overlay, profiling display, chunk inspector, and network debug view.",
+          "paths": []
+        }
+      ],
+      "server": [
+        {
+          "id": "util-s-01",
+          "name": "data-driven-config-refresh",
+          "status": "in-progress",
+          "description": "JSON-backed config loader with checksum logging feeding world map control and hydrology/lake/cave thresholds; keep hashes in sync with map-control signatures.",
+          "paths": [
+            "GameServer/Configuration/DataDrivenConfigManager.cs",
+            "config/world.json",
+            "config/world_map_control_profile.json"
+          ]
+        },
+        {
+          "id": "util-s-02",
+          "name": "database-management",
+          "status": "partially-complete",
+          "description": "SQLite integration, player data persistence, world data storage, and backup system.",
+          "paths": [
+            "GameServer/Database/DatabaseManager.cs",
+            "GameServer/Database/PlayerDataRepository.cs",
+            "GameServer/Database/WorldDataRepository.cs"
+          ]
+        },
+        {
+          "id": "util-s-03",
+          "name": "logging-system",
+          "status": "needs-implementation",
+          "description": "Structured logging, log levels and filtering, log rotation, and remote logging.",
+          "paths": []
+        },
+        {
+          "id": "util-s-04",
+          "name": "performance-monitoring",
+          "status": "needs-implementation",
+          "description": "TPS monitoring, memory usage tracking, network statistics, and profiling tools.",
+          "paths": []
+        },
+        {
+          "id": "util-s-05",
+          "name": "command-system",
+          "status": "needs-implementation",
+          "description": "Command framework, operator/permission system, built-in commands, and custom command support.",
+          "paths": []
+        }
+      ]
+    }
+  },
+  "implementationOrder": [
+    { "order": 1, "category": "core", "target": "core-s-01", "status": "in-progress" },
+    { "order": 2, "category": "core", "target": "core-s-02", "status": "in-progress" },
+    { "order": 3, "category": "content", "target": "content-s-01", "status": "in-progress" },
+    { "order": 4, "category": "util", "target": "util-s-01", "status": "in-progress" },
+    { "order": 5, "category": "core", "target": "core-c-01", "status": "in-progress" },
+    { "order": 6, "category": "util", "target": "util-c-01", "status": "in-progress" },
+    { "order": 7, "category": "core", "target": "core-c-02", "status": "planned" },
+    { "order": 8, "category": "content", "target": "content-c-01", "status": "planned" },
+    { "order": 9, "category": "core", "target": "core-s-03", "status": "needs-implementation" },
+    { "order": 10, "category": "core", "target": "core-s-04", "status": "needs-enhancement" },
+    { "order": 11, "category": "core", "target": "core-s-05", "status": "needs-implementation" },
+    { "order": 12, "category": "core", "target": "core-c-03", "status": "needs-implementation" },
+    { "order": 13, "category": "core", "target": "core-c-04", "status": "needs-implementation" }
+  ],
+  "dataFiles": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/enhanced_terrain_generation.json",
+    "config/biomes.json",
+    "config/blocks.json",
+    "config/items.json",
+    "config/recipes.json",
+    "config/gameplay.json",
+    "config/hunger_config.json",
+    "config/player_config.json",
+    "config/entities.json",
+    "config/mobs.json",
+    "config/weather.json",
+    "config/structures.json",
+    "config/logging_config.json",
+    "config/settings.json"
+  ],
+  "notes": "Use this list to track sequential implementation of core/content/util features needed for Minecraft client/server world map, hydrology, and protobuf flows. All configuration files must use JSON format. All protobuf references must be validated. All using statements must reference existing files."
+}
+  "generatedAt": "2026-01-18T12:30:00Z",
+  "version": "2026-01-18-session-05",
+  "scope": "minecraft client/server feature classification - session 05",
+  "sessionGoals": [
+    "Compile Minecraft client/server core, content, and util feature lists; persist in docs and JSON for data-driven use.",
+    "Improve terrain generation algorithms for caves, rivers, and lakes; apply to world map control on server and client.",
+    "Review protobuf-generated packets and usages; ensure `using` targets exist and regenerate/fix references where needed.",
+    "Refine world map control architecture; keep server/client configs and environment values in JSON configs.",
+    "Validate protoc outputs are referenced correctly; solidify packet handling across client and server; run builds/selftest.",
+    "Update README and docs under `docs/` for protocol/worldgen/config changes; prepare commits and push."
+  ],
+  "categories": {
+    "core": {
+      "client": [
+        {
+          "id": "core-c-01",
+          "name": "world-map-preview-parity",
+          "status": "in-progress",
+          "description": "World map preview generator uses hydrology-aware profile hash and protobuf handshake for chunk tiles.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json"
+          ]
+        },
+        {
+          "id": "core-c-02",
+          "name": "protocol-client-bindings",
+          "status": "planned",
+          "description": "Client protobuf DTO references stay aligned with SharedProtocol registry and descriptor fingerprint; guards against stale generated assemblies.",
+          "paths": [
+            "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+            "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs",
+            "Assets/Generated/Protobuf"
+          ]
+        },
+        {
+          "id": "core-c-03",
+          "name": "player-controller",
+          "status": "needs-implementation",
+          "description": "Player movement, physics, block interaction, inventory management, and camera controls.",
+          "paths": []
+        },
+        {
+          "id": "core-c-04",
+          "name": "ui-system",
+          "status": "needs-implementation",
+          "description": "Main menu, HUD display, inventory interface, and settings menu.",
+          "paths": []
+        },
+        {
+          "id": "core-c-05",
+          "name": "network-client",
+          "status": "partially-complete",
+          "description": "Connection management, message handling, packet serialization/deserialization, and reconnection logic.",
+          "paths": [
+            "Assets/Scripts/Networking/NetworkManager.cs",
+            "Assets/Scripts/Networking/Protocol/GameProtocol.cs"
+          ]
+        }
+      ],
+      "server": [
+        {
+          "id": "core-s-01",
+          "name": "world-map-control-parity",
+          "status": "in-progress",
+          "description": "Server-side world map control system with hash validation and chunk caching.",
+          "paths": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+            "config/world_map_control_profile.json"
+          ]
+        },
+        {
+          "id": "core-s-02",
+          "name": "protocol-registry-validation",
+          "status": "in-progress",
+          "description": "Protocol registry with validation for protobuf message handlers.",
+          "paths": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/Network/EnhancedProtocolHandler.cs"
+          ]
+        },
+        {
+          "id": "core-s-03",
+          "name": "player-system",
+          "status": "needs-implementation",
+          "description": "Player management system with health, hunger, experience, and abilities.",
+          "paths": []
+        },
+        {
+          "id": "core-s-04",
+          "name": "block-system",
+          "status": "needs-enhancement",
+          "description": "Block system with states, entities, and physics.",
+          "paths": [
+            "GameServer/World/BlockManager.cs",
+            "GameServer/World/BlockState.cs",
+            "GameServer/World/BlockEntity.cs"
+          ]
+        },
+        {
+          "id": "core-s-05",
+          "name": "entity-system-foundation",
+          "status": "needs-implementation",
+          "description": "Entity spawning, AI, and synchronization system.",
+          "paths": []
+        },
+        {
+          "id": "core-s-06",
+          "name": "network-session-management",
+          "status": "partially-complete",
+          "description": "Session lifecycle and room-based architecture.",
+          "paths": [
+            "GameServer/Network/SessionManager.cs",
+            "GameServer/Network/RoomManager.cs",
+            "GameServer/Network/AuthManager.cs"
+          ]
+        }
+      ]
+    },
+    "content": {
+      "client": [
+        {
+          "id": "content-c-01",
+          "name": "map-visualization",
+          "status": "planned",
+          "description": "Preview renderer consumes hydrology/flow/river/lake masks with seam-safe smoothing to display stitched terrain in editor/runtime.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+          ]
+        },
+        {
+          "id": "content-c-02",
+          "name": "block-rendering",
+          "status": "needs-implementation",
+          "description": "Voxel mesh generation, block textures and materials, lighting calculations, and ambient occlusion.",
+          "paths": []
+        },
+        {
+          "id": "content-c-03",
+          "name": "entity-rendering",
+          "status": "needs-implementation",
+          "description": "Player model rendering, mob model rendering, animation system, and entity effects.",
+          "paths": []
+        },
+        {
+          "id": "content-c-04",
+          "name": "particle-effects",
+          "status": "needs-implementation",
+          "description": "Block break particles, weather particles, spell effects, and environmental effects.",
+          "paths": []
+        },
+        {
+          "id": "content-c-05",
+          "name": "sound-system",
+          "status": "needs-implementation",
+          "description": "Block interaction sounds, ambient sounds, music system, and 3D spatial audio.",
+          "paths": []
+        }
+      ],
+      "server": [
+        {
+          "id": "content-s-01",
+          "name": "cave-river-lake-continuity",
+          "status": "in-progress",
+          "description": "Hydrology-driven carving with edge continuity envelopes, seam-aware rivers/lakes, and ceiling sealing to keep subterranean water aligned with rivers and basins.",
+          "paths": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ]
+        },
+        {
+          "id": "content-s-02",
+          "name": "crafting-system",
+          "status": "needs-implementation",
+          "description": "Recipe management, crafting interface, recipe book implementation, and special recipe unlocks.",
+          "paths": []
+        },
+        {
+          "id": "content-s-03",
+          "name": "structure-generation",
+          "status": "needs-implementation",
+          "description": "Village generation, temple generation, dungeon generation, and mineshaft generation.",
+          "paths": []
+        },
+        {
+          "id": "content-s-04",
+          "name": "biome-system",
+          "status": "partially-complete",
+          "description": "Temperature/humidity gradients, vegetation distribution, ore distribution by biome, and biome-specific structures.",
+          "paths": [
+            "GameServer/World/Generation/BiomeGenerator.cs",
+            "config/biomes.json"
+          ]
+        },
+        {
+          "id": "content-s-05",
+          "name": "mob-spawning",
+          "status": "needs-implementation",
+          "description": "Hostile mob spawning, passive mob spawning, spawn conditions and rates, and mob AI behaviors.",
+          "paths": []
+        },
+        {
+          "id": "content-s-06",
+          "name": "weather-system",
+          "status": "needs-implementation",
+          "description": "Rain/snow effects, thunderstorms, weather transitions, and biome-specific weather.",
+          "paths": []
+        }
+      ]
+    },
+    "util": {
+      "client": [
+        {
+          "id": "util-c-01",
+          "name": "streaming-profile-hotload",
+          "status": "in-progress",
+          "description": "Hot-reloads map-control JSON and resets preview generator when hash or signature changes; keeps data-driven parameters synced during runtime.",
+          "paths": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+          ]
+        },
+        {
+          "id": "util-c-02",
+          "name": "asset-management",
+          "status": "needs-implementation",
+          "description": "Asset loading and caching, asset bundles, memory management, and asset streaming.",
+          "paths": []
+        },
+        {
+          "id": "util-c-03",
+          "name": "settings-management",
+          "status": "needs-implementation",
+          "description": "Graphics settings, audio settings, control bindings, and save/load settings.",
+          "paths": []
+        },
+        {
+          "id": "util-c-04",
+          "name": "performance-optimization",
+          "status": "needs-implementation",
+          "description": "LOD system, occlusion culling, texture streaming, and frame rate limiting.",
+          "paths": []
+        },
+        {
+          "id": "util-c-05",
+          "name": "debug-tools",
+          "status": "needs-implementation",
+          "description": "Debug overlay, profiling display, chunk inspector, and network debug view.",
+          "paths": []
+        }
+      ],
+      "server": [
+        {
+          "id": "util-s-01",
+          "name": "data-driven-config-refresh",
+          "status": "in-progress",
+          "description": "JSON-backed config loader with checksum logging feeding world map control and hydrology/lake/cave thresholds; keep hashes in sync with map-control signatures.",
+          "paths": [
+            "GameServer/Configuration/DataDrivenConfigManager.cs",
+            "config/world.json",
+            "config/world_map_control_profile.json"
+          ]
+        },
+        {
+          "id": "util-s-02",
+          "name": "database-management",
+          "status": "partially-complete",
+          "description": "SQLite integration, player data persistence, world data storage, and backup system.",
+          "paths": [
+            "GameServer/Database/DatabaseManager.cs",
+            "GameServer/Database/PlayerDataRepository.cs",
+            "GameServer/Database/WorldDataRepository.cs"
+          ]
+        },
+        {
+          "id": "util-s-03",
+          "name": "logging-system",
+          "status": "needs-implementation",
+          "description": "Structured logging, log levels and filtering, log rotation, and remote logging.",
+          "paths": []
+        },
+        {
+          "id": "util-s-04",
+          "name": "performance-monitoring",
+          "status": "needs-implementation",
+          "description": "TPS monitoring, memory usage tracking, network statistics, and profiling tools.",
+          "paths": []
+        },
+        {
+          "id": "util-s-05",
+          "name": "command-system",
+          "status": "needs-implementation",
+          "description": "Command framework, operator/permission system, built-in commands, and custom command support.",
+          "paths": []
+        }
+      ]
+    }
+  },
+  "implementationOrder": [
+    { "order": 1, "category": "core", "target": "core-s-01", "status": "in-progress" },
+    { "order": 2, "category": "core", "target": "core-s-02", "status": "in-progress" },
+    { "order": 3, "category": "content", "target": "content-s-01", "status": "in-progress" },
+    { "order": 4, "category": "util", "target": "util-s-01", "status": "in-progress" },
+    { "order": 5, "category": "core", "target": "core-c-01", "status": "in-progress" },
+    { "order": 6, "category": "util", "target": "util-c-01", "status": "in-progress" },
+    { "order": 7, "category": "core", "target": "core-c-02", "status": "planned" },
+    { "order": 8, "category": "content", "target": "content-c-01", "status": "planned" },
+    { "order": 9, "category": "core", "target": "core-s-03", "status": "needs-implementation" },
+    { "order": 10, "category": "core", "target": "core-s-04", "status": "needs-enhancement" },
+    { "order": 11, "category": "core", "target": "core-s-05", "status": "needs-implementation" },
+    { "order": 12, "category": "core", "target": "core-c-03", "status": "needs-implementation" },
+    { "order": 13, "category": "core", "target": "core-c-04", "status": "needs-implementation" }
+  ],
+  "dataFiles": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/enhanced_terrain_generation.json",
+    "config/biomes.json",
+    "config/blocks.json",
+    "config/items.json",
+    "config/recipes.json",
+    "config/gameplay.json",
+    "config/hunger_config.json",
+    "config/player_config.json",
+    "config/entities.json",
+    "config/mobs.json",
+    "config/weather.json",
+    "config/structures.json",
+    "config/logging_config.json",
+    "config/settings.json"
+  ],
+  "notes": "Use this list to track sequential implementation of core/content/util features needed for Minecraft client/server world map, hydrology, and protobuf flows. All configuration files must use JSON format. All protobuf references must be validated. All using statements must reference existing files."
+}
+

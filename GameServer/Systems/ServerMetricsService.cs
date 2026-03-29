@@ -22,6 +22,10 @@ public class ServerMetricsService
     private int _peakChunksPerPlayer;
     private string _busiestChunkPlayer = string.Empty;
     private readonly object _chunkResidencyLock = new();
+    private long _totalDeathCount;
+    private long _totalRespawnCount;
+    private readonly ConcurrentQueue<long> _deathTimestamps = new();
+    private static readonly TimeSpan DeathWindow = TimeSpan.FromMinutes(10);
 
     public ServerMetricsService(SessionManager sessions)
     {
@@ -57,6 +61,9 @@ public class ServerMetricsService
 
     public ServerStatusSnapshot CaptureStatus()
     {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var recentDeaths = TrimAndCountRecentDeaths(now);
+
         return new ServerStatusSnapshot
         {
             OnlinePlayers = _sessions.OnlinePlayerCount,
@@ -66,7 +73,10 @@ public class ServerMetricsService
             TotalTrackedChunks = Interlocked.Read(ref _totalChunkResidency),
             PlayersWithChunkResidency = Volatile.Read(ref _playersWithChunkResidency),
             PeakChunksPerPlayer = Volatile.Read(ref _peakChunksPerPlayer),
-            BusiestChunkPlayer = Volatile.Read(ref _busiestChunkPlayer) ?? string.Empty
+            BusiestChunkPlayer = Volatile.Read(ref _busiestChunkPlayer) ?? string.Empty,
+            TotalDeaths = Interlocked.Read(ref _totalDeathCount),
+            TotalRespawns = Interlocked.Read(ref _totalRespawnCount),
+            DeathsLastTenMinutes = recentDeaths
         };
     }
 
@@ -134,6 +144,31 @@ public class ServerMetricsService
             Interlocked.Exchange(ref _busiestChunkPlayer, topPlayer);
         }
     }
+
+    public void RecordPlayerDeath(string playerId, DamageType damageType)
+    {
+        Interlocked.Increment(ref _totalDeathCount);
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        _deathTimestamps.Enqueue(now);
+        TrimAndCountRecentDeaths(now);
+    }
+
+    public void RecordPlayerRespawn(string playerId)
+    {
+        Interlocked.Increment(ref _totalRespawnCount);
+    }
+
+    private long TrimAndCountRecentDeaths(long currentTimestamp)
+    {
+        var windowMs = (long)DeathWindow.TotalMilliseconds;
+        while (_deathTimestamps.TryPeek(out var timestamp) &&
+               currentTimestamp - timestamp > windowMs)
+        {
+            _deathTimestamps.TryDequeue(out _);
+        }
+
+        return _deathTimestamps.Count;
+    }
 }
 
 public record ServerStatusSnapshot
@@ -146,6 +181,9 @@ public record ServerStatusSnapshot
     public int PlayersWithChunkResidency { get; init; }
     public int PeakChunksPerPlayer { get; init; }
     public string BusiestChunkPlayer { get; init; } = string.Empty;
+    public long TotalDeaths { get; init; }
+    public long TotalRespawns { get; init; }
+    public long DeathsLastTenMinutes { get; init; }
 
     public long UptimeMilliseconds => (long)Uptime.TotalMilliseconds;
     public double AverageChunksPerPlayer =>

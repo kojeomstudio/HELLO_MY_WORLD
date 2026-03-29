@@ -1,0 +1,103 @@
+{
+  "date": "2026-01-25",
+  "meta": {
+    "source_commits": [
+      "566bb34b",
+      "1ce05f49"
+    ],
+    "notes": "Categorized for riparian-aware terrain improvements + proto/runtime validation."
+  },
+  "client": {
+    "core": [
+      "world map control preview generation (EnhancedTerrainGenerator, WorldMapController)",
+      "chunk preview caching and profile hash validation",
+      "protobuf bootstrap and manifest fingerprint checks",
+      "JSON-driven world config load (StreamingAssets/world-config.json)"
+    ],
+    "content": [
+      "cave/river/lake overlays with hydrology-aware sealing",
+      "biome + height preview shading",
+      "wetland/lake rim shaping in minimap tiles",
+      "data-driven block palette sampling for previews"
+    ],
+    "util": [
+      "debug overlays for hydrology/flow/cave masks",
+      "profile reload + generation signature diff logging",
+      "config/proto drift reporting in editor console"
+    ]
+  },
+  "server": {
+    "core": [
+      "enhanced terrain pipeline (ImprovedTerrainCoordinator + Improved*Generators)",
+      "world map control cache + signature invalidation",
+      "protobuf runtime validation before handlers"
+    ],
+    "content": [
+      "cave carving with riparian sealing/supports",
+      "river/lake mask synthesis with edge normalization",
+      "erosion-aware hydrology and wetland shelves"
+    ],
+    "util": [
+      "data-driven worldgen configs (config/enhanced_terrain_generation.json, GameServer/Configuration/*.json)",
+      "proto regeneration/validation (proto/*.proto, SharedProtocol/EnhancedMinecraft)",
+      "diagnostic logging hooks for world map control"
+    ]
+  },
+  "sequence": [
+    {
+      "order": 1,
+      "category": "core",
+      "scope": [
+        "server",
+        "client"
+      ],
+      "item": "Riparian hydrology envelope + flow memory bridge for caves/rivers/lakes",
+      "status": "in_progress",
+      "files": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "order": 2,
+      "category": "content",
+      "scope": [
+        "server"
+      ],
+      "item": "River/lake channel stability and wetland seepage tuning",
+      "status": "planned",
+      "files": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ]
+    },
+    {
+      "order": 3,
+      "category": "content",
+      "scope": [
+        "client"
+      ],
+      "item": "Map-control cave/river/lake preview parity with server hydrology",
+      "status": "planned",
+      "files": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ]
+    },
+    {
+      "order": 4,
+      "category": "util",
+      "scope": [
+        "server",
+        "client"
+      ],
+      "item": "Proto manifest/runtime validation for world map + chunk packets",
+      "status": "planned",
+      "files": [
+        "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"
+      ]
+    }
+  ]
+}

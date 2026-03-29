@@ -1,0 +1,485 @@
+﻿{
+  "version": "session-145-2026-03-08",
+  "generated_at_utc": "2026-03-07T12:00:00Z",
+  "features": [
+    {
+      "id": "S145-CORE-01",
+      "name": "Shared DLL Contracts",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Client and server share enums/types through GameCommon.dll for cross-platform compatibility.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapContracts.cs",
+        "GameCommon/Blocks/BlockType.cs",
+        "GameCommon/Blocks/BlockRegistry.cs",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S145-CORE-02",
+      "name": "Google Protobuf Registry and Diagnostics",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Generated protobuf packets are bound and validated by ProtocolRegistry and ProtoDiagnostics.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "Assets/Generated/Protobuf/*.cs"
+      ],
+      "dependencies": ["S145-CORE-01"]
+    },
+    {
+      "id": "S145-CORE-03",
+      "name": "Authoritative JSON World Config",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "World generation, map control, and runtime parameters are loaded from JSON and mirrored.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "config/server_config.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": ["S145-CORE-01"]
+    },
+    {
+      "id": "S145-CORE-04",
+      "name": "Hydrology Signature v69 + Profile v73",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client/probe enforce hydrology signature and minimum map-control profile version.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": ["S145-CORE-03"]
+    },
+    {
+      "id": "S145-CORE-05",
+      "name": "World Map Queue and Runtime Control",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Chunk queue pressure, emergency brake, and policy controls are managed in data-driven runtime flow.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_queue_policy.json"
+      ],
+      "dependencies": ["S145-CORE-03"]
+    },
+    {
+      "id": "S145-CORE-06",
+      "name": "Session and Network Lifecycle",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "SessionManager and protocol handlers orchestrate login, keepalive, request dispatch, and disconnect flow.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs",
+        "GameServer/Network/EnhancedProtocolHandler.cs",
+        "GameServer/Program.cs"
+      ],
+      "dependencies": ["S145-CORE-02"]
+    },
+    {
+      "id": "S145-CORE-07",
+      "name": "Client Network Infrastructure",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity client network layer handles protobuf serialization, packet dispatch, and server connection.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+        "Assets/MyAssets/Scripts/Network/CPacket.cs",
+        "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs"
+      ],
+      "dependencies": ["S145-CORE-02"]
+    },
+    {
+      "id": "S145-CONTENT-01",
+      "name": "Deterministic Base Terrain and Biomes",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Terrain height, biome bands, and erosion-aware masks are generated deterministically from seed and config.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S145-CORE-03"]
+    },
+    {
+      "id": "S145-CONTENT-02",
+      "name": "Improved River Generator with Confluence Delta",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Hydrology-flow coupled river generation with confluence, delta, avulsion, and edge continuity bridges.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+      ],
+      "dependencies": ["S145-CONTENT-01"]
+    },
+    {
+      "id": "S145-CONTENT-03",
+      "name": "Improved Lake Generator with Karst Stability",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake basin, spillway, riparian retention, groundwater latch, and floodplain exchange are stabilized.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ],
+      "dependencies": ["S145-CONTENT-02"]
+    },
+    {
+      "id": "S145-CONTENT-04",
+      "name": "Improved Cave Generator with Aquifer Coupling",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation applies hydrology, flow, aquifer suppression, and ceiling stability seals for safer subterranean topology.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ],
+      "dependencies": ["S145-CONTENT-01"]
+    },
+    {
+      "id": "S145-CONTENT-05",
+      "name": "Session 145 Isolated Basin Spillway Balancing",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Adds isolated basin spillway balancing to stabilize cave/river/lake outflow coupling and reduce trapped inland water pressure.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": ["S145-CONTENT-02"]
+    },
+    {
+      "id": "S145-CONTENT-06",
+      "name": "Vegetation and Ore Generation",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Trees, plants, and ore deposits are placed based on biome and terrain characteristics.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/VegetationGenerationStage.cs",
+        "GameServer/World/Generation/Stages/OreGenerationStage.cs",
+        "GameServer/World/Generation/OreDistributionSystem.cs"
+      ],
+      "dependencies": ["S145-CONTENT-01"]
+    },
+    {
+      "id": "S145-CONTENT-07",
+      "name": "World Map Control Client Preview Parity",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity world-map preview uses shared profile fields and map-control verification to keep terrain previews server-aligned.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": ["S145-CORE-04"]
+    },
+    {
+      "id": "S145-CONTENT-08",
+      "name": "Chunk Rendering and Mesh Generation",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity chunk meshes are generated from block data with LOD and culling optimization.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/TerrainChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/WaterChunk.cs",
+        "Assets/MyAssets/Scripts/GameWorld/Chunk/AChunk.cs"
+      ],
+      "dependencies": ["S145-CONTENT-07"]
+    },
+    {
+      "id": "S145-CONTENT-09",
+      "name": "Data-Driven Blocks, Items, and Biomes",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "In-game content catalogs are loaded from JSON for blocks, items, and biome/gameplay parameters.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/biomes.json",
+        "config/gameplay.json",
+        "GameCommon/Blocks/BlockRegistry.cs",
+        "GameCommon/Blocks/BlockProperties.cs"
+      ],
+      "dependencies": ["S145-CORE-03"]
+    },
+    {
+      "id": "S145-CONTENT-10",
+      "name": "Player Movement and Physics",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player movement with collision detection, gravity, and server synchronization.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs",
+        "GameServer/Handlers/MovementHandler.cs",
+        "GameServer/World/Physics/EntityCollisionSystem.cs"
+      ],
+      "dependencies": ["S145-CORE-06", "S145-CORE-07"]
+    },
+    {
+      "id": "S145-CONTENT-11",
+      "name": "Inventory and Crafting System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player inventory management and crafting recipes with server validation.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+        "GameServer/Handlers/InventoryHandler.cs",
+        "GameServer/Handlers/CraftingHandler.cs",
+        "config/recipes.json"
+      ],
+      "dependencies": ["S145-CONTENT-09"]
+    },
+    {
+      "id": "S145-CONTENT-12",
+      "name": "Health and Hunger System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player health, hunger, and damage system with server-authoritative state.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+        "GameServer/Handlers/HealthHandler.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs"
+      ],
+      "dependencies": ["S145-CORE-06"]
+    },
+    {
+      "id": "S145-CONTENT-13",
+      "name": "Block Modification and World Editing",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Player can place and break blocks with server validation and chunk updates.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs"
+      ],
+      "dependencies": ["S145-CONTENT-08"]
+    },
+    {
+      "id": "S145-CONTENT-14",
+      "name": "AI and Mob System",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "NPC and monster AI with behavior trees and server-side spawning.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/AI/ServerAIManager.cs",
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "Assets/MyAssets/Scripts/AI/BehaviorTree.cs",
+        "Assets/MyAssets/Scripts/AI/BlackBoard.cs"
+      ],
+      "dependencies": ["S145-CORE-06"]
+    },
+    {
+      "id": "S145-UTIL-01",
+      "name": "Config Parity Manifest Automation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Canonical config parity manifest mirrors JSON configs between server and client streaming assets.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "config/config_parity_manifest.json",
+        "GameServer/config/config_parity_manifest.json",
+        "Assets/StreamingAssets/config_parity_manifest.json"
+      ],
+      "dependencies": ["S145-CORE-03"]
+    },
+    {
+      "id": "S145-UTIL-02",
+      "name": "Server Dummy Protocol Probe",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "DummyProtocolClient validates packet encode/decode round-trips, descriptor coverage, and version/signature guards.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/DummyProtocolTestClient.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json"
+      ],
+      "dependencies": ["S145-CORE-02", "S145-CORE-04"]
+    },
+    {
+      "id": "S145-UTIL-03",
+      "name": "Standalone Dummy Minecraft Client",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Standalone dummy client executable for packet flow smoke tests between client and server.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj",
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": ["S145-UTIL-02"]
+    },
+    {
+      "id": "S145-UTIL-04",
+      "name": "Generated Protobuf Source Audit",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server startup verifies generated protobuf source files and descriptor health.",
+      "order": 25,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Generated/Protobuf",
+        "GameServer/Program.cs"
+      ],
+      "dependencies": ["S145-CORE-02"]
+    },
+    {
+      "id": "S145-UTIL-05",
+      "name": "Using and Reference Compile Verification",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Cross-project compile checks validate using directives and type references.",
+      "order": 26,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj"
+      ],
+      "dependencies": ["S145-UTIL-04"]
+    },
+    {
+      "id": "S145-UTIL-06",
+      "name": "Session Planning and Documentation",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Work plan and implementation reports are continuously updated in plans/docs markdown.",
+      "order": 27,
+      "status": "implemented",
+      "artifacts": [
+        "plans/2026-03-07-session-144-comprehensive-work-plan.md",
+        "docs/session-144-terrain-mapcontrol-proto-validation.md",
+        "README.md"
+      ],
+      "dependencies": ["S145-UTIL-05"]
+    },
+    {
+      "id": "S145-UTIL-07",
+      "name": "Noise and Random Generation Utilities",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Simplex noise, Perlin noise, and hash utilities for deterministic terrain generation.",
+      "order": 28,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/SimplexNoise.cs",
+        "GameServer/Utils/Noise.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S145-UTIL-08",
+      "name": "Performance Monitoring",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side performance metrics and monitoring utilities.",
+      "order": 29,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/PerformanceMonitor.cs",
+        "GameServer/Systems/ServerMetricsService.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S145-UTIL-09",
+      "name": "Logging and Error Handling",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Centralized logging and error handling for server and client.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Utils/Logger.cs",
+        "GameServer/Utils/ErrorHandler.cs",
+        "Assets/MyAssets/Scripts/Utility/KojeomLogger.cs"
+      ],
+      "dependencies": []
+    }
+  ]
+}
+

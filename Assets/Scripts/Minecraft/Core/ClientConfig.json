@@ -1,0 +1,136 @@
+{
+  "ClientConfig": {
+    "Network": {
+      "ServerAddress": "localhost",
+      "ServerPort": 8080,
+      "ConnectionTimeout": 10000,
+      "ReconnectAttempts": 3,
+      "ReconnectDelay": 5000
+    },
+    "World": {
+      "ViewDistance": 8,
+      "ChunkSize": 16,
+      "WorldHeight": 256,
+      "SeaLevel": 62,
+      "MaxChunksPerFrame": 2,
+      "ChunkUpdateInterval": 0.1,
+      "EnableCaves": true,
+      "EnableRivers": true,
+      "EnableLakes": true
+    },
+    "Graphics": {
+      "RenderDistance": 12,
+      "MaxFPS": 60,
+      "VSyncEnabled": true,
+      "AntiAliasing": 4,
+      "TextureQuality": "High",
+      "ShadowQuality": "Medium",
+      "ParticleQuality": "High",
+      "WaterQuality": "High",
+      "EnableFog": true,
+      "EnableReflections": true
+    },
+    "UI": {
+      "ShowDebugInfo": false,
+      "ShowFPS": true,
+      "ShowCoordinates": true,
+      "ShowBiome": true,
+      "ShowPing": true,
+      "ChatHistorySize": 100,
+      "InventorySize": 36,
+      "HotbarSize": 9
+    },
+    "Controls": {
+      "MouseSensitivity": 1.0,
+      "InvertMouseY": false,
+      "AutoJump": false,
+      "SprintToggle": true,
+      "FlySpeed": 1.0,
+      "WalkSpeed": 1.0
+    },
+    "Audio": {
+      "MasterVolume": 1.0,
+      "MusicVolume": 0.7,
+      "SoundVolume": 0.8,
+      "AmbientVolume": 0.6,
+      "EnableMusic": true,
+      "EnableSounds": true,
+      "EnableAmbient": true
+    },
+    "Performance": {
+      "MaxEntities": 100,
+      "MaxParticles": 1000,
+      "ChunkCacheSize": 100,
+      "EnableMultithreading": true,
+      "GarbageCollectionInterval": 60,
+      "MemoryLimitMB": 1024
+    }
+  }
+}  "ClientConfig": {
+    "Network": {
+      "ServerAddress": "localhost",
+      "ServerPort": 8080,
+      "ConnectionTimeout": 10000,
+      "ReconnectAttempts": 3,
+      "ReconnectDelay": 5000
+    },
+    "World": {
+      "ViewDistance": 8,
+      "ChunkSize": 16,
+      "WorldHeight": 256,
+      "SeaLevel": 62,
+      "MaxChunksPerFrame": 2,
+      "ChunkUpdateInterval": 0.1,
+      "EnableCaves": true,
+      "EnableRivers": true,
+      "EnableLakes": true
+    },
+    "Graphics": {
+      "RenderDistance": 12,
+      "MaxFPS": 60,
+      "VSyncEnabled": true,
+      "AntiAliasing": 4,
+      "TextureQuality": "High",
+      "ShadowQuality": "Medium",
+      "ParticleQuality": "High",
+      "WaterQuality": "High",
+      "EnableFog": true,
+      "EnableReflections": true
+    },
+    "UI": {
+      "ShowDebugInfo": false,
+      "ShowFPS": true,
+      "ShowCoordinates": true,
+      "ShowBiome": true,
+      "ShowPing": true,
+      "ChatHistorySize": 100,
+      "InventorySize": 36,
+      "HotbarSize": 9
+    },
+    "Controls": {
+      "MouseSensitivity": 1.0,
+      "InvertMouseY": false,
+      "AutoJump": false,
+      "SprintToggle": true,
+      "FlySpeed": 1.0,
+      "WalkSpeed": 1.0
+    },
+    "Audio": {
+      "MasterVolume": 1.0,
+      "MusicVolume": 0.7,
+      "SoundVolume": 0.8,
+      "AmbientVolume": 0.6,
+      "EnableMusic": true,
+      "EnableSounds": true,
+      "EnableAmbient": true
+    },
+    "Performance": {
+      "MaxEntities": 100,
+      "MaxParticles": 1000,
+      "ChunkCacheSize": 100,
+      "EnableMultithreading": true,
+      "GarbageCollectionInterval": 60,
+      "MemoryLimitMB": 1024
+    }
+  }
+}

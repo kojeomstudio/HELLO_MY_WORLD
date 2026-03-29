@@ -1,0 +1,135 @@
+{
+  "version": "session-121",
+  "generated_at_utc": "2026-02-25T00:00:00Z",
+  "session": 121,
+  "date": "2026-02-25",
+  "signature": "2026-02-25-hydrology-riverlake-cave-v53",
+  "profileVersion": 57,
+  "features": [
+    {
+      "id": "S121-CORE-01",
+      "name": "Hydrology Signature v53 + Map-Control Profile v57 Baseline",
+      "category": "Core",
+      "side": "server-client-shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S121-CORE-02",
+      "name": "WorldMap Profile Drift Auto-Heal Architecture",
+      "category": "Core",
+      "side": "server",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "config/enhanced_world_map_control_server.json",
+        "GameServer/config/enhanced_world_map_control_server.json"
+      ]
+    },
+    {
+      "id": "S121-CONTENT-01",
+      "name": "Hyporheic Exchange Relay (River/Lake/Cave Coupling)",
+      "category": "Content",
+      "side": "server-client",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "S121-CONTENT-02",
+      "name": "Terrain Parameter Tuning for Cave/River/Lake Stability",
+      "category": "Content",
+      "side": "server-client",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S121-UTIL-01",
+      "name": "Proto Probe Descriptor Coverage Guard",
+      "category": "Utility",
+      "side": "server-tooling",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ]
+    },
+    {
+      "id": "S121-UTIL-02",
+      "name": "Feature Manifest Priority + Runtime Load Sync",
+      "category": "Utility",
+      "side": "server",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json",
+        "GameServer/config/minecraft_feature_client_server_core_content_util_2026-02-25-session-121.json"
+      ]
+    },
+    {
+      "id": "S121-UTIL-03",
+      "name": "JSON Data-Driven Runtime Config Maintenance",
+      "category": "Utility",
+      "side": "server-client",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "config/world_map_control_queue_policy.json",
+        "GameServer/config/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S121-CORE-01",
+      "S121-CORE-02"
+    ],
+    "content": [
+      "S121-CONTENT-01",
+      "S121-CONTENT-02"
+    ],
+    "utility": [
+      "S121-UTIL-01",
+      "S121-UTIL-02",
+      "S121-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Update plan and collect git history baseline",
+    "2. Raise shared hydrology/profile baseline to v53/v57",
+    "3. Apply terrain coupling algorithm improvements (server/client)",
+    "4. Harden world-map controller profile drift architecture",
+    "5. Strengthen protobuf dummy probe coverage guards",
+    "6. Run compile/test/proto/selftest validation",
+    "7. Update docs and push"
+  ],
+  "summary": {
+    "totalFeatures": 7,
+    "implemented": 7,
+    "inProgress": 0,
+    "pending": 0,
+    "coreFeatures": 2,
+    "contentFeatures": 2,
+    "utilityFeatures": 3
+  }
+}

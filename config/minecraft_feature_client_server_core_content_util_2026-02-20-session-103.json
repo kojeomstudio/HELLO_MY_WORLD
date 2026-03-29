@@ -1,0 +1,159 @@
+{
+  "version": "session-103",
+  "generated_at_utc": "2026-02-20T12:30:00Z",
+  "session": 103,
+  "date": "2026-02-20",
+  "signature": "2026-02-20-hydrology-riverlake-cave-v44",
+  "profileVersion": 48,
+  "features": [
+    {
+      "id": "S103-CORE-01",
+      "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+      "category": "Core",
+      "side": "shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ]
+    },
+    {
+      "id": "S103-CORE-02",
+      "name": "World Map Profile v48 + Hydrology Signature v44",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapControlProfile.cs",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "S103-CORE-03",
+      "name": "Adaptive Queue Recovery for Map Control",
+      "category": "Core",
+      "side": "server-client",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world_map_control_queue_policy.json",
+        "config/enhanced_world_map_control_server.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S103-CONTENT-01",
+      "name": "Hydrology-Coupled Cave Ventilation Refinement",
+      "category": "Content",
+      "side": "server",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S103-CONTENT-02",
+      "name": "River Tributary/Braiding Basin Guidance",
+      "category": "Content",
+      "side": "server",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S103-CONTENT-03",
+      "name": "Lake Spill-Retention and Tributary Inflow Harmonization",
+      "category": "Content",
+      "side": "server",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S103-UTIL-01",
+      "name": "Dummy Protocol Probe API Alignment",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "config/dummy_minecraft_client.json"
+      ]
+    },
+    {
+      "id": "S103-UTIL-02",
+      "name": "Feature Manifest Runtime Loader Update",
+      "category": "Utility",
+      "side": "server",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-20-session-103.json"
+      ]
+    },
+    {
+      "id": "S103-UTIL-03",
+      "name": "Protobuf Registry/Reference Report Validation",
+      "category": "Utility",
+      "side": "shared-tooling",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json",
+        "reports/proto_probe_report.json"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S103-CORE-01",
+      "S103-CORE-02",
+      "S103-CORE-03"
+    ],
+    "content": [
+      "S103-CONTENT-01",
+      "S103-CONTENT-02",
+      "S103-CONTENT-03"
+    ],
+    "utility": [
+      "S103-UTIL-01",
+      "S103-UTIL-02",
+      "S103-UTIL-03"
+    ]
+  },
+  "implementationSequence": [
+    "1. Validate and fix build blockers before feature work",
+    "2. Refresh data-driven Core/Content/Utility feature manifest",
+    "3. Apply cave-river-lake terrain coupling upgrades",
+    "4. Improve server/client world-map queue recovery architecture",
+    "5. Raise profile/signature guard rails (v48/v44)",
+    "6. Run protobuf probe, compile checks, and profile regeneration",
+    "7. Update documentation and finalize commit/push"
+  ]
+}

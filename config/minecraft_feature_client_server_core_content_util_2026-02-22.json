@@ -1,0 +1,104 @@
+{
+  "version": "2026-02-22",
+  "last_updated": "2026-02-22T00:00:00Z",
+  "categories": {
+    "core": [
+      {
+        "id": "core_world_map_control_sync",
+        "name": "World map control sync",
+        "applies_to": [
+          "client",
+          "server"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Track world-map profile timestamp/hash drift so server pipelines and Unity previews reload hydrology knobs when JSON changes.",
+        "artifacts": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "core_hydrology_outflow_stability",
+        "name": "Hydrology outflow & wetland stability",
+        "applies_to": [
+          "client",
+          "server"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Blend river/lake carving with hydrology and flow masks (wetland buffers, outflow channels, edge stability) to keep caves, rivers, and lakes stitched across seams.",
+        "artifacts": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "config/world.json"
+        ]
+      },
+      {
+        "id": "core_protocol_contract_validation",
+        "name": "Protobuf contract validation",
+        "applies_to": [
+          "server",
+          "shared"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Ensure EnhancedMinecraft generated DTOs share the expected C# namespace/package/assembly across server and Unity.",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content_world_features",
+        "name": "World feature presentation",
+        "applies_to": [
+          "client"
+        ],
+        "status": "planned",
+        "priority": "p1",
+        "description": "Expose updated hydrology overlays (rivers, lakes, caves) consistently in map UI and chunk rendering.",
+        "artifacts": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ]
+      }
+    ],
+    "utility": [
+      {
+        "id": "util_data_driven_configs",
+        "name": "Data-driven config pipeline",
+        "applies_to": [
+          "client",
+          "server"
+        ],
+        "status": "stable",
+        "priority": "p0",
+        "description": "Manage environment, world, and feature toggles through JSON configs to keep authoring and runtime aligned.",
+        "artifacts": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "config/enhanced-terrain-config.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      }
+    ]
+  },
+  "implementation_order": [
+    "core_world_map_control_sync",
+    "core_hydrology_outflow_stability",
+    "core_protocol_contract_validation",
+    "util_data_driven_configs",
+    "content_world_features"
+  ],
+  "data_driven_configs": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/enhanced-terrain-config.json",
+    "Assets/StreamingAssets/world-config.json"
+  ],
+  "notes": "Updated execution plan for Minecraft feature rollout across core, content, and utility buckets. Keep this file in sync with protocol regeneration, hydrology tuning, and world-map control profile changes."
+}

@@ -1,0 +1,131 @@
+﻿{
+  "generatedAtUtc": "2026-02-14T00:00:00Z",
+  "source": "Sequential Minecraft feature rollout grouped by core, content, and utility after hydrology/cave/river updates",
+  "categories": {
+    "core": [
+      {
+        "id": "core_worldgen_hydrology_seams",
+        "title": "Hydrology-stable world generation",
+        "description": "Keep caves, rivers, and lakes seam-safe using shared hydrology/flow masks and stitched edge constraints for client/server parity.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "config": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "core_map_control_profile",
+        "title": "Map control profile sync",
+        "description": "Hash-based world map control profile shared through StreamingAssets and generated on the server for preview chunk streaming.",
+        "status": "in_progress",
+        "order": 2,
+        "serverComponents": [
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "config": [
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "core_protocol_validation",
+        "title": "Protobuf protocol validation",
+        "description": "Enforce EnhancedMinecraft protobuf descriptor fingerprinting and registry validation on startup for both runtimes.",
+        "status": "in_progress",
+        "order": 3,
+        "serverComponents": [
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+          "GameServer/Program.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+          "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs"
+        ],
+        "config": [
+          "proto/*.proto",
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content_riparian_wetlands",
+        "title": "Riparian wetlands and delta bands",
+        "description": "Blend river mouths, lake shorelines, and cave plugs using hydrology-aware wetland buffers for smoother biomes.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "config": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      }
+    ],
+    "utility": [
+      {
+        "id": "utility_config_profile_sync",
+        "title": "Config/profile synchronization",
+        "description": "Keep JSON world, map-control, and hydrology tuning in lockstep across server and client builds.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "GameServer/World/WorldGenerationConfig.cs"
+        ],
+        "clientComponents": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "config": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      },
+      {
+        "id": "utility_proto_asset_pipeline",
+        "title": "Protobuf asset pipeline",
+        "description": "Regenerate EnhancedMinecraft protobuf DTOs via protoc and ensure SharedProtocol.csproj links generated sources.",
+        "status": "in_progress",
+        "order": 2,
+        "serverComponents": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "scripts/generate_proto.ps1"
+        ],
+        "clientComponents": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+        ],
+        "config": [
+          "proto/*.proto"
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 using System;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using SharedProtocol;
 
@@ -287,6 +288,47 @@ namespace GameServerApp
             catch (Exception ex)
             {
                 Console.WriteLine($"✗ Block change test failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Starts a passive listener that prints server notifications such as respawn broadcasts.
+        /// </summary>
+        public async Task ListenForNotificationsAsync(CancellationToken cancellationToken)
+        {
+            if (_session == null)
+            {
+                throw new InvalidOperationException("Client is not connected.");
+            }
+
+            Console.WriteLine("Listening for server notifications (respawn/death). Press Ctrl+C to stop.");
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var (messageType, payload) = await _session.ReceiveAsync();
+
+                    switch (messageType)
+                    {
+                        case MessageType.PlayerRespawnBroadcast when payload is PlayerRespawnBroadcast respawn:
+                            var position = respawn.RespawnPosition;
+                            Console.WriteLine($"?? Player respawn broadcast: {respawn.PlayerName} -> ({position?.X:F2}, {position?.Y:F2}, {position?.Z:F2})");
+                            break;
+
+                        case MessageType.PlayerDeath when payload is PlayerDeathMessage death:
+                            Console.WriteLine($"?? Player death broadcast: {death.PlayerName} cause={death.DamageType} message={death.DeathMessage}");
+                            break;
+
+                        default:
+                            Console.WriteLine($"Unhandled notification ({messageType}); payload type: {payload.GetType().Name}");
+                            break;
+                    }
+                }
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    Console.WriteLine($"Notification listener error: {ex.Message}");
+                }
             }
         }
 

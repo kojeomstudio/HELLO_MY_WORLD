@@ -1,0 +1,106 @@
+{
+  "updatedAt": "2026-01-10T12:00:00Z",
+  "source": "codex-cli",
+  "implementationOrder": [
+    { "order": 1, "feature": "world-map-control-hydrology-sync" },
+    { "order": 2, "feature": "cave-river-lake-edge-normalization" },
+    { "order": 3, "feature": "protobuf-registry-guard" },
+    { "order": 4, "feature": "data-driven-config-refresh" }
+  ],
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-hydrology-sync",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Hydrology/flow masks are co-normalized at chunk edges using edge-normalization + flow-memory weights; world-map control profile keeps hashes aligned for Unity/Server previews."
+      },
+      {
+        "feature": "cave-river-lake-edge-normalization",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "data": [
+          "config/enhanced-terrain-config.json",
+          "config/world.json"
+        ],
+        "notes": "Caves, rivers, and lakes bias thresholds with seam memory (hydrology + flow) and edge-normalization blends to avoid chunk seams."
+      }
+    ],
+    "content": [
+      {
+        "feature": "biome-and-surface-polish",
+        "status": "planned",
+        "client": [
+          "Assets/StreamingAssets/biomes.json",
+          "Assets/StreamingAssets/blocks.json"
+        ],
+        "server": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs"
+        ],
+        "data": [
+          "config/biomes.json",
+          "config/blocks.json"
+        ],
+        "notes": "Align biome surface blocks with updated hydrology so shoreline benches and wetlands remain coherent."
+      }
+    ],
+    "util": [
+      {
+        "feature": "protobuf-registry-guard",
+        "status": "in-progress",
+        "client": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs"
+        ],
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs"
+        ],
+        "data": [
+          "proto/enhanced_minecraft_game.proto",
+          "SharedProtocol/Proto/enhanced_minecraft.proto"
+        ],
+        "notes": "Validate chunk unload, chunk load, and map control packets during bootstrap; rerun protoc when registry hashes drift."
+      },
+      {
+        "feature": "data-driven-config-refresh",
+        "status": "stable",
+        "client": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/enhanced-terrain-config.json"
+        ],
+        "server": [
+          "config/world.json",
+          "config/enhanced-terrain-config.json",
+          "GameServer/Configuration/DataDrivenConfigManager.cs"
+        ],
+        "data": [
+          "config/world_map_control_profile.json",
+          "config/world_map_control.default.json"
+        ],
+        "notes": "Keep hydrology/flow parameters in JSON; reloadable on server with DataDrivenConfigManager watchers and mirrored in Unity StreamingAssets."
+      }
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-01-16",
+  "core": [
+    {
+      "order": 1,
+      "name": "proto_fingerprint_registry_guard",
+      "server": ["SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs", "GameServer/Program.cs"],
+      "client": ["Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"],
+      "data": ["proto/*.proto", "SharedProtocol/EnhancedMinecraft/*", "Assets/Generated/Protobuf/*"],
+      "status": "in-progress",
+      "notes": "Assert EnhancedMinecraft descriptor fingerprints and registry bindings before handlers register."
+    },
+    {
+      "order": 2,
+      "name": "world_map_control_pipeline",
+      "server": ["GameServer/World/WorldMapControlManager.cs", "GameServer/World/WorldMapControlProfile.cs"],
+      "client": ["Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs", "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"],
+      "data": ["config/world_map_control_profile.json", "Assets/StreamingAssets/world-map-control.json"],
+      "status": "in-progress",
+      "notes": "Keep map-control profile hashes and generation signatures aligned across server/client previews."
+    },
+    {
+      "order": 3,
+      "name": "terrain_generation_hydrology_rivers_lakes_caves",
+      "server": ["GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs", "GameServer/World/Generation/ImprovedRiverGenerator.cs", "GameServer/World/Generation/ImprovedLakeGenerator.cs", "GameServer/World/Generation/EnhancedCaveGenerator.cs"],
+      "client": ["MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs", "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"],
+      "data": ["config/world.json", "Assets/StreamingAssets/world-config.json", "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json"],
+      "status": "in-progress",
+      "notes": "Hydrology-driven carving with seam stabilization for rivers, lakes, caves."
+    },
+    {
+      "order": 4,
+      "name": "chunk_streaming_and_generation_signature",
+      "server": ["GameServer/World/WorldMapControlManager.cs", "GameServer/World/WorldManager.cs"],
+      "client": ["Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs", "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"],
+      "data": ["config/world_map_control_profile.json", "Assets/StreamingAssets/world-map-control.json"],
+      "status": "planned",
+      "notes": "Keep streamed chunk previews and signatures consistent while enforcing cache budgets."
+    }
+  ],
+  "content": [
+    {
+      "order": 1,
+      "name": "rivers_lakes_wetlands",
+      "server": ["GameServer/World/Generation/ImprovedRiverGenerator.cs", "GameServer/World/Generation/ImprovedLakeGenerator.cs", "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"],
+      "client": ["MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"],
+      "data": ["config/world.json#Water", "config/world.json#Lakes"],
+      "status": "in-progress",
+      "notes": "Flow-memory, edge smoothing, outflow channels, and shoreline benches tuned from JSON knobs."
+    },
+    {
+      "order": 2,
+      "name": "caves_stability_and_supports",
+      "server": ["GameServer/World/Generation/EnhancedCaveGenerator.cs", "GameServer/World/Generation/ImprovedCaveGenerator.cs", "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.CarveCaves"],
+      "client": ["MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"],
+      "data": ["config/world.json#Caves"],
+      "status": "in-progress",
+      "notes": "Moisture-aware ceilings, riparian plugs, and seam sealing for preview parity."
+    },
+    {
+      "order": 3,
+      "name": "biomes_vegetation_ores",
+      "server": ["GameServer/World/Generation/BiomeGenerationSystem.cs", "GameServer/World/Generation/OreDistributionSystem.cs"],
+      "client": ["MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.GenerateImprovedVegetation"],
+      "data": ["enhanced_game_data.json", "Assets/MyAssets/Resources/TextAsset/GameWorld/GameData.json"],
+      "status": "queued",
+      "notes": "Biome surfaces, vegetation placement, and ore bands driven from JSON game data."
+    }
+  ],
+  "utility": [
+    {
+      "order": 1,
+      "name": "config_data_sync",
+      "server": ["config/world.json", "config/world_map_control_profile.json", "server-config.json"],
+      "client": ["Assets/StreamingAssets/world-config.json", "Assets/StreamingAssets/world-map-control.json"],
+      "data": ["scripts/sync_world_config.ps1", "scripts/"],
+      "status": "in-progress",
+      "notes": "Ensure JSON parity between server and Unity StreamingAssets for worldgen/map-control."
+    },
+    {
+      "order": 2,
+      "name": "proto_tooling_and_diagnostics",
+      "server": ["SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs", "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"],
+      "client": ["Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"],
+      "data": ["proto/*.proto", "scripts/generate_proto.ps1", "scripts/verify_protobuf.ps1"],
+      "status": "in-progress",
+      "notes": "Registry coverage, fingerprint checks, and regeneration scripts keep DTOs aligned."
+    },
+    {
+      "order": 3,
+      "name": "build_and_selftest",
+      "server": ["dotnet build SharedProtocol/SharedProtocol.csproj", "dotnet build GameServer/GameServer.csproj", "dotnet run --project GameServer -- --selftest"],
+      "client": ["Unity Test Runner"],
+      "data": ["build logs"],
+      "status": "planned",
+      "notes": "Compile + smoke test to guard terrain/proto regressions."
+    },
+    {
+      "order": 4,
+      "name": "world_map_cache_and_telemetry",
+      "server": ["GameServer/World/WorldMapControlManager.cs"],
+      "client": ["Assets/MyAssets/Scripts/GameWorld/WorldMapControlSystem.cs"],
+      "data": ["config/world_map_control_profile.json", "docs/world-map-control*.md"],
+      "status": "planned",
+      "notes": "Chunk cache budgets, profile hash reloads, and telemetry for preview drift detection."
+    }
+  ],
+  "sequence": [
+    "core.proto_fingerprint_registry_guard",
+    "core.world_map_control_pipeline",
+    "core.terrain_generation_hydrology_rivers_lakes_caves",
+    "content.rivers_lakes_wetlands",
+    "content.caves_stability_and_supports",
+    "utility.config_data_sync",
+    "utility.proto_tooling_and_diagnostics",
+    "utility.build_and_selftest"
+  ]
+}

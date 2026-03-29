@@ -1,0 +1,192 @@
+{
+  "date": "2026-01-12",
+  "version": "2026.01.12-session",
+  "categories": {
+    "core": [
+      {
+        "id": "worldgen_hydrology_masks",
+        "name": "Hydrology masks & terrain coordinator",
+        "status": "in_progress",
+        "description": "Shared hydrology/flow masks that drive terrain, caves, rivers, lakes, and map-control seams.",
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "map_control_profile",
+        "name": "World map control & preview",
+        "status": "in_progress",
+        "description": "Server profile + Unity preview alignment with version/hash checks for world map control.",
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "data": [
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "networking_protocol",
+        "name": "Networking & EnhancedMinecraft protocol",
+        "status": "stable",
+        "description": "Google.Protobuf packet contracts + registry/validator coverage for server and Unity.",
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "GameServer/Network/EnhancedProtocolHandler.cs"
+        ],
+        "client": [
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs"
+        ],
+        "data": [
+          "proto/enhanced_minecraft_game.proto"
+        ]
+      },
+      {
+        "id": "chunk_streaming",
+        "name": "Chunk streaming & synchronization",
+        "status": "stable",
+        "description": "Chunk load/unload, block updates, and snapshot handling.",
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/ChunkSnapshot.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/ChunkManager.cs",
+          "Assets/MyAssets/Scripts/Minecraft/World/ChunkRenderer.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/blocks.json",
+          "Assets/StreamingAssets/blocks.json"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "terrain_waterways",
+        "name": "Rivers, lakes, wetlands",
+        "status": "in_progress",
+        "description": "Hydrology-aware rivers/lakes with flow-memory smoothing and shoreline padding.",
+        "server": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      },
+      {
+        "id": "terrain_caves",
+        "name": "Cave systems",
+        "status": "in_progress",
+        "description": "Hydrology-stable caves with seam sealing, pillars, and moisture-aware ceilings.",
+        "server": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "client": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "data": [
+          "config/world.json"
+        ]
+      },
+      {
+        "id": "biomes_blocks_items",
+        "name": "Biomes, blocks, and items",
+        "status": "partially_implemented",
+        "description": "Biome tuning plus block/item configuration for gameplay systems.",
+        "server": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs",
+          "GameServer/Handlers/WorldBlockHandler.cs",
+          "GameServer/Items"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/Minecraft/World",
+          "Assets/MyAssets/Scripts/Minecraft/Items"
+        ],
+        "data": [
+          "config/biomes.json",
+          "config/blocks.json",
+          "config/items.json",
+          "Assets/StreamingAssets/blocks.json",
+          "Assets/StreamingAssets/items.json"
+        ]
+      }
+    ],
+    "util": [
+      {
+        "id": "config_parity",
+        "name": "Config parity & validation",
+        "status": "in_progress",
+        "description": "Keep server/client JSON configs aligned; validate map-control and world settings.",
+        "server": [
+          "config/*.json",
+          "GameServer/ServerConfig.cs",
+          "GameServer/World/WorldGenerationConfig.cs"
+        ],
+        "client": [
+          "Assets/StreamingAssets/*.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "docs_traceability",
+        "name": "Docs & plan traceability",
+        "status": "in_progress",
+        "description": "Plan + docs updates for worldgen/proto changes.",
+        "server": [
+          "plans/2026-01-12-worldgen-proto-session.md",
+          "docs/"
+        ],
+        "client": [],
+        "data": [
+          "docs/minecraft-feature-inventory-2026-01-12.md",
+          "docs/worldgen-proto-update-2026-01-12.md"
+        ]
+      },
+      {
+        "id": "telemetry_debug",
+        "name": "Diagnostics & telemetry",
+        "status": "planned",
+        "description": "Proto diagnostics, world map signatures, and hydrology preview logging.",
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "data": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "Caves": {
+    "ConnectivityThreshold": 0.44,
+    "TunnelWidth": 0.15,
+    "MinTunnelHeight": 2,
+    "LavaPoolChance": 0.06,
+    "WaterPoolChance": 0.15,
+    "EnableMultiLevel": true
+  },
+  "Water": {
+    "MeanderStrength": 0.8,
+    "WidthVariation": 0.5,
+    "MinWidth": 2,
+    "MaxWidth": 8,
+    "DeltaFertility": 0.6,
+    "EnableTributaries": true,
+    "ConfluenceBoost": 0.4,
+    "VarianceBlend": 0.25
+  },
+  "Lakes": {
+    "DepthVariation": 0.6,
+    "ShoreComplexity": 0.42,
+    "MinDepth": 3,
+    "MaxDepth": 11,
+    "IslandChance": 0.08,
+    "EnableOutflow": true,
+    "OutflowCarveDepth": 3,
+    "WetlandBufferRadius": 3
+  },
+  "Terrain": {
+    "BiomeTransitionSmoothing": 0.35,
+    "DetailNoiseOctaves": 3,
+    "DetailNoiseStrength": 0.18,
+    "EnableSeamlessChunks": true
+  }
+}

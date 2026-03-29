@@ -1,0 +1,147 @@
+{
+  "date": "2026-01-11",
+  "categories": {
+    "core": [
+      {
+        "id": "core_hydrology_envelope",
+        "order": 1,
+        "name": "Hydrology continuity envelope",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "sequence": "Apply hydrology-flow envelope → river/lake masks → cave stability"
+      },
+      {
+        "id": "core_world_map_control_parity",
+        "order": 2,
+        "name": "World-map control parity and signatures",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapController.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "data": [
+          "config/enhanced_world_map_control_server.json",
+          "config/enhanced_world_map_control_client.json",
+          "config/world_map_control_profile.json"
+        ],
+        "sequence": "Refresh signatures → reload profile → sync generator per platform"
+      },
+      {
+        "id": "core_proto_registry_guard",
+        "order": 3,
+        "name": "Protobuf registry guardrails",
+        "status": "validate",
+        "server": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/Generated/Protobuf/*"
+        ],
+        "data": [
+          "proto/enhanced_minecraft_game.proto",
+          "Assets/Generated/Protobuf"
+        ],
+        "sequence": "Descriptor/package validation → parser availability → handler coverage"
+      }
+    ],
+    "content": [
+      {
+        "id": "content_river_lake_alignment",
+        "order": 4,
+        "name": "River/lake alignment with hydrology",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs#BuildRiverMask",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs#BuildLakeMask"
+        ],
+        "data": [
+          "config/world.json",
+          "config/enhanced-terrain-config.json"
+        ],
+        "sequence": "Hydrology envelope → river pressure → lake basin refinement"
+      },
+      {
+        "id": "content_cave_stability",
+        "order": 5,
+        "name": "Cave entrance and ceiling stability",
+        "status": "in_progress",
+        "server": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs#BuildCaveMask"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "sequence": "Hydrology-aware stability field → riparian plugs → edge sealing"
+      }
+    ],
+    "util": [
+      {
+        "id": "util_config_hygiene",
+        "order": 6,
+        "name": "Config hygiene and data-driven defaults",
+        "status": "in_progress",
+        "server": [
+          "config/enhanced_world_map_control_server.json",
+          "config/world_map_control_profile.json"
+        ],
+        "client": [
+          "config/enhanced_world_map_control_client.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "data": [
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "sequence": "Validate JSON → align defaults → propagate into profile load"
+      },
+      {
+        "id": "util_docs_reporting",
+        "order": 7,
+        "name": "Docs and reporting",
+        "status": "planned",
+        "server": [
+          "docs/minecraft_features_client_server_core_content_util_2026-01-11.md",
+          "docs/terrain_generation_improvements_2026-01-11.md"
+        ],
+        "client": [
+          "README.md"
+        ],
+        "data": [
+          "plans/2026-01-11-session-plan.md"
+        ],
+        "sequence": "Summarize scope → note signatures/tests → share next steps"
+      }
+    ]
+  }
+}

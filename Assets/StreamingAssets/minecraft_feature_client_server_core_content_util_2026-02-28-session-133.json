@@ -1,0 +1,283 @@
+{
+  "version": "2026-02-28-session-133",
+  "generated_at_utc": "2026-02-28T10:30:00.0000000Z",
+  "signature": "2026-02-28-hydrology-riverlake-cave-v59",
+  "mapControlProfileVersion": 63,
+  "features": [
+    {
+      "id": "S33-CORE-01",
+      "name": "Shared DLL Contract Baseline",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "GameCommon.dll and SharedProtocol.dll continue to provide client/server shared enums, constants, and protocol contracts.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S33-CORE-02",
+      "name": "Hydrology Signature v59 + Profile v63",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server, Unity client, and probe paths align to hydrology signature v59 and map-control profile version 63.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "dependencies": [
+        "S33-CORE-01"
+      ]
+    },
+    {
+      "id": "S33-CORE-03",
+      "name": "Shared Queue Emergency Scaling",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Stale prune emergency multiplier logic is centralized in GameCommon WorldMapQueuePolicy and reused by server/client queue loops.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S33-CORE-02"
+      ]
+    },
+    {
+      "id": "S33-CORE-04",
+      "name": "JSON Config Parity",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client map control and world generation tuning remain data-driven through mirrored JSON configuration files.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S33-CORE-02"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-01",
+      "name": "Riparian Karst Exchange Bridge (Server)",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "ImprovedTerrainCoordinator adds an additional cave-river-lake groundwater relay pass to stabilize karst pockets and riparian continuity.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ],
+      "dependencies": [
+        "S33-CORE-02",
+        "S33-CORE-04"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-02",
+      "name": "Riparian Karst Exchange Bridge (Client)",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity WorldMapController mirrors the new server groundwater relay logic to reduce preview drift.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S33-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-03",
+      "name": "Hydrology-Aware Cave/River/Lake Pipeline",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Cave, river, and lake generation remain coupled by hydrology and flow memory with shared profile-driven controls.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S33-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-04",
+      "name": "World Map Control Architecture (Server)",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server map controller keeps profile hash/signature checks and queue-load aware generation signatures for chunk sync.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapControlProfile.cs",
+        "GameServer/Program.cs"
+      ],
+      "dependencies": [
+        "S33-CORE-03"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-05",
+      "name": "World Map Control Architecture (Client)",
+      "category": "Content",
+      "layer": "Client",
+      "side": "client",
+      "description": "Client world-map systems consume server profile/version/signature and runtime queue policies from JSON.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+      ],
+      "dependencies": [
+        "S33-CORE-04"
+      ]
+    },
+    {
+      "id": "S33-CONTENT-06",
+      "name": "Data-Driven Gameplay Data",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Blocks/items/recipes and feature manifests remain JSON-based for content-side data-driven operation.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/recipes.json",
+        "GameCommon/DataDriven/DataManager.cs"
+      ],
+      "dependencies": [
+        "S33-CORE-04"
+      ]
+    },
+    {
+      "id": "S33-UTIL-01",
+      "name": "Proto Registry + Diagnostics",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Google protobuf generated packet references are validated by registry binding, fingerprint, and reference report checks.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "S33-CORE-01"
+      ]
+    },
+    {
+      "id": "S33-UTIL-02",
+      "name": "Dummy Protocol Probe (Server)",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server-side dummy probe validates required packet round-trip, descriptor coverage, and profile guards.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ],
+      "dependencies": [
+        "S33-UTIL-01",
+        "S33-CORE-02"
+      ]
+    },
+    {
+      "id": "S33-UTIL-03",
+      "name": "External Dummy Client Tool",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Standalone Tools/DummyMinecraftClient probes packet serialization and optional network I/O using shared DLL contracts.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ],
+      "dependencies": [
+        "S33-CORE-01",
+        "S33-UTIL-01"
+      ]
+    },
+    {
+      "id": "S33-UTIL-04",
+      "name": "Compile + Reference Integrity Checks",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Build and probe steps validate `using` references, project references, and protobuf packet handling paths.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameCommon/GameCommon.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ],
+      "dependencies": [
+        "S33-UTIL-01",
+        "S33-UTIL-02"
+      ]
+    },
+    {
+      "id": "S33-UTIL-05",
+      "name": "Session Documentation Update",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Session 133 implementation/validation and plan tracking are documented in markdown under docs/plans plus README update.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "README.md",
+        "docs/session-133-implementation-and-validation.md",
+        "plans/2026-02-28-session-133-comprehensive-work-plan.md"
+      ],
+      "dependencies": [
+        "S33-UTIL-04"
+      ]
+    }
+  ]
+}

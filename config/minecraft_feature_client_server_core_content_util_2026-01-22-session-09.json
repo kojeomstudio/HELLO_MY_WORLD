@@ -1,0 +1,157 @@
+{
+  "version": "2026-01-22-session-09",
+  "description": "Session 09 client/server features grouped by core, content, and util; ordered for implementation.",
+  "categories": {
+    "client": {
+      "core": [
+        {
+          "id": "client_core_profile_v5",
+          "order": 1,
+          "name": "World map control profile v5",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ],
+          "description": "Unity map-control flow consumes the v5 profile with stitched hydrology signature to keep preview chunks aligned with server generation."
+        },
+        {
+          "id": "client_core_preview_alignment",
+          "order": 2,
+          "name": "Preview generator cave/river/lake alignment",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Preview pipeline applies river-lake seepage and cave damping consistent with server hydrology."
+        }
+      ],
+      "content": [
+        {
+          "id": "client_content_water_overlay",
+          "order": 3,
+          "name": "River + lake overlay smoothing",
+          "status": "in-progress",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Visual overlay for rivers/lakes follows hydrology edges with improved seam smoothing."
+        },
+        {
+          "id": "client_content_cave_overlay",
+          "order": 4,
+          "name": "Cave moisture debug overlay",
+          "status": "planned",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "description": "Optional preview overlay to validate cave saturation damping near rivers/lakes."
+        }
+      ],
+      "util": [
+        {
+          "id": "client_util_proto_guard",
+          "order": 5,
+          "name": "Proto fingerprint guard",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/Generated/Protobuf"
+          ],
+          "description": "Ensure EnhancedMinecraft protobuf manifests match before chunk previews are generated."
+        },
+        {
+          "id": "client_util_profile_reload",
+          "order": 6,
+          "name": "Config/profile reload with signature checks",
+          "status": "implemented",
+          "files": [
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ],
+          "description": "StreamingAssets config/profile reload pipeline validates version, hash, and generation signature to avoid stale previews."
+        }
+      ]
+    },
+    "server": {
+      "core": [
+        {
+          "id": "server_core_terrain_pipeline_coupling",
+          "order": 1,
+          "name": "Hydrology-aware terrain pipeline retune",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "config/world.json"
+          ],
+          "description": "Improve cave/river/lake coupling with hydrology momentum and erosion-aware damping."
+        },
+        {
+          "id": "server_core_map_control_v5",
+          "order": 2,
+          "name": "World map control manager/profile v5",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/WorldMapController.cs",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "config/world_map_control_profile.json"
+          ],
+          "description": "Regenerate profile with new generation signature and cache invalidation keyed off hydrology/cave tuning."
+        }
+      ],
+      "content": [
+        {
+          "id": "server_content_cave_sealing",
+          "order": 3,
+          "name": "Cave sealing near hydrology seams",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+          ],
+          "description": "Dampen carve probability around river mouths and lakes to prevent exposed riparian caverns."
+        },
+        {
+          "id": "server_content_lake_outflow_shaping",
+          "order": 4,
+          "name": "Lake-river outflow shaping",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+          ],
+          "description": "Blend lake shelves and river deltas with erosion-aware outflow channels."
+        }
+      ],
+      "util": [
+        {
+          "id": "server_util_proto_validation",
+          "order": 5,
+          "name": "Protobuf registry/handler validation",
+          "status": "implemented",
+          "files": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "GameServer/GameServer.cs"
+          ],
+          "description": "Enforce generated prototypes and handler contracts before servicing map-control or worldgen requests."
+        },
+        {
+          "id": "server_util_profile_hash_audit",
+          "order": 6,
+          "name": "Config/profile hash auditing",
+          "status": "implemented",
+          "files": [
+            "GameServer/World/WorldMapControlManager.cs"
+          ],
+          "description": "Audit world-config and profile hashes on each map-control request to avoid serving stale preview data."
+        }
+      ]
+    }
+  }
+}

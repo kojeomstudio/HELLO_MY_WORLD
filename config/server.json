@@ -1,0 +1,48 @@
+{
+  "Network": {
+    "Host": "0.0.0.0",
+    "Port": 25565,
+    "MaxPlayers": 20,
+    "MaxConnectionsPerIP": 3,
+    "ConnectionTimeoutSeconds": 30,
+    "KeepAliveIntervalSeconds": 5,
+    "PacketCompressionThreshold": 256
+  },
+  "Database": {
+    "Provider": "sqlite",
+    "ConnectionString": "Data Source=gameserver.db",
+    "EnableAutoMigration": true,
+    "CommandTimeoutSeconds": 30,
+    "MaxPoolSize": 100
+  },
+  "Performance": {
+    "TickRate": 20,
+    "ChunkLoadThreads": 4,
+    "MaxChunkLoadsPerTick": 10,
+    "ChunkUnloadDelay": 30,
+    "EntityUpdateDistance": 128,
+    "EnableAsyncChunkGeneration": true,
+    "ChunkCacheSize": 1000,
+    "EnableGarbageCollection": true
+  },
+  "Security": {
+    "EnableWhitelist": false,
+    "EnableAuthentication": true,
+    "EnableEncryption": true,
+    "MaxPacketSize": 2097152,
+    "RateLimitPacketsPerSecond": 100,
+    "EnableAntiCheat": true,
+    "MaxPlayerSpeed": 10.0,
+    "MaxFlySpeed": 20.0
+  },
+  "Logging": {
+    "LogLevel": "Information",
+    "EnableFileLogging": true,
+    "LogDirectory": "logs",
+    "EnableConsoleLogging": true,
+    "MaxLogFileSizeMB": 10,
+    "MaxLogFiles": 10,
+    "EnablePerformanceLogging": false,
+    "EnableNetworkLogging": false
+  }
+}

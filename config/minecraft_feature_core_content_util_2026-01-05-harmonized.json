@@ -1,0 +1,109 @@
+{
+  "version": "2026-01-05",
+  "summary": "Hydrology/flow harmonization across server + client previews, map-control generation signatures, and stronger protobuf player-state validation.",
+  "core": [
+    {
+      "id": "core.hydrology_surface_harmonization",
+      "name": "Hydrology/flow surface harmonization",
+      "description": "Hydrology + flow masks are blended with surface slope/curvature so rivers, lakes, and caves stay continuous across chunk seams on server and client previews.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "artifacts": [
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "core.worldmap_signature_sync",
+      "name": "World-map generation signature",
+      "description": "Server responses and Unity previews carry a generation signature derived from world JSON + map-control profile to keep caches and previews aligned after config changes.",
+      "owners": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": [
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content.water_basin_alignment",
+      "name": "Water basin alignment",
+      "description": "River/lake carving uses harmonized hydrology masks so channel width, wetlands, and shorelines follow the stabilized flow field.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "artifacts": []
+    }
+  ],
+  "util": [
+    {
+      "id": "util.proto_player_validation",
+      "name": "Player proto descriptor guard",
+      "description": "Validate PlayerInfo/Inventory/ItemStack descriptors so generated protobuf DTOs and handler using directives fail fast when drifted.",
+      "owners": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "artifacts": [
+        "proto/enhanced_minecraft_game.proto",
+        "Assets/Generated/Protobuf"
+      ]
+    },
+    {
+      "id": "util.docs_alignment",
+      "name": "Docs + plan alignment",
+      "description": "README + latest core/content/util notes capture the hydrology harmonization rollout and protobuf guardrails.",
+      "owners": [
+        "README.md",
+        "docs/minecraft_feature_core_content_util_2026-01-05-world-map.md"
+      ],
+      "artifacts": []
+    }
+  ],
+  "execution_order": [
+    {
+      "phase": "1",
+      "name": "Core hydrology + map control",
+      "items": [
+        "core.hydrology_surface_harmonization",
+        "core.worldmap_signature_sync"
+      ]
+    },
+    {
+      "phase": "2",
+      "name": "Content alignment",
+      "items": [
+        "content.water_basin_alignment"
+      ]
+    },
+    {
+      "phase": "3",
+      "name": "Validation + docs",
+      "items": [
+        "util.proto_player_validation",
+        "util.docs_alignment"
+      ]
+    }
+  ],
+  "data_sources": {
+    "server": [
+      "config/world.json",
+      "config/world_map_control_profile.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/world-config.json",
+      "Assets/StreamingAssets/world-map-control.json"
+    ],
+    "proto": [
+      "proto/enhanced_minecraft_game.proto",
+      "Assets/Generated/Protobuf",
+      "SharedProtocol/EnhancedMinecraft"
+    ]
+  }
+}

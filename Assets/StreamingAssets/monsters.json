@@ -1,0 +1,129 @@
+{
+  "monsters": {
+    "zombie": {
+      "id": 1,
+      "name": "Zombie",
+      "displayName": "Zombie",
+      "health": 20,
+      "damage": 3,
+      "armor": 2,
+      "speed": 0.23,
+      "knockbackResistance": 0.0,
+      "behavior": "hostile",
+      "spawnConditions": {
+        "lightLevel": 0,
+        "biomes": ["plains", "forest", "desert", "swamp"],
+        "minHeight": -64,
+        "maxHeight": 256
+      },
+      "drops": [
+        { "itemId": "rotten_flesh", "quantity": [0, 2], "chance": 1.0 },
+        { "itemId": "iron_ingot", "quantity": [1, 1], "chance": 0.025 },
+        { "itemId": "carrot", "quantity": [1, 1], "chance": 0.025 }
+      ],
+      "experience": 5,
+      "categories": ["monsters", "undead", "hostile"]
+    },
+    "skeleton": {
+      "id": 2,
+      "name": "Skeleton",
+      "displayName": "Skeleton",
+      "health": 20,
+      "damage": 3,
+      "armor": 0,
+      "speed": 0.25,
+      "knockbackResistance": 0.0,
+      "behavior": "hostile",
+      "attackType": "ranged",
+      "projectile": "arrow",
+      "spawnConditions": {
+        "lightLevel": 0,
+        "biomes": ["plains", "forest", "desert", "mountains"],
+        "minHeight": -64,
+        "maxHeight": 256
+      },
+      "drops": [
+        { "itemId": "bone", "quantity": [0, 2], "chance": 1.0 },
+        { "itemId": "arrow", "quantity": [0, 2], "chance": 0.5 }
+      ],
+      "experience": 5,
+      "categories": ["monsters", "undead", "hostile", "ranged"]
+    },
+    "spider": {
+      "id": 3,
+      "name": "Spider",
+      "displayName": "Spider",
+      "health": 16,
+      "damage": 2,
+      "armor": 0,
+      "speed": 0.3,
+      "knockbackResistance": 0.0,
+      "behavior": "neutral_day_hostile_night",
+      "canClimb": true,
+      "spawnConditions": {
+        "lightLevel": 7,
+        "biomes": ["plains", "forest", "swamp", "jungle"],
+        "minHeight": -64,
+        "maxHeight": 256
+      },
+      "drops": [
+        { "itemId": "string", "quantity": [0, 2], "chance": 1.0 },
+        { "itemId": "spider_eye", "quantity": [1, 1], "chance": 0.33 }
+      ],
+      "experience": 5,
+      "categories": ["monsters", "arthropod", "neutral"]
+    },
+    "creeper": {
+      "id": 4,
+      "name": "Creeper",
+      "displayName": "Creeper",
+      "health": 20,
+      "damage": 0,
+      "explosionDamage": 22,
+      "explosionRadius": 3,
+      "armor": 0,
+      "speed": 0.2,
+      "knockbackResistance": 0.0,
+      "behavior": "hostile",
+      "attackType": "explosion",
+      "spawnConditions": {
+        "lightLevel": 0,
+        "biomes": ["plains", "forest", "swamp", "jungle"],
+        "minHeight": -64,
+        "maxHeight": 256
+      },
+      "drops": [
+        { "itemId": "gunpowder", "quantity": [0, 2], "chance": 1.0 }
+      ],
+      "experience": 5,
+      "categories": ["monsters", "explosive", "hostile"]
+    },
+    "enderman": {
+      "id": 5,
+      "name": "Enderman",
+      "displayName": "Enderman",
+      "health": 40,
+      "damage": 7,
+      "armor": 0,
+      "speed": 0.3,
+      "knockbackResistance": 0.0,
+      "behavior": "neutral",
+      "triggerDistance": 64,
+      "canTeleport": true,
+      "canMoveBlocks": true,
+      "spawnConditions": {
+        "lightLevel": 0,
+        "biomes": ["plains", "desert", "forest", "swamp"],
+        "minHeight": -64,
+        "maxHeight": 256
+      },
+      "drops": [
+        { "itemId": "ender_pearl", "quantity": [0, 1], "chance": 0.5 }
+      ],
+      "experience": 5,
+      "categories": ["monsters", "ender", "neutral"]
+    }
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-19T12:00:00Z"
+}

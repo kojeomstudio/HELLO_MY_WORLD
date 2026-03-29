@@ -1,0 +1,105 @@
+syntax = "proto3";
+package MinecraftGame.Common;
+option csharp_namespace = "MinecraftGame.Common";
+
+// =============================================================================
+// 공통 데이터 구조체
+// 모든 프로토콜 파일에서 import하여 사용
+// =============================================================================
+
+// 3D 벡터 (실수) - 정밀도를 위해 double 사용
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+// 3D 벡터 (정수)
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+// 2D 벡터 (실수)
+message Vector2 {
+  float x = 1;
+  float y = 2;
+}
+
+// 2D 벡터 (정수)
+message Vector2Int {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// 색상
+message Color {
+  float r = 1;
+  float g = 2;
+  float b = 3;
+  float a = 4;
+}
+
+// 타임스탬프
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// 결과 상태
+enum ResultStatus {
+  RESULT_UNKNOWN = 0;
+  RESULT_SUCCESS = 1;
+  RESULT_FAILED = 2;
+  RESULT_TIMEOUT = 3;
+  RESULT_CONFLICT = 4;
+  RESULT_VALIDATION_FAILED = 5;
+}
+
+// 기본 응답 메시지
+message BaseResponse {
+  ResultStatus status = 1;
+  string message = 2;
+  int64 timestamp = 3;
+  string error_code = 4;
+}
+
+// 게임 모드
+enum GameMode {
+  SURVIVAL = 0;
+  CREATIVE = 1;
+  ADVENTURE = 2;
+  SPECTATOR = 3;
+}
+
+// 난이도
+enum Difficulty {
+  PEACEFUL = 0;
+  EASY = 1;
+  NORMAL = 2;
+  HARD = 3;
+}
+
+// 차원/월드 타입
+enum Dimension {
+  OVERWORLD = 0;
+  NETHER = 1;
+  END = 2;
+}
+
+// 날씨
+enum Weather {
+  CLEAR = 0;
+  RAIN = 1;
+  THUNDER = 2;
+  SNOW = 3;
+}
+
+// 시간대
+enum TimeOfDay {
+  DAY = 0;
+  SUNSET = 1;
+  NIGHT = 2;
+  SUNRISE = 3;
+}

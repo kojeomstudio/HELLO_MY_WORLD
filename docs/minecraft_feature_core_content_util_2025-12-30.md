@@ -1,0 +1,1 @@
+# Minecraft feature split (core / content / util) - 2025-12-30

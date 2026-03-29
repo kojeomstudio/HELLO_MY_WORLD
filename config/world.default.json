@@ -1,0 +1,11 @@
+{
+  "WorldName": "world",
+  "Seed": 0,
+  "RenderDistance": 10,
+  "SimulationDistance": 12,
+  "SeaLevel": 62,
+  "EnableCaves": true,
+  "EnableRivers": true,
+  "EnableLakes": true,
+  "MapControlProfilePath": "config/world_map_control_profile.json"
+}

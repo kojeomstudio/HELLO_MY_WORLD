@@ -252,6 +252,7 @@ namespace SharedProtocol
         [ProtoMember(5)] public List<EntityInfo> Entities { get; set; } = new();
         [ProtoMember(6)] public BiomeInfo BiomeData { get; set; } = new();
         [ProtoMember(7)] public bool IsFromCache { get; set; }
+        [ProtoMember(8)] public byte[] EnhancedPayload { get; set; } = Array.Empty<byte>();
     }
 
     [ProtoContract]

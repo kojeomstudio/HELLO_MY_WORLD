@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      Unity 6 (6000.0.23f1) 호환성을 위한 타겟 프레임워크
+      - Unity 6는 .NET Standard 2.1을 기본 API Compatibility Level로 사용
+      - Unity 공식 문서: "prefer .NET Standard over .NET Framework for all new projects"
+      - 크로스 플랫폼 호환성 (Windows, macOS, Linux, iOS, Android 등)
+      - Unity 6는 아직 .NET 6+ (CoreCLR)로 업그레이드되지 않음
+
+      참고: https://docs.unity3d.com/6000.0/Documentation/Manual/dotnet-profile-support.html
+    -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+
+    <!-- C# 9.0: Unity 2021.2+ 및 Unity 6 지원 -->
+    <LangVersion>9.0</LangVersion>
+
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>1.0.0</Version>
+    <Authors>HELLO_MY_WORLD Team</Authors>
+    <Description>공유 게임 로직 및 정의 (서버-클라이언트 공통, Unity 6 호환)</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="10.0.5" />
+  </ItemGroup>
+</Project>

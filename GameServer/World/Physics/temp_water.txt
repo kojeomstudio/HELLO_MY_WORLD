@@ -1,0 +1,873 @@
+1:#if false
+2:using System;
+3:using System.Collections.Concurrent;
+4:using System.Collections.Generic;
+5:using System.Threading;
+6:using System.Threading.Tasks;
+7:using Microsoft.Extensions.Logging;
+8:    /// <summary>
+9:    /// Water physics system that simulates water flow and pressure
+10:    /// Implements realistic water behavior including pressure, flow, and evaporation
+11:    /// </summary>
+12:    public class WaterPhysicsSystem
+13:    {
+14:        private readonly ILogger<WaterPhysicsSystem> logger;
+15:        private readonly WorldGenerationConfig config;
+16:        private readonly WaterPhysicsConfig physicsConfig;
+17:        
+18:        // Water data storage
+19:        private readonly ConcurrentDictionary<Vector3Int, WaterCell> waterCells;
+20:        private readonly ConcurrentQueue<WaterUpdateRequest> updateQueue;
+21:        private readonly Timer physicsTimer;
+22:        
+23:        // Performance tracking
+24:        private int processedCellsPerTick;
+25:        private DateTime lastUpdateTime;
+26:        
+27:        // Thread synchronization
+28:        private readonly object lockObject = new object();
+29:        private volatile bool isProcessing;
+30:        
+31:        public WaterPhysicsSystem(ILogger<WaterPhysicsSystem> logger, WorldGenerationConfig config)
+32:        {
+33:            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+34:            this.config = config ?? throw new ArgumentNullException(nameof(config));
+35:            this.physicsConfig = config.Water.Physics ?? new WaterPhysicsConfig();
+36:            
+37:            waterCells = new ConcurrentDictionary<Vector3Int, WaterCell>();
+38:            updateQueue = new ConcurrentQueue<WaterUpdateRequest>();
+39:            
+40:            // Start physics timer
+41:            physicsTimer = new Timer(UpdatePhysics, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(physicsConfig.UpdateIntervalMs));
+42:            
+43:            lastUpdateTime = DateTime.UtcNow;
+44:            
+45:            logger.LogInformation("[WaterPhysicsSystem] Initialized with update interval: {Interval}ms", 
+46:                physicsConfig.UpdateIntervalMs);
+47:        }
+48:        
+49:        /// <summary>
+50:        /// Initializes water system for a chunk
+51:        /// </summary>
+52:        public void InitializeChunk(int chunkX, int chunkZ, ChunkData chunkData)
+53:        {
+54:            var chunkSize = config.ChunkSize;
+55:            var worldOriginX = chunkX * chunkSize;
+56:            var worldOriginZ = chunkZ * chunkSize;
+57:            
+58:            for (int x = 0; x < chunkSize; x++)
+59:            {
+60:                for (int z = 0; z < chunkSize; z++)
+61:                {
+62:                    var worldX = worldOriginX + x;
+63:                    var worldZ = worldOriginZ + z;
+64:                    var worldPos = new Vector3Int(worldX, 0, worldZ);
+65:                    
+66:                    // Check if this position should have water
+67:                    if (ShouldHaveWater(worldPos, chunkData, x, z))
+68:                    {
+69:                        InitializeWaterCell(worldPos, chunkData, x, z);
+70:                    }
+71:                }
+72:            }
+73:            
+74:            logger.LogDebug("[WaterPhysicsSystem] Initialized water for chunk ({ChunkX}, {ChunkZ})", chunkX, chunkZ);
+75:        }
+76:        
+77:        /// <summary>
+78:        /// Checks if a position should have water
+79:        /// </summary>
+80:        private bool ShouldHaveWater(Vector3Int worldPos, ChunkData chunkData, int localX, int localZ)
+81:        {
+82:            // Check if position is at or below sea level
+83:            var heightValue = chunkData.HeightMap[localX, localZ];
+84:            var seaLevel = config.TerrainGeneration.SeaLevel > 0
+85:                ? config.TerrainGeneration.SeaLevel
+86:                : config.Water.GlobalWaterLevel;
+87:            
+88:            if (heightValue < seaLevel)
+89:            {
+90:                return true;
+91:            }
+92:            
+93:            // Check for river water
+94:            if (chunkData.RiverMap != null && chunkData.RiverMap[localX, localZ] > 0.5f)
+95:            {
+96:                return true;
+97:            }
+98:            
+99:            // Check for lake water
+100:            if (chunkData.LakeMap != null && chunkData.LakeMap[localX, localZ] > 0.5f)
+101:            {
+102:                return true;
+103:            }
+104:            
+105:            return false;
+106:        }
+107:        
+108:        /// <summary>
+109:        /// Initializes a water cell at the specified position
+110:        /// </summary>
+111:        private void InitializeWaterCell(Vector3Int worldPos, ChunkData chunkData, int localX, int localZ)
+112:        {
+113:            var heightValue = chunkData.HeightMap[localX, localZ];
+114:            var seaLevel = config.TerrainGeneration.SeaLevel > 0
+115:                ? config.TerrainGeneration.SeaLevel
+116:                : config.Water.GlobalWaterLevel;
+117:            var waterLevel = Math.Max(seaLevel, heightValue + physicsConfig.DefaultWaterDepth);
+118:            
+119:            var waterCell = new WaterCell
+120:            {
+121:                Position = worldPos,
+122:                WaterLevel = waterLevel,
+123:                Pressure = CalculatePressure(worldPos, waterLevel),
+124:                FlowVelocity = Vector3.Zero,
+125:                IsSource = IsWaterSource(worldPos, chunkData, localX, localZ),
+126:                Temperature = physicsConfig.DefaultWaterTemperature,
+127:                IsStatic = false
+128:            };
+129:            
+130:            waterCells[worldPos] = waterCell;
+131:        }
+132:        
+133:        /// <summary>
+134:        /// Checks if a position is a water source
+135:        /// </summary>
+136:        private bool IsWaterSource(Vector3Int worldPos, ChunkData chunkData, int localX, int localZ)
+137:        {
+138:            // Ocean and large lakes are water sources
+139:            var seaLevel = config.TerrainGeneration.SeaLevel > 0
+140:                ? config.TerrainGeneration.SeaLevel
+141:                : config.Water.GlobalWaterLevel;
+142:            var heightValue = chunkData.HeightMap[localX, localZ];
+143:            
+144:            // Deep ocean water
+145:            if (heightValue < seaLevel - 10)
+146:            {
+147:                return true;
+148:            }
+149:            
+150:            // River sources (simplified)
+151:            if (chunkData.RiverMap != null && chunkData.RiverMap[localX, localZ] > 0.8f)
+152:            {
+153:                return true;
+154:            }
+155:            
+156:            return false;
+157:        }
+158:        
+159:        /// <summary>
+160:        /// Calculates water pressure at a position
+161:        /// </summary>
+162:        private float CalculatePressure(Vector3Int position, float waterLevel)
+163:        {
+164:            var depth = 0f;
+165:            var checkPos = position;
+166:            
+167:            // Count water cells above this position
+168:            while (waterCells.TryGetValue(checkPos, out var cell) && cell.WaterLevel > position.Y)
+169:            {
+170:                depth += cell.WaterLevel - position.Y;
+171:                checkPos = new Vector3Int(position.X, checkPos.Y + 1, position.Z);
+172:            }
+173:            
+174:            // Add atmospheric pressure
+175:            var atmosphericPressure = physicsConfig.AtmosphericPressure;
+176:            var hydrostaticPressure = depth * physicsConfig.WaterDensity * physicsConfig.Gravity;
+177:            
+178:            return atmosphericPressure + hydrostaticPressure;
+179:        }
+180:        
+181:        /// <summary>
+182:        /// Updates water physics for all cells
+183:        /// </summary>
+184:        private void UpdatePhysics(object state)
+185:        {
+186:            if (isProcessing) return;
+187:            
+188:            isProcessing = true;
+189:            processedCellsPerTick = 0;
+190:            
+191:            try
+192:            {
+193:                var startTime = DateTime.UtcNow;
+194:                
+195:                // Process queued updates first
+196:                ProcessQueuedUpdates();
+197:                
+198:                // Update water physics for all cells
+199:                UpdateWaterFlow();
+200:                UpdateWaterPressure();
+201:                ProcessWaterEvaporation();
+202:                
+203:                // Update performance metrics
+204:                var updateTime = DateTime.UtcNow - startTime;
+205:                lastUpdateTime = DateTime.UtcNow;
+206:                
+207:                if (updateTime.TotalMilliseconds > physicsConfig.MaxUpdateTimeMs)
+208:                {
+209:                    logger.LogWarning("[WaterPhysicsSystem] Physics update took {Time}ms (target: {Target}ms)", 
+210:                        updateTime.TotalMilliseconds, physicsConfig.MaxUpdateTimeMs);
+211:                }
+212:                
+213:                logger.LogDebug("[WaterPhysicsSystem] Updated {Count} water cells in {Time}ms", 
+214:                    processedCellsPerTick, updateTime.TotalMilliseconds);
+215:            }
+216:            catch (Exception ex)
+217:            {
+218:                logger.LogError(ex, "[WaterPhysicsSystem] Error during physics update");
+219:            }
+220:            finally
+221:            {
+222:                isProcessing = false;
+223:            }
+224:        }
+225:        
+226:        /// <summary>
+227:        /// Processes queued water updates
+228:        /// </summary>
+229:        private void ProcessQueuedUpdates()
+230:        {
+231:            var processedCount = 0;
+232:            
+233:            while (updateQueue.TryDequeue(out var updateRequest) && processedCount < physicsConfig.MaxQueuedUpdatesPerTick)
+234:            {
+235:                ProcessUpdateRequest(updateRequest);
+236:                processedCount++;
+237:                processedCellsPerTick++;
+238:            }
+239:        }
+240:        
+241:        /// <summary>
+242:        /// Processes a single water update request
+243:        /// </summary>
+244:        private void ProcessUpdateRequest(WaterUpdateRequest request)
+245:        {
+246:            if (waterCells.TryGetValue(request.Position, out var cell))
+247:            {
+248:                switch (request.Type)
+249:                {
+250:                    case WaterUpdateType.BlockAdded:
+251:                        HandleBlockAdded(cell, request.BlockType);
+252:                        break;
+253:                        
+254:                    case WaterUpdateType.BlockRemoved:
+255:                        HandleBlockRemoved(cell, request.BlockType);
+256:                        break;
+257:                        
+258:                    case WaterUpdateType.TemperatureChange:
+259:                        cell.Temperature = request.NewValue;
+260:                        break;
+261:                        
+262:                    case WaterUpdateType.SourceToggle:
+263:                        cell.IsSource = request.NewValue > 0;
+264:                        break;
+265:                }
+266:            }
+267:        }
+268:        
+269:        /// <summary>
+270:        /// Handles block addition at water cell
+271:        /// </summary>
+272:        private void HandleBlockAdded(WaterCell cell, BlockType blockType)
+273:        {
+274:            if (IsWaterDisplacingBlock(blockType))
+275:            {
+276:                // Displace water
+277:                var displacedWater = cell.WaterLevel - cell.Position.Y;
+278:                if (displacedWater > 0)
+279:                {
+280:                    DisplaceWater(cell.Position, displacedWater);
+281:                }
+282:                
+283:                cell.WaterLevel = cell.Position.Y;
+284:                cell.IsStatic = true;
+285:            }
+286:        }
+287:        
+288:        /// <summary>
+289:        /// Handles block removal at water cell
+290:        /// </summary>
+291:        private void HandleBlockRemoved(WaterCell cell, BlockType blockType)
+292:        {
+293:            if (IsWaterDisplacingBlock(blockType))
+294:            {
+295:                // Allow water to flow back
+296:                cell.IsStatic = false;
+297:                
+298:                // Trigger immediate flow update
+299:                QueueFlowUpdate(cell.Position);
+300:            }
+301:        }
+302:        
+303:        /// <summary>
+304:        /// Checks if a block type displaces water
+305:        /// </summary>
+306:        private bool IsWaterDisplacingBlock(BlockType blockType)
+307:        {
+308:            return blockType != BlockType.Air && 
+309:                   blockType != BlockType.Water && 
+310:                   !IsWaterBlock(blockType);
+311:        }
+312:        
+313:        /// <summary>
+314:        /// Checks if a block type is water-related
+315:        /// </summary>
+316:        private bool IsWaterBlock(BlockType blockType)
+317:        {
+318:            return blockType == BlockType.Water || 
+319:                   blockType == BlockType.WaterSource ||
+320:                   blockType == BlockType.Ice ||
+321:                   blockType == BlockType.SnowBlock;
+322:        }
+323:        
+324:        /// <summary>
+325:        /// Updates water flow for all cells
+326:        /// </summary>
+327:        private void UpdateWaterFlow()
+328:        {
+329:            var cellsToUpdate = new List<WaterCell>();
+330:            
+331:            foreach (var cell in waterCells.Values)
+332:            {
+333:                if (cell.IsStatic || cell.IsSource) continue;
+334:                
+335:                // Calculate flow based on pressure and gravity
+336:                var newVelocity = CalculateFlowVelocity(cell);
+337:                
+338:                // Apply flow if significant
+339:                if (Vector3.Distance(newVelocity, cell.FlowVelocity) > physicsConfig.MinFlowVelocity)
+340:                {
+341:                    cell.FlowVelocity = newVelocity;
+342:                    cellsToUpdate.Add(cell);
+343:                }
+344:            }
+345:            
+346:            // Apply flow changes
+347:            foreach (var cell in cellsToUpdate)
+348:            {
+349:                ApplyFlowChange(cell);
+350:                processedCellsPerTick++;
+351:            }
+352:        }
+353:        
+354:        /// <summary>
+355:        /// Calculates flow velocity for a water cell
+356:        /// </summary>
+357:        private Vector3 CalculateFlowVelocity(WaterCell cell)
+358:        {
+359:            var flowDirection = Vector3.Zero;
+360:            var totalPressure = 0f;
+361:            
+362:            // Check neighbors for pressure differences
+363:            var neighbors = GetNeighborCells(cell.Position);
+364:            
+365:            foreach (var neighbor in neighbors)
+366:            {
+367:                if (neighbor == null) continue;
+368:                
+369:                var pressureDiff = cell.Pressure - neighbor.Pressure;
+370:                if (pressureDiff > 0)
+371:                {
+372:                    var direction = Vector3.Normalize(neighbor.Position - cell.Position);
+373:                    flowDirection += direction * pressureDiff;
+374:                    totalPressure += Math.Abs(pressureDiff);
+375:                }
+376:            }
+377:            
+378:            // Apply flow rate based on pressure difference
+379:            if (totalPressure > 0)
+380:            {
+381:                flowDirection = Vector3.Normalize(flowDirection);
+382:                var flowRate = Math.Min(totalPressure * physicsConfig.FlowRate, physicsConfig.MaxFlowVelocity);
+383:                
+384:                return flowDirection * flowRate;
+385:            }
+386:            
+387:            // Apply gravity for vertical flow
+388:            var gravityFlow = Math.Min(cell.WaterLevel - cell.Position.Y, physicsConfig.MaxVerticalFlow);
+389:            return new Vector3(flowDirection.X, -gravityFlow, flowDirection.Z);
+390:        }
+391:        
+392:        /// <summary>
+393:        /// Gets neighboring water cells
+394:        /// </summary>
+395:        private List<WaterCell> GetNeighborCells(Vector3Int position)
+396:        {
+397:            var neighbors = new List<WaterCell>();
+398:            var directions = new[]
+399:            {
+400:                new Vector3Int(1, 0, 0), new Vector3Int(-1, 0, 0),
+401:                new Vector3Int(0, 0, 1), new Vector3Int(0, 0, -1),
+402:                new Vector3Int(0, 1, 0), new Vector3Int(0, -1, 0)
+403:            };
+404:            
+405:            foreach (var dir in directions)
+406:            {
+407:                var neighborPos = position + dir;
+408:                if (waterCells.TryGetValue(neighborPos, out var neighbor))
+409:                {
+410:                    neighbors.Add(neighbor);
+411:                }
+412:            }
+413:            
+414:            return neighbors;
+415:        }
+416:        
+417:        /// <summary>
+418:        /// Applies flow change to a water cell
+419:        /// </summary>
+420:        private void ApplyFlowChange(WaterCell cell)
+421:        {
+422:            // Calculate water transfer based on velocity
+423:            var waterTransfer = cell.FlowVelocity * physicsConfig.UpdateIntervalMs / 1000f;
+424:            
+425:            // Update water level
+426:            var newWaterLevel = cell.WaterLevel + waterTransfer.Y;
+427:            
+428:            // Clamp to reasonable bounds
+429:            newWaterLevel = Math.Max(cell.Position.Y, 
+430:                Math.Min(cell.Position.Y + physicsConfig.MaxWaterDepth, newWaterLevel));
+431:            
+432:            cell.WaterLevel = newWaterLevel;
+433:            
+434:            // Update neighboring cells if significant flow
+435:            if (Math.Abs(waterTransfer.X) > 0.01f || Math.Abs(waterTransfer.Z) > 0.01f)
+436:            {
+437:                QueueFlowUpdate(cell.Position);
+438:            }
+439:        }
+440:        
+441:        /// <summary>
+442:        /// Updates water pressure for all cells
+443:        /// </summary>
+444:        private void UpdateWaterPressure()
+445:        {
+446:            foreach (var cell in waterCells.Values)
+447:            {
+448:                var newPressure = CalculatePressure(cell.Position, cell.WaterLevel);
+449:                
+450:                // Update pressure if significant change
+451:                if (Math.Abs(newPressure - cell.Pressure) > physicsConfig.MinPressureChange)
+452:                {
+453:                    cell.Pressure = newPressure;
+454:                    processedCellsPerTick++;
+455:                }
+456:            }
+457:        }
+458:        
+459:        /// <summary>
+460:        /// Processes water evaporation
+461:        /// </summary>
+462:        private void ProcessWaterEvaporation()
+463:        {
+464:            if (!physicsConfig.EnableEvaporation) return;
+465:            
+466:            var cellsToEvaporate = new List<WaterCell>();
+467:            
+468:            foreach (var cell in waterCells.Values)
+469:            {
+470:                if (cell.IsSource || cell.WaterLevel <= cell.Position.Y) continue;
+471:                
+472:                // Calculate evaporation rate based on temperature and exposure
+473:                var evaporationRate = CalculateEvaporationRate(cell);
+474:                
+475:                if (evaporationRate > 0)
+476:                {
+477:                    cell.WaterLevel -= evaporationRate;
+478:                    cellsToEvaporate.Add(cell);
+479:                    processedCellsPerTick++;
+480:                }
+481:            }
+482:            
+483:            logger.LogDebug("[WaterPhysicsSystem] Evaporated water from {Count} cells", cellsToEvaporate.Count);
+484:        }
+485:        
+486:        /// <summary>
+487:        /// Calculates evaporation rate for a water cell
+488:        /// </summary>
+489:        private float CalculateEvaporationRate(WaterCell cell)
+490:        {
+491:            // Base evaporation rate
+492:            var baseRate = physicsConfig.BaseEvaporationRate;
+493:            
+494:            // Temperature factor
+495:            var tempFactor = Math.Max(0, (cell.Temperature - 20) / 20f); // Above 20°C
+496:            
+497:            // Exposure factor (simplified)
+498:            var exposureFactor = cell.WaterLevel - cell.Position.Y > 2 ? 1.0f : 0.5f;
+499:            
+500:            return baseRate * tempFactor * exposureFactor;
+501:        }
+502:        
+503:        /// <summary>
+504:        /// Displaces water to neighboring cells
+505:        /// </summary>
+506:        private void DisplaceWater(Vector3Int position, float waterAmount)
+507:        {
+508:            var directions = new[]
+509:            {
+510:                new Vector3Int(1, 0, 0), new Vector3Int(-1, 0, 0),
+511:                new Vector3Int(0, 0, 1), new Vector3Int(0, 0, -1)
+512:            };
+513:            
+514:            var remainingWater = waterAmount;
+515:            var waterPerDirection = waterAmount / directions.Length;
+516:            
+517:            foreach (var dir in directions)
+518:            {
+519:                if (remainingWater <= 0) break;
+520:                
+521:                var targetPos = position + dir;
+522:                if (waterCells.TryGetValue(targetPos, out var targetCell))
+523:                {
+524:                    var transferAmount = Math.Min(waterPerDirection, remainingWater);
+525:                    targetCell.WaterLevel += transferAmount;
+526:                    targetCell.IsStatic = false;
+527:                    remainingWater -= transferAmount;
+528:                }
+529:            }
+530:        }
+531:        
+532:        /// <summary>
+533:        /// Queues a flow update for a position
+534:        /// </summary>
+535:        private void QueueFlowUpdate(Vector3Int position)
+536:        {
+537:            var neighbors = GetNeighborPositions(position);
+538:            
+539:            foreach (var neighborPos in neighbors)
+540:            {
+541:                if (waterCells.ContainsKey(neighborPos))
+542:                {
+543:                    updateQueue.Enqueue(new WaterUpdateRequest
+544:                    {
+545:                        Position = neighborPos,
+546:                        Type = WaterUpdateType.FlowUpdate
+547:                    });
+548:                }
+549:            }
+550:        }
+551:        
+552:        /// <summary>
+553:        /// Gets neighboring positions
+554:        /// </summary>
+555:        private List<Vector3Int> GetNeighborPositions(Vector3Int position)
+556:        {
+557:            return new List<Vector3Int>
+558:            {
+559:                position + new Vector3Int(1, 0, 0),
+560:                position + new Vector3Int(-1, 0, 0),
+561:                position + new Vector3Int(0, 0, 1),
+562:                position + new Vector3Int(0, 0, -1),
+563:                position + new Vector3Int(0, 1, 0),
+564:                position + new Vector3Int(0, -1, 0)
+565:            };
+566:        }
+567:        
+568:        /// <summary>
+569:        /// Adds a block change to the update queue
+570:        /// </summary>
+571:        public void QueueBlockChange(Vector3Int position, BlockType oldBlock, BlockType newBlock)
+572:        {
+573:            updateQueue.Enqueue(new WaterUpdateRequest
+574:            {
+575:                Position = position,
+576:                Type = WaterUpdateType.BlockAdded,
+577:                BlockType = newBlock
+578:            });
+579:            
+580:            if (IsWaterDisplacingBlock(oldBlock) && IsWaterDisplacingBlock(newBlock))
+581:            {
+582:                // No water impact
+583:                return;
+584:            }
+585:            
+586:            if (IsWaterDisplacingBlock(oldBlock) && !IsWaterDisplacingBlock(newBlock))
+587:            {
+588:                // Block removed - water can flow
+589:                updateQueue.Enqueue(new WaterUpdateRequest
+590:                {
+591:                    Position = position,
+592:                    Type = WaterUpdateType.BlockRemoved,
+593:                    BlockType = oldBlock
+594:                });
+595:            }
+596:        }
+597:        
+598:        /// <summary>
+599:        /// Gets water level at a position
+600:        /// </summary>
+601:        public float GetWaterLevel(Vector3Int position)
+602:        {
+603:            return waterCells.TryGetValue(position, out var cell) ? cell.WaterLevel : float.MinValue;
+604:        }
+605:        
+606:        /// <summary>
+607:        /// Checks if a position has water
+608:        /// </summary>
+609:        public bool HasWater(Vector3Int position)
+610:        {
+611:            return waterCells.ContainsKey(position) && 
+612:                   waterCells[position].WaterLevel > position.Y;
+613:        }
+614:        
+615:        /// <summary>
+616:        /// Gets water physics statistics
+617:        /// </summary>
+618:        public WaterPhysicsStatistics GetStatistics()
+619:        {
+620:            lock (lockObject)
+621:            {
+622:                return new WaterPhysicsStatistics
+623:                {
+624:                    TotalWaterCells = waterCells.Count,
+625:                    ActiveWaterCells = CountActiveCells(),
+626:                    SourceWaterCells = CountSourceCells(),
+627:                    StaticWaterCells = CountStaticCells(),
+628:                    ProcessedCellsPerTick = processedCellsPerTick,
+629:                    LastUpdateTime = lastUpdateTime,
+630:                    AverageWaterLevel = CalculateAverageWaterLevel(),
+631:                    AveragePressure = CalculateAveragePressure()
+632:                };
+633:            }
+634:        }
+635:        
+636:        /// <summary>
+637:        /// Counts active water cells
+638:        /// </summary>
+639:        private int CountActiveCells()
+640:        {
+641:            var count = 0;
+642:            foreach (var cell in waterCells.Values)
+643:            {
+644:                if (!cell.IsStatic && cell.WaterLevel > cell.Position.Y)
+645:                {
+646:                    count++;
+647:                }
+648:            }
+649:            return count;
+650:        }
+651:        
+652:        /// <summary>
+653:        /// Counts source water cells
+654:        /// </summary>
+655:        private int CountSourceCells()
+656:        {
+657:            var count = 0;
+658:            foreach (var cell in waterCells.Values)
+659:            {
+660:                if (cell.IsSource)
+661:                {
+662:                    count++;
+663:                }
+664:            }
+665:            return count;
+666:        }
+667:        
+668:        /// <summary>
+669:        /// Counts static water cells
+670:        /// </summary>
+671:        private int CountStaticCells()
+672:        {
+673:            var count = 0;
+674:            foreach (var cell in waterCells.Values)
+675:            {
+676:                if (cell.IsStatic)
+677:                {
+678:                    count++;
+679:                }
+680:            }
+681:            return count;
+682:        }
+683:        
+684:        /// <summary>
+685:        /// Calculates average water level
+686:        /// </summary>
+687:        private float CalculateAverageWaterLevel()
+688:        {
+689:            var total = 0f;
+690:            var count = 0;
+691:            
+692:            foreach (var cell in waterCells.Values)
+693:            {
+694:                total += cell.WaterLevel;
+695:                count++;
+696:            }
+697:            
+698:            return count > 0 ? total / count : 0f;
+699:        }
+700:        
+701:        /// <summary>
+702:        /// Calculates average pressure
+703:        /// </summary>
+704:        private float CalculateAveragePressure()
+705:        {
+706:            var total = 0f;
+707:            var count = 0;
+708:            
+709:            foreach (var cell in waterCells.Values)
+710:            {
+711:                total += cell.Pressure;
+712:                count++;
+713:            }
+714:            
+715:            return count > 0 ? total / count : 0f;
+716:        }
+717:        
+718:        /// <summary>
+719:        /// Disposes the water physics system
+720:        /// </summary>
+721:        public void Dispose()
+722:        {
+723:            physicsTimer?.Dispose();
+724:            
+725:            lock (lockObject)
+726:            {
+727:                waterCells.Clear();
+728:                updateQueue.Clear();
+729:            }
+730:            
+731:            logger.LogInformation("[WaterPhysicsSystem] Disposed");
+732:        }
+733:    }
+734:    
+735:    /// <summary>
+736:    /// Water cell data
+737:    /// </summary>
+738:    public class WaterCell
+739:    {
+740:        public Vector3Int Position { get; set; }
+741:        public float WaterLevel { get; set; }
+742:        public float Pressure { get; set; }
+743:        public Vector3 FlowVelocity { get; set; }
+744:        public bool IsSource { get; set; }
+745:        public float Temperature { get; set; }
+746:        public bool IsStatic { get; set; }
+747:    }
+748:    
+749:    /// <summary>
+750:    /// Water update request
+751:    /// </summary>
+752:    internal struct WaterUpdateRequest
+753:    {
+754:        public Vector3Int Position;
+755:        public WaterUpdateType Type;
+756:        public BlockType BlockType;
+757:        public float NewValue;
+758:    }
+759:    
+760:    /// <summary>
+761:    /// Water update types
+762:    /// </summary>
+763:    internal enum WaterUpdateType
+764:    {
+765:        FlowUpdate,
+766:        BlockAdded,
+767:        BlockRemoved,
+768:        TemperatureChange,
+769:        SourceToggle
+770:    }
+771:    
+772:    /// <summary>
+773:    /// Water physics configuration
+774:    /// </summary>
+775:    public class WaterPhysicsConfig
+776:    {
+777:        public int UpdateIntervalMs { get; set; } = 100; // 10 FPS
+778:        public int MaxUpdateTimeMs { get; set; } = 50;
+779:        public int MaxQueuedUpdatesPerTick { get; set; } = 100;
+780:        
+781:        public float Gravity { get; set; } = 9.81f;
+782:        public float WaterDensity { get; set; } = 1000f; // kg/m³
+783:        public float AtmosphericPressure { get; set; } = 101325f; // Pa
+784:        
+785:        public float FlowRate { get; set; } = 0.1f;
+786:        public float MaxFlowVelocity { get; set; } = 5f;
+787:        public float MinFlowVelocity { get; set; } = 0.01f;
+788:        public float MaxVerticalFlow { get; set; } = 2f;
+789:        
+790:        public float DefaultWaterDepth { get; set; } = 1f;
+791:        public float MaxWaterDepth { get; set; } = 10f;
+792:        public float DefaultWaterTemperature { get; set; } = 20f; // Celsius
+793:        
+794:        public bool EnableEvaporation { get; set; } = true;
+795:        public float BaseEvaporationRate { get; set; } = 0.001f;
+796:        public float MinPressureChange { get; set; } = 0.1f;
+797:    }
+798:    
+799:    /// <summary>
+800:    /// Water physics statistics
+801:    /// </summary>
+802:    public class WaterPhysicsStatistics
+803:    {
+804:        public int TotalWaterCells { get; set; }
+805:        public int ActiveWaterCells { get; set; }
+806:        public int SourceWaterCells { get; set; }
+807:        public int StaticWaterCells { get; set; }
+808:        public int ProcessedCellsPerTick { get; set; }
+809:        public DateTime LastUpdateTime { get; set; }
+810:        public float AverageWaterLevel { get; set; }
+811:        public float AveragePressure { get; set; }
+812:    }
+813:    
+814:    
+815:    /// <summary>
+816:    /// 3D float vector
+817:    /// </summary>
+818:    public struct Vector3
+819:    {
+820:        public float X { get; set; }
+821:        public float Y { get; set; }
+822:        public float Z { get; set; }
+823:        
+824:        public Vector3(float x, float y, float z)
+825:        {
+826:            X = x;
+827:            Y = y;
+828:            Z = z;
+829:        }
+830:        
+831:        public static Vector3 operator +(Vector3 a, Vector3 b)
+832:        {
+833:            return new Vector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+834:        }
+835:        
+836:        public static Vector3 operator -(Vector3 a, Vector3 b)
+837:        {
+838:            return new Vector3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+839:        }
+840:        
+841:        public static Vector3 operator *(Vector3 a, float scalar)
+842:        {
+843:            return new Vector3(a.X * scalar, a.Y * scalar, a.Z * scalar);
+844:        }
+845:        
+846:        public static float Distance(Vector3 a, Vector3 b)
+847:        {
+848:            var dx = a.X - b.X;
+849:            var dy = a.Y - b.Y;
+850:            var dz = a.Z - b.Z;
+851:            return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+852:        }
+853:        
+854:        public static Vector3 Normalize(Vector3 vector)
+855:        {
+856:            var length = (float)Math.Sqrt(vector.X * vector.X + vector.Y * vector.Y + vector.Z * vector.Z);
+857:            if (length < 0.0001f)
+858:                return Vector3.Zero;
+859:                
+860:            return new Vector3(vector.X / length, vector.Y / length, vector.Z / length);
+861:        }
+862:        
+863:        public static Vector3 Zero => new Vector3(0, 0, 0);
+864:        
+865:        public override string ToString()
+866:        {
+867:            return $"({X:F2}, {Y:F2}, {Z:F2})";
+868:        }
+869:    }
+870:}
+871:#endif
+872:
+873:

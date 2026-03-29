@@ -1,5 +1,6 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using MapGenLib;
@@ -20,22 +21,149 @@ public class WorldAreaManager : MonoBehaviour
         public List<SubWorldData> SubWorldDatas;
     }
     public Dictionary<string, WorldArea> WorldAreas { get; private set; } = new Dictionary<string, WorldArea>();
+    public WorldMapControlProfile MapControlProfile { get; private set; }
     public static WorldAreaManager Instance { get; private set; }
     public bool bInitFinish { get; private set; }
 
     public async void Init()
     {
-        //
         Instance = this;
-        //
         bInitFinish = false;
-        List<WorldAreaGenerateParam> worldAreaGenParamGroup = new List<WorldAreaGenerateParam>();
-        foreach (var worldAreaData in WorldMapDataFile.Instance.MapData.WorldAreaDatas)
+
+        var initialConfig = WorldConfigFile.Instance.GetConfig();
+        string profilePath = Path.Combine(
+            Application.streamingAssetsPath,
+            string.IsNullOrWhiteSpace(initialConfig.MapControlProfilePath) ? "world-map-control.json" : initialConfig.MapControlProfilePath);
+
+        MapControlProfile = WorldMapControlProfile.LoadFromFile(profilePath, initialConfig);
+        WorldConfigFile.Instance.OverrideWithProfile(MapControlProfile);
+        var tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+
+        var expectedProfile = WorldMapControlProfile.FromConfig(tunedWorldConfig);
+        if (!string.Equals(expectedProfile.ProfileHash, MapControlProfile.ProfileHash, StringComparison.OrdinalIgnoreCase))
         {
-            var worldConfig = WorldConfigFile.Instance.GetConfig();
-            var worldMapData = WorldMapDataFile.Instance.MapData;
-            int worldAreaSizeX = worldMapData.SubWorldRow * worldConfig.SubWorldSizeX;
-            int worldAreaSizeZ = worldMapData.SubWorldColumn * worldConfig.SubWorldSizeZ;
+            Debug.LogWarning($"[WorldAreaManager] Map control profile hash mismatch. File={MapControlProfile.ProfileHash} Config={expectedProfile.ProfileHash}. Rebuilding map control profile from config to keep world previews in sync.");
+            MapControlProfile = expectedProfile;
+            WorldConfigFile.Instance.OverrideWithProfile(MapControlProfile);
+            tunedWorldConfig = WorldConfigFile.Instance.GetConfig();
+        }
+
+        WorldGenAlgorithms.RiverCenterThreshold = MapControlProfile.RiverCenterThreshold;
+        WorldGenAlgorithms.RiverBankThreshold = MapControlProfile.RiverBankThreshold;
+        WorldGenAlgorithms.GlobalRiverWaterLevel = Mathf.Max(0, MapControlProfile.GlobalWaterLevel);
+        WorldGenAlgorithms.HydrologySmoothIterations = Mathf.Max(0, MapControlProfile.HydrologySmoothIterations);
+        WorldGenAlgorithms.HydrologySmoothBlend = Mathf.Clamp01(MapControlProfile.HydrologySmoothBlend);
+        WorldGenAlgorithms.HydrologyReservoirIterations = Mathf.Max(0, MapControlProfile.HydrologyReservoirIterations);
+        WorldGenAlgorithms.HydrologyReservoirBlend = Mathf.Clamp01(MapControlProfile.HydrologyReservoirBlend);
+        WorldGenAlgorithms.HydrologyShorePush = Mathf.Clamp(MapControlProfile.HydrologyShorePush, 0.1f, 64f);
+        WorldGenAlgorithms.HydrologySlopePenalty = Mathf.Clamp(MapControlProfile.HydrologySlopePenalty, 0.1f, 64f);
+        WorldGenAlgorithms.HydrologyFlowGain = Mathf.Clamp(MapControlProfile.HydrologyFlowGain, 0f, 2f);
+        WorldGenAlgorithms.HydrologyFlowMemoryWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowMemoryWeight);
+        WorldGenAlgorithms.HydrologyFlowShadowWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowWeight);
+        WorldGenAlgorithms.HydrologyFlowShadowSlopeWeight = Mathf.Clamp01(MapControlProfile.HydrologyFlowShadowSlopeWeight);
+        WorldGenAlgorithms.HydrologyContinuityWeight = Mathf.Clamp01(MapControlProfile.HydrologyContinuityWeight);
+        WorldGenAlgorithms.HydrologyPressureBlend = Mathf.Clamp01(MapControlProfile.HydrologyPressureBlend);
+        WorldGenAlgorithms.HydrologyPressureGradientClamp = Mathf.Clamp(MapControlProfile.HydrologyPressureGradientClamp, 0f, 1.5f);
+        WorldGenAlgorithms.HydrologyEdgeFlowBias = Mathf.Clamp01(MapControlProfile.HydrologyEdgeFlowBias);
+        WorldGenAlgorithms.HydrologyEdgeTangentWeight = Mathf.Clamp01(MapControlProfile.HydrologyEdgeTangentWeight);
+        WorldGenAlgorithms.HydrologyEdgeFlowLockWeight = Mathf.Clamp01(MapControlProfile.HydrologyEdgeFlowLockWeight);
+        WorldGenAlgorithms.HydrologyEdgeBlendRadius = Mathf.Max(1, MapControlProfile.HydrologyEdgeBlendRadius);
+        WorldGenAlgorithms.HydrologyEdgeStabilityIterations = Mathf.Max(0, MapControlProfile.HydrologyEdgeStabilityIterations);
+        WorldGenAlgorithms.HydrologyEdgeStabilityWeight = Mathf.Clamp01(MapControlProfile.HydrologyEdgeStabilityWeight);
+        WorldGenAlgorithms.HydrologyEdgeVarianceClamp = Mathf.Clamp01(MapControlProfile.HydrologyEdgeVarianceClamp);
+        WorldGenAlgorithms.HydrologyEdgeFluxBlend = Mathf.Clamp01(MapControlProfile.HydrologyEdgeFluxBlend);
+        WorldGenAlgorithms.HydrologyEdgeNormalizationBlend = Mathf.Clamp01(MapControlProfile.HydrologyEdgeNormalizationBlend);
+        WorldGenAlgorithms.HydrologyEdgeNormalizationIterations = Mathf.Max(0, MapControlProfile.HydrologyEdgeNormalizationIterations);
+        WorldGenAlgorithms.HydrologyVarianceBlend = Mathf.Clamp01(MapControlProfile.HydrologyVarianceBlend);
+        WorldGenAlgorithms.HydrologyVarianceClamp = Mathf.Clamp(MapControlProfile.HydrologyVarianceClamp, 0f, 1.25f);
+        WorldGenAlgorithms.HydrologyWaterTableClampWeight = Mathf.Clamp01(MapControlProfile.HydrologyWaterTableClampWeight);
+        WorldGenAlgorithms.HydrologyWaterTableClampRange = Mathf.Max(1, MapControlProfile.HydrologyWaterTableClampRange);
+        WorldGenAlgorithms.HydrologyWaterTableSlopeWeight = Mathf.Clamp01(MapControlProfile.HydrologyWaterTableSlopeWeight);
+        WorldGenAlgorithms.HydrologyFlowPersistence = Mathf.Clamp01(MapControlProfile.HydrologyFlowPersistence);
+        WorldGenAlgorithms.HydrologyGradientWeight = Mathf.Clamp01(MapControlProfile.HydrologyGradientWeight);
+        WorldGenAlgorithms.HydrologyGradientSlopeWeight = Mathf.Clamp01(MapControlProfile.HydrologyGradientSlopeWeight);
+        WorldGenAlgorithms.HydrologyGradientClamp = Mathf.Clamp(MapControlProfile.HydrologyGradientClamp, 0.1f, 3.5f);
+        WorldGenAlgorithms.HydrologyGradientStabilityIterations = Mathf.Max(0, MapControlProfile.HydrologyGradientStabilityIterations);
+        WorldGenAlgorithms.HydrologyGradientStabilityBlend = Mathf.Clamp01(MapControlProfile.HydrologyGradientStabilityBlend);
+        WorldGenAlgorithms.HydrologyDirectionalIterations = Mathf.Max(0, MapControlProfile.HydrologyDirectionalIterations);
+        WorldGenAlgorithms.HydrologyDirectionalBlend = Mathf.Clamp01(MapControlProfile.HydrologyDirectionalBlend);
+        WorldGenAlgorithms.HydrologyFlowDivergenceClamp = Mathf.Clamp(MapControlProfile.HydrologyFlowDivergenceClamp, 0f, 1.5f);
+        WorldGenAlgorithms.HydrologyCurvatureWeight = Mathf.Clamp(MapControlProfile.HydrologyCurvatureWeight, 0f, 1.5f);
+        WorldGenAlgorithms.HydrologyWarpFrequency = Mathf.Clamp(MapControlProfile.HydrologyWarpFrequency, 0.0001f, 0.01f);
+        WorldGenAlgorithms.HydrologyWarpAmplitude = Mathf.Clamp(MapControlProfile.HydrologyWarpAmplitude, 0f, 48f);
+        WorldGenAlgorithms.RiparianSmoothIterations = Mathf.Max(0, MapControlProfile.RiparianSmoothIterations);
+        WorldGenAlgorithms.RiparianSmoothBlend = Mathf.Clamp01(MapControlProfile.RiparianSmoothBlend);
+        WorldGenAlgorithms.RiparianSaturationBoost = Mathf.Clamp01(MapControlProfile.RiparianSaturationBoost);
+        WorldGenAlgorithms.RiparianBufferRadius = Mathf.Max(0, MapControlProfile.RiparianBufferRadius);
+        WorldGenAlgorithms.HydrologySeamRelaxIterations = Mathf.Max(0, MapControlProfile.HydrologySeamRelaxIterations);
+        WorldGenAlgorithms.HydrologySeamRelaxBlend = Mathf.Clamp01(MapControlProfile.HydrologySeamRelaxBlend);
+        WorldGenAlgorithms.RiverNoiseScale = Mathf.Clamp(MapControlProfile.RiverNoiseScale, 0.0001f, 0.05f);
+        WorldGenAlgorithms.RiverDepth = Mathf.Max(2, MapControlProfile.RiverDepth);
+        WorldGenAlgorithms.RiverIntensitySmoothIterations = Mathf.Max(1, MapControlProfile.RiverIntensitySmoothIterations);
+        WorldGenAlgorithms.RiverIntensitySmoothBlend = Mathf.Clamp01(MapControlProfile.RiverIntensitySmoothBlend);
+        WorldGenAlgorithms.RiverConfluenceBoost = Mathf.Clamp(MapControlProfile.RiverConfluenceBoost, 0f, 2f);
+        WorldGenAlgorithms.RiverFlowAlignmentWeight = Mathf.Clamp(MapControlProfile.RiverFlowAlignmentWeight, 0f, 2f);
+        WorldGenAlgorithms.RiverGradientPenalty = Mathf.Clamp01(MapControlProfile.RiverGradientPenalty);
+        WorldGenAlgorithms.RiverHeadwaterStabilityWeight = Mathf.Clamp01(MapControlProfile.RiverHeadwaterStabilityWeight);
+        WorldGenAlgorithms.RiverAnisotropyWeight = Mathf.Clamp(MapControlProfile.RiverAnisotropyWeight, 0f, 2f);
+        WorldGenAlgorithms.RiverAnisotropyDamping = Mathf.Clamp01(MapControlProfile.RiverAnisotropyDamping);
+        WorldGenAlgorithms.RiverMeanderJitter = Mathf.Clamp01(MapControlProfile.RiverMeanderJitter);
+        WorldGenAlgorithms.RiverReliefPenaltyWeight = Mathf.Clamp01(MapControlProfile.RiverReliefPenaltyWeight);
+        WorldGenAlgorithms.RiverBankStabilityClamp = Mathf.Clamp01(MapControlProfile.RiverBankStabilityClamp);
+        WorldGenAlgorithms.RiverSeamFillStrength = Mathf.Clamp01(MapControlProfile.RiverSeamFillStrength);
+        WorldGenAlgorithms.RiverBankErosionWeight = Mathf.Clamp01(MapControlProfile.RiverBankErosionWeight);
+        WorldGenAlgorithms.LakeRimErosionWeight = Mathf.Clamp01(MapControlProfile.LakeRimErosionWeight);
+        WorldGenAlgorithms.LakeInflowBlendWeight = Mathf.Clamp01(MapControlProfile.LakeInflowBlendWeight);
+        WorldGenAlgorithms.RiverEdgeFeather = Mathf.Clamp01(MapControlProfile.RiverEdgeFeather);
+        WorldGenAlgorithms.RiverMouthSmoothRadius = Mathf.Max(1, MapControlProfile.RiverMouthSmoothRadius);
+        WorldGenAlgorithms.RiverDeltaWetlandStrength = Mathf.Clamp01(MapControlProfile.RiverDeltaWetlandStrength);
+        WorldGenAlgorithms.LakeSpawnWeightBias = Mathf.Clamp(MapControlProfile.LakeSpawnWeightBias, 0f, 1.3f);
+        WorldGenAlgorithms.LakeShorelineBlend = Mathf.Clamp01(MapControlProfile.LakeShorelineBlend);
+        WorldGenAlgorithms.LakeBasinSmoothIterations = Mathf.Max(0, MapControlProfile.LakeBasinSmoothIterations);
+        WorldGenAlgorithms.LakeMaxRadius = Mathf.Max(1, MapControlProfile.LakeMaxRadius);
+        WorldGenAlgorithms.LakeShelfDepth = Mathf.Max(0, MapControlProfile.LakeShelfDepth);
+        WorldGenAlgorithms.LakeRiverProximitySuppression = Mathf.Clamp01(MapControlProfile.LakeRiverProximitySuppression);
+        WorldGenAlgorithms.LakeFlowSeepageWeight = Mathf.Clamp01(MapControlProfile.LakeFlowSeepageWeight);
+        WorldGenAlgorithms.LakeVarianceWeight = Mathf.Clamp01(MapControlProfile.LakeVarianceWeight);
+        WorldGenAlgorithms.LakeOutflowSealWeight = Mathf.Clamp01(MapControlProfile.LakeOutflowSealWeight);
+        WorldGenAlgorithms.LakeOutflowStabilityWeight = Mathf.Clamp01(MapControlProfile.LakeOutflowStabilityWeight);
+        WorldGenAlgorithms.HydrologySinkRepairWeight = Mathf.Clamp01(
+            MapControlProfile.HydrologyContinuityWeight * 0.38f +
+            MapControlProfile.RiverConfluenceBoost * 0.14f +
+            MapControlProfile.LakeInflowBlendWeight * 0.24f +
+            MapControlProfile.CaveEdgeSealStrength * 0.24f);
+        WorldGenAlgorithms.HydrologySinkDepthThreshold = Mathf.Clamp(
+            1f + MapControlProfile.LakeShelfDepth * 0.18f - MapControlProfile.LakeSpawnWeightBias * 0.08f,
+            0.5f,
+            4f);
+        WorldGenAlgorithms.WetlandSaturationThreshold = Mathf.Clamp01(MapControlProfile.LakeWetlandSaturationThreshold);
+        WorldGenAlgorithms.OutflowCarveDepth = Mathf.Max(1, MapControlProfile.LakeOutflowCarveDepth);
+        WorldGenAlgorithms.LakeWetlandBufferRadius = Mathf.Max(0, MapControlProfile.LakeWetlandBufferRadius);
+        WorldGenAlgorithms.CaveStabilitySmoothIterations = Mathf.Max(0, MapControlProfile.CaveStabilitySmoothIterations);
+        WorldGenAlgorithms.CaveStabilitySmoothBlend = Mathf.Clamp01(MapControlProfile.CaveStabilitySmoothBlend);
+        WorldGenAlgorithms.CaveSupportDensity = Mathf.Clamp01(MapControlProfile.CaveSupportDensity);
+        WorldGenAlgorithms.CaveSupportHydrationBias = Mathf.Clamp01(MapControlProfile.CaveSupportHydrationBias);
+        WorldGenAlgorithms.CaveSupportFlowBias = Mathf.Clamp01(MapControlProfile.CaveSupportFlowBias);
+        WorldGenAlgorithms.CaveRiparianPlugDepth = Mathf.Max(0, MapControlProfile.CaveRiparianPlugDepth);
+        float caveWeightTotal = Mathf.Clamp01(MapControlProfile.CaveHydrologyWeight + MapControlProfile.CaveFlowWeight + MapControlProfile.CaveRoughnessWeight);
+        WorldGenAlgorithms.CaveHydrologyWeight = Mathf.Clamp01(MapControlProfile.CaveHydrologyWeight);
+        WorldGenAlgorithms.CaveFlowWeight = Mathf.Clamp01(MapControlProfile.CaveFlowWeight);
+        WorldGenAlgorithms.CaveRoughnessWeight = Mathf.Clamp01(MapControlProfile.CaveRoughnessWeight);
+        WorldGenAlgorithms.CaveDepthWeight = Mathf.Clamp(1f - caveWeightTotal, 0.05f, 0.45f);
+        WorldGenAlgorithms.CaveRiverSuppressionWeight = Mathf.Clamp01(MapControlProfile.CaveRiverSuppressionWeight);
+        WorldGenAlgorithms.RiparianCaveGuardWeight = Mathf.Clamp01(MapControlProfile.RiparianCaveGuardWeight);
+        WorldGenAlgorithms.CaveMoistureRetentionWeight = Mathf.Clamp01(MapControlProfile.CaveMoistureRetentionWeight);
+        WorldGenAlgorithms.CaveEdgeSealStrength = Mathf.Clamp01(MapControlProfile.CaveEdgeSealStrength);
+        WorldGenAlgorithms.CaveCeilingStabilityWeight = Mathf.Clamp01(MapControlProfile.CaveCeilingStabilityWeight);
+        WorldGenAlgorithms.CaveCeilingMoistureClamp = Mathf.Clamp01(MapControlProfile.CaveCeilingMoistureClamp);
+        WorldGenAlgorithms.SupportPillarChance = Mathf.Clamp01(MapControlProfile.SupportPillarChance);
+
+        List<WorldAreaGenerateParam> worldAreaGenParamGroup = new List<WorldAreaGenerateParam>();
+        var worldMapData = WorldMapDataFile.Instance.MapData;
+        foreach (var worldAreaData in worldMapData.WorldAreaDatas)
+        {
+            int worldAreaSizeX = worldMapData.SubWorldRow * tunedWorldConfig.SubWorldSizeX;
+            int worldAreaSizeZ = worldMapData.SubWorldColumn * tunedWorldConfig.SubWorldSizeZ;
             WorldAreaGenerateParam param;
             param.AreaSizeX = worldAreaSizeX;
             param.AreaSizeZ = worldAreaSizeZ;
@@ -44,6 +172,8 @@ public class WorldAreaManager : MonoBehaviour
             param.SubWorldDatas = worldAreaData.SubWorldDatas;
             worldAreaGenParamGroup.Add(param);
         }
+
+
 
         KojeomUtility.StartWatch();
         // 모든 비동기 맵 데이터 생성이 완료되기를 기다린다.
@@ -423,3 +553,5 @@ public class WorldAreaManager : MonoBehaviour
     }
 
 }
+
+

@@ -1,0 +1,51 @@
+{
+  "core": {
+    "server": [
+      "Authoritative chunk streaming, saving, and hydration-aware terrain/cave/river/lake generation",
+      "Entity lifecycle (spawn/update/despawn), movement validation, gravity/collision stubs, and respawn",
+      "Block change pipeline with distance/permission validation and chunk delta broadcasting",
+      "Session/login, world time & weather ticks, and heartbeat/anti-cheat rate guards",
+      "Protobuf registry validation for all EnhancedMinecraft message handlers before accepting clients"
+    ],
+    "client": [
+      "Chunk request/cache/render loop with mesh rebuild on block deltas and water/lighting masks",
+      "Local player controller with gravity, collision, swimming, and camera handling",
+      "Remote entity interpolation and animation hooks sourced from server authoritative updates",
+      "HUD for health/hunger/time/weather plus chat and system notifications",
+      "Protocol bootstrap that checks generated protobuf bindings before connecting"
+    ]
+  },
+  "content": {
+    "server": [
+      "Biome-aware block palettes, ores, and lootable containers seeded per chunk",
+      "Mob spawning with simple AI navigation, aggro, and combat events",
+      "Crafting/interaction handlers (furnace, workbench, chest) with inventory persistence",
+      "Weather/time effects that influence spawning, light, and hydrology",
+      "Player commands (/spawn, /home, /time, /weather, /give) gated by permissions"
+    ],
+    "client": [
+      "Biome materials, water/lava shaders, skybox + weather FX tied to server broadcasts",
+      "UI flows for crafting, containers, chat commands, and death/respawn",
+      "Soundscape for steps, hits, mining, weather, and biome ambience",
+      "Mob VFX/SFX and hit indicators driven by combat events",
+      "Replay/record toggle for diagnostics (server-side traces + local capture)"
+    ]
+  },
+  "utility": {
+    "server": [
+      "Configurable JSON knobs for worldgen, networking, and security (server.json, world.json)",
+      "Telemetry on chunk residency, tick time, and protocol errors with log sinks",
+      "Self-test harness that exercises protobuf handlers and worldgen snapshots",
+      "Admin tooling for backups, bans, and live config reload",
+      "Data-driven tables for items/blocks/mobs in config/*.json"
+    ],
+    "client": [
+      "Diagnostics overlay (FPS, chunk stats, net RTT) and log capture for bug reports",
+      "Settings UI for controls, graphics, and network endpoints",
+      "Patchable data tables for blocks/items/entities so art/content updates stay data-driven",
+      "In-editor validation for generated protobuf assets and scriptable object refs",
+      "Build automation hooks for exporting standalone client bundles"
+    ]
+  },
+  "notes": "Keep implementation order roughly core -> content -> utility; update alongside server/client milestones and reflect protocol or config changes in docs/README.md."
+}

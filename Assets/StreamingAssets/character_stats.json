@@ -1,0 +1,69 @@
+{
+  "character_stats": {
+    "base_stats": {
+      "health": 20,
+      "max_health": 20,
+      "hunger": 20,
+      "max_hunger": 20,
+      "saturation": 5.0,
+      "movement_speed": 0.1,
+      "attack_speed": 4.0,
+      "luck": 0.0,
+      "armor": 0,
+      "armor_toughness": 0.0,
+      "knockback_resistance": 0.0
+    },
+    "level_scaling": {
+      "health_per_level": 0.0,
+      "damage_per_level": 0.0,
+      "speed_per_level": 0.0,
+      "experience_curve": "exponential"
+    },
+    "experience_levels": {
+      "level_1": { "experience_required": 7 },
+      "level_2": { "experience_required": 16 },
+      "level_3": { "experience_required": 27 },
+      "level_4": { "experience_required": 40 },
+      "level_5": { "experience_required": 55 },
+      "level_6": { "experience_required": 72 },
+      "level_7": { "experience_required": 91 },
+      "level_8": { "experience_required": 112 },
+      "level_9": { "experience_required": 135 },
+      "level_10": { "experience_required": 160 }
+    },
+    "hunger_effects": {
+      "full": { "min_value": 18, "health_regen": true, "sprint_allowed": true },
+      "hungry": { "min_value": 6, "health_regen": false, "sprint_allowed": true },
+      "starving": { "min_value": 0, "health_regen": false, "sprint_allowed": false, "damage_per_tick": 1 }
+    },
+    "attribute_modifiers": {
+      "armor": {
+        "leather": { "helmet": 1, "chestplate": 3, "leggings": 2, "boots": 1 },
+        "iron": { "helmet": 2, "chestplate": 6, "leggings": 5, "boots": 2 },
+        "diamond": { "helmet": 3, "chestplate": 8, "leggings": 6, "boots": 3 }
+      },
+      "weapon_damage": {
+        "sword": { "wood": 4, "stone": 5, "iron": 6, "diamond": 7 },
+        "axe": { "wood": 7, "stone": 9, "iron": 9, "diamond": 9 },
+        "pickaxe": { "wood": 2, "stone": 3, "iron": 4, "diamond": 5 },
+        "shovel": { "wood": 2, "stone": 3, "iron": 4, "diamond": 5 }
+      },
+      "tool_efficiency": {
+        "wood": 2.0,
+        "stone": 4.0,
+        "iron": 6.0,
+        "diamond": 8.0
+      }
+    },
+    "status_effects": {
+      "poison": { "damage_per_tick": 1, "duration_multiplier": 1.0 },
+      "regeneration": { "heal_per_tick": 1, "duration_multiplier": 1.0 },
+      "speed": { "movement_multiplier": 1.2, "duration_multiplier": 1.0 },
+      "slowness": { "movement_multiplier": 0.85, "duration_multiplier": 1.0 },
+      "strength": { "damage_multiplier": 1.3, "duration_multiplier": 1.0 },
+      "weakness": { "damage_multiplier": 0.8, "duration_multiplier": 1.0 }
+    }
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-19T12:00:00Z"
+}

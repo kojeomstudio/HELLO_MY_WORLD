@@ -1,0 +1,157 @@
+{
+  "version": "2026-01-03",
+  "summary": "Basin-filled hydrology seams, world-map control hot reload, and EnhancedMinecraft descriptor validation.",
+  "core": [
+    {
+      "id": "core.worldgen_masks",
+      "name": "Seam-safe hydrology masks",
+      "description": "Fill basins, stitch chunk edges, and blend flow shadowing so caves/rivers/lakes share stable masks.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "core.worldmap_control",
+      "name": "World-map control reload",
+      "description": "Hot-reload map-control/world-config JSON on both server and Unity, rebuilding pipelines and caches when hashes drift.",
+      "owners": [
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core.protocol_health",
+      "name": "Descriptor guardrails",
+      "description": "Ensure EnhancedMinecraft protobufs load from the expected descriptor file and stay covered by registry checks.",
+      "owners": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "artifacts": [
+        "proto/enhanced_minecraft_game.proto",
+        "SharedProtocol/EnhancedMinecraft/*"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content.river_corridors",
+      "name": "Flow-aligned rivers",
+      "description": "Corridor-aware river pressure with edge stitching and directional smoothing to reduce chunk seams.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "content.lake_stability",
+      "name": "Stable lakes and wetlands",
+      "description": "Lake basins cushion seams, damp gradients, and carve outflows using shared hydrology/flow masks.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "content.cave_edge_stability",
+      "name": "Hydrology-aware caves",
+      "description": "Cave thresholds account for hydrology gradients and edge sealing to avoid flooded seams.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "artifacts": []
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util.data_parity",
+      "name": "JSON config parity",
+      "description": "World/map-control configs stay data-driven and synchronized between server and Unity streaming assets.",
+      "owners": [
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "util.proto_ci",
+      "name": "Protobuf CI gates",
+      "description": "Descriptor filename checks plus registry/parser coverage to catch stale EnhancedMinecraft bindings.",
+      "owners": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "util.tests_builds",
+      "name": "Build + smoke tests",
+      "description": "dotnet builds for SharedProtocol/GameServer and protobuf handler validation.",
+      "owners": [
+        "dotnet build SharedProtocol/SharedProtocol.csproj",
+        "dotnet build GameServer/GameServer.csproj"
+      ],
+      "artifacts": []
+    }
+  ],
+  "implementation_order": [
+    {
+      "phase": "1",
+      "name": "Hydrology parity",
+      "items": [
+        "core.worldgen_masks",
+        "content.river_corridors",
+        "content.lake_stability"
+      ]
+    },
+    {
+      "phase": "2",
+      "name": "Control + proto validation",
+      "items": [
+        "core.worldmap_control",
+        "core.protocol_health",
+        "util.proto_ci"
+      ]
+    },
+    {
+      "phase": "3",
+      "name": "Data + builds",
+      "items": [
+        "util.data_parity",
+        "util.tests_builds",
+        "content.cave_edge_stability"
+      ]
+    }
+  ],
+  "data_sources": {
+    "server": [
+      "config/world.json",
+      "config/world_map_control_profile.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/world-config.json",
+      "Assets/StreamingAssets/world-map-control.json"
+    ],
+    "proto": [
+      "proto/*.proto",
+      "SharedProtocol/EnhancedMinecraft/*"
+    ]
+  }
+}

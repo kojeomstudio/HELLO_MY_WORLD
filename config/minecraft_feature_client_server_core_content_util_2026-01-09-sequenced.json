@@ -1,0 +1,184 @@
+{
+  "updatedAt": "2026-01-09T12:15:00Z",
+  "source": "codex-cli",
+  "implementationOrder": [
+    { "order": 1, "feature": "world-map-control-parity" },
+    { "order": 2, "feature": "terrain-generation-caves-rivers-lakes" },
+    { "order": 3, "feature": "chunk-streaming-and-networking" },
+    { "order": 4, "feature": "player-state-and-auth" },
+    { "order": 5, "feature": "blocks-items-recipes" },
+    { "order": 6, "feature": "structures-and-decorators" },
+    { "order": 7, "feature": "config-and-hotreload" },
+    { "order": 8, "feature": "tooling-and-proto-sync" },
+    { "order": 9, "feature": "telemetry-and-diagnostics" }
+  ],
+  "categories": {
+    "core": [
+      {
+        "feature": "world-map-control-parity",
+        "status": "in-progress",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "server": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ],
+        "data": [
+          "config/world_map_control_profile.json",
+          "config/world.json",
+          "config/world_map_control_profile.json"
+        ],
+        "notes": "Keep hydrology, flow, and cave toggles in sync; regenerate hashed profile when terrain knobs change."
+      },
+      {
+        "feature": "terrain-generation-caves-rivers-lakes",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "data": [
+          "config/enhanced-terrain-config.json",
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Hydrology-aware carving with stability smoothing, river meanders, lake outflows, and cave suppression near rivers."
+      },
+      {
+        "feature": "chunk-streaming-and-networking",
+        "status": "stable",
+        "client": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/Scripts/Minecraft/Network/ChunkClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/WorldManager.cs",
+          "SharedProtocol/EnhancedMinecraft"
+        ],
+        "data": [
+          "proto/game_world.proto",
+          "Assets/Generated/Protobuf",
+          "SharedProtocol/EnhancedMinecraft"
+        ],
+        "notes": "Ensure chunk radius honors render/simulation distances from world map profile and server world settings."
+      },
+      {
+        "feature": "player-state-and-auth",
+        "status": "stable",
+        "client": [
+          "Assets/MyAssets/Scripts/Network/NetworkPlayer.cs",
+          "Assets/MyAssets/Scripts/Network/AuthenticationClient.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/AuthHandler.cs",
+          "GameServer/Sessions/SessionManager.cs"
+        ],
+        "data": [
+          "proto/game_auth.proto",
+          "config/server.json"
+        ],
+        "notes": "Keep session tokens and reconnect handling aligned with protobuf auth contracts."
+      }
+    ],
+    "content": [
+      {
+        "feature": "blocks-items-recipes",
+        "status": "stable",
+        "client": [
+          "Assets/MyAssets/Scripts/Inventory/ItemDatabase.cs",
+          "Assets/MyAssets/Scripts/Crafting/CraftingManager.cs"
+        ],
+        "server": [
+          "GameServer/Handlers/ItemHandler.cs",
+          "GameServer/Handlers/CraftingHandler.cs"
+        ],
+        "data": [
+          "config/blocks.json",
+          "config/items.json",
+          "config/recipes.json"
+        ],
+        "notes": "JSON-first definitions for blocks, items, and recipes; keep ids aligned between client/server."
+      },
+      {
+        "feature": "structures-and-decorators",
+        "status": "in-progress",
+        "client": [
+          "Assets/MyAssets/Scripts/WorldGen/StructureDecorator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnvironmentSpawner.cs"
+        ],
+        "server": [
+          "GameServer/World/Generation/StructureGenerator.cs",
+          "GameServer/World/Generation/TreeGenerator.cs"
+        ],
+        "data": [
+          "config/world.json",
+          "docs/world-generation.md"
+        ],
+        "notes": "Priority on spawn rules that respect hydrology and biome masks before adding new prefabs."
+      }
+    ],
+    "util": [
+      {
+        "feature": "config-and-hotreload",
+        "status": "in-progress",
+        "client": [
+          "Assets/Scripts/Minecraft/World/WorldMapControlSystem.cs",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "server": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/Configuration/WorldGenerationConfig.cs"
+        ],
+        "data": [
+          "config/*.json",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "notes": "Keep environment overrides in JSON; validate keys before applying to live sessions."
+      },
+      {
+        "feature": "tooling-and-proto-sync",
+        "status": "stable",
+        "client": [
+          "scripts/generate_proto.ps1",
+          "Assets/Generated/Protobuf"
+        ],
+        "server": [
+          "SharedProtocol/SharedProtocol.csproj",
+          "scripts/verify_proto.ps1"
+        ],
+        "data": [
+          "proto/*.proto",
+          "docs/protobuf_protocol_validation_analysis.md"
+        ],
+        "notes": "Rebuild generated code when proto files change; keep EnhancedMinecraft enums consistent across assemblies."
+      },
+      {
+        "feature": "telemetry-and-diagnostics",
+        "status": "planned",
+        "client": [
+          "Assets/MyAssets/Scripts/Diagnostics/ClientMetricsReporter.cs"
+        ],
+        "server": [
+          "GameServer/Diagnostics/Metrics/MetricsCollector.cs",
+          "GameServer/Handlers/DiagHandler.cs"
+        ],
+        "data": [
+          "config/server.json",
+          "docs/diagnostics.md"
+        ],
+        "notes": "Emit world-gen timings and network latency to ensure server/client bottlenecks stay visible."
+      }
+    ]
+  }
+}

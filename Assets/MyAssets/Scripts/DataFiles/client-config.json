@@ -1,0 +1,57 @@
+{
+  "network": {
+    "serverIP": "127.0.0.1",
+    "serverPort": 8080,
+    "connectionTimeout": 30000,
+    "reconnectInterval": 5000,
+    "maxReconnectAttempts": 3
+  },
+  "gameplay": {
+    "viewDistance": 8,
+    "maxChunksLoaded": 100,
+    "chunkUnloadTimeout": 300,
+    "simulationDistance": 6
+  },
+  "graphics": {
+    "enableVSync": true,
+    "targetFrameRate": 60,
+    "antiAliasing": 4,
+    "textureQuality": "High",
+    "shadowQuality": "Medium",
+    "renderDistance": "Far"
+  },
+  "audio": {
+    "masterVolume": 1.0,
+    "musicVolume": 0.8,
+    "sfxVolume": 0.9,
+    "enableAmbientSounds": true
+  },
+  "controls": {
+    "mouseSensitivity": 1.0,
+    "invertMouseY": false,
+    "keyBindings": {
+      "moveForward": "W",
+      "moveBackward": "S",
+      "moveLeft": "A",
+      "moveRight": "D",
+      "jump": "Space",
+      "sneak": "LeftShift",
+      "sprint": "LeftControl",
+      "inventory": "E",
+      "chat": "T"
+    }
+  },
+  "ui": {
+    "showFPS": true,
+    "showCoordinates": true,
+    "showDebugInfo": false,
+    "language": "en",
+    "theme": "Default"
+  },
+  "debug": {
+    "enableDebugMode": false,
+    "logLevel": "Info",
+    "enableWireframe": false,
+    "showCollisionShapes": false
+  }
+}

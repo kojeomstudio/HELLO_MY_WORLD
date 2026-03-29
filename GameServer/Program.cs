@@ -1,6 +1,20 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using GameCommon.DataDriven;
+using GameCommon.World;
+using GameServerApp.Configuration;
+using GameServerApp.Testing;
+using EnhancedMinecraftProtocol;
+using SharedProtocol.EnhancedMinecraft;
+using ServerWorldMapControlProfileUtility = GameServerApp.World.WorldMapControlProfileUtility;
+using SharedWorldMapControlProfileUtility = GameCommon.World.WorldMapControlProfileUtility;
+using GameServerApp.World;
 
 namespace GameServerApp
 {
@@ -14,6 +28,18 @@ namespace GameServerApp
         {
             // Display server architecture information
             DisplayServerInfo();
+            ProtoRuntime.EnsureInitialized();
+            ProtocolValidator.ValidateEnhancedContracts();
+            ProtocolStandardization.ValidateProtocolImplementation();
+            ProtoDiagnostics.LogSummary();
+            ProtoDiagnostics.AssertRegistryClean();
+            EmitProtoReport();
+            ValidateGeneratedProtobufSources();
+            LoadFeatureManifest();
+            ValidateWorldMapQueuePolicyParity();
+            ValidateWorldMapProfileParity();
+            ValidateConfigParityManifest();
+            ValidateGameDataDatasets();
             
             // Check if we should run in server-only mode
             if (args.Contains("--server"))
@@ -27,6 +53,7 @@ namespace GameServerApp
                 try
                 {
                     var config = ServerConfig.LoadFromFile();
+                    EnsureWorldMapProfile(config);
                     var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
 
                     var cts = new CancellationTokenSource();
@@ -36,6 +63,7 @@ namespace GameServerApp
                     await Task.Delay(300);
 
                     await TestClient.RunTestSuiteAsync();
+                    await RunDummyProtocolProbeAsync(args.Contains("--proto-probe"), CancellationToken.None);
 
                     server.Stop();
                     await Task.Delay(200);
@@ -46,6 +74,25 @@ namespace GameServerApp
                     Console.WriteLine($"Self test failed: {ex.Message}");
                     return 1;
                 }
+            }
+
+            if (args.Contains("--generate-map-profile"))
+            {
+                var config = ServerConfig.LoadFromFile();
+                EnsureWorldMapProfile(config);
+                var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
+                string profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
+                var profile = ServerWorldMapControlProfileUtility.Load(profilePath);
+                Console.WriteLine(
+                    $"Generated world map control profile at '{profilePath}' " +
+                    $"(hash: {profile?.ProfileHash ?? "unknown"}, version: {profile?.Version}, signature: {profile?.HydrologySignature}).");
+                return 0;
+            }
+
+            if (args.Contains("--proto-probe"))
+            {
+                await RunDummyProtocolProbeAsync(probeNetwork: false, CancellationToken.None);
+                return 0;
             }
             
             Console.WriteLine("\nChoose an option:");
@@ -93,7 +140,666 @@ namespace GameServerApp
                 Console.WriteLine("4. Exit");
             }
         }
-        
+
+        private static void EmitProtoReport()
+        {
+            try
+            {
+                string reportPath = ResolveRepoPath(Path.Combine("config", "proto_reference_report.json"));
+                ProtoDiagnostics.WriteReportToFile(reportPath);
+                Console.WriteLine($"[Proto] Reference report written to {reportPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Proto][WARN] Unable to write proto reference report: {ex.Message}");
+            }
+        }
+
+        private static void LoadFeatureManifest()
+        {
+            try
+            {
+                var manifestCandidates = DiscoverFeatureManifestCandidates().ToList();
+                if (manifestCandidates.Count == 0)
+                {
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-07-session-141.json")));
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-03-session-139.json")));
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-03-01-session-138.json")));
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_client_server_core_content_util_2026-02-28-session-134.json")));
+                    manifestCandidates.Add(ResolveRepoPath(Path.Combine("config", "minecraft_feature_core_content_util_2026-02-04.json")));
+                }
+
+                FeatureManifest? manifest = null;
+                string manifestPath = string.Empty;
+
+                foreach (var candidate in manifestCandidates)
+                {
+                    var resolved = Path.IsPathRooted(candidate) ? candidate : ResolveRepoPath(candidate);
+                    manifest = FeatureManifest.TryLoad(resolved);
+                    if (manifest != null)
+                    {
+                        manifestPath = resolved;
+                        break;
+                    }
+                }
+
+                if (manifest == null)
+                {
+                    Console.WriteLine("[FeatureManifest][WARN] Manifest not found; skipping shared feature load.");
+                    return;
+                }
+
+                var issues = manifest.Validate();
+                Console.WriteLine($"[FeatureManifest] Loaded {manifest.Features.Count} entries (v{manifest.Version}) from {manifestPath}.");
+                if (issues.Count > 0)
+                {
+                    Console.WriteLine("[FeatureManifest][WARN] " + string.Join("; ", issues));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FeatureManifest][WARN] Failed to load feature manifest: {ex.Message}");
+            }
+        }
+
+        private static IEnumerable<string> DiscoverFeatureManifestCandidates()
+        {
+            string configDirectory = ResolveRepoPath("config");
+            if (!Directory.Exists(configDirectory))
+            {
+                return Array.Empty<string>();
+            }
+
+            var patterns = new[]
+            {
+                "minecraft_feature_client_server_core_content_util_*.json",
+                "minecraft_feature_core_content_util_*.json"
+            };
+
+            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pattern in patterns)
+            {
+                foreach (var path in Directory.GetFiles(configDirectory, pattern, SearchOption.TopDirectoryOnly))
+                {
+                    candidates.Add(path);
+                }
+            }
+
+            return candidates
+                .OrderByDescending(path => TryExtractSessionNumber(Path.GetFileNameWithoutExtension(path)))
+                .ThenByDescending(File.GetLastWriteTimeUtc)
+                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static int TryExtractSessionNumber(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return -1;
+            }
+
+            int marker = fileName.LastIndexOf("session-", StringComparison.OrdinalIgnoreCase);
+            if (marker < 0)
+            {
+                return -1;
+            }
+
+            int start = marker + "session-".Length;
+            int end = start;
+            while (end < fileName.Length && char.IsDigit(fileName[end]))
+            {
+                end++;
+            }
+
+            if (end <= start)
+            {
+                return -1;
+            }
+
+            return int.TryParse(fileName.Substring(start, end - start), out int value) ? value : -1;
+        }
+
+        private static void ValidateWorldMapQueuePolicyParity()
+        {
+            try
+            {
+                string serverPolicyPath = ResolveRepoPath(Path.Combine("config", "world_map_control_queue_policy.json"));
+                string clientPolicyPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world_map_control_queue_policy.json"));
+
+                if (!File.Exists(serverPolicyPath) || !File.Exists(clientPolicyPath))
+                {
+                    Console.WriteLine(
+                        $"[WorldMapQueuePolicy][WARN] Skipped parity check (server='{serverPolicyPath}', client='{clientPolicyPath}').");
+                    return;
+                }
+
+                string serverJson = File.ReadAllText(serverPolicyPath);
+                string clientJson = File.ReadAllText(clientPolicyPath);
+                int serverVersion = ReadJsonVersion(serverJson);
+                int clientVersion = ReadJsonVersion(clientJson);
+                string serverHash = ComputeSha256Hex(serverJson);
+                string clientHash = ComputeSha256Hex(clientJson);
+
+                if (string.Equals(serverHash, clientHash, StringComparison.OrdinalIgnoreCase) && serverVersion == clientVersion)
+                {
+                    Console.WriteLine(
+                        $"[WorldMapQueuePolicy] Server/client policy parity OK (version={serverVersion}, hash={serverHash[..12]}...).");
+                    return;
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapQueuePolicy][WARN] Policy drift detected: server(v={serverVersion}, hash={serverHash[..12]}...) != client(v={clientVersion}, hash={clientHash[..12]}...). Mirroring server policy to StreamingAssets.");
+                string? clientDirectory = Path.GetDirectoryName(clientPolicyPath);
+                if (!string.IsNullOrWhiteSpace(clientDirectory))
+                {
+                    Directory.CreateDirectory(clientDirectory);
+                }
+
+                File.Copy(serverPolicyPath, clientPolicyPath, overwrite: true);
+                Console.WriteLine($"[WorldMapQueuePolicy] Mirrored policy to {clientPolicyPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapQueuePolicy][WARN] Parity validation failed: {ex.Message}");
+            }
+        }
+
+        private static void ValidateWorldMapProfileParity()
+        {
+            try
+            {
+                string serverProfilePath = ResolveRepoPath(Path.Combine("config", "world_map_control_profile.json"));
+                string clientProfilePath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+
+                if (!File.Exists(serverProfilePath) || !File.Exists(clientProfilePath))
+                {
+                    Console.WriteLine(
+                        $"[WorldMapControlProfile][WARN] Skipped parity check (server='{serverProfilePath}', client='{clientProfilePath}').");
+                    return;
+                }
+
+                var serverProfile = SharedWorldMapControlProfileUtility.Load(serverProfilePath);
+                var clientProfile = SharedWorldMapControlProfileUtility.Load(clientProfilePath);
+                if (serverProfile == null || clientProfile == null)
+                {
+                    Console.WriteLine("[WorldMapControlProfile][WARN] Unable to read profiles; skipping parity check.");
+                    return;
+                }
+
+                string computedServerHash = SharedWorldMapControlProfileUtility.ComputeHash(serverProfile);
+                string computedClientHash = SharedWorldMapControlProfileUtility.ComputeHash(clientProfile);
+                string serverHash = string.IsNullOrWhiteSpace(serverProfile.ProfileHash)
+                    ? computedServerHash
+                    : serverProfile.ProfileHash;
+                string clientHash = string.IsNullOrWhiteSpace(clientProfile.ProfileHash)
+                    ? computedClientHash
+                    : clientProfile.ProfileHash;
+                bool serverHashStale = !string.IsNullOrWhiteSpace(serverProfile.ProfileHash) &&
+                                       !string.Equals(serverProfile.ProfileHash, computedServerHash, StringComparison.OrdinalIgnoreCase);
+                bool clientHashStale = !string.IsNullOrWhiteSpace(clientProfile.ProfileHash) &&
+                                       !string.Equals(clientProfile.ProfileHash, computedClientHash, StringComparison.OrdinalIgnoreCase);
+
+                bool versionMismatch = clientProfile.Version < serverProfile.Version ||
+                                       clientProfile.Version < SharedFeatureCatalog.MapControlProfileVersion;
+                bool signatureMismatch = !string.Equals(
+                    clientProfile.HydrologySignature,
+                    serverProfile.HydrologySignature,
+                    StringComparison.OrdinalIgnoreCase);
+                bool hashMismatch = !string.Equals(clientHash, serverHash, StringComparison.OrdinalIgnoreCase) ||
+                                    serverHashStale ||
+                                    clientHashStale;
+
+                if (versionMismatch || signatureMismatch || hashMismatch)
+                {
+                    if (serverHashStale)
+                    {
+                        serverProfile.ProfileHash = computedServerHash;
+                        serverProfile.GeneratedAtUtc = DateTime.UtcNow;
+                        SharedWorldMapControlProfileUtility.Save(serverProfile, serverProfilePath);
+                    }
+
+                    MirrorProfile(serverProfilePath, clientProfilePath);
+                    Console.WriteLine(
+                        $"[WorldMapControlProfile] Repaired parity " +
+                        $"(versionMismatch={versionMismatch}, signatureMismatch={signatureMismatch}, hashMismatch={hashMismatch}).");
+                    return;
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapControlProfile] Server/client parity verified " +
+                    $"(version={serverProfile.Version}, signature={serverProfile.HydrologySignature}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Parity validation failed: {ex.Message}");
+            }
+        }
+
+        private static int ReadJsonVersion(string json)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                if (document.RootElement.TryGetProperty("version", out var versionElement) &&
+                    versionElement.ValueKind == JsonValueKind.Number &&
+                    versionElement.TryGetInt32(out int version))
+                {
+                    return version;
+                }
+            }
+            catch
+            {
+            }
+
+            return 0;
+        }
+
+        private static string ComputeSha256Hex(string content)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(content ?? string.Empty);
+            byte[] hash = sha.ComputeHash(bytes);
+            return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+        }
+
+        private static void ValidateGeneratedProtobufSources()
+        {
+            try
+            {
+                string protoDirectory = ResolveRepoPath("proto");
+                string generatedDirectory = ResolveRepoPath(Path.Combine("Assets", "Generated", "Protobuf"));
+                string[] expectedFiles = ProtoDiagnostics.BuildExpectedGeneratedFileNames(
+                    protoDirectory,
+                    new[] { "Common.cs", "EnhancedMinecraftGame.cs", "GameAuth.cs" });
+                ProtoDiagnostics.AssertGeneratedSourceFreshness(protoDirectory, generatedDirectory, expectedFiles);
+
+                var missing = expectedFiles
+                    .Where(file => !File.Exists(Path.Combine(generatedDirectory, file)))
+                    .OrderBy(file => file, StringComparer.Ordinal)
+                    .ToArray();
+
+                var descriptor = EnhancedMinecraftGameReflection.Descriptor;
+                int generatedMessages = descriptor?.MessageTypes?.Count ?? 0;
+                int generatedEnums = descriptor?.EnumTypes?.Count ?? 0;
+
+                if (missing.Length > 0)
+                {
+                    Console.WriteLine(
+                        "[Proto][WARN] Missing generated protobuf C# files: " +
+                        string.Join(", ", missing));
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"[Proto] Generated protobuf sources OK ({expectedFiles.Length} files, messages={generatedMessages}, enums={generatedEnums}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Proto][WARN] Generated source validation failed: {ex.Message}");
+            }
+        }
+
+        private static void ValidateConfigParityManifest()
+        {
+            try
+            {
+                string manifestPath = ResolveRepoPath(Path.Combine("config", "config_parity_manifest.json"));
+                if (!File.Exists(manifestPath))
+                {
+                    Console.WriteLine($"[ConfigParity][WARN] Manifest not found: {manifestPath}");
+                    return;
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+                var manifest = JsonSerializer.Deserialize<ConfigParityManifest>(File.ReadAllText(manifestPath), options);
+                if (manifest == null || manifest.Groups.Count == 0)
+                {
+                    Console.WriteLine($"[ConfigParity][WARN] Manifest is empty: {manifestPath}");
+                    return;
+                }
+
+                int mirrored = 0;
+                int checkedMirrors = 0;
+
+                foreach (var group in manifest.Groups)
+                {
+                    if (string.IsNullOrWhiteSpace(group.Source))
+                    {
+                        continue;
+                    }
+
+                    string sourcePath = ResolveRepoPath(group.Source);
+                    if (!File.Exists(sourcePath))
+                    {
+                        Console.WriteLine($"[ConfigParity][WARN] Missing source for '{group.Name}': {sourcePath}");
+                        continue;
+                    }
+
+                    string sourceJson = File.ReadAllText(sourcePath);
+                    string sourceHash = ComputeSha256Hex(sourceJson);
+                    IEnumerable<string> mirrors = (group.Mirrors ?? new List<string>())
+                        .Where(path => !string.IsNullOrWhiteSpace(path))
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (string mirrorRelative in mirrors)
+                    {
+                        checkedMirrors++;
+                        string mirrorPath = ResolveRepoPath(mirrorRelative);
+                        string? mirrorDirectory = Path.GetDirectoryName(mirrorPath);
+                        if (!string.IsNullOrWhiteSpace(mirrorDirectory))
+                        {
+                            Directory.CreateDirectory(mirrorDirectory);
+                        }
+
+                        bool shouldMirror = true;
+                        if (File.Exists(mirrorPath))
+                        {
+                            string mirrorHash = ComputeSha256Hex(File.ReadAllText(mirrorPath));
+                            shouldMirror = !string.Equals(sourceHash, mirrorHash, StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (!shouldMirror)
+                        {
+                            continue;
+                        }
+
+                        File.Copy(sourcePath, mirrorPath, overwrite: true);
+                        mirrored++;
+                        Console.WriteLine($"[ConfigParity] Mirrored '{group.Name}' => {mirrorPath}");
+                    }
+                }
+
+                Console.WriteLine(
+                    $"[ConfigParity] Manifest v{manifest.Version} checked={checkedMirrors}, mirrored={mirrored}, description='{manifest.Description}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ConfigParity][WARN] Validation failed: {ex.Message}");
+            }
+        }
+
+        private static void ValidateGameDataDatasets()
+        {
+            string gameDataDirectory = ResolveRepoPath(Path.Combine("config", "game-data"));
+            if (!Directory.Exists(gameDataDirectory))
+            {
+                throw new InvalidOperationException($"Required game-data directory is missing: {gameDataDirectory}");
+            }
+
+            var rules = new[]
+            {
+                new GameDataDatasetRule("items", JsonValueKind.Array, new[] { "id" }),
+                new GameDataDatasetRule("recipes", JsonValueKind.Array, new[] { "id", "result", "ingredients" }),
+                new GameDataDatasetRule("monsters", JsonValueKind.Array, new[] { "id", "health", "attack" }),
+                new GameDataDatasetRule("npcs", JsonValueKind.Array, new[] { "id", "role" }),
+                new GameDataDatasetRule("character_stats", JsonValueKind.Object, new[] { "base", "growth_per_level" })
+            };
+
+            var sourceHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (GameDataDatasetRule rule in rules)
+            {
+                string datasetPath = Path.Combine(gameDataDirectory, $"{rule.Name}.json");
+                if (!File.Exists(datasetPath))
+                {
+                    throw new InvalidOperationException($"Missing required game-data dataset: {datasetPath}");
+                }
+
+                string json = File.ReadAllText(datasetPath);
+                using JsonDocument document = JsonDocument.Parse(json);
+                ValidateGameDataDataset(rule, datasetPath, document.RootElement);
+
+                string hash = ComputeSha256Hex(json);
+                sourceHashes[rule.Name] = hash;
+                Console.WriteLine(
+                    $"[GameData] Validated '{rule.Name}' ({rule.RootKind}) from {datasetPath} (hash={hash[..12]}...).");
+            }
+
+            string profilePayload = string.Join(
+                "|",
+                sourceHashes
+                    .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(pair => $"{pair.Key}:{pair.Value}"));
+            string profileHash = ComputeSha256Hex(profilePayload);
+            Console.WriteLine(
+                $"[GameData] Validation complete. required={rules.Length}, profileHash={profileHash[..12]}...");
+
+            ReportGameDataMirrorDrift(sourceHashes, rules);
+        }
+
+        private static void ValidateGameDataDataset(GameDataDatasetRule rule, string datasetPath, JsonElement root)
+        {
+            if (root.ValueKind != rule.RootKind)
+            {
+                throw new InvalidOperationException(
+                    $"Dataset '{rule.Name}' must be {rule.RootKind} but was {root.ValueKind}. Path: {datasetPath}");
+            }
+
+            if (rule.RootKind == JsonValueKind.Array)
+            {
+                ValidateGameDataArrayDataset(rule, datasetPath, root);
+                return;
+            }
+
+            foreach (string propertyName in rule.RequiredProperties)
+            {
+                if (!root.TryGetProperty(propertyName, out JsonElement propertyValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' is missing required property '{propertyName}'. Path: {datasetPath}");
+                }
+
+                if (propertyValue.ValueKind == JsonValueKind.Null || propertyValue.ValueKind == JsonValueKind.Undefined)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' property '{propertyName}' must not be null. Path: {datasetPath}");
+                }
+
+                if (string.Equals(rule.Name, "character_stats", StringComparison.OrdinalIgnoreCase) &&
+                    (string.Equals(propertyName, "base", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(propertyName, "growth_per_level", StringComparison.OrdinalIgnoreCase)) &&
+                    propertyValue.ValueKind != JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' property '{propertyName}' must be an object. Path: {datasetPath}");
+                }
+            }
+        }
+
+        private static void ValidateGameDataArrayDataset(GameDataDatasetRule rule, string datasetPath, JsonElement root)
+        {
+            int index = 0;
+            foreach (JsonElement entry in root.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException(
+                        $"Dataset '{rule.Name}' element[{index}] must be object. Path: {datasetPath}");
+                }
+
+                foreach (string propertyName in rule.RequiredProperties)
+                {
+                    if (!entry.TryGetProperty(propertyName, out JsonElement propertyValue))
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] is missing '{propertyName}'. Path: {datasetPath}");
+                    }
+
+                    if (propertyValue.ValueKind == JsonValueKind.Null || propertyValue.ValueKind == JsonValueKind.Undefined)
+                    {
+                        throw new InvalidOperationException(
+                            $"Dataset '{rule.Name}' element[{index}] has null '{propertyName}'. Path: {datasetPath}");
+                    }
+                }
+
+                index++;
+            }
+
+            if (index == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Dataset '{rule.Name}' must contain at least one entry. Path: {datasetPath}");
+            }
+        }
+
+        private static void ReportGameDataMirrorDrift(
+            IReadOnlyDictionary<string, string> sourceHashes,
+            IReadOnlyCollection<GameDataDatasetRule> rules)
+        {
+            var mirrorRoots = new[]
+            {
+                ResolveRepoPath(Path.Combine("GameServer", "config", "game-data")),
+                ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "game-data"))
+            };
+
+            foreach (string mirrorRoot in mirrorRoots)
+            {
+                if (!Directory.Exists(mirrorRoot))
+                {
+                    Console.WriteLine($"[GameData][WARN] Mirror directory not found: {mirrorRoot}");
+                    continue;
+                }
+
+                int checkedCount = 0;
+                int driftCount = 0;
+
+                foreach (GameDataDatasetRule rule in rules)
+                {
+                    string mirrorPath = Path.Combine(mirrorRoot, $"{rule.Name}.json");
+                    if (!File.Exists(mirrorPath))
+                    {
+                        driftCount++;
+                        Console.WriteLine($"[GameData][WARN] Mirror file missing for '{rule.Name}': {mirrorPath}");
+                        continue;
+                    }
+
+                    checkedCount++;
+                    string mirrorHash = ComputeSha256Hex(File.ReadAllText(mirrorPath));
+                    if (!string.Equals(mirrorHash, sourceHashes[rule.Name], StringComparison.OrdinalIgnoreCase))
+                    {
+                        driftCount++;
+                        Console.WriteLine(
+                            $"[GameData][WARN] Mirror drift for '{rule.Name}' in {mirrorRoot} " +
+                            $"(source={sourceHashes[rule.Name][..12]}..., mirror={mirrorHash[..12]}...).");
+                    }
+                }
+
+                if (driftCount == 0)
+                {
+                    Console.WriteLine($"[GameData] Mirror parity OK at {mirrorRoot} (checked={checkedCount}).");
+                    continue;
+                }
+
+                Console.WriteLine(
+                    $"[GameData][WARN] Mirror parity drift at {mirrorRoot} (checked={checkedCount}, drift={driftCount}).");
+            }
+        }
+
+        private sealed class ConfigParityManifest
+        {
+            public int Version { get; set; }
+
+            public string Description { get; set; } = string.Empty;
+
+            public List<ConfigParityGroup> Groups { get; set; } = new();
+        }
+
+        private sealed class ConfigParityGroup
+        {
+            public string Name { get; set; } = string.Empty;
+
+            public string Source { get; set; } = string.Empty;
+
+            public List<string> Mirrors { get; set; } = new();
+        }
+
+        private sealed class GameDataDatasetRule
+        {
+            public GameDataDatasetRule(string name, JsonValueKind rootKind, IReadOnlyList<string> requiredProperties)
+            {
+                Name = name;
+                RootKind = rootKind;
+                RequiredProperties = requiredProperties;
+            }
+
+            public string Name { get; }
+
+            public JsonValueKind RootKind { get; }
+
+            public IReadOnlyList<string> RequiredProperties { get; }
+        }
+
+        private static async Task RunDummyProtocolProbeAsync(bool probeNetwork, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string settingsPath = ResolveRepoPath(Path.Combine("config", "protocol_dummy_client.json"));
+                var client = DummyProtocolClient.CreateFromConfig(settingsPath);
+                bool useNetwork = probeNetwork || client.Settings.ProbeNetwork;
+                var result = await client.RunAsync(useNetwork, cancellationToken);
+                Console.WriteLine($"[ProtoProbe] RoundTrip={result.RoundTripOk} Descriptor={result.DescriptorName} Validated={string.Join(",", result.ValidatedPackets)}");
+                if (result.MissingRequiredPackets.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe][WARN] Missing required bindings: " + string.Join(", ", result.MissingRequiredPackets));
+                }
+                if (result.MissingPrototypePackets.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe][WARN] Missing prototype bindings: " + string.Join(", ", result.MissingPrototypePackets));
+                }
+                if (result.OptionalUnregistered.Count > 0)
+                {
+                    Console.WriteLine("[ProtoProbe] Optional packets without bindings: " + string.Join(", ", result.OptionalUnregistered));
+                }
+                Console.WriteLine($"[ProtoProbe] Descriptor coverage ratio: {result.DescriptorCoverageRatio:F3}");
+                if (result.MissingGeneratedRequiredDescriptors.Count > 0)
+                {
+                    Console.WriteLine(
+                        "[ProtoProbe][WARN] Missing generated required descriptors: " +
+                        string.Join(", ", result.MissingGeneratedRequiredDescriptors));
+                }
+                if (!string.IsNullOrWhiteSpace(result.ReportPath))
+                {
+                    Console.WriteLine($"[ProtoProbe] Report written to {result.ReportPath}");
+                }
+                if (!string.IsNullOrWhiteSpace(result.ReferenceReportPath))
+                {
+                    Console.WriteLine($"[ProtoProbe] Reference report written to {result.ReferenceReportPath}");
+                }
+                if (result.NetworkProbeAttempted)
+                {
+                    if (result.NetworkProbeOk)
+                    {
+                        Console.WriteLine("[ProtoProbe] Network probe succeeded.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ProtoProbe][WARN] Network probe failed: {result.NetworkError}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProtoProbe][WARN] Dummy client failed: {ex.Message}");
+            }
+        }
+
+        private static string ResolveRepoPath(string relativePath)
+        {
+            string rootCandidate = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+            string combined = Path.Combine(rootCandidate, relativePath);
+            if (File.Exists(combined) || Directory.Exists(combined))
+            {
+                return combined;
+            }
+
+            return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), relativePath));
+        }
+
         private static void DisplayServerInfo()
         {
             Console.WriteLine("===== Minecraft-Like Game Server Architecture =====");
@@ -116,6 +822,7 @@ namespace GameServerApp
                 Console.WriteLine("\n=== Starting Enhanced Minecraft Server ===");
                 
                 var config = ServerConfig.LoadFromFile();
+                EnsureWorldMapProfile(config);
                 var server = new GameServer(config.Network.Port, config.Database.DatabaseFile, config);
                 
                 var cts = new CancellationTokenSource();
@@ -209,7 +916,649 @@ namespace GameServerApp
                     break;
             }
         }
-        
+
+        private static void EnsureWorldMapProfile(ServerConfig config)
+        {
+            var configManager = new DataDrivenConfigManager("config");
+            configManager.ValidateConfigurations();
+
+            var worldGenConfig = WorldGenerationConfig.Load(config.World.WorldConfigPath);
+            var mapSettings = configManager.GetConfiguration<WorldMapControlSettings>();
+            ApplyWorldMapRuntimeOverrides(worldGenConfig, mapSettings);
+            ApplyWorldMapQueuePolicyOverrides(mapSettings);
+            var profilePath = ResolveRepoPath(worldGenConfig.MapControlProfilePath);
+
+            var profile = ServerWorldMapControlProfileUtility.Create(worldGenConfig, config.World);
+            profile.HydrologySignature = SharedFeatureCatalog.HydrologySignature;
+            profile.Version = Math.Max(worldGenConfig.MapControlProfileVersion, profile.Version);
+            profile.RenderDistance = Math.Max(profile.RenderDistance, mapSettings.DefaultRenderDistance);
+            profile.SimulationDistance = Math.Max(profile.SimulationDistance, mapSettings.DefaultUnloadDistance);
+            profile.ProfileHash = ServerWorldMapControlProfileUtility.ComputeHash(profile);
+            ServerWorldMapControlProfileUtility.Save(profile, profilePath);
+            TryMirrorProfileToRootConfig(profilePath, worldGenConfig.MapControlProfilePath);
+            TryMirrorProfileToStreamingAssets(profilePath);
+        }
+
+        private static void ApplyWorldMapRuntimeOverrides(WorldGenerationConfig worldGenConfig, WorldMapControlSettings mapSettings)
+        {
+            string runtimePath = ResolveRepoPath(Path.Combine("config", "enhanced_world_map_control_server.json"));
+            if (!File.Exists(runtimePath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(runtimePath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var runtime = JsonSerializer.Deserialize<WorldMapRuntimeServerConfig>(json, options);
+                var section = runtime?.WorldMapControl;
+                if (section == null || !section.Enabled)
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(section.ProfilePath))
+                {
+                    worldGenConfig.MapControlProfilePath = section.ProfilePath!;
+                }
+
+                if (section.ProfileVersion > 0)
+                {
+                    worldGenConfig.MapControlProfileVersion = Math.Max(section.ProfileVersion, worldGenConfig.MapControlProfileVersion);
+                }
+
+                worldGenConfig.MapControlProfileVersion = Math.Max(worldGenConfig.MapControlProfileVersion, SharedFeatureCatalog.MapControlProfileVersion);
+
+                if (section.Defaults != null)
+                {
+                    if (section.Defaults.RenderDistance > 0)
+                    {
+                        mapSettings.DefaultRenderDistance = Math.Clamp(section.Defaults.RenderDistance.Value, 2, 32);
+                    }
+
+                    if (section.Defaults.MapScale > 0)
+                    {
+                        mapSettings.DefaultMapScale = Math.Clamp(section.Defaults.MapScale.Value, 0.25, 8.0);
+                    }
+
+                    if (section.Defaults.TerrainQuality > 0)
+                    {
+                        mapSettings.DefaultTerrainQuality = Math.Clamp(section.Defaults.TerrainQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.WaterQuality > 0)
+                    {
+                        mapSettings.DefaultWaterQuality = Math.Clamp(section.Defaults.WaterQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.VegetationQuality > 0)
+                    {
+                        mapSettings.DefaultVegetationQuality = Math.Clamp(section.Defaults.VegetationQuality.Value, 1, 5);
+                    }
+
+                    if (section.Defaults.ShowCoordinates.HasValue)
+                    {
+                        mapSettings.DefaultShowCoordinates = section.Defaults.ShowCoordinates.Value;
+                    }
+
+                    if (section.Defaults.ShowBiomeInfo.HasValue)
+                    {
+                        mapSettings.DefaultShowBiomeInfo = section.Defaults.ShowBiomeInfo.Value;
+                    }
+                }
+
+                if (section.TerrainGeneration != null)
+                {
+                    if (section.TerrainGeneration.MaxConcurrentChunkGenerations > 0)
+                    {
+                        mapSettings.MaxConcurrentChunkGenerations = Math.Clamp(section.TerrainGeneration.MaxConcurrentChunkGenerations.Value, 1, 64);
+                    }
+
+                    if (section.TerrainGeneration.UpdateBatchSize > 0)
+                    {
+                        mapSettings.UpdateBatchSize = Math.Clamp(section.TerrainGeneration.UpdateBatchSize.Value, 1, 1024);
+                    }
+
+                    if (section.TerrainGeneration.UpdateIntervalMs > 0)
+                    {
+                        mapSettings.UpdateIntervalMs = Math.Clamp(section.TerrainGeneration.UpdateIntervalMs.Value, 16, 60_000);
+                    }
+
+                    if (section.TerrainGeneration.UpdateBatchSize > 0)
+                    {
+                        mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.TerrainGeneration.UpdateBatchSize.Value * 32, 128, 16384);
+                    }
+
+                    if (section.TerrainGeneration.MaxQueuedChunkRequests > 0)
+                    {
+                        mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.TerrainGeneration.MaxQueuedChunkRequests.Value, 128, 16384);
+                    }
+
+                    if (section.TerrainGeneration.QueuePressureFactor > 0)
+                    {
+                        mapSettings.QueuePressureFactor = Math.Clamp(section.TerrainGeneration.QueuePressureFactor.Value, 1, 8);
+                    }
+
+                    if (section.TerrainGeneration.QueueSlackRatio is > 0)
+                    {
+                        mapSettings.QueueSlackRatio = Math.Clamp(section.TerrainGeneration.QueueSlackRatio.Value, 1.1, 6.0);
+                    }
+
+                    if (section.TerrainGeneration.QueueBurstSlackMultiplier is > 0)
+                    {
+                        mapSettings.QueueBurstSlackMultiplier = Math.Clamp(section.TerrainGeneration.QueueBurstSlackMultiplier.Value, 1.0, 3.0);
+                    }
+
+                    if (section.TerrainGeneration.QueueLoadSheddingThreshold is > 0)
+                    {
+                        mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.TerrainGeneration.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                    }
+
+                    if (section.TerrainGeneration.QueueEmergencyBrakeThreshold is > 0)
+                    {
+                        mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.TerrainGeneration.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                    }
+
+                    if (section.TerrainGeneration.QueueLoadEmaBlend is > 0)
+                    {
+                        mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(section.TerrainGeneration.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                    }
+
+                    if (section.TerrainGeneration.QueueEmergencyReleaseRatio is > 0)
+                    {
+                        mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.TerrainGeneration.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                    }
+
+                    if (section.TerrainGeneration.QueueTrendBoostWeight is > 0)
+                    {
+                        mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(section.TerrainGeneration.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                    }
+
+                    if (section.TerrainGeneration.QueueShockAbsorberWeight is > 0)
+                    {
+                        mapSettings.QueueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(section.TerrainGeneration.QueueShockAbsorberWeight.Value, mapSettings.QueueShockAbsorberWeight);
+                    }
+
+                    if (section.TerrainGeneration.QueueOverloadDrainFactor > 0)
+                    {
+                        mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.TerrainGeneration.QueueOverloadDrainFactor.Value, 1, 16);
+                    }
+
+                    if (section.TerrainGeneration.QueueBackoffDelayMs > 0)
+                    {
+                        mapSettings.QueueBackoffDelayMs = Math.Clamp(section.TerrainGeneration.QueueBackoffDelayMs.Value, 1, 200);
+                    }
+
+                    if (section.TerrainGeneration.QueueEmergencyHoldTicks > 0)
+                    {
+                        mapSettings.QueueEmergencyHoldTicks = Math.Clamp(section.TerrainGeneration.QueueEmergencyHoldTicks.Value, 1, 128);
+                    }
+
+                    if (section.TerrainGeneration.QueueRecoveryRampTicks > 0)
+                    {
+                        mapSettings.QueueRecoveryRampTicks = Math.Clamp(section.TerrainGeneration.QueueRecoveryRampTicks.Value, 1, 256);
+                    }
+
+                    if (section.TerrainGeneration.QueueNearChunkKeepCount > 0)
+                    {
+                        mapSettings.QueueNearChunkKeepCount = Math.Clamp(section.TerrainGeneration.QueueNearChunkKeepCount.Value, 8, 512);
+                    }
+
+                    if (section.TerrainGeneration.QueueHotspotBias is > 0)
+                    {
+                        mapSettings.QueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(section.TerrainGeneration.QueueHotspotBias.Value, mapSettings.QueueHotspotBias);
+                    }
+
+                    if (section.TerrainGeneration.QueueHotspotEmergencyPenalty is > 0)
+                    {
+                        mapSettings.QueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(section.TerrainGeneration.QueueHotspotEmergencyPenalty.Value, mapSettings.QueueHotspotEmergencyPenalty);
+                    }
+
+                    if (section.TerrainGeneration.QueueHotspotRetentionSeconds > 0)
+                    {
+                        mapSettings.QueueHotspotRetentionSeconds = Math.Clamp(section.TerrainGeneration.QueueHotspotRetentionSeconds.Value, 5, 300);
+                    }
+
+                    if (section.TerrainGeneration.InflightChunkTimeoutSeconds > 0)
+                    {
+                        mapSettings.InflightChunkTimeoutSeconds = Math.Clamp(section.TerrainGeneration.InflightChunkTimeoutSeconds.Value, 5, 600);
+                    }
+
+                    if (section.TerrainGeneration.InflightPruneIntervalSeconds > 0)
+                    {
+                        mapSettings.InflightPruneIntervalSeconds = Math.Clamp(section.TerrainGeneration.InflightPruneIntervalSeconds.Value, 1, 120);
+                    }
+
+                    if (section.TerrainGeneration.QueueStalePruneMax > 0)
+                    {
+                        mapSettings.QueueStalePruneMax = Math.Clamp(section.TerrainGeneration.QueueStalePruneMax.Value, 8, 256);
+                    }
+
+                    if (section.TerrainGeneration.QueueStalePruneEmergencyMultiplier is > 0)
+                    {
+                        mapSettings.QueueStalePruneEmergencyMultiplier = Math.Clamp(section.TerrainGeneration.QueueStalePruneEmergencyMultiplier.Value, 1.0, 3.0);
+                    }
+
+                    if (section.TerrainGeneration.QueueAlluvialRelayWeight is > 0)
+                    {
+                        mapSettings.QueueAlluvialRelayWeight = Math.Clamp(section.TerrainGeneration.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
+                    }
+
+                    if (section.TerrainGeneration.QueueKarstSpillwayWeight is > 0)
+                    {
+                        mapSettings.QueueKarstSpillwayWeight = Math.Clamp(section.TerrainGeneration.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                    }
+
+                    if (section.TerrainGeneration.QueueHyporheicExchangeWeight is > 0)
+                    {
+                        mapSettings.QueueHyporheicExchangeWeight = Math.Clamp(section.TerrainGeneration.QueueHyporheicExchangeWeight.Value, 0.0, 1.5);
+                    }
+
+                    if (section.TerrainGeneration.QueuePhreaticResonanceWeight is > 0)
+                    {
+                        mapSettings.QueuePhreaticResonanceWeight = Math.Clamp(section.TerrainGeneration.QueuePhreaticResonanceWeight.Value, 0.0, 1.6);
+                    }
+                }
+
+                if (section.Cache?.MaxCachedChunks > 0)
+                {
+                    mapSettings.MaxCachedChunks = Math.Max(64, section.Cache.MaxCachedChunks.Value);
+                    int unloadFromCacheBudget = Math.Max(2, (int)Math.Ceiling(Math.Sqrt(section.Cache.MaxCachedChunks.Value)));
+                    mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, unloadFromCacheBudget);
+                    mapSettings.MaxQueuedChunkRequests = Math.Max(mapSettings.MaxQueuedChunkRequests, Math.Clamp(section.Cache.MaxCachedChunks.Value * 3, 128, 16384));
+                }
+
+                if (section.Cache?.MaxQueuedChunkRequests > 0)
+                {
+                    mapSettings.MaxQueuedChunkRequests = Math.Clamp(section.Cache.MaxQueuedChunkRequests.Value, 128, 16384);
+                }
+
+                if (section.Cache?.QueuePressureFactor > 0)
+                {
+                    mapSettings.QueuePressureFactor = Math.Clamp(section.Cache.QueuePressureFactor.Value, 1, 8);
+                }
+
+                if (section.Cache?.QueueSlackRatio is > 0)
+                {
+                    mapSettings.QueueSlackRatio = Math.Clamp(section.Cache.QueueSlackRatio.Value, 1.1, 6.0);
+                }
+
+                if (section.Cache?.QueueBurstSlackMultiplier is > 0)
+                {
+                    mapSettings.QueueBurstSlackMultiplier = Math.Clamp(section.Cache.QueueBurstSlackMultiplier.Value, 1.0, 3.0);
+                }
+
+                if (section.Cache?.QueueLoadSheddingThreshold is > 0)
+                {
+                    mapSettings.QueueLoadSheddingThreshold = Math.Clamp(section.Cache.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                }
+
+                if (section.Cache?.QueueEmergencyBrakeThreshold is > 0)
+                {
+                    mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(section.Cache.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                }
+
+                if (section.Cache?.QueueLoadEmaBlend is > 0)
+                {
+                    mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(section.Cache.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                }
+
+                if (section.Cache?.QueueEmergencyReleaseRatio is > 0)
+                {
+                    mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(section.Cache.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                }
+
+                if (section.Cache?.QueueTrendBoostWeight is > 0)
+                {
+                    mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(section.Cache.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                }
+
+                if (section.Cache?.QueueShockAbsorberWeight is > 0)
+                {
+                    mapSettings.QueueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(section.Cache.QueueShockAbsorberWeight.Value, mapSettings.QueueShockAbsorberWeight);
+                }
+
+                if (section.Cache?.QueueOverloadDrainFactor > 0)
+                {
+                    mapSettings.QueueOverloadDrainFactor = Math.Clamp(section.Cache.QueueOverloadDrainFactor.Value, 1, 16);
+                }
+
+                if (section.Cache?.QueueBackoffDelayMs > 0)
+                {
+                    mapSettings.QueueBackoffDelayMs = Math.Clamp(section.Cache.QueueBackoffDelayMs.Value, 1, 200);
+                }
+
+                if (section.Cache?.QueueEmergencyHoldTicks > 0)
+                {
+                    mapSettings.QueueEmergencyHoldTicks = Math.Clamp(section.Cache.QueueEmergencyHoldTicks.Value, 1, 128);
+                }
+
+                if (section.Cache?.QueueRecoveryRampTicks > 0)
+                {
+                    mapSettings.QueueRecoveryRampTicks = Math.Clamp(section.Cache.QueueRecoveryRampTicks.Value, 1, 256);
+                }
+
+                if (section.Cache?.QueueNearChunkKeepCount > 0)
+                {
+                    mapSettings.QueueNearChunkKeepCount = Math.Clamp(section.Cache.QueueNearChunkKeepCount.Value, 8, 512);
+                }
+
+                if (section.Cache?.QueueHotspotBias is > 0)
+                {
+                    mapSettings.QueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(section.Cache.QueueHotspotBias.Value, mapSettings.QueueHotspotBias);
+                }
+
+                if (section.Cache?.QueueHotspotEmergencyPenalty is > 0)
+                {
+                    mapSettings.QueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(section.Cache.QueueHotspotEmergencyPenalty.Value, mapSettings.QueueHotspotEmergencyPenalty);
+                }
+
+                if (section.Cache?.QueueHotspotRetentionSeconds > 0)
+                {
+                    mapSettings.QueueHotspotRetentionSeconds = Math.Clamp(section.Cache.QueueHotspotRetentionSeconds.Value, 5, 300);
+                }
+
+                if (section.Cache?.InflightChunkTimeoutSeconds > 0)
+                {
+                    mapSettings.InflightChunkTimeoutSeconds = Math.Clamp(section.Cache.InflightChunkTimeoutSeconds.Value, 5, 600);
+                }
+
+                if (section.Cache?.InflightPruneIntervalSeconds > 0)
+                {
+                    mapSettings.InflightPruneIntervalSeconds = Math.Clamp(section.Cache.InflightPruneIntervalSeconds.Value, 1, 120);
+                }
+
+                if (section.Cache?.QueueStalePruneMax > 0)
+                {
+                    mapSettings.QueueStalePruneMax = Math.Clamp(section.Cache.QueueStalePruneMax.Value, 8, 256);
+                }
+
+                if (section.Cache?.QueueStalePruneEmergencyMultiplier is > 0)
+                {
+                    mapSettings.QueueStalePruneEmergencyMultiplier = Math.Clamp(section.Cache.QueueStalePruneEmergencyMultiplier.Value, 1.0, 3.0);
+                }
+
+                if (section.Cache?.QueueAlluvialRelayWeight is > 0)
+                {
+                    mapSettings.QueueAlluvialRelayWeight = Math.Clamp(section.Cache.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
+                }
+
+                if (section.Cache?.QueueKarstSpillwayWeight is > 0)
+                {
+                    mapSettings.QueueKarstSpillwayWeight = Math.Clamp(section.Cache.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                }
+
+                if (section.Cache?.QueueHyporheicExchangeWeight is > 0)
+                {
+                    mapSettings.QueueHyporheicExchangeWeight = Math.Clamp(section.Cache.QueueHyporheicExchangeWeight.Value, 0.0, 1.5);
+                }
+
+                if (section.Cache?.QueuePhreaticResonanceWeight is > 0)
+                {
+                    mapSettings.QueuePhreaticResonanceWeight = Math.Clamp(section.Cache.QueuePhreaticResonanceWeight.Value, 0.0, 1.6);
+                }
+
+                mapSettings.QueuePressureFactor = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
+                    ? Math.Max(3, mapSettings.QueuePressureFactor)
+                    : Math.Max(2, mapSettings.QueuePressureFactor);
+
+                mapSettings.QueueSlackRatio = mapSettings.MaxCachedChunks > 0 && mapSettings.MaxQueuedChunkRequests > mapSettings.MaxCachedChunks * 2
+                    ? Math.Max(2.2, mapSettings.QueueSlackRatio)
+                    : Math.Max(1.8, mapSettings.QueueSlackRatio);
+                mapSettings.QueueLoadSheddingThreshold = Math.Clamp(mapSettings.QueueLoadSheddingThreshold, 0.5, 0.98);
+                mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(mapSettings.QueueEmergencyBrakeThreshold, 0.75, 4.0);
+
+                mapSettings.DefaultUnloadDistance = Math.Max(mapSettings.DefaultUnloadDistance, mapSettings.DefaultRenderDistance + 2);
+                Console.WriteLine(
+                    $"[WorldMapControlRuntime] Applied server runtime settings from {runtimePath} " +
+                    $"(render={mapSettings.DefaultRenderDistance}, unload={mapSettings.DefaultUnloadDistance}, cache={mapSettings.MaxCachedChunks}, queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, karstSpillway={mapSettings.QueueKarstSpillwayWeight:F2}, hyporheicExchange={mapSettings.QueueHyporheicExchangeWeight:F2}, phreaticResonance={mapSettings.QueuePhreaticResonanceWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, profileVersion={worldGenConfig.MapControlProfileVersion}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlRuntime][WARN] Failed to apply '{runtimePath}': {ex.Message}");
+            }
+        }
+
+        private static void ApplyWorldMapQueuePolicyOverrides(WorldMapControlSettings mapSettings)
+        {
+            string queuePolicyPath = ResolveRepoPath(Path.Combine("config", "world_map_control_queue_policy.json"));
+            if (!File.Exists(queuePolicyPath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(queuePolicyPath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var queuePolicy = JsonSerializer.Deserialize<WorldMapQueuePolicyConfig>(json, options);
+                if (queuePolicy?.Server == null)
+                {
+                    return;
+                }
+
+                var server = queuePolicy.Server;
+                if (server.MaxQueuedChunkRequests > 0)
+                {
+                    mapSettings.MaxQueuedChunkRequests = Math.Clamp(server.MaxQueuedChunkRequests.Value, 128, 16384);
+                }
+
+                if (server.QueuePressureFactor > 0)
+                {
+                    mapSettings.QueuePressureFactor = Math.Clamp(server.QueuePressureFactor.Value, 1, 8);
+                }
+
+                if (server.MaxConcurrentChunkGenerations > 0)
+                {
+                    mapSettings.MaxConcurrentChunkGenerations = Math.Clamp(server.MaxConcurrentChunkGenerations.Value, 1, 64);
+                }
+
+                if (server.UpdateBatchSize > 0)
+                {
+                    mapSettings.UpdateBatchSize = Math.Clamp(server.UpdateBatchSize.Value, 1, 1024);
+                }
+
+                if (server.UpdateIntervalMs > 0)
+                {
+                    mapSettings.UpdateIntervalMs = Math.Clamp(server.UpdateIntervalMs.Value, 16, 60000);
+                }
+
+                if (server.QueueSlackRatio is > 0)
+                {
+                    mapSettings.QueueSlackRatio = Math.Clamp(server.QueueSlackRatio.Value, 1.1, 6.0);
+                }
+
+                if (server.QueueBurstSlackMultiplier is > 0)
+                {
+                    mapSettings.QueueBurstSlackMultiplier = Math.Clamp(server.QueueBurstSlackMultiplier.Value, 1.0, 3.0);
+                }
+
+                if (server.QueueLoadSheddingThreshold is > 0)
+                {
+                    mapSettings.QueueLoadSheddingThreshold = Math.Clamp(server.QueueLoadSheddingThreshold.Value, 0.5, 0.98);
+                }
+
+                if (server.QueueEmergencyBrakeThreshold is > 0)
+                {
+                    mapSettings.QueueEmergencyBrakeThreshold = Math.Clamp(server.QueueEmergencyBrakeThreshold.Value, 0.75, 4.0);
+                }
+
+                if (server.QueueLoadEmaBlend is > 0)
+                {
+                    mapSettings.QueueLoadEmaBlend = WorldMapQueuePolicy.ClampEmaBlend(server.QueueLoadEmaBlend.Value, mapSettings.QueueLoadEmaBlend);
+                }
+
+                if (server.QueueEmergencyReleaseRatio is > 0)
+                {
+                    mapSettings.QueueEmergencyReleaseRatio = WorldMapQueuePolicy.ClampEmergencyReleaseRatio(server.QueueEmergencyReleaseRatio.Value, mapSettings.QueueEmergencyReleaseRatio);
+                }
+
+                if (server.QueueTrendBoostWeight is > 0)
+                {
+                    mapSettings.QueueTrendBoostWeight = WorldMapQueuePolicy.ClampTrendBoostWeight(server.QueueTrendBoostWeight.Value, mapSettings.QueueTrendBoostWeight);
+                }
+
+                if (server.QueueShockAbsorberWeight is > 0)
+                {
+                    mapSettings.QueueShockAbsorberWeight = WorldMapQueuePolicy.ClampShockAbsorberWeight(server.QueueShockAbsorberWeight.Value, mapSettings.QueueShockAbsorberWeight);
+                }
+
+                if (server.QueueOverloadDrainFactor > 0)
+                {
+                    mapSettings.QueueOverloadDrainFactor = Math.Clamp(server.QueueOverloadDrainFactor.Value, 1, 16);
+                }
+
+                if (server.QueueBackoffDelayMs > 0)
+                {
+                    mapSettings.QueueBackoffDelayMs = Math.Clamp(server.QueueBackoffDelayMs.Value, 1, 200);
+                }
+
+                if (server.QueueEmergencyHoldTicks > 0)
+                {
+                    mapSettings.QueueEmergencyHoldTicks = Math.Clamp(server.QueueEmergencyHoldTicks.Value, 1, 128);
+                }
+
+                if (server.QueueRecoveryRampTicks > 0)
+                {
+                    mapSettings.QueueRecoveryRampTicks = Math.Clamp(server.QueueRecoveryRampTicks.Value, 1, 256);
+                }
+
+                if (server.QueueNearChunkKeepCount > 0)
+                {
+                    mapSettings.QueueNearChunkKeepCount = Math.Clamp(server.QueueNearChunkKeepCount.Value, 8, 512);
+                }
+
+                if (server.QueueHotspotBias is > 0)
+                {
+                    mapSettings.QueueHotspotBias = WorldMapQueuePolicy.ClampHotspotBias(server.QueueHotspotBias.Value, mapSettings.QueueHotspotBias);
+                }
+
+                if (server.QueueHotspotEmergencyPenalty is > 0)
+                {
+                    mapSettings.QueueHotspotEmergencyPenalty = WorldMapQueuePolicy.ClampHotspotEmergencyPenalty(server.QueueHotspotEmergencyPenalty.Value, mapSettings.QueueHotspotEmergencyPenalty);
+                }
+
+                if (server.QueueHotspotRetentionSeconds > 0)
+                {
+                    mapSettings.QueueHotspotRetentionSeconds = Math.Clamp(server.QueueHotspotRetentionSeconds.Value, 5, 300);
+                }
+
+                if (server.InflightChunkTimeoutSeconds > 0)
+                {
+                    mapSettings.InflightChunkTimeoutSeconds = Math.Clamp(server.InflightChunkTimeoutSeconds.Value, 5, 600);
+                }
+
+                if (server.InflightPruneIntervalSeconds > 0)
+                {
+                    mapSettings.InflightPruneIntervalSeconds = Math.Clamp(server.InflightPruneIntervalSeconds.Value, 1, 120);
+                }
+
+                if (server.QueueStalePruneMax > 0)
+                {
+                    mapSettings.QueueStalePruneMax = Math.Clamp(server.QueueStalePruneMax.Value, 8, 256);
+                }
+
+                if (server.QueueStalePruneEmergencyMultiplier is > 0)
+                {
+                    mapSettings.QueueStalePruneEmergencyMultiplier = Math.Clamp(server.QueueStalePruneEmergencyMultiplier.Value, 1.0, 3.0);
+                }
+
+                if (server.QueueAlluvialRelayWeight is > 0)
+                {
+                    mapSettings.QueueAlluvialRelayWeight = Math.Clamp(server.QueueAlluvialRelayWeight.Value, 0.0, 1.5);
+                }
+
+                if (server.QueueKarstSpillwayWeight is > 0)
+                {
+                    mapSettings.QueueKarstSpillwayWeight = Math.Clamp(server.QueueKarstSpillwayWeight.Value, 0.0, 1.5);
+                }
+
+                if (server.QueueHyporheicExchangeWeight is > 0)
+                {
+                    mapSettings.QueueHyporheicExchangeWeight = Math.Clamp(server.QueueHyporheicExchangeWeight.Value, 0.0, 1.5);
+                }
+
+                if (server.QueuePhreaticResonanceWeight is > 0)
+                {
+                    mapSettings.QueuePhreaticResonanceWeight = Math.Clamp(server.QueuePhreaticResonanceWeight.Value, 0.0, 1.6);
+                }
+
+                Console.WriteLine(
+                    $"[WorldMapQueuePolicy] Applied queue settings from {queuePolicyPath} " +
+                    $"(queueLimit={mapSettings.MaxQueuedChunkRequests}, queuePressure={mapSettings.QueuePressureFactor}, " +
+                    $"queueSlack={mapSettings.QueueSlackRatio:F2}, burstSlack={mapSettings.QueueBurstSlackMultiplier:F2}, shed={mapSettings.QueueLoadSheddingThreshold:F2}, emergencyBrake={mapSettings.QueueEmergencyBrakeThreshold:F2}, emaBlend={mapSettings.QueueLoadEmaBlend:F2}, releaseRatio={mapSettings.QueueEmergencyReleaseRatio:F2}, trend={mapSettings.QueueTrendBoostWeight:F2}, shock={mapSettings.QueueShockAbsorberWeight:F2}, alluvialRelay={mapSettings.QueueAlluvialRelayWeight:F2}, karstSpillway={mapSettings.QueueKarstSpillwayWeight:F2}, hyporheicExchange={mapSettings.QueueHyporheicExchangeWeight:F2}, phreaticResonance={mapSettings.QueuePhreaticResonanceWeight:F2}, hotspotBias={mapSettings.QueueHotspotBias:F2}, hotspotEmergencyPenalty={mapSettings.QueueHotspotEmergencyPenalty:F2}, hotspotRetentionSec={mapSettings.QueueHotspotRetentionSeconds}, nearKeep={mapSettings.QueueNearChunkKeepCount}, drain={mapSettings.QueueOverloadDrainFactor}, backoffMs={mapSettings.QueueBackoffDelayMs}, holdTicks={mapSettings.QueueEmergencyHoldTicks}, recoveryRampTicks={mapSettings.QueueRecoveryRampTicks}, inflightTimeoutSec={mapSettings.InflightChunkTimeoutSeconds}, inflightPruneSec={mapSettings.InflightPruneIntervalSeconds}, stalePruneMax={mapSettings.QueueStalePruneMax}, stalePruneEmergencyMultiplier={mapSettings.QueueStalePruneEmergencyMultiplier:F2}, " +
+                    $"maxConcurrent={mapSettings.MaxConcurrentChunkGenerations}, batch={mapSettings.UpdateBatchSize}, intervalMs={mapSettings.UpdateIntervalMs}).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapQueuePolicy][WARN] Failed to apply '{queuePolicyPath}': {ex.Message}");
+            }
+        }
+
+        private static void TryMirrorProfileToStreamingAssets(string profilePath)
+        {
+            try
+            {
+                string repoTargetPath = ResolveRepoPath(Path.Combine("Assets", "StreamingAssets", "world-map-control.json"));
+                MirrorProfile(profilePath, repoTargetPath);
+
+                string rootTargetPath = Path.GetFullPath(Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "Assets",
+                    "StreamingAssets",
+                    "world-map-control.json"));
+                if (!string.Equals(repoTargetPath, rootTargetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    MirrorProfile(profilePath, rootTargetPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to StreamingAssets: {ex.Message}");
+            }
+        }
+
+        private static void MirrorProfile(string sourcePath, string targetPath)
+        {
+            var directory = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+            Console.WriteLine($"[WorldMapControlProfile] Mirrored profile to {targetPath}");
+        }
+
+        private static void TryMirrorProfileToRootConfig(string profilePath, string configuredRelativePath)
+        {
+            try
+            {
+                string targetPath = Path.IsPathRooted(configuredRelativePath)
+                    ? configuredRelativePath
+                    : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), configuredRelativePath));
+
+                if (string.Equals(profilePath, targetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                var directory = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.Copy(profilePath, targetPath, overwrite: true);
+                Console.WriteLine($"[WorldMapControlProfile] Mirrored profile to {targetPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorldMapControlProfile][WARN] Failed to mirror profile to root config: {ex.Message}");
+            }
+        }
+
         private static void DisplayConfigurationMenu()
         {
             Console.WriteLine("\n=== Server Configuration ===");
@@ -237,6 +1586,330 @@ namespace GameServerApp
             
             Console.WriteLine("\nConfiguration file: server-config.json");
             Console.WriteLine("Edit the file and restart the server to apply changes.");
+        }
+
+        private sealed class WorldMapRuntimeServerConfig
+        {
+            [JsonPropertyName("worldMapControl")]
+            public WorldMapControlRuntimeSection? WorldMapControl { get; set; }
+        }
+
+        private sealed class WorldMapControlRuntimeSection
+        {
+            [JsonPropertyName("enabled")]
+            public bool Enabled { get; set; } = true;
+
+            [JsonPropertyName("profilePath")]
+            public string? ProfilePath { get; set; }
+
+            [JsonPropertyName("profileVersion")]
+            public int ProfileVersion { get; set; }
+
+            [JsonPropertyName("defaults")]
+            public WorldMapRuntimeDefaults? Defaults { get; set; }
+
+            [JsonPropertyName("cache")]
+            public WorldMapRuntimeCache? Cache { get; set; }
+
+            [JsonPropertyName("terrainGeneration")]
+            public WorldMapRuntimeTerrainGeneration? TerrainGeneration { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeDefaults
+        {
+            [JsonPropertyName("renderDistance")]
+            public int? RenderDistance { get; set; }
+
+            [JsonPropertyName("mapScale")]
+            public double? MapScale { get; set; }
+
+            [JsonPropertyName("showCoordinates")]
+            public bool? ShowCoordinates { get; set; }
+
+            [JsonPropertyName("showBiomeInfo")]
+            public bool? ShowBiomeInfo { get; set; }
+
+            [JsonPropertyName("terrainQuality")]
+            public int? TerrainQuality { get; set; }
+
+            [JsonPropertyName("waterQuality")]
+            public int? WaterQuality { get; set; }
+
+            [JsonPropertyName("vegetationQuality")]
+            public int? VegetationQuality { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeCache
+        {
+            [JsonPropertyName("maxCachedChunks")]
+            public int? MaxCachedChunks { get; set; }
+
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueBurstSlackMultiplier")]
+            public double? QueueBurstSlackMultiplier { get; set; }
+
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
+
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
+
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
+
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
+
+            [JsonPropertyName("queueShockAbsorberWeight")]
+            public double? QueueShockAbsorberWeight { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
+
+            [JsonPropertyName("queueNearChunkKeepCount")]
+            public int? QueueNearChunkKeepCount { get; set; }
+
+            [JsonPropertyName("queueHotspotBias")]
+            public double? QueueHotspotBias { get; set; }
+
+            [JsonPropertyName("queueHotspotEmergencyPenalty")]
+            public double? QueueHotspotEmergencyPenalty { get; set; }
+
+            [JsonPropertyName("queueHotspotRetentionSeconds")]
+            public int? QueueHotspotRetentionSeconds { get; set; }
+
+            [JsonPropertyName("inflightChunkTimeoutSeconds")]
+            public int? InflightChunkTimeoutSeconds { get; set; }
+
+            [JsonPropertyName("inflightPruneIntervalSeconds")]
+            public int? InflightPruneIntervalSeconds { get; set; }
+
+            [JsonPropertyName("queueStalePruneMax")]
+            public int? QueueStalePruneMax { get; set; }
+
+            [JsonPropertyName("queueStalePruneEmergencyMultiplier")]
+            public double? QueueStalePruneEmergencyMultiplier { get; set; }
+
+            [JsonPropertyName("queueAlluvialRelayWeight")]
+            public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
+
+            [JsonPropertyName("queueHyporheicExchangeWeight")]
+            public double? QueueHyporheicExchangeWeight { get; set; }
+
+            [JsonPropertyName("queuePhreaticResonanceWeight")]
+            public double? QueuePhreaticResonanceWeight { get; set; }
+        }
+
+        private sealed class WorldMapRuntimeTerrainGeneration
+        {
+            [JsonPropertyName("maxConcurrentChunkGenerations")]
+            public int? MaxConcurrentChunkGenerations { get; set; }
+
+            [JsonPropertyName("updateBatchSize")]
+            public int? UpdateBatchSize { get; set; }
+
+            [JsonPropertyName("updateIntervalMs")]
+            public int? UpdateIntervalMs { get; set; }
+
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueBurstSlackMultiplier")]
+            public double? QueueBurstSlackMultiplier { get; set; }
+
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
+
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
+
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
+
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
+
+            [JsonPropertyName("queueShockAbsorberWeight")]
+            public double? QueueShockAbsorberWeight { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
+
+            [JsonPropertyName("queueNearChunkKeepCount")]
+            public int? QueueNearChunkKeepCount { get; set; }
+
+            [JsonPropertyName("queueHotspotBias")]
+            public double? QueueHotspotBias { get; set; }
+
+            [JsonPropertyName("queueHotspotEmergencyPenalty")]
+            public double? QueueHotspotEmergencyPenalty { get; set; }
+
+            [JsonPropertyName("queueHotspotRetentionSeconds")]
+            public int? QueueHotspotRetentionSeconds { get; set; }
+
+            [JsonPropertyName("inflightChunkTimeoutSeconds")]
+            public int? InflightChunkTimeoutSeconds { get; set; }
+
+            [JsonPropertyName("inflightPruneIntervalSeconds")]
+            public int? InflightPruneIntervalSeconds { get; set; }
+
+            [JsonPropertyName("queueStalePruneMax")]
+            public int? QueueStalePruneMax { get; set; }
+
+            [JsonPropertyName("queueStalePruneEmergencyMultiplier")]
+            public double? QueueStalePruneEmergencyMultiplier { get; set; }
+
+            [JsonPropertyName("queueAlluvialRelayWeight")]
+            public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
+
+            [JsonPropertyName("queueHyporheicExchangeWeight")]
+            public double? QueueHyporheicExchangeWeight { get; set; }
+
+            [JsonPropertyName("queuePhreaticResonanceWeight")]
+            public double? QueuePhreaticResonanceWeight { get; set; }
+        }
+
+        private sealed class WorldMapQueuePolicyConfig
+        {
+            [JsonPropertyName("version")]
+            public int Version { get; set; }
+
+            [JsonPropertyName("server")]
+            public WorldMapQueuePolicySection? Server { get; set; }
+        }
+
+        private sealed class WorldMapQueuePolicySection
+        {
+            [JsonPropertyName("maxQueuedChunkRequests")]
+            public int? MaxQueuedChunkRequests { get; set; }
+
+            [JsonPropertyName("queuePressureFactor")]
+            public int? QueuePressureFactor { get; set; }
+
+            [JsonPropertyName("maxConcurrentChunkGenerations")]
+            public int? MaxConcurrentChunkGenerations { get; set; }
+
+            [JsonPropertyName("updateBatchSize")]
+            public int? UpdateBatchSize { get; set; }
+
+            [JsonPropertyName("updateIntervalMs")]
+            public int? UpdateIntervalMs { get; set; }
+
+            [JsonPropertyName("queueSlackRatio")]
+            public double? QueueSlackRatio { get; set; }
+
+            [JsonPropertyName("queueBurstSlackMultiplier")]
+            public double? QueueBurstSlackMultiplier { get; set; }
+
+            [JsonPropertyName("queueLoadSheddingThreshold")]
+            public double? QueueLoadSheddingThreshold { get; set; }
+
+            [JsonPropertyName("queueEmergencyBrakeThreshold")]
+            public double? QueueEmergencyBrakeThreshold { get; set; }
+
+            [JsonPropertyName("queueLoadEmaBlend")]
+            public double? QueueLoadEmaBlend { get; set; }
+
+            [JsonPropertyName("queueEmergencyReleaseRatio")]
+            public double? QueueEmergencyReleaseRatio { get; set; }
+
+            [JsonPropertyName("queueTrendBoostWeight")]
+            public double? QueueTrendBoostWeight { get; set; }
+
+            [JsonPropertyName("queueShockAbsorberWeight")]
+            public double? QueueShockAbsorberWeight { get; set; }
+
+            [JsonPropertyName("queueOverloadDrainFactor")]
+            public int? QueueOverloadDrainFactor { get; set; }
+
+            [JsonPropertyName("queueBackoffDelayMs")]
+            public int? QueueBackoffDelayMs { get; set; }
+
+            [JsonPropertyName("queueEmergencyHoldTicks")]
+            public int? QueueEmergencyHoldTicks { get; set; }
+
+            [JsonPropertyName("queueRecoveryRampTicks")]
+            public int? QueueRecoveryRampTicks { get; set; }
+
+            [JsonPropertyName("queueNearChunkKeepCount")]
+            public int? QueueNearChunkKeepCount { get; set; }
+
+            [JsonPropertyName("queueHotspotBias")]
+            public double? QueueHotspotBias { get; set; }
+
+            [JsonPropertyName("queueHotspotEmergencyPenalty")]
+            public double? QueueHotspotEmergencyPenalty { get; set; }
+
+            [JsonPropertyName("queueHotspotRetentionSeconds")]
+            public int? QueueHotspotRetentionSeconds { get; set; }
+
+            [JsonPropertyName("inflightChunkTimeoutSeconds")]
+            public int? InflightChunkTimeoutSeconds { get; set; }
+
+            [JsonPropertyName("inflightPruneIntervalSeconds")]
+            public int? InflightPruneIntervalSeconds { get; set; }
+
+            [JsonPropertyName("queueStalePruneMax")]
+            public int? QueueStalePruneMax { get; set; }
+
+            [JsonPropertyName("queueStalePruneEmergencyMultiplier")]
+            public double? QueueStalePruneEmergencyMultiplier { get; set; }
+
+            [JsonPropertyName("queueAlluvialRelayWeight")]
+            public double? QueueAlluvialRelayWeight { get; set; }
+
+            [JsonPropertyName("queueKarstSpillwayWeight")]
+            public double? QueueKarstSpillwayWeight { get; set; }
+
+            [JsonPropertyName("queueHyporheicExchangeWeight")]
+            public double? QueueHyporheicExchangeWeight { get; set; }
+
+            [JsonPropertyName("queuePhreaticResonanceWeight")]
+            public double? QueuePhreaticResonanceWeight { get; set; }
         }
     }
 }

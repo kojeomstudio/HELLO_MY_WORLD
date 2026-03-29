@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using GameServerApp;
 using SharedProtocol;
+using RoomVisibility = SharedProtocol.Common.Enums.CoreEnums.RoomVisibility;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
 
 namespace GameServerApp.Rooms;
 

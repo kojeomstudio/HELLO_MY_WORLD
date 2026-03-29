@@ -1,0 +1,569 @@
+{
+  "items": [
+    {
+      "itemId": "apple",
+      "displayName": "Apple",
+      "description": "A crisp red apple that restores hunger when eaten.",
+      "categoryId": "food",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 4.0,
+      "hydration": 2.0,
+      "toolType": "hand",
+      "toolStrength": 1.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 5,
+      "weight": 0.1,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "eatTime": 1.6,
+        "saturationModifier": 0.3
+      }
+    },
+    {
+      "itemId": "bread",
+      "displayName": "Bread",
+      "description": "A loaf of bread made from wheat.",
+      "categoryId": "food",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 5.0,
+      "hydration": 1.0,
+      "toolType": "hand",
+      "toolStrength": 1.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 10,
+      "weight": 0.2,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "eatTime": 2.0,
+        "saturationModifier": 0.6
+      }
+    },
+    {
+      "itemId": "cooked_beef",
+      "displayName": "Cooked Beef",
+      "description": "A juicy steak cooked to perfection.",
+      "categoryId": "food",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 8.0,
+      "hydration": 1.5,
+      "toolType": "hand",
+      "toolStrength": 1.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 15,
+      "weight": 0.3,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "eatTime": 1.6,
+        "saturationModifier": 0.8
+      }
+    },
+    {
+      "itemId": "water_bottle",
+      "displayName": "Water Bottle",
+      "description": "A bottle filled with clean water.",
+      "categoryId": "drink",
+      "rarity": "common",
+      "maxStackSize": 16,
+      "nutrition": 0.0,
+      "hydration": 10.0,
+      "toolType": "hand",
+      "toolStrength": 1.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 8,
+      "weight": 0.2,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "drinkTime": 1.0,
+        "canRefill": true
+      }
+    },
+    {
+      "itemId": "wooden_sword",
+      "displayName": "Wooden Sword",
+      "description": "A basic sword made from wood.",
+      "categoryId": "weapon",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "sword",
+      "toolStrength": 4.0,
+      "durability": 60,
+      "maxDurability": 60,
+      "repairItem": "wood_planks",
+      "value": 25,
+      "weight": 1.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "sharpness",
+        "knockback",
+        "fire_aspect",
+        "looting"
+      ],
+      "customProperties": {
+        "attackSpeed": 1.6,
+        "attackDamage": 4.0
+      }
+    },
+    {
+      "itemId": "stone_sword",
+      "displayName": "Stone Sword",
+      "description": "A sturdy sword made from stone.",
+      "categoryId": "weapon",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "sword",
+      "toolStrength": 5.0,
+      "durability": 132,
+      "maxDurability": 132,
+      "repairItem": "cobblestone",
+      "value": 50,
+      "weight": 1.5,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "sharpness",
+        "knockback",
+        "fire_aspect",
+        "looting"
+      ],
+      "customProperties": {
+        "attackSpeed": 1.6,
+        "attackDamage": 5.0
+      }
+    },
+    {
+      "itemId": "wooden_pickaxe",
+      "displayName": "Wooden Pickaxe",
+      "description": "A basic pickaxe made from wood.",
+      "categoryId": "tool",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "pickaxe",
+      "toolStrength": 2.0,
+      "durability": 60,
+      "maxDurability": 60,
+      "repairItem": "wood_planks",
+      "value": 20,
+      "weight": 1.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch"
+      ],
+      "customProperties": {
+        "mineSpeed": 2.0,
+        "canMine": [
+          "stone",
+          "coal_ore",
+          "iron_ore"
+        ]
+      }
+    },
+    {
+      "itemId": "stone_pickaxe",
+      "displayName": "Stone Pickaxe",
+      "description": "A sturdy pickaxe made from stone.",
+      "categoryId": "tool",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "pickaxe",
+      "toolStrength": 3.0,
+      "durability": 132,
+      "maxDurability": 132,
+      "repairItem": "cobblestone",
+      "value": 40,
+      "weight": 1.5,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch"
+      ],
+      "customProperties": {
+        "mineSpeed": 4.0,
+        "canMine": [
+          "stone",
+          "coal_ore",
+          "iron_ore",
+          "gold_ore",
+          "diamond_ore"
+        ]
+      }
+    },
+    {
+      "itemId": "iron_pickaxe",
+      "displayName": "Iron Pickaxe",
+      "description": "A durable pickaxe made from iron.",
+      "categoryId": "tool",
+      "rarity": "uncommon",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "pickaxe",
+      "toolStrength": 4.0,
+      "durability": 251,
+      "maxDurability": 251,
+      "repairItem": "iron_ingot",
+      "value": 100,
+      "weight": 2.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch",
+        "unbreaking"
+      ],
+      "customProperties": {
+        "mineSpeed": 6.0,
+        "canMine": [
+          "stone",
+          "coal_ore",
+          "iron_ore",
+          "gold_ore",
+          "diamond_ore",
+          "obsidian"
+        ]
+      }
+    },
+    {
+      "itemId": "diamond_pickaxe",
+      "displayName": "Diamond Pickaxe",
+      "description": "An exceptional pickaxe made from diamond.",
+      "categoryId": "tool",
+      "rarity": "rare",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "pickaxe",
+      "toolStrength": 5.0,
+      "durability": 1562,
+      "maxDurability": 1562,
+      "repairItem": "diamond",
+      "value": 500,
+      "weight": 2.5,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch",
+        "unbreaking",
+        "mending"
+      ],
+      "customProperties": {
+        "mineSpeed": 8.0,
+        "canMine": [
+          "stone",
+          "coal_ore",
+          "iron_ore",
+          "gold_ore",
+          "diamond_ore",
+          "obsidian"
+        ]
+      }
+    },
+    {
+      "itemId": "wooden_shovel",
+      "displayName": "Wooden Shovel",
+      "description": "A basic shovel made from wood.",
+      "categoryId": "tool",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "shovel",
+      "toolStrength": 1.5,
+      "durability": 60,
+      "maxDurability": 60,
+      "repairItem": "wood_planks",
+      "value": 15,
+      "weight": 0.8,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch"
+      ],
+      "customProperties": {
+        "mineSpeed": 2.0,
+        "canMine": [
+          "dirt",
+          "grass",
+          "sand",
+          "gravel",
+          "clay"
+        ]
+      }
+    },
+    {
+      "itemId": "wooden_axe",
+      "displayName": "Wooden Axe",
+      "description": "A basic axe made from wood.",
+      "categoryId": "tool",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "axe",
+      "toolStrength": 2.0,
+      "durability": 60,
+      "maxDurability": 60,
+      "repairItem": "wood_planks",
+      "value": 18,
+      "weight": 1.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "efficiency",
+        "fortune",
+        "silk_touch"
+      ],
+      "customProperties": {
+        "mineSpeed": 2.0,
+        "canMine": [
+          "wood",
+          "log",
+          "planks"
+        ]
+      }
+    },
+    {
+      "itemId": "torch",
+      "displayName": "Torch",
+      "description": "A light source that can be placed on walls or floors.",
+      "categoryId": "block",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 0.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 3,
+      "weight": 0.1,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "lightLevel": 14,
+        "burnTime": 60
+      }
+    },
+    {
+      "itemId": "coal",
+      "displayName": "Coal",
+      "description": "A black mineral used as fuel.",
+      "categoryId": "material",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 0.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 8,
+      "weight": 0.2,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "burnTime": 80,
+        "smeltingMultiplier": 1.0
+      }
+    },
+    {
+      "itemId": "iron_ingot",
+      "displayName": "Iron Ingot",
+      "description": "A refined iron ingot used for crafting tools and armor.",
+      "categoryId": "material",
+      "rarity": "uncommon",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 0.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 25,
+      "weight": 0.5,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "smeltingTemperature": 1200,
+        "craftingTier": 2
+      }
+    },
+    {
+      "itemId": "gold_ingot",
+      "displayName": "Gold Ingot",
+      "description": "A refined gold ingot used for crafting and decoration.",
+      "categoryId": "material",
+      "rarity": "rare",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 0.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 100,
+      "weight": 0.5,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "smeltingTemperature": 1000,
+        "craftingTier": 3
+      }
+    },
+    {
+      "itemId": "diamond",
+      "displayName": "Diamond",
+      "description": "A rare and valuable gemstone.",
+      "categoryId": "material",
+      "rarity": "rare",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 0.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 500,
+      "weight": 0.3,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "hardness": 10,
+        "craftingTier": 4
+      }
+    },
+    {
+      "itemId": "wood_planks",
+      "displayName": "Wood Planks",
+      "description": "Processed wood used for building and crafting.",
+      "categoryId": "block",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 2.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 5,
+      "weight": 0.5,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "flammability": 5,
+        "blastResistance": 3
+      }
+    },
+    {
+      "itemId": "cobblestone",
+      "displayName": "Cobblestone",
+      "description": "Rough stone used for building and crafting.",
+      "categoryId": "block",
+      "rarity": "common",
+      "maxStackSize": 64,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 2.0,
+      "durability": 0,
+      "maxDurability": 0,
+      "repairItem": "",
+      "value": 4,
+      "weight": 1.0,
+      "canEnchant": false,
+      "enchantableTypes": [],
+      "customProperties": {
+        "flammability": 0,
+        "blastResistance": 6
+      }
+    },
+    {
+      "itemId": "leather_helmet",
+      "displayName": "Leather Helmet",
+      "description": "A basic helmet made from leather.",
+      "categoryId": "armor",
+      "rarity": "common",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 1.0,
+      "durability": 55,
+      "maxDurability": 55,
+      "repairItem": "leather",
+      "value": 30,
+      "weight": 1.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "protection",
+        "unbreaking",
+        "thorns"
+      ],
+      "customProperties": {
+        "armorPoints": 1,
+        "toughness": 0,
+        "slot": "head"
+      }
+    },
+    {
+      "itemId": "iron_chestplate",
+      "displayName": "Iron Chestplate",
+      "description": "A sturdy chestplate made from iron.",
+      "categoryId": "armor",
+      "rarity": "uncommon",
+      "maxStackSize": 1,
+      "nutrition": 0.0,
+      "hydration": 0.0,
+      "toolType": "hand",
+      "toolStrength": 2.0,
+      "durability": 240,
+      "maxDurability": 240,
+      "repairItem": "iron_ingot",
+      "value": 200,
+      "weight": 3.0,
+      "canEnchant": true,
+      "enchantableTypes": [
+        "protection",
+        "unbreaking",
+        "thorns",
+        "fire_protection"
+      ],
+      "customProperties": {
+        "armorPoints": 6,
+        "toughness": 2,
+        "slot": "chest"
+      }
+    }
+  ]
+}

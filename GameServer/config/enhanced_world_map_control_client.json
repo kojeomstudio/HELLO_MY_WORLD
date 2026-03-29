@@ -1,0 +1,62 @@
+{
+    "worldMapControl":  {
+                            "ui":  {
+                                       "showMiniMap":  true,
+                                       "miniMapPosition":  "bottom-right",
+                                       "miniMapSize":  256,
+                                       "miniMapOpacity":  0.9,
+                                       "showPlayerMarker":  true,
+                                       "showChunkBorders":  true
+                                   },
+                            "display":  {
+                                            "showCoordinates":  true,
+                                            "showBiomeInfo":  true,
+                                            "showFps":  true,
+                                            "showPing":  true
+                                        },
+                            "performance":  {
+                                                "chunkUpdateThrottleMs":  50,
+                                                "maxConcurrentChunkRequests":  8,
+                                                "maxQueuedChunkRequests":  3840,
+                                                "queuePressureFactor":  4,
+                                                "queueSlackRatio":  3.05,
+                                                "queueBurstSlackMultiplier":  1.28,
+                                                "queueLoadSheddingThreshold":  0.74,
+                                                "queueEmergencyBrakeThreshold":  0.9,
+                                                "queueLoadEmaBlend":  0.35,
+                                                "queueEmergencyReleaseRatio":  0.71,
+                                                "queueTrendBoostWeight":  0.41,
+                                                "queueShockAbsorberWeight":  0.4,
+                                                "queueOverloadDrainFactor":  10,
+                                                "queueBackoffDelayMs":  4,
+                                                "enableChunkPrediction":  true,
+                                                "queueRequestTtlSeconds":  46,
+                                                "queueEmergencyHoldTicks":  9,
+                                                "queueRecoveryRampTicks":  14,
+                                                "queueHotspotBias":  0.56,
+                                                "queueHotspotEmergencyPenalty":  1.05,
+                                                "queueHotspotRetentionSeconds":  20,
+                                                "queueNearChunkKeepCount":  38,
+                                                "queueStalePruneMax":  120,
+                                                "queueStalePruneEmergencyMultiplier":  1.38,
+                                                "queueAlluvialRelayWeight":  0.86,
+                                                "queueKarstSpillwayWeight":  0.92,
+                                                "queueHyporheicExchangeWeight":  0.94,
+                                                "queuePhreaticResonanceWeight":  0.96
+                                            },
+                            "defaults":  {
+                                             "renderDistance":  12,
+                                             "maxLoadedPreviewChunks":  4096,
+                                             "mapScale":  1.0,
+                                             "terrainQuality":  3,
+                                             "waterQuality":  3,
+                                             "vegetationQuality":  3,
+                                             "fogEnabled":  true,
+                                             "shadowEnabled":  true,
+                                             "maxChunkUpdatesPerFrame":  24,
+                                             "maxQueuedChunkUpdates":  4096,
+                                             "chunkLOD":  2,
+                                             "unloadDistance":  16
+                                         }
+                        }
+}

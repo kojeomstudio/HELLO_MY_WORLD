@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-02-05T12:00:00Z",
+  "version": "2026-02-05-session-44",
+  "hydrologySignature": "2026-02-05-hydrology-riverlake-cave-v14",
+  "profileVersion": 17,
+  "scope": "minecraft client/server core-content-util",
+  "core": [
+    {
+      "id": "core-worldgen-hydrology-v14",
+      "title": "Hydrology-stable worldgen (caves/rivers/lakes) v14",
+      "status": "in-progress",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "GameServer/World/WorldManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ],
+      "notes": "Riparian cave guard plus hydrology continuity tuning to keep caves from puncturing rivers/lakes across chunk seams."
+    },
+    {
+      "id": "core-mapcontrol-architecture",
+      "title": "World map control architecture + signatures (v17)",
+      "status": "in-progress",
+      "sequence": 2,
+      "owners": ["GameCommon", "GameServer", "Unity"],
+      "artifacts": [
+        "GameCommon/World/WorldMapControlProfile.cs",
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldMapControlManager.cs",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "core-shared-contracts",
+      "title": "Shared DLL + protobuf contract alignment",
+      "status": "in-progress",
+      "sequence": 3,
+      "owners": ["GameCommon", "SharedProtocol"],
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Assets/Plugins/GameCommon.dll",
+        "Assets/Generated/Protobuf"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content-riparian-cave-guard",
+      "title": "Riparian cave guard and river/lake sealing",
+      "status": "in-progress",
+      "sequence": 1,
+      "owners": ["GameServer", "Unity"],
+      "artifacts": [
+        "GameServer/World/WorldManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "content-worldmap-preview-parity",
+      "title": "World map preview parity for hydrology/caves",
+      "status": "in-progress",
+      "sequence": 2,
+      "owners": ["Unity"],
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+      ]
+    }
+  ],
+  "utility": [
+    {
+      "id": "util-dummy-proto-client",
+      "title": "Dummy protocol client and protobuf registry validation",
+      "status": "ready",
+      "sequence": 1,
+      "owners": ["SharedProtocol", "GameServer"],
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "reports/proto_probe_report.json"
+      ]
+    },
+    {
+      "id": "util-data-driven-configs",
+      "title": "Data-driven world configs and feature manifest",
+      "status": "in-progress",
+      "sequence": 2,
+      "owners": ["GameCommon", "Unity", "GameServer"],
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "config/minecraft_feature_core_content_util_2026-02-05.json"
+      ]
+    },
+    {
+      "id": "util-shared-dll-distribution",
+      "title": "Shared DLL distribution (GameCommon.dll, SharedProtocol.dll)",
+      "status": "in-progress",
+      "sequence": 3,
+      "owners": ["GameCommon", "SharedProtocol", "Unity"],
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ]
+    }
+  ]
+}

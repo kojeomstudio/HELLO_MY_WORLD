@@ -17,13 +17,9 @@
   "World": {
     "DefaultWorldName": "default",
     "WorldSeed": 12345,
-    "ChunkLoadRadius": 8,
+    "WorldConfigPath": "config/world.json",
+    "ChunkLoadRadius": 12,
     "ChunkUnloadTimeoutMinutes": 30,
-    "EnableTerrainGeneration": true,
-    "EnableOreGeneration": true,
-    "EnableVegetationGeneration": true,
-    "MaxWorldHeight": 256,
-    "MinWorldHeight": -64,
     "InitialWorldTime": 0,
     "InitialDayTime": 1000,
     "EnableDayNightCycle": false,
@@ -35,7 +31,15 @@
     "StormWeatherDurationSeconds": 120,
     "SnowWeatherDurationSeconds": 240,
     "WeatherStormProbability": 0.1,
-    "WeatherSnowProbability": 0.05
+    "WeatherSnowProbability": 0.05,
+    "EnableTerrainGeneration": true,
+    "EnableOreGeneration": true,
+    "EnableVegetationGeneration": true,
+    "EnableCaves": true,
+    "EnableRivers": true,
+    "EnableLakes": true,
+    "MaxWorldHeight": 256,
+    "MinWorldHeight": -64
   },
   "Gameplay": {
     "MaxPlayersPerWorld": 20,

@@ -76,10 +76,134 @@ public class AnimalSpawnData : ActorSpawnData
 abstract public class Actor : MonoBehaviour
 {
     protected ACTOR_TYPE ActorType;
-    protected int HealthPoint;
-    protected int MagicaPoint;
-    protected int AttackPoint;
+    protected int _healthPoint;
+    protected int _maxHealthPoint = 100;
+    protected int _magicaPoint;
+    protected int _maxMagicaPoint = 100;
+    protected int _attackPoint;
     protected string Name;
+
+    /// <summary>
+    /// 현재 체력 (BlackBoard 자동 동기화)
+    /// </summary>
+    public int HealthPoint
+    {
+        get => _healthPoint;
+        set
+        {
+            _healthPoint = Mathf.Clamp(value, 0, _maxHealthPoint);
+
+            // BlackBoard에 자동 동기화
+            if (Controller != null)
+            {
+                ActorController actorController = Controller as ActorController;
+                if (actorController != null)
+                {
+                    actorController.UpdateHealthRatio((float)_healthPoint / _maxHealthPoint);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 최대 체력
+    /// </summary>
+    public int MaxHealthPoint
+    {
+        get => _maxHealthPoint;
+        set => _maxHealthPoint = Mathf.Max(1, value);
+    }
+
+    /// <summary>
+    /// 현재 마나
+    /// </summary>
+    public int MagicaPoint
+    {
+        get => _magicaPoint;
+        set => _magicaPoint = Mathf.Clamp(value, 0, _maxMagicaPoint);
+    }
+
+    /// <summary>
+    /// 최대 마나
+    /// </summary>
+    public int MaxMagicaPoint
+    {
+        get => _maxMagicaPoint;
+        set => _maxMagicaPoint = Mathf.Max(1, value);
+    }
+
+    /// <summary>
+    /// 공격력
+    /// </summary>
+    public int AttackPoint
+    {
+        get => _attackPoint;
+        set => _attackPoint = Mathf.Max(0, value);
+    }
+
+    /// <summary>
+    /// 데미지 받기
+    /// </summary>
+    public virtual void TakeDamage(int damage, Actor attacker = null)
+    {
+        HealthPoint -= damage;
+
+        // 데미지 애니메이션 재생
+        PlayDamageAnimation();
+
+        // AI에 데미지 이벤트 전달
+        if (Controller != null)
+        {
+            ActorController actorController = Controller as ActorController;
+            if (actorController != null && attacker != null)
+            {
+                actorController.OnDamageReceived(attacker.gameObject, attacker.transform.position, damage);
+            }
+        }
+
+        // 사망 체크
+        if (HealthPoint <= 0)
+        {
+            OnDeath();
+        }
+    }
+
+    /// <summary>
+    /// 데미지 애니메이션 재생
+    /// </summary>
+    private void PlayDamageAnimation()
+    {
+        ActorAnimationController animController = GetComponent<ActorAnimationController>();
+        if (animController != null)
+        {
+            animController.PlayAnimation(ActorAnimationType.TakeDamage);
+        }
+    }
+
+    /// <summary>
+    /// 체력 회복
+    /// </summary>
+    public virtual void Heal(int amount)
+    {
+        HealthPoint += amount;
+    }
+
+    /// <summary>
+    /// 사망 처리
+    /// </summary>
+    protected virtual void OnDeath()
+    {
+        KojeomLogger.DebugLog($"[Actor] {Name} died");
+
+        // 사망 애니메이션 재생
+        ActorAnimationController animController = GetComponent<ActorAnimationController>();
+        if (animController != null)
+        {
+            animController.PlayAnimation(ActorAnimationType.Death);
+        }
+
+        // TODO: 아이템 드롭, 경험치 등
+    }
     /// <summary>
     /// Actor가 가지고 있는 리소스 식별자.
     /// </summary>

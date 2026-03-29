@@ -6,12 +6,21 @@
     <Nullable>enable</Nullable>
     <RollForward>Major</RollForward>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.0" />
-    <ProjectReference Include="../SharedProtocol/SharedProtocol.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
   </ItemGroup>
-  
+
+  <ItemGroup>
+    <!-- 프로젝트 참조 -->
+    <ProjectReference Include="../SharedProtocol/SharedProtocol.csproj" />
+    <ProjectReference Include="../GameCommon/GameCommon.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <Compile Remove="Handlers/Disabled/**/*.cs" />
+    <Compile Remove="DummyMinecraftClient.cs" />
+    <Compile Remove="DummyProtocolTestClient.cs" />
   </ItemGroup>
 </Project>

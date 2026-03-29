@@ -1,0 +1,222 @@
+{
+  "generatedAtUtc": "2026-02-13T00:00:00Z",
+  "source": "Minecraft client/server feature rollout grouped by core, content, and utility",
+  "categories": {
+    "core": [
+      {
+        "id": "core_worldgen_parity",
+        "title": "World generation parity",
+        "description": "Keep caves, rivers, and lakes aligned between server generation and Unity previews using shared hydrology masks and improved coordinators.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Minecraft/World/ImprovedTerrainGenerator.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "config": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-config.json"
+        ]
+      },
+      {
+        "id": "core_map_control_profile",
+        "title": "Map control profile sync",
+        "description": "Hash-based world map control profile distributed to clients for chunk streaming, hydrology smoothing, and render distance governance.",
+        "status": "in_progress",
+        "order": 2,
+        "serverComponents": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ],
+        "config": [
+          "config/world_map_control_profile.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      },
+      {
+        "id": "core_protocol_validation",
+        "title": "Protobuf protocol validation",
+        "description": "Ensure generated EnhancedMinecraft protobuf contracts are registered and fingerprints match on both server and client startup.",
+        "status": "in_progress",
+        "order": 3,
+        "serverComponents": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs",
+          "GameServer/Network/EnhancedProtocolHandler.cs",
+          "GameServer/Program.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+          "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs"
+        ],
+        "config": [
+          "proto/*.proto",
+          "Assets/Generated/Protobuf/*.cs"
+        ]
+      },
+      {
+        "id": "core_chunk_streaming",
+        "title": "Chunk streaming & residency",
+        "description": "Serve and cull chunks based on map-control limits and player proximity while keeping chunk payloads synchronized.",
+        "status": "in_progress",
+        "order": 4,
+        "serverComponents": [
+          "GameServer/Handlers/MinecraftChunkHandler.cs",
+          "GameServer/World/WorldManager.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Minecraft/World/ImprovedChunkManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "config": [
+          "config/world.json",
+          "Assets/StreamingAssets/world-map-control.json"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content_block_interaction_inventory",
+        "title": "Block interaction & inventory",
+        "description": "Place/break blocks and keep inventories in sync between client and server.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "GameServer/Handlers/WorldBlockHandler.cs",
+          "GameServer/Handlers/InventoryHandler.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+        ],
+        "config": [
+          "config/world.json"
+        ]
+      },
+      {
+        "id": "content_crafting_furnace",
+        "title": "Crafting & furnace flows",
+        "description": "Recipe validation, furnace ticks, and UI glue for crafting/smelting loops.",
+        "status": "in_progress",
+        "order": 2,
+        "serverComponents": [
+          "GameServer/Handlers/CraftingHandler.cs",
+          "GameServer/Handlers/MinecraftPlayerActionHandler.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+          "Assets/Scripts/Minecraft/Crafting/FurnaceManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs"
+        ],
+        "config": [
+          "config/recipes.json"
+        ]
+      },
+      {
+        "id": "content_survival_systems",
+        "title": "Survival loops (health, hunger)",
+        "description": "Synchronize hunger/health ticks and item consumption between server authority and client HUD.",
+        "status": "in_progress",
+        "order": 3,
+        "serverComponents": [
+          "GameServer/Handlers/FoodSystemHandler.cs",
+          "GameServer/Handlers/HealthHandler.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+          "Assets/MyAssets/Scripts/GameWorld/PlayerController.cs"
+        ],
+        "config": [
+          "config/world.json"
+        ]
+      },
+      {
+        "id": "content_entity_sync",
+        "title": "Entity sync & combat",
+        "description": "Spawn/despawn, AI events, and combat packets mirrored in Unity entity managers.",
+        "status": "in_progress",
+        "order": 4,
+        "serverComponents": [
+          "GameServer/Handlers/AIHandlers.cs",
+          "GameServer/Handlers/PlayerAttackHandler.cs"
+        ],
+        "clientComponents": [
+          "Assets/Scripts/Minecraft/World/RemoteEntityManager.cs",
+          "Assets/Scripts/Minecraft/World/WorldTimeController.cs"
+        ],
+        "config": [
+          "proto/enhanced_minecraft_game.proto",
+          "proto/game_world.proto"
+        ]
+      }
+    ],
+    "utility": [
+      {
+        "id": "utility_config_sync",
+        "title": "Config/profile sync",
+        "description": "Data-driven JSON configs for world seeds, map control limits, and server runtime settings.",
+        "status": "in_progress",
+        "order": 1,
+        "serverComponents": [
+          "config/world.json",
+          "config/world_map_control_profile.json",
+          "GameServer/ServerConfig.cs",
+          "GameServer/Utils/ConfigValidator.cs"
+        ],
+        "clientComponents": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/MyAssets/Scripts/DataFiles/DataFile/WorldConfigFile.cs"
+        ],
+        "config": [
+          "server-config.json",
+          "config/world.json"
+        ]
+      },
+      {
+        "id": "utility_protocol_assets",
+        "title": "Protobuf asset pipeline",
+        "description": "Regenerate and mirror protobuf DTOs for both runtimes; keep registry bindings in sync.",
+        "status": "in_progress",
+        "order": 2,
+        "serverComponents": [
+          "proto/*.proto",
+          "SharedProtocol/**/*.cs",
+          "scripts/generate_proto.ps1"
+        ],
+        "clientComponents": [
+          "Assets/Generated/Protobuf/*.cs",
+          "Assets/Scripts/Minecraft/Core/EnhancedProtoManifest.cs"
+        ],
+        "config": [
+          "proto/*.proto"
+        ]
+      },
+      {
+        "id": "utility_logging_monitoring",
+        "title": "Logging & monitoring",
+        "description": "Centralized logging and lightweight performance monitoring for gameplay and network flows.",
+        "status": "in_progress",
+        "order": 3,
+        "serverComponents": [
+          "GameServer/Utils/Logger.cs",
+          "GameServer/Utils/PerformanceMonitor.cs"
+        ],
+        "clientComponents": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/Scripts/Networking/Core/MessageDispatcher.cs"
+        ],
+        "config": [
+          "server-config.json"
+        ]
+      }
+    ]
+  }
+}

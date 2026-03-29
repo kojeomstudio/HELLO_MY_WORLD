@@ -1,0 +1,85 @@
+{
+  "version": "2026-02-02-session-38",
+  "generated_at_utc": "2026-02-02T12:00:00Z",
+  "features": [
+    {
+      "id": "CORE-015",
+      "name": "Hydrology v10 river/lake/cave coherence",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Improve river, lake, and cave carving with erosion-aware pressure guards, flow shadow blending, and chunk-edge resilience for both server chunks and Unity previews.",
+      "order": 1,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ],
+      "dependencies": [
+        "GameCommon/World/SharedFeatureCatalog.cs"
+      ]
+    },
+    {
+      "id": "CONTENT-011",
+      "name": "World map control parity + signature bump",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Refresh world map control profile/version, propagate hydrology signature v10, and ensure signature computation includes proto + profile hashes across server and Unity clients.",
+      "order": 2,
+      "status": "in-progress",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world_map_control_profile.json",
+        "GameCommon/World/WorldMapSignature.cs"
+      ],
+      "dependencies": [
+        "CORE-015"
+      ]
+    },
+    {
+      "id": "UTIL-010",
+      "name": "Proto registry + dummy client diagnostics",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "server",
+      "description": "Strengthen protobuf reference validation and emit registry/probe reports via DummyProtocolClient and ProtoDiagnostics for CI and local smoke tests.",
+      "order": 3,
+      "status": "in-progress",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "SharedProtocol",
+        "GameCommon.dll"
+      ]
+    },
+    {
+      "id": "UTIL-011",
+      "name": "Shared DLL distribution (GameCommon + SharedProtocol)",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Build and ship updated GameCommon.dll/SharedProtocol.dll to Unity Plugins to keep enums, contracts, and world-map signatures aligned across client and server.",
+      "order": 4,
+      "status": "planned",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "Assets/Plugins/GameCommon.dll",
+        "Assets/Plugins/MapGeneratorLib.dll"
+      ],
+      "dependencies": [
+        "UTIL-010"
+      ]
+    }
+  ]
+}

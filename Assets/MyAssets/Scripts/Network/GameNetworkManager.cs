@@ -10,6 +10,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using MapGenLib;
+using SharedProtocol.EnhancedMinecraft;
 
 /// <summary>
 /// 네트워크 프로토콜.
@@ -99,6 +100,7 @@ public class GameNetworkManager
 
     private GameNetworkManager()
     {
+        EnsureEnhancedProtoFingerprint();
         // CNetworkService객체는 메시지의 비동기 송,수신 처리를 수행한다.
         // 메시지 송,수신은 서버, 클라이언트 모두 동일한 로직으로 처리될 수 있으므로
         // CNetworkService객체를 생성하여 Connector객체에 넘겨준다.
@@ -112,6 +114,23 @@ public class GameNetworkManager
 
     ~GameNetworkManager()
     {
+    }
+
+    private void EnsureEnhancedProtoFingerprint()
+    {
+        try
+        {
+            ProtoFingerprint.AssertDescriptorFingerprint();
+            ProtocolRegistry.ValidateBindings();
+            ProtocolValidator.ValidateEnhancedContracts();
+        }
+        catch (Exception ex)
+        {
+            KojeomLogger.DebugLog(
+                $"[PROTO] EnhancedMinecraft descriptor/registry validation failed: {ex.Message}",
+                LOG_TYPE.ERROR);
+            throw;
+        }
     }
 
     public static string GetLocalIP()

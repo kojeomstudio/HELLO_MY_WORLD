@@ -1,0 +1,1932 @@
+{
+  "date": "2026-01-25",
+  "session": "15",
+  "meta": {
+    "source_commits": [
+      "8888da1f",
+      "566bb34b",
+      "1ce05f49"
+    ],
+    "notes": "Session 15 comprehensive feature catalog with Core/Content/Util categorization for client and server"
+  },
+  "client": {
+    "core": [
+      {
+        "id": "C001",
+        "name": "Chunk Streaming & Mesh Rebuilds",
+        "description": "Dynamic chunk loading and mesh generation system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/SubWorld.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C002",
+        "name": "Map-Control Profile Bootstrap",
+        "description": "World map control profile loading and validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C003",
+        "name": "Network Bootstrap/Keepalive/Auth",
+        "description": "Network connection management and authentication",
+        "files": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C004",
+        "name": "Player State Sync",
+        "description": "Player position, rotation, and state synchronization",
+        "files": [
+          "Assets/MyAssets/Scripts/Player/GamePlayer.cs",
+          "Assets/MyAssets/Scripts/Player/GamePlayerController.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C005",
+        "name": "Block Placement/Break + Inventory HUD",
+        "description": "Block interaction system with inventory UI",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C006",
+        "name": "Session Lifecycle",
+        "description": "Game session management (connect, disconnect, pause)",
+        "files": [
+          "Assets/MyAssets/Scripts/GameMode/AGameModeBase.cs",
+          "Assets/MyAssets/Scripts/GameMode/SingleGameMode.cs",
+          "Assets/MyAssets/Scripts/GameMode/MultiGameMode.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C007",
+        "name": "World-Gen Preview",
+        "description": "Local terrain generation preview for map display",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C008",
+        "name": "Protobuf Bootstrap and Manifest Fingerprint",
+        "description": "Protocol buffer initialization and validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C009",
+        "name": "JSON-Driven World Config Load",
+        "description": "Configuration loading from StreamingAssets",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C010",
+        "name": "Chunk Preview Caching",
+        "description": "Local chunk preview cache with signature validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      }
+    ],
+    "content": [
+      {
+        "id": "C011",
+        "name": "Biome-Tinted Terrain (Rivers/Lakes/Caves)",
+        "description": "Terrain coloring based on biome and water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C012",
+        "name": "Shoreline/Wetland/Aquifer Visualization",
+        "description": "Visual representation of water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C013",
+        "name": "Structure/Loot Preview Hooks",
+        "description": "Preview system for structures and loot",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "partial",
+        "priority": "low"
+      },
+      {
+        "id": "C014",
+        "name": "Ambient FX/Audio",
+        "description": "Environmental effects and sounds",
+        "files": [
+          "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "C015",
+        "name": "Day/Night + Weather",
+        "description": "Time of day and weather systems",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C016",
+        "name": "Block/Item/Entity Rendering",
+        "description": "Visual rendering system for game objects",
+        "files": [
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C017",
+        "name": "Cave/River/Lake Overlays with Hydrology-Aware Sealing",
+        "description": "Terrain feature visualization with proper water handling",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C018",
+        "name": "Biome + Height Preview Shading",
+        "description": "Map preview shading based on biome and elevation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C019",
+        "name": "Wetland/Lake Rim Shaping in Minimap Tiles",
+        "description": "Minimap tile generation for water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C020",
+        "name": "Data-Driven Block Palette Sampling for Previews",
+        "description": "Block selection from JSON data for previews",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/StreamingAssets/blocks.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      }
+    ],
+    "util": [
+      {
+        "id": "C021",
+        "name": "Debug Overlays for Hydrology/Flow/Cave Masks",
+        "description": "Visualization tools for terrain generation debugging",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "low"
+      },
+      {
+        "id": "C022",
+        "name": "Profile Reload + Generation Signature Diff Logging",
+        "description": "Configuration reload and change detection",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C023",
+        "name": "Config/Proto Drift Reporting in Editor Console",
+        "description": "Protocol drift detection and reporting",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C024",
+        "name": "JSON Config Loading (StreamingAssets)",
+        "description": "Configuration system using JSON files",
+        "files": [
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+          "Assets/StreamingAssets/client-config.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C025",
+        "name": "Protobuf Desync/Error Reporting",
+        "description": "Protocol error handling and reporting",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C026",
+        "name": "Localization/Analytics Stubs",
+        "description": "Placeholder systems for localization and analytics",
+        "files": [],
+        "status": "planned",
+        "priority": "low"
+      },
+      {
+        "id": "C027",
+        "name": "Logging",
+        "description": "Logging system for debugging and monitoring",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C028",
+        "name": "UI (Menus/Inventory/Crafting/Status/Loading/Messages)",
+        "description": "User interface system",
+        "files": [
+          "Assets/MyAssets/Scripts/UI/MainMenuManager.cs",
+          "Assets/MyAssets/Scripts/UI/InGameMenuManager.cs",
+          "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+          "Assets/MyAssets/Scripts/UI/GameLoading.cs",
+          "Assets/MyAssets/Scripts/UI/MapLoadingMessageManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C029",
+        "name": "Save/Load",
+        "description": "Game state persistence system",
+        "files": [
+          "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C030",
+        "name": "Debug Overlays + Perf Monitor",
+        "description": "Performance monitoring and debug visualization",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "low"
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "S001",
+        "name": "Enhanced Terrain Pipeline",
+        "description": "Advanced terrain generation with improved algorithms",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedWorldGeneration.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S002",
+        "name": "World Map Control Cache + Signature Invalidation",
+        "description": "Chunk caching with signature-based invalidation",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S003",
+        "name": "Protobuf Runtime Validation Before Handlers",
+        "description": "Protocol validation before packet processing",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S004",
+        "name": "Session Lifecycle/Auth/Keepalive Handlers",
+        "description": "Session management and authentication",
+        "files": [
+          "GameServer/SessionManager.cs",
+          "GameServer/Handlers/"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S005",
+        "name": "Chunk Save/Load with Profile Hash",
+        "description": "Chunk persistence with profile validation",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/ChunkData.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S006",
+        "name": "Network Routing",
+        "description": "Packet routing and message handling",
+        "files": [
+          "GameServer/Network/",
+          "SharedProtocol/MessageDispatcher.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S007",
+        "name": "Movement/Interaction Validation",
+        "description": "Server-side validation of player actions",
+        "files": [
+          "GameServer/Handlers/",
+          "GameServer/Physics/"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S008",
+        "name": "Block Change Broadcast",
+        "description": "Block modification propagation to clients",
+        "files": [
+          "GameServer/Handlers/",
+          "GameServer/World/WorldSynchronizationManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S009",
+        "name": "World Seed Management",
+        "description": "Seed-based world generation",
+        "files": [
+          "GameServer/World/WorldSeedConfig.cs",
+          "GameServer/World/WorldGenerationConfig.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S010",
+        "name": "Hydrology/Flow Cache Feeding Caves/Rivers/Lakes",
+        "description": "Water flow system for terrain generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S011",
+        "name": "World Map-Control Generation/Cache/Export",
+        "description": "Map control data generation and caching",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "S012",
+        "name": "JSON-Driven Biome/Loot/Structure Tables",
+        "description": "Data-driven content generation",
+        "files": [
+          "config/biomes.json",
+          "config/items.json",
+          "config/recipes.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S013",
+        "name": "Cave/River/Lake Gen with Riparian Sealing",
+        "description": "Water-aware terrain feature generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S014",
+        "name": "Weather Scheduler + Progression",
+        "description": "Weather system management",
+        "files": [
+          "GameServer/Systems/"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "S015",
+        "name": "Data-Driven Block/Ore Distribution",
+        "description": "Resource distribution based on JSON configs",
+        "files": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "config/blocks.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S016",
+        "name": "Entity Spawning/AI",
+        "description": "Mob and NPC spawning with AI",
+        "files": [
+          "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "GameServer/World/Spawning/MobSpawningConfig.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S017",
+        "name": "Crafting",
+        "description": "Crafting system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+          "config/recipes.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S018",
+        "name": "Inventory",
+        "description": "Inventory management system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+          "config/items.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S019",
+        "name": "Health/Hunger Systems",
+        "description": "Player survival mechanics",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+          "config/hunger_config.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S020",
+        "name": "River/Lake Channel Stability and Wetland Seepage Tuning",
+        "description": "Water feature stability improvements",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S021",
+        "name": "Erosion-Aware Hydrology and Wetland Shelves",
+        "description": "Erosion simulation in terrain generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ],
+    "util": [
+      {
+        "id": "S022",
+        "name": "JSON Config with Reload Hooks + Versioning",
+        "description": "Configuration management with hot-reload",
+        "files": [
+          "GameServer/Configuration/",
+          "config/enhanced_terrain_generation.json",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S023",
+        "name": "Monitoring/Logging/Admin Commands",
+        "description": "Server administration tools",
+        "files": [
+          "GameServer/Utils/"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "S024",
+        "name": "Protobuf DTO Registration/Validation",
+        "description": "Protocol buffer type registration",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S025",
+        "name": "Data-Driven Tuning (Drops/Mobs/XP)",
+        "description": "Game balance via JSON configuration",
+        "files": [
+          "config/gameplay.json",
+          "config/items.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S026",
+        "name": "Database Persistence",
+        "description": "Data storage system",
+        "files": [
+          "GameServer/Database/",
+          "GameServer/Database/userDB.db"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S027",
+        "name": "Profiling/Memory/Object Pooling",
+        "description": "Performance optimization utilities",
+        "files": [
+          "GameServer/Utils/"
+        ],
+        "status": "partial",
+        "priority": "low"
+      },
+      {
+        "id": "S028",
+        "name": "Proto Regeneration/Validation",
+        "description": "Protocol buffer code generation and validation",
+        "files": [
+          "proto/*.proto",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S029",
+        "name": "Diagnostic Logging Hooks for World Map Control",
+        "description": "Debugging tools for map control",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S030",
+        "name": "Data-Driven Worldgen Configs",
+        "description": "Terrain generation configuration",
+        "files": [
+          "config/enhanced_terrain_generation.json",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ]
+  },
+  "terrain_generation": {
+    "caves": {
+      "algorithm": "ImprovedCaveGenerator",
+      "features": [
+        "Hydrology-aware cave generation",
+        "Riparian sealing for water features",
+        "Support pillars in saturated terrain",
+        "Edge sealing for chunk boundaries",
+        "Wet ceiling sealing",
+        "Flooded cave detection",
+        "Lava cave generation"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Better cave connectivity",
+        "Improved cave size variation",
+        "Enhanced cave ceiling/floor shaping",
+        "Better integration with water table"
+      ]
+    },
+    "rivers": {
+      "algorithm": "ImprovedRiverGenerator",
+      "features": [
+        "Hydrology-driven river generation",
+        "Flow-aware width modulation",
+        "Seam feathering for chunk boundaries",
+        "Confluence boost for tributaries",
+        "Water table clamping",
+        "Edge normalization",
+        "Directional smoothing along flow",
+        "River meander jitter"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "More natural river meandering",
+        "Improved river width variation",
+        "Better river bank shaping",
+        "Enhanced river-lake connectivity"
+      ]
+    },
+    "lakes": {
+      "algorithm": "ImprovedLakeGenerator",
+      "features": [
+        "Hydrology and flow-based lake generation",
+        "Basin and rim noise",
+        "Shoreline jitter",
+        "Lake shelves for depth variation",
+        "Wetland buffer",
+        "Outflow channels",
+        "River proximity suppression",
+        "Flow seepage continuity"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "More varied lake shapes",
+        "Improved lake depth profiles",
+        "Better lake-river integration",
+        "Enhanced wetland features"
+      ]
+    }
+  },
+  "world_map_control": {
+    "server": {
+      "architecture": "WorldMapControlManager",
+      "features": [
+        "Chunk caching with signature validation",
+        "Profile hash validation",
+        "Config reload detection",
+        "Generation signature computation",
+        "Proto fingerprint validation",
+        "Cache budget enforcement",
+        "Export functionality"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Enhanced cache invalidation",
+        "Better memory management",
+        "Improved signature computation"
+      ]
+    },
+    "client": {
+      "architecture": "WorldMapController + EnhancedTerrainGenerator",
+      "features": [
+        "Local preview generation",
+        "Profile reload with signature check",
+        "Chunk preview caching",
+        "Async chunk building",
+        "Player-based chunk loading",
+        "Distant chunk unloading",
+        "Config change detection"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Better async handling",
+        "Improved cache management",
+        "Enhanced error handling"
+      ]
+    }
+  },
+  "protobuf_protocol": {
+    "files": [
+      "proto/common.proto",
+      "proto/enhanced_minecraft_game.proto",
+      "proto/game_auth.proto",
+      "proto/game_chat.proto",
+      "proto/game_core.proto",
+      "proto/game_diag.proto",
+      "proto/game_move.proto",
+      "proto/game_world.proto"
+    ],
+    "validation": {
+      "runtime": "ProtoRuntime.EnsureInitialized()",
+      "fingerprint": "ProtoFingerprint.ComputeFingerprint()",
+      "diagnostics": "ProtoDiagnostics",
+      "validator": "ProtocolValidator"
+    },
+    "status": "implemented",
+    "improvements_needed": [
+      "Enhanced error messages",
+      "Better protocol versioning",
+      "Improved validation coverage"
+    ]
+  },
+  "configuration": {
+    "server": [
+      "server-config.json",
+      "config/server.json",
+      "config/world.json",
+      "config/enhanced_terrain_generation.json",
+      "config/enhanced_world_map_control_server.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/client-config.json",
+      "Assets/StreamingAssets/world-config.json",
+      "Assets/StreamingAssets/world-map-control.json",
+      "config/client_config.json"
+    ],
+    "game_data": [
+      "config/biomes.json",
+      "config/blocks.json",
+      "config/items.json",
+      "config/recipes.json",
+      "config/gameplay.json",
+      "config/hunger_config.json",
+      "config/item_categories.json"
+    ],
+    "status": "implemented",
+    "improvements_needed": [
+      "Configuration validation",
+      "Schema documentation",
+      "Migration tools"
+    ]
+  },
+  "implementation_sequence": [
+    {
+      "order": 1,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Verify and document all using statements and class references",
+      "status": "pending",
+      "files": [
+        "GameServer/**/*.cs",
+        "Assets/**/*.cs",
+        "SharedProtocol/**/*.cs"
+      ]
+    },
+    {
+      "order": 2,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Review and validate protobuf protocol usage",
+      "status": "pending",
+      "files": [
+        "proto/*.proto",
+        "SharedProtocol/EnhancedMinecraft/*.cs",
+        "GameServer/Handlers/*.cs",
+        "Assets/MyAssets/Scripts/Network/*.cs"
+      ]
+    },
+    {
+      "order": 3,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve cave generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ]
+    },
+    {
+      "order": 4,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve river generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+      ]
+    },
+    {
+      "order": 5,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve lake generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ]
+    },
+    {
+      "order": 6,
+      "category": "core",
+      "scope": ["client"],
+      "item": "Update client terrain generation to match server improvements",
+      "status": "pending",
+      "files": [
+        "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+      ]
+    },
+    {
+      "order": 7,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Review and improve world map control architecture",
+      "status": "pending",
+      "files": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "order": 8,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Verify and update all configuration files",
+      "status": "pending",
+      "files": [
+        "config/*.json",
+        "Assets/StreamingAssets/*.json"
+      ]
+    },
+    {
+      "order": 9,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Verify and update all game data files",
+      "status": "pending",
+      "files": [
+        "config/biomes.json",
+        "config/blocks.json",
+        "config/items.json",
+        "config/recipes.json"
+      ]
+    },
+    {
+      "order": 10,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Run compilation tests",
+      "status": "pending",
+      "files": []
+    },
+    {
+      "order": 11,
+      "category": "util",
+      "scope": ["docs"],
+      "item": "Update all documentation",
+      "status": "pending",
+      "files": [
+        "docs/*.md",
+        "README.md"
+      ]
+    },
+    {
+      "order": 12,
+      "category": "util",
+      "scope": ["git"],
+      "item": "Commit and push all changes to origin",
+      "status": "pending",
+      "files": []
+    }
+  ]
+}
+  "date": "2026-01-25",
+  "session": "15",
+  "meta": {
+    "source_commits": [
+      "8888da1f",
+      "566bb34b",
+      "1ce05f49"
+    ],
+    "notes": "Session 15 comprehensive feature catalog with Core/Content/Util categorization for client and server"
+  },
+  "client": {
+    "core": [
+      {
+        "id": "C001",
+        "name": "Chunk Streaming & Mesh Rebuilds",
+        "description": "Dynamic chunk loading and mesh generation system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldArea.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/SubWorld.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C002",
+        "name": "Map-Control Profile Bootstrap",
+        "description": "World map control profile loading and validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C003",
+        "name": "Network Bootstrap/Keepalive/Auth",
+        "description": "Network connection management and authentication",
+        "files": [
+          "Assets/MyAssets/Scripts/Network/GameNetworkManager.cs",
+          "Assets/MyAssets/Scripts/Network/NetworkInfrastructure.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C004",
+        "name": "Player State Sync",
+        "description": "Player position, rotation, and state synchronization",
+        "files": [
+          "Assets/MyAssets/Scripts/Player/GamePlayer.cs",
+          "Assets/MyAssets/Scripts/Player/GamePlayerController.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C005",
+        "name": "Block Placement/Break + Inventory HUD",
+        "description": "Block interaction system with inventory UI",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/ModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedModifyWorldManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C006",
+        "name": "Session Lifecycle",
+        "description": "Game session management (connect, disconnect, pause)",
+        "files": [
+          "Assets/MyAssets/Scripts/GameMode/AGameModeBase.cs",
+          "Assets/MyAssets/Scripts/GameMode/SingleGameMode.cs",
+          "Assets/MyAssets/Scripts/GameMode/MultiGameMode.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C007",
+        "name": "World-Gen Preview",
+        "description": "Local terrain generation preview for map display",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C008",
+        "name": "Protobuf Bootstrap and Manifest Fingerprint",
+        "description": "Protocol buffer initialization and validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C009",
+        "name": "JSON-Driven World Config Load",
+        "description": "Configuration loading from StreamingAssets",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+          "Assets/StreamingAssets/world-config.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C010",
+        "name": "Chunk Preview Caching",
+        "description": "Local chunk preview cache with signature validation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      }
+    ],
+    "content": [
+      {
+        "id": "C011",
+        "name": "Biome-Tinted Terrain (Rivers/Lakes/Caves)",
+        "description": "Terrain coloring based on biome and water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C012",
+        "name": "Shoreline/Wetland/Aquifer Visualization",
+        "description": "Visual representation of water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C013",
+        "name": "Structure/Loot Preview Hooks",
+        "description": "Preview system for structures and loot",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "partial",
+        "priority": "low"
+      },
+      {
+        "id": "C014",
+        "name": "Ambient FX/Audio",
+        "description": "Environmental effects and sounds",
+        "files": [
+          "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs",
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "C015",
+        "name": "Day/Night + Weather",
+        "description": "Time of day and weather systems",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/Enviroment/EnviromentWeatherManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C016",
+        "name": "Block/Item/Entity Rendering",
+        "description": "Visual rendering system for game objects",
+        "files": [
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C017",
+        "name": "Cave/River/Lake Overlays with Hydrology-Aware Sealing",
+        "description": "Terrain feature visualization with proper water handling",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C018",
+        "name": "Biome + Height Preview Shading",
+        "description": "Map preview shading based on biome and elevation",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C019",
+        "name": "Wetland/Lake Rim Shaping in Minimap Tiles",
+        "description": "Minimap tile generation for water features",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C020",
+        "name": "Data-Driven Block Palette Sampling for Previews",
+        "description": "Block selection from JSON data for previews",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/StreamingAssets/blocks.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      }
+    ],
+    "util": [
+      {
+        "id": "C021",
+        "name": "Debug Overlays for Hydrology/Flow/Cave Masks",
+        "description": "Visualization tools for terrain generation debugging",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "low"
+      },
+      {
+        "id": "C022",
+        "name": "Profile Reload + Generation Signature Diff Logging",
+        "description": "Configuration reload and change detection",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C023",
+        "name": "Config/Proto Drift Reporting in Editor Console",
+        "description": "Protocol drift detection and reporting",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C024",
+        "name": "JSON Config Loading (StreamingAssets)",
+        "description": "Configuration system using JSON files",
+        "files": [
+          "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs",
+          "Assets/StreamingAssets/client-config.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C025",
+        "name": "Protobuf Desync/Error Reporting",
+        "description": "Protocol error handling and reporting",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C026",
+        "name": "Localization/Analytics Stubs",
+        "description": "Placeholder systems for localization and analytics",
+        "files": [],
+        "status": "planned",
+        "priority": "low"
+      },
+      {
+        "id": "C027",
+        "name": "Logging",
+        "description": "Logging system for debugging and monitoring",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "C028",
+        "name": "UI (Menus/Inventory/Crafting/Status/Loading/Messages)",
+        "description": "User interface system",
+        "files": [
+          "Assets/MyAssets/Scripts/UI/MainMenuManager.cs",
+          "Assets/MyAssets/Scripts/UI/InGameMenuManager.cs",
+          "Assets/MyAssets/Scripts/UI/MessageManager.cs",
+          "Assets/MyAssets/Scripts/UI/GameLoading.cs",
+          "Assets/MyAssets/Scripts/UI/MapLoadingMessageManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C029",
+        "name": "Save/Load",
+        "description": "Game state persistence system",
+        "files": [
+          "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "C030",
+        "name": "Debug Overlays + Perf Monitor",
+        "description": "Performance monitoring and debug visualization",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "implemented",
+        "priority": "low"
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "S001",
+        "name": "Enhanced Terrain Pipeline",
+        "description": "Advanced terrain generation with improved algorithms",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedWorldGeneration.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S002",
+        "name": "World Map Control Cache + Signature Invalidation",
+        "description": "Chunk caching with signature-based invalidation",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S003",
+        "name": "Protobuf Runtime Validation Before Handlers",
+        "description": "Protocol validation before packet processing",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S004",
+        "name": "Session Lifecycle/Auth/Keepalive Handlers",
+        "description": "Session management and authentication",
+        "files": [
+          "GameServer/SessionManager.cs",
+          "GameServer/Handlers/"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S005",
+        "name": "Chunk Save/Load with Profile Hash",
+        "description": "Chunk persistence with profile validation",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/ChunkData.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S006",
+        "name": "Network Routing",
+        "description": "Packet routing and message handling",
+        "files": [
+          "GameServer/Network/",
+          "SharedProtocol/MessageDispatcher.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S007",
+        "name": "Movement/Interaction Validation",
+        "description": "Server-side validation of player actions",
+        "files": [
+          "GameServer/Handlers/",
+          "GameServer/Physics/"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S008",
+        "name": "Block Change Broadcast",
+        "description": "Block modification propagation to clients",
+        "files": [
+          "GameServer/Handlers/",
+          "GameServer/World/WorldSynchronizationManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S009",
+        "name": "World Seed Management",
+        "description": "Seed-based world generation",
+        "files": [
+          "GameServer/World/WorldSeedConfig.cs",
+          "GameServer/World/WorldGenerationConfig.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S010",
+        "name": "Hydrology/Flow Cache Feeding Caves/Rivers/Lakes",
+        "description": "Water flow system for terrain generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S011",
+        "name": "World Map-Control Generation/Cache/Export",
+        "description": "Map control data generation and caching",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "S012",
+        "name": "JSON-Driven Biome/Loot/Structure Tables",
+        "description": "Data-driven content generation",
+        "files": [
+          "config/biomes.json",
+          "config/items.json",
+          "config/recipes.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S013",
+        "name": "Cave/River/Lake Gen with Riparian Sealing",
+        "description": "Water-aware terrain feature generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S014",
+        "name": "Weather Scheduler + Progression",
+        "description": "Weather system management",
+        "files": [
+          "GameServer/Systems/"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "S015",
+        "name": "Data-Driven Block/Ore Distribution",
+        "description": "Resource distribution based on JSON configs",
+        "files": [
+          "GameServer/World/Generation/OreDistributionSystem.cs",
+          "config/blocks.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S016",
+        "name": "Entity Spawning/AI",
+        "description": "Mob and NPC spawning with AI",
+        "files": [
+          "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "GameServer/World/Spawning/MobSpawningConfig.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S017",
+        "name": "Crafting",
+        "description": "Crafting system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/CraftingManager.cs",
+          "config/recipes.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S018",
+        "name": "Inventory",
+        "description": "Inventory management system",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/InventoryManager.cs",
+          "config/items.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S019",
+        "name": "Health/Hunger Systems",
+        "description": "Player survival mechanics",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/HealthHungerSystem.cs",
+          "config/hunger_config.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S020",
+        "name": "River/Lake Channel Stability and Wetland Seepage Tuning",
+        "description": "Water feature stability improvements",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S021",
+        "name": "Erosion-Aware Hydrology and Wetland Shelves",
+        "description": "Erosion simulation in terrain generation",
+        "files": [
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ],
+    "util": [
+      {
+        "id": "S022",
+        "name": "JSON Config with Reload Hooks + Versioning",
+        "description": "Configuration management with hot-reload",
+        "files": [
+          "GameServer/Configuration/",
+          "config/enhanced_terrain_generation.json",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S023",
+        "name": "Monitoring/Logging/Admin Commands",
+        "description": "Server administration tools",
+        "files": [
+          "GameServer/Utils/"
+        ],
+        "status": "partial",
+        "priority": "medium"
+      },
+      {
+        "id": "S024",
+        "name": "Protobuf DTO Registration/Validation",
+        "description": "Protocol buffer type registration",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S025",
+        "name": "Data-Driven Tuning (Drops/Mobs/XP)",
+        "description": "Game balance via JSON configuration",
+        "files": [
+          "config/gameplay.json",
+          "config/items.json"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S026",
+        "name": "Database Persistence",
+        "description": "Data storage system",
+        "files": [
+          "GameServer/Database/",
+          "GameServer/Database/userDB.db"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S027",
+        "name": "Profiling/Memory/Object Pooling",
+        "description": "Performance optimization utilities",
+        "files": [
+          "GameServer/Utils/"
+        ],
+        "status": "partial",
+        "priority": "low"
+      },
+      {
+        "id": "S028",
+        "name": "Proto Regeneration/Validation",
+        "description": "Protocol buffer code generation and validation",
+        "files": [
+          "proto/*.proto",
+          "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      },
+      {
+        "id": "S029",
+        "name": "Diagnostic Logging Hooks for World Map Control",
+        "description": "Debugging tools for map control",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+        ],
+        "status": "implemented",
+        "priority": "medium"
+      },
+      {
+        "id": "S030",
+        "name": "Data-Driven Worldgen Configs",
+        "description": "Terrain generation configuration",
+        "files": [
+          "config/enhanced_terrain_generation.json",
+          "config/enhanced_world_map_control_server.json"
+        ],
+        "status": "implemented",
+        "priority": "high"
+      }
+    ]
+  },
+  "terrain_generation": {
+    "caves": {
+      "algorithm": "ImprovedCaveGenerator",
+      "features": [
+        "Hydrology-aware cave generation",
+        "Riparian sealing for water features",
+        "Support pillars in saturated terrain",
+        "Edge sealing for chunk boundaries",
+        "Wet ceiling sealing",
+        "Flooded cave detection",
+        "Lava cave generation"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Better cave connectivity",
+        "Improved cave size variation",
+        "Enhanced cave ceiling/floor shaping",
+        "Better integration with water table"
+      ]
+    },
+    "rivers": {
+      "algorithm": "ImprovedRiverGenerator",
+      "features": [
+        "Hydrology-driven river generation",
+        "Flow-aware width modulation",
+        "Seam feathering for chunk boundaries",
+        "Confluence boost for tributaries",
+        "Water table clamping",
+        "Edge normalization",
+        "Directional smoothing along flow",
+        "River meander jitter"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "More natural river meandering",
+        "Improved river width variation",
+        "Better river bank shaping",
+        "Enhanced river-lake connectivity"
+      ]
+    },
+    "lakes": {
+      "algorithm": "ImprovedLakeGenerator",
+      "features": [
+        "Hydrology and flow-based lake generation",
+        "Basin and rim noise",
+        "Shoreline jitter",
+        "Lake shelves for depth variation",
+        "Wetland buffer",
+        "Outflow channels",
+        "River proximity suppression",
+        "Flow seepage continuity"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "More varied lake shapes",
+        "Improved lake depth profiles",
+        "Better lake-river integration",
+        "Enhanced wetland features"
+      ]
+    }
+  },
+  "world_map_control": {
+    "server": {
+      "architecture": "WorldMapControlManager",
+      "features": [
+        "Chunk caching with signature validation",
+        "Profile hash validation",
+        "Config reload detection",
+        "Generation signature computation",
+        "Proto fingerprint validation",
+        "Cache budget enforcement",
+        "Export functionality"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Enhanced cache invalidation",
+        "Better memory management",
+        "Improved signature computation"
+      ]
+    },
+    "client": {
+      "architecture": "WorldMapController + EnhancedTerrainGenerator",
+      "features": [
+        "Local preview generation",
+        "Profile reload with signature check",
+        "Chunk preview caching",
+        "Async chunk building",
+        "Player-based chunk loading",
+        "Distant chunk unloading",
+        "Config change detection"
+      ],
+      "status": "implemented",
+      "improvements_needed": [
+        "Better async handling",
+        "Improved cache management",
+        "Enhanced error handling"
+      ]
+    }
+  },
+  "protobuf_protocol": {
+    "files": [
+      "proto/common.proto",
+      "proto/enhanced_minecraft_game.proto",
+      "proto/game_auth.proto",
+      "proto/game_chat.proto",
+      "proto/game_core.proto",
+      "proto/game_diag.proto",
+      "proto/game_move.proto",
+      "proto/game_world.proto"
+    ],
+    "validation": {
+      "runtime": "ProtoRuntime.EnsureInitialized()",
+      "fingerprint": "ProtoFingerprint.ComputeFingerprint()",
+      "diagnostics": "ProtoDiagnostics",
+      "validator": "ProtocolValidator"
+    },
+    "status": "implemented",
+    "improvements_needed": [
+      "Enhanced error messages",
+      "Better protocol versioning",
+      "Improved validation coverage"
+    ]
+  },
+  "configuration": {
+    "server": [
+      "server-config.json",
+      "config/server.json",
+      "config/world.json",
+      "config/enhanced_terrain_generation.json",
+      "config/enhanced_world_map_control_server.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/client-config.json",
+      "Assets/StreamingAssets/world-config.json",
+      "Assets/StreamingAssets/world-map-control.json",
+      "config/client_config.json"
+    ],
+    "game_data": [
+      "config/biomes.json",
+      "config/blocks.json",
+      "config/items.json",
+      "config/recipes.json",
+      "config/gameplay.json",
+      "config/hunger_config.json",
+      "config/item_categories.json"
+    ],
+    "status": "implemented",
+    "improvements_needed": [
+      "Configuration validation",
+      "Schema documentation",
+      "Migration tools"
+    ]
+  },
+  "implementation_sequence": [
+    {
+      "order": 1,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Verify and document all using statements and class references",
+      "status": "pending",
+      "files": [
+        "GameServer/**/*.cs",
+        "Assets/**/*.cs",
+        "SharedProtocol/**/*.cs"
+      ]
+    },
+    {
+      "order": 2,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Review and validate protobuf protocol usage",
+      "status": "pending",
+      "files": [
+        "proto/*.proto",
+        "SharedProtocol/EnhancedMinecraft/*.cs",
+        "GameServer/Handlers/*.cs",
+        "Assets/MyAssets/Scripts/Network/*.cs"
+      ]
+    },
+    {
+      "order": 3,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve cave generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+      ]
+    },
+    {
+      "order": 4,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve river generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+      ]
+    },
+    {
+      "order": 5,
+      "category": "content",
+      "scope": ["server"],
+      "item": "Improve lake generation algorithm",
+      "status": "pending",
+      "files": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ]
+    },
+    {
+      "order": 6,
+      "category": "core",
+      "scope": ["client"],
+      "item": "Update client terrain generation to match server improvements",
+      "status": "pending",
+      "files": [
+        "Assets/MyAssets/Scripts/GameWorld/EnhancedTerrainGenerator.cs"
+      ]
+    },
+    {
+      "order": 7,
+      "category": "core",
+      "scope": ["server", "client"],
+      "item": "Review and improve world map control architecture",
+      "status": "pending",
+      "files": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "order": 8,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Verify and update all configuration files",
+      "status": "pending",
+      "files": [
+        "config/*.json",
+        "Assets/StreamingAssets/*.json"
+      ]
+    },
+    {
+      "order": 9,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Verify and update all game data files",
+      "status": "pending",
+      "files": [
+        "config/biomes.json",
+        "config/blocks.json",
+        "config/items.json",
+        "config/recipes.json"
+      ]
+    },
+    {
+      "order": 10,
+      "category": "util",
+      "scope": ["server", "client"],
+      "item": "Run compilation tests",
+      "status": "pending",
+      "files": []
+    },
+    {
+      "order": 11,
+      "category": "util",
+      "scope": ["docs"],
+      "item": "Update all documentation",
+      "status": "pending",
+      "files": [
+        "docs/*.md",
+        "README.md"
+      ]
+    },
+    {
+      "order": 12,
+      "category": "util",
+      "scope": ["git"],
+      "item": "Commit and push all changes to origin",
+      "status": "pending",
+      "files": []
+    }
+  ]
+}
+

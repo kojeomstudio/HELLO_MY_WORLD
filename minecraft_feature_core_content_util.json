@@ -1,0 +1,476 @@
+{
+  "categories": {
+    "core": {
+      "name": "Core Features",
+      "description": "Essential systems and infrastructure required for Minecraft-like gameplay",
+      "features": [
+        {
+          "id": "core_001",
+          "name": "World Generation",
+          "description": "Procedural terrain generation with heightmaps, biomes, and basic features",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "TerrainGenerator.cs",
+            "ImprovedTerrainGenerator.cs",
+            "ChunkManager.cs"
+          ],
+          "improvements_needed": [
+            "Enhanced cave generation algorithms",
+            "Improved river flow patterns",
+            "Better lake basin formation",
+            "Multi-layered terrain noise"
+          ]
+        },
+        {
+          "id": "core_002",
+          "name": "Networking & Protocol",
+          "description": "Client-server communication using Google Protobuf",
+          "status": "partially_implemented",
+          "priority": "critical",
+          "components": [
+            "NetworkManager.cs",
+            "ProtobufNetworkClient.cs",
+            "Generated Protobuf classes"
+          ],
+          "improvements_needed": [
+            "Complete message handler registration",
+            "Fix protocol inconsistencies",
+            "Implement missing protocol messages",
+            "Standardize on Google.Protobuf"
+          ]
+        },
+        {
+          "id": "core_003",
+          "name": "Player Systems",
+          "description": "Player movement, authentication, and basic interactions",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "PlayerController",
+            "Authentication system",
+            "Movement synchronization"
+          ],
+          "improvements_needed": [
+            "Health and hunger system",
+            "Experience and leveling",
+            "Game modes implementation",
+            "Player abilities system"
+          ]
+        },
+        {
+          "id": "core_004",
+          "name": "Block System",
+          "description": "Block placement, removal, and basic block management",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "BlockDataManager",
+            "Block change handlers",
+            "Chunk-based block storage"
+          ],
+          "improvements_needed": [
+            "Block state system",
+            "Redstone circuitry",
+            "Block entity system",
+            "Block physics and gravity"
+          ]
+        },
+        {
+          "id": "core_005",
+          "name": "Chunk Management",
+          "description": "Chunk loading, unloading, and rendering optimization",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "ChunkManager.cs",
+            "ChunkRenderer.cs",
+            "ChunkSnapshot.cs"
+          ],
+          "improvements_needed": [
+            "Multi-threaded chunk generation",
+            "Better chunk culling",
+            "Optimized mesh generation",
+            "Memory management improvements"
+          ]
+        },
+        {
+          "id": "core_006",
+          "name": "Configuration System",
+          "description": "Data-driven JSON configuration for server and client",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "server-config.json",
+            "client-config.json",
+            "world-config.json"
+          ],
+          "improvements_needed": [
+            "Configuration validation",
+            "Hot-reload functionality",
+            "Environment-specific configs",
+            "Configuration versioning"
+          ]
+        },
+        {
+          "id": "core_007",
+          "name": "World Map Control & Hydrology Sync",
+          "description": "Data-driven map-control pipeline aligning server chunk generation with client previews for rivers, lakes, and caves.",
+          "status": "in_progress",
+          "priority": "critical",
+          "components": [
+            "GameServer/World/WorldMapControlManager.cs",
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ],
+          "improvements_needed": [
+            "Erosion risk field parity between server and client",
+            "Hydrology edge normalization bound to profile hash",
+            "Protobuf-backed map-control streaming validation"
+          ]
+        },
+        {
+          "id": "core_008",
+          "name": "Curvature-Guided Hydrology Control",
+          "description": "Curvature and slope-aware hydrology blending shared by server and client for caves, rivers, and lakes.",
+          "status": "implemented",
+          "priority": "critical",
+          "components": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "improvements_needed": [
+            "Regenerate world_map_control_profile.json after curvature tuning",
+            "Add automated parity assertion between server and client hydrology fields"
+          ]
+        }
+      ]
+    },
+    "content": {
+      "name": "Content Features",
+      "description": "Game content, items, entities, and interactive elements",
+      "features": [
+        {
+          "id": "content_001",
+          "name": "Items & Equipment",
+          "description": "Tools, weapons, armor, and miscellaneous items",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "items.json",
+            "Item definitions",
+            "Tool durability system"
+          ],
+          "improvements_needed": [
+            "Complete tool tier system",
+            "Weapon damage calculations",
+            "Armor protection values",
+            "Enchantment system",
+            "Potion brewing",
+            "Item repair system"
+          ]
+        },
+        {
+          "id": "content_002",
+          "name": "Crafting System",
+          "description": "Hand crafting, workbench, furnace, and recipe management",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "crafting_recipes.json",
+            "CraftingManager",
+            "Multiple crafting types"
+          ],
+          "improvements_needed": [
+            "Advanced recipe system",
+            "Recipe book interface",
+            "Crafting queue system",
+            "Special recipe unlocks"
+          ]
+        },
+        {
+          "id": "content_003",
+          "name": "Mobs & Entities",
+          "description": "Animals, monsters, NPCs, and entity management",
+          "status": "basic",
+          "priority": "high",
+          "components": [
+            "Basic entity spawning",
+            "EntityInfo structure"
+          ],
+          "improvements_needed": [
+            "Hostile mob AI",
+            "Passive mob AI",
+            "Mob breeding system",
+            "Boss mob system",
+            "Mob drops and experience",
+            "Taming system",
+            "Mob pathfinding"
+          ]
+        },
+        {
+          "id": "content_004",
+          "name": "Structures & Buildings",
+          "description": "Generated structures, buildings, and architectural elements",
+          "status": "planned",
+          "priority": "medium",
+          "components": [],
+          "improvements_needed": [
+            "Village generation",
+            "Temple generation",
+            "Mineshaft generation",
+            "Dungeon generation",
+            "Stronghold generation",
+            "Building system with blueprints",
+            "Multi-block structures",
+            "Door and window mechanics",
+            "Redstone contraptions",
+            "Piston mechanics",
+            "Minecart and rail system"
+          ]
+        },
+        {
+          "id": "content_005",
+          "name": "World Features",
+          "description": "Environmental systems, dimensions, and world mechanics",
+          "status": "partially_implemented",
+          "priority": "medium",
+          "components": [
+            "Day/night cycle basics",
+            "Basic weather system",
+            "Biome system"
+          ],
+          "improvements_needed": [
+            "Advanced weather effects",
+            "Seasonal changes",
+            "Dimension system (Nether, End)",
+            "Portal mechanics",
+            "World border system",
+            "Custom world generation settings"
+          ]
+        },
+        {
+          "id": "content_006",
+          "name": "Ores & Resources",
+          "description": "Mineral distribution, mining, and resource management",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "Ore generation system",
+            "Ore configuration in JSON",
+            "Vein generation algorithms"
+          ],
+          "improvements_needed": [
+            "Advanced ore distribution",
+            "Rare ore variants",
+            "Geode generation",
+            "Fossil generation",
+            "Mineral vein improvements"
+          ]
+        }
+      ]
+    },
+    "utilities": {
+      "name": "Utility Features",
+      "description": "Supporting systems, tools, and quality-of-life improvements",
+      "features": [
+        {
+          "id": "util_001",
+          "name": "User Interface",
+          "description": "HUD, menus, inventory management, and user interactions",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "Basic chat system",
+            "Login UI",
+            "Status displays",
+            "Basic inventory UI"
+          ],
+          "improvements_needed": [
+            "Advanced inventory management",
+            "Crafting interface",
+            "Map system",
+            "Settings and configuration menu",
+            "Player statistics display",
+            "Achievement system",
+            "Tutorial system",
+            "Accessibility options"
+          ]
+        },
+        {
+          "id": "util_002",
+          "name": "Server Management",
+          "description": "Server administration, moderation, and management tools",
+          "status": "basic",
+          "priority": "medium",
+          "components": [
+            "Basic server console",
+            "Player authentication",
+            "Basic permission system"
+          ],
+          "improvements_needed": [
+            "Advanced permission system",
+            "World backup and restore",
+            "Server statistics and monitoring",
+            "Remote administration tools",
+            "Plugin system",
+            "Anti-cheat measures"
+          ]
+        },
+        {
+          "id": "util_003",
+          "name": "Development Tools",
+          "description": "Tools for content creation, debugging, and development",
+          "status": "basic",
+          "priority": "low",
+          "components": [
+            "Basic debugging tools",
+            "Configuration editors"
+          ],
+          "improvements_needed": [
+            "World editor",
+            "Resource pack support",
+            "Mod support framework",
+            "Performance profiling tools",
+            "Network debugging utilities",
+            "Content creation tools"
+          ]
+        },
+        {
+          "id": "util_004",
+          "name": "Data Management",
+          "description": "Save system, data validation, and data integrity",
+          "status": "implemented",
+          "priority": "high",
+          "components": [
+            "JSON configuration system",
+            "SQLite database integration",
+            "Data validation"
+          ],
+          "improvements_needed": [
+            "Save format optimization",
+            "Database performance optimization",
+            "Import/export functionality",
+            "Version compatibility system",
+            "Data integrity checks",
+            "Automatic backup system"
+          ]
+        },
+        {
+          "id": "util_005",
+          "name": "Performance & Optimization",
+          "description": "System performance, memory management, and optimization",
+          "status": "partially_implemented",
+          "priority": "high",
+          "components": [
+            "Chunk loading optimization",
+            "Multi-threading support",
+            "Memory management"
+          ],
+          "improvements_needed": [
+            "Network bandwidth optimization",
+            "Advanced memory usage optimization",
+            "Multithreading improvements",
+            "Database query optimization",
+            "Rendering performance improvements",
+            "Asset loading optimization"
+          ]
+        },
+        {
+          "id": "util_006",
+          "name": "Protocol Health & Diagnostics",
+          "description": "Protobuf DTO registry validation, handler coverage tracking, and packet fingerprint logging across server and client.",
+          "status": "in_progress",
+          "priority": "high",
+          "components": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+            "GameServer/Network/EnhancedProtocolHandler.cs",
+            "GameServer/Handlers",
+            "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ],
+          "improvements_needed": [
+            "Handler registration audit",
+            "CI export of ProtoDiagnostics summaries for server and Unity",
+            "In-client desync reporting",
+            "Automated proto rebuild checks"
+          ]
+        }
+      ]
+    }
+  },
+  "implementation_priority": {
+    "phase_1_critical": {
+      "name": "Phase 1: Critical Infrastructure",
+      "features": [
+        "core_001",
+        "core_002",
+        "core_003",
+        "core_004",
+        "core_005",
+        "core_007"
+      ],
+      "estimated_time": "2-3 weeks"
+    },
+    "phase_2_essential": {
+      "name": "Phase 2: Essential Gameplay",
+      "features": [
+        "content_001",
+        "content_002",
+        "content_003",
+        "content_006"
+      ],
+      "estimated_time": "3-4 weeks"
+    },
+    "phase_3_advanced": {
+      "name": "Phase 3: Advanced Content",
+      "features": [
+        "content_004",
+        "content_005"
+      ],
+      "estimated_time": "4-5 weeks"
+    },
+    "phase_4_polish": {
+      "name": "Phase 4: Polish & Optimization",
+      "features": [
+        "util_001",
+        "util_002",
+        "util_003",
+        "util_004",
+        "util_005",
+        "util_006"
+      ],
+      "estimated_time": "2-3 weeks"
+    }
+  },
+  "technical_requirements": {
+    "protocol_requirements": {
+      "standardize_protobuf": "Complete Google.Protobuf standardization",
+      "message_validation": "Implement comprehensive message validation",
+      "protocol_versioning": "Add protocol versioning system",
+      "compression": "Add message compression",
+      "documentation": "Complete protocol documentation"
+    },
+    "performance_requirements": {
+      "chunk_optimization": "Optimize chunk loading and rendering",
+      "network_optimization": "Optimize network bandwidth and protocols",
+      "memory_optimization": "Optimize memory usage and garbage collection",
+      "multithreading": "Improve multithreading support",
+      "database_optimization": "Optimize database queries and indexing"
+    },
+    "security_requirements": {
+      "input_validation": "Comprehensive input validation and sanitization",
+      "anti_cheat": "Advanced anti-cheat measures",
+      "rate_limiting": "Implement rate limiting and DDoS protection",
+      "permissions": "Complete permission system with role-based access",
+      "authentication": "Secure authentication with encryption"
+    }
+  },
+  "last_updated": "2026-02-03T12:50:00Z",
+  "version": "1.2.0"
+}

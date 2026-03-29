@@ -1,0 +1,38 @@
+﻿{
+    "host":  "127.0.0.1",
+    "port":  9000,
+    "connectTimeoutMs":  1500,
+    "receiveTimeoutMs":  1500,
+    "probeNetwork":  false,
+    "strictRequiredBindings":  true,
+    "requireRequiredPacketCoverage":  true,
+    "failOnHydrologySignatureMismatch":  true,
+    "minMapControlProfileVersion":  94,
+    "failOnMapControlVersionRegression":  true,
+    "worldMapControlProfilePath":  "config/world_map_control_profile.json",
+    "includeOptionalMessages":  true,
+    "printBindingDiagnostics":  true,
+    "maxPacketsToSend":  6,
+    "packets":  [
+                    "PlayerStateUpdate",
+                    "PlayerActionRequest",
+                    "PlayerActionResponse",
+                    "ChunkDataRequest",
+                    "ChunkDataResponse",
+                    "BlockChangeNotification",
+                    "ChunkUnloadNotification",
+                    "ChunkUnloadAcknowledge",
+                    "TimeUpdate",
+                    "WeatherChange",
+                    "SoundEffect",
+                    "ParticleEffect",
+                    "EntitySpawn",
+                    "EntityDespawn"
+                ],
+    "failOnReferenceReportDrift":  true,
+    "referenceReportPath":  "config/proto_reference_report.json",
+    "failOnGeneratedSourceTimestampDrift":  true,
+    "protoSourceDirectory":  "proto",
+    "generatedProtobufDirectory":  "Assets/Generated/Protobuf"
+}
+

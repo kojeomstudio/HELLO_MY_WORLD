@@ -1,0 +1,247 @@
+{
+  "version": "2026-02-09-session-61",
+  "generated_at_utc": "2026-02-09T12:00:00Z",
+  "metadata": {
+    "session": "61",
+    "date": "2026-02-09",
+    "hydrologySignature": "2026-02-09-hydrology-riverlake-cave-v22",
+    "mapControlProfileVersion": 26,
+    "description": "Core/Content/Utility feature inventory with sequential implementation order for server/client/shared architecture (v22 terrain + map signature hash hardening)."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S61-CORE-01",
+      "name": "Shared hydrology signature and world-map contract",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Hydrology signature v22 and world-map signature contract synchronized across server/client.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapContracts.cs",
+        "GameCommon/World/WorldMapSignature.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S61-CORE-02",
+      "name": "Server-authoritative world generation profile v26",
+      "category": "Core",
+      "layer": "Server",
+      "side": "server",
+      "description": "Server world generation/map-control settings unified to profile version 26.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": [
+        "S61-CORE-01"
+      ]
+    },
+    {
+      "id": "S61-CORE-03",
+      "name": "Client world-map profile parity",
+      "category": "Core",
+      "layer": "Client",
+      "side": "client",
+      "description": "Unity StreamingAssets world config/profile mirrors server profile v26 parameters.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": [
+        "S61-CORE-02"
+      ]
+    },
+    {
+      "id": "S61-CORE-04",
+      "name": "Shared DLL architecture",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Common enums/contracts/utilities distributed through GameCommon.dll and SharedProtocol.dll.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": [
+        "S61-CORE-01"
+      ]
+    },
+    {
+      "id": "S61-CORE-05",
+      "name": "Server/client world-map control architecture",
+      "category": "Core",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Server/client world-map controllers include deterministic signature with world/profile file hashes.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": [
+        "S61-CORE-01",
+        "S61-CORE-03"
+      ]
+    },
+    {
+      "id": "S61-CONTENT-01",
+      "name": "Hydrology-aware river generation v22",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "River generation adds tributary convergence lock on top of mouth continuity and braiding/catchment memory.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S61-CORE-02"
+      ]
+    },
+    {
+      "id": "S61-CONTENT-02",
+      "name": "Hydrology-aware lake generation v22",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Lake generation adds basin retention lock to stabilize outflow and spillway continuity.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S61-CONTENT-01"
+      ]
+    },
+    {
+      "id": "S61-CONTENT-03",
+      "name": "Hydrology-aware cave generation v22",
+      "category": "Content",
+      "layer": "Server",
+      "side": "server",
+      "description": "Cave generation adds flooded pocket pruning to reinforce riparian/aquifer sealing.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": [
+        "S61-CONTENT-01",
+        "S61-CONTENT-02"
+      ]
+    },
+    {
+      "id": "S61-CONTENT-04",
+      "name": "Biome and structure content pipeline",
+      "category": "Content",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Biome, ore, structure, and data-driven world content generation pipeline.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "config/biomes.json",
+        "config/blocks.json",
+        "config/items.json"
+      ],
+      "dependencies": [
+        "S61-CORE-02"
+      ]
+    },
+    {
+      "id": "S61-UTIL-01",
+      "name": "Protobuf registry and descriptor diagnostics",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "Enhanced protobuf diagnostics and registry validation for generated descriptors and bindings.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": [
+        "S61-CORE-04"
+      ]
+    },
+    {
+      "id": "S61-UTIL-02",
+      "name": "Dummy client packet probe",
+      "category": "Utility",
+      "layer": "Server",
+      "side": "server",
+      "description": "Dummy protocol client validates packet round-trip and reports missing optional bindings.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": [
+        "S61-UTIL-01"
+      ]
+    },
+    {
+      "id": "S61-UTIL-03",
+      "name": "Data-driven configuration management",
+      "category": "Utility",
+      "layer": "Shared",
+      "side": "shared",
+      "description": "JSON configuration and runtime override loading for server/client world-map and generation.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": [
+        "S61-CORE-02",
+        "S61-CORE-03"
+      ]
+    }
+  ],
+  "summary": {
+    "coreCount": 5,
+    "contentCount": 4,
+    "utilityCount": 3,
+    "total": 12,
+    "implemented": 12,
+    "inProgress": 0
+  }
+}

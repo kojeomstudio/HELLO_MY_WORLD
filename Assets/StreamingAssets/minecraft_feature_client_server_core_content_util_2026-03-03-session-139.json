@@ -1,0 +1,318 @@
+{
+    "version": "session-139-2026-03-03",
+    "generated_at_utc": "2026-03-03T04:30:00Z",
+    "features": [
+        {
+            "id": "S22-CORE-01",
+            "name": "Shared DLL Contracts",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Server and client consume shared enums/types from GameCommon.dll.",
+            "order": 1,
+            "status": "implemented",
+            "artifacts": [
+                "GameCommon/GameCommon.csproj",
+                "GameCommon/World/SharedFeatureCatalog.cs",
+                "Assets/Plugins/GameCommon.dll"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "S22-CORE-02",
+            "name": "Google Protobuf Registry and Diagnostics",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Generated packet descriptors and registry bindings are validated at startup and probe time.",
+            "order": 2,
+            "status": "implemented",
+            "artifacts": [
+                "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+                "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+                "GameServer/Program.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-01"
+            ]
+        },
+        {
+            "id": "S22-CORE-03",
+            "name": "JSON Authoritative World Config",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "World generation and map control configuration are managed as JSON and mirrored across server/client.",
+            "order": 3,
+            "status": "implemented",
+            "artifacts": [
+                "config/world.json",
+                "GameServer/config/world.json",
+                "Assets/StreamingAssets/world-config.json"
+            ],
+            "dependencies": [
+                "S22-CORE-01"
+            ]
+        },
+        {
+            "id": "S22-CORE-04",
+            "name": "Hydrology Signature v63 and Profile v67",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Hydrology signature and map-control profile version baseline is enforced across server/client/probes.",
+            "order": 4,
+            "status": "implemented",
+            "artifacts": [
+                "GameCommon/World/SharedFeatureCatalog.cs",
+                "config/world_map_control_profile.json",
+                "Assets/StreamingAssets/world-map-control.json"
+            ],
+            "dependencies": [
+                "S22-CORE-03"
+            ]
+        },
+        {
+            "id": "S22-CORE-05",
+            "name": "Data-Driven Runtime Queue Controls",
+            "category": "Core",
+            "layer": "Server",
+            "side": "server",
+            "description": "World-map runtime and queue policy are consumed from JSON runtime config files.",
+            "order": 5,
+            "status": "implemented",
+            "artifacts": [
+                "config/world_map_control_queue_policy.json",
+                "config/enhanced_world_map_control_server.json",
+                "GameServer/World/WorldMapControlManager.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-03"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-01",
+            "name": "River Braided Delta Convergence Bridge",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "Improves river continuity in floodplain and delta bands using hydrology-flow convergence signals.",
+            "order": 6,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-03"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-02",
+            "name": "Lake Riparian Floodplain Link Bridge",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "Stabilizes lake outflow and floodplain linkage using seam-aware hydrology and convergence damping.",
+            "order": 7,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+            ],
+            "dependencies": [
+                "S22-CONTENT-01"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-03",
+            "name": "Cave Riparian Roof Buttress Bridge",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "Reduces unstable saturated roof tunnels near rivers/lakes with deterministic wetness-driven sealing.",
+            "order": 8,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+            ],
+            "dependencies": [
+                "S22-CONTENT-02"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-04",
+            "name": "Hydrology-Coupled Terrain Coordinator",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "Coordinates caves/rivers/lakes through shared masks in the enhanced terrain pipeline.",
+            "order": 9,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+                "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+            ],
+            "dependencies": [
+                "S22-CONTENT-01",
+                "S22-CONTENT-02",
+                "S22-CONTENT-03"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-05",
+            "name": "Server World Map Signature and Profile Parity",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "Server verifies profile hash/version/signature and rebuilds world-map profile when drift is detected.",
+            "order": 10,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/WorldMapControlManager.cs",
+                "GameServer/Program.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-04"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-06",
+            "name": "Client World Map Preview Parity",
+            "category": "Content",
+            "layer": "Client",
+            "side": "client",
+            "description": "Client preview generator reloads profile/config and verifies hydrology signature parity.",
+            "order": 11,
+            "status": "implemented",
+            "artifacts": [
+                "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                "Assets/Scripts/Minecraft/Core/WorldConfig.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-04"
+            ]
+        },
+        {
+            "id": "S22-CONTENT-07",
+            "name": "Network Chunk Stream Priority",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "World-map chunk generation queue is pressure-aware with emergency/load shedding controls.",
+            "order": 12,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/WorldMapControlManager.cs",
+                "GameCommon/World/WorldMapQueuePolicy.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-05"
+            ]
+        },
+        {
+            "id": "S22-UTIL-01",
+            "name": "Dummy Protocol Probe",
+            "category": "Utility",
+            "layer": "Server",
+            "side": "server",
+            "description": "Validates packet round-trip encoding/decoding, required coverage, and descriptor bindings.",
+            "order": 13,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/Testing/DummyProtocolClient.cs",
+                "config/protocol_dummy_client.json"
+            ],
+            "dependencies": [
+                "S22-CORE-02"
+            ]
+        },
+        {
+            "id": "S22-UTIL-02",
+            "name": "Standalone Dummy Minecraft Client Tool",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Provides an executable dummy client for end-to-end packet sanity checks.",
+            "order": 14,
+            "status": "implemented",
+            "artifacts": [
+                "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj",
+                "Tools/DummyMinecraftClient/Program.cs",
+                "config/dummy_minecraft_client.json"
+            ],
+            "dependencies": [
+                "S22-UTIL-01"
+            ]
+        },
+        {
+            "id": "S22-UTIL-03",
+            "name": "Generated Protobuf Source Audit",
+            "category": "Utility",
+            "layer": "Server",
+            "side": "server",
+            "description": "Startup checks verify generated C# protobuf files are present and descriptor metadata is healthy.",
+            "order": 15,
+            "status": "implemented",
+            "artifacts": [
+                "Assets/Generated/Protobuf",
+                "GameServer/Program.cs"
+            ],
+            "dependencies": [
+                "S22-CORE-02"
+            ]
+        },
+        {
+            "id": "S22-UTIL-04",
+            "name": "Using and Reference Compile Verification",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Build pipelines verify cross-project using/reference validity for SharedProtocol/GameCommon/GameServer.",
+            "order": 16,
+            "status": "implemented",
+            "artifacts": [
+                "SharedProtocol/SharedProtocol.csproj",
+                "GameCommon/GameCommon.csproj",
+                "GameServer/GameServer.csproj"
+            ],
+            "dependencies": [
+                "S22-UTIL-03"
+            ]
+        },
+        {
+            "id": "S22-UTIL-05",
+            "name": "Session Docs and Work Plan",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Maintains markdown work plan and implementation summary for each session.",
+            "order": 17,
+            "status": "implemented",
+            "artifacts": [
+                "plans/2026-03-03-session-139-comprehensive-work-plan.md",
+                "docs/session-139-implementation-summary.md",
+                "README.md"
+            ],
+            "dependencies": [
+                "S22-UTIL-04"
+            ]
+        },
+        {
+            "id": "S22-UTIL-06",
+            "name": "Config Parity Manifest Automation",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Server startup validates and mirrors canonical config JSON files to client/server mirrors.",
+            "order": 18,
+            "status": "implemented",
+            "artifacts": [
+                "config/config_parity_manifest.json",
+                "GameServer/config/config_parity_manifest.json",
+                "Assets/StreamingAssets/config_parity_manifest.json"
+            ],
+            "dependencies": [
+                "S22-CORE-03"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1638 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-05T12:00:00Z",
+  "blocks": {
+    "air": {
+      "id": 0,
+      "name": "Air",
+      "displayName": "Air",
+      "description": "Invisible block that occupies space",
+      "category": "utility",
+      "hardness": 0,
+      "resistance": 0,
+      "lightLevel": 0,
+      "lightOpacity": 0,
+      "transparent": true,
+      "solid": false,
+      "gravity": false,
+      "flammable": false,
+      "tool": "none",
+      "drops": [],
+      "states": {},
+      "variants": {},
+      "textures": {
+        "default": "blocks/air.png"
+      },
+      "sounds": {
+        "break": "",
+        "place": "",
+        "step": "",
+        "hit": "",
+        "fall": ""
+      },
+      "particleEffects": [],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": true,
+        "canReplace": true,
+        "canBePlaced": false,
+        "canBeBroken": false
+      }
+    },
+    "stone": {
+      "id": 1,
+      "name": "Stone",
+      "displayName": "Stone",
+      "description": "Common solid block found underground",
+      "category": "building",
+      "hardness": 1.5,
+      "resistance": 6.0,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "pickaxe",
+      "drops": [
+        {
+          "item": "cobblestone",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {},
+      "variants": {
+        "granite": {
+          "id": 1,
+          "displayName": "Granite",
+          "textures": {
+            "default": "blocks/granite.png"
+          }
+        },
+        "diorite": {
+          "id": 3,
+          "displayName": "Diorite",
+          "textures": {
+            "default": "blocks/diorite.png"
+          }
+        },
+        "andesite": {
+          "id": 5,
+          "displayName": "Andesite",
+          "textures": {
+            "default": "blocks/andesite.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/stone.png",
+        "top": "blocks/stone_top.png",
+        "bottom": "blocks/stone_bottom.png",
+        "sides": "blocks/stone_side.png"
+      },
+      "sounds": {
+        "break": "blocks/stone/break",
+        "place": "blocks/stone/place",
+        "step": "blocks/stone/step",
+        "hit": "blocks/stone/hit",
+        "fall": "blocks/stone/fall"
+      },
+      "particleEffects": ["stone_crack"],
+      "craftingRecipes": [
+        {
+          "result": "cobblestone",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "stone",
+              "count": 1
+            }
+          ],
+          "shapeless": true
+        }
+      ],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true
+      }
+    },
+    "grass": {
+      "id": 2,
+      "name": "Grass",
+      "displayName": "Grass",
+      "description": "Grass-covered dirt block",
+      "category": "natural",
+      "hardness": 0.6,
+      "resistance": 0.6,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "dirt",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {
+        "snowy": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "variants": {},
+      "textures": {
+        "default": "blocks/grass.png",
+        "top": "blocks/grass_top.png",
+        "bottom": "blocks/dirt.png",
+        "sides": "blocks/grass_side.png",
+        "overlay": "blocks/grass_side_overlay.png"
+      },
+      "sounds": {
+        "break": "blocks/grass/break",
+        "place": "blocks/grass/place",
+        "step": "blocks/grass/step",
+        "hit": "blocks/grass/hit",
+        "fall": "blocks/grass/fall"
+      },
+      "particleEffects": ["grass_particle"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "supportsGrowth": true
+      }
+    },
+    "dirt": {
+      "id": 3,
+      "name": "Dirt",
+      "displayName": "Dirt",
+      "description": "Common dirt block",
+      "category": "natural",
+      "hardness": 0.5,
+      "resistance": 0.5,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "dirt",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {
+        "coarse": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "variants": {
+        "coarse": {
+          "id": 1,
+          "displayName": "Coarse Dirt",
+          "textures": {
+            "default": "blocks/coarse_dirt.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/dirt.png"
+      },
+      "sounds": {
+        "break": "blocks/dirt/break",
+        "place": "blocks/dirt/place",
+        "step": "blocks/dirt/step",
+        "hit": "blocks/dirt/hit",
+        "fall": "blocks/dirt/fall"
+      },
+      "particleEffects": ["dirt_particle"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "supportsGrowth": true
+      }
+    },
+    "water": {
+      "id": 8,
+      "name": "Water",
+      "displayName": "Water",
+      "description": "Water block",
+      "category": "liquid",
+      "hardness": 0.0,
+      "resistance": 0.0,
+      "lightLevel": 0,
+      "lightOpacity": 2,
+      "transparent": true,
+      "solid": false,
+      "gravity": true,
+      "flammable": false,
+      "tool": "bucket",
+      "drops": [],
+      "states": {
+        "level": {
+          "type": "integer",
+          "min": 0,
+          "max": 15,
+          "default": 0
+        }
+      },
+      "variants": {},
+      "textures": {
+        "default": "blocks/water.png",
+        "overlay": "blocks/water_overlay.png"
+      },
+      "sounds": {
+        "break": "blocks/water/break",
+        "place": "blocks/water/place",
+        "step": "blocks/water/step",
+        "hit": "blocks/water/hit",
+        "fall": "blocks/water/fall"
+      },
+      "particleEffects": ["water_splash"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": true,
+        "canReplace": true,
+        "canBePlaced": false,
+        "canBeBroken": false,
+        "liquid": true,
+        "flowing": true
+      }
+    },
+    "sand": {
+      "id": 12,
+      "name": "Sand",
+      "displayName": "Sand",
+      "description": "Sand block found in beaches and deserts",
+      "category": "natural",
+      "hardness": 0.5,
+      "resistance": 0.5,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": true,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "sand",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {},
+      "variants": {
+        "red": {
+          "id": 1,
+          "displayName": "Red Sand",
+          "textures": {
+            "default": "blocks/red_sand.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/sand.png"
+      },
+      "sounds": {
+        "break": "blocks/sand/break",
+        "place": "blocks/sand/place",
+        "step": "blocks/sand/step",
+        "hit": "blocks/sand/hit",
+        "fall": "blocks/sand/fall"
+      },
+      "particleEffects": ["sand_particle"],
+      "craftingRecipes": [
+        {
+          "result": "glass",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "sand",
+              "count": 1
+            }
+          ],
+          "requiresFurnace": true,
+          "smeltingTime": 10
+        }
+      ],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "falling": true
+      }
+    },
+    "bedrock": {
+      "id": 7,
+      "name": "Bedrock",
+      "displayName": "Bedrock",
+      "description": "Unbreakable block at the bottom of the world",
+      "category": "natural",
+      "hardness": -1.0,
+      "resistance": 3600000.0,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "none",
+      "drops": [],
+      "states": {},
+      "variants": {},
+      "textures": {
+        "default": "blocks/bedrock.png"
+      },
+      "sounds": {
+        "break": "",
+        "place": "",
+        "step": "blocks/stone/step",
+        "hit": "blocks/stone/hit",
+        "fall": ""
+      },
+      "particleEffects": [],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": false,
+        "canBeBroken": false,
+        "unbreakable": true
+      }
+    }
+  },
+  "items": {
+    "stick": {
+      "id": 100,
+      "name": "Stick",
+      "displayName": "Stick",
+      "description": "Wooden stick used for crafting tools and weapons",
+      "category": "material",
+      "stackSize": 64,
+      "durability": 0,
+      "damage": 0,
+      "armor": 0,
+      "toolType": "none",
+      "toolTier": "none",
+      "enchantable": false,
+      "repairable": false,
+      "textures": {
+        "default": "items/stick.png"
+      },
+      "sounds": {
+        "pickup": "items/stick/pickup",
+        "use": "items/stick/use"
+      },
+      "craftingRecipes": [
+        {
+          "result": "wooden_pickaxe",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "stick",
+              "count": 2
+            },
+            {
+              "item": "planks",
+              "count": 3
+            }
+          ],
+          "shape": [
+            ["", "planks", ""],
+            ["", "stick", ""],
+            ["", "stick", ""]
+          ]
+        }
+      ],
+      "properties": {
+        "canBePlaced": false,
+        "canBeUsed": false,
+        "canBeDropped": true
+      }
+    },
+    "wooden_pickaxe": {
+      "id": 101,
+      "name": "Wooden Pickaxe",
+      "displayName": "Wooden Pickaxe",
+      "description": "Basic pickaxe made of wood",
+      "category": "tool",
+      "stackSize": 1,
+      "durability": 59,
+      "damage": 2,
+      "armor": 0,
+      "toolType": "pickaxe",
+      "toolTier": "wood",
+      "enchantable": true,
+      "repairable": true,
+      "textures": {
+        "default": "items/wooden_pickaxe.png"
+      },
+      "sounds": {
+        "pickup": "items/tool/pickup",
+        "use": "items/tool/use",
+        "break": "items/tool/break"
+      },
+      "craftingRecipes": [],
+      "properties": {
+        "canBePlaced": false,
+        "canBeUsed": true,
+        "canBeDropped": true,
+        "miningSpeed": 2.0,
+        "effectiveBlocks": ["stone", "coal_ore", "iron_ore"]
+      }
+    }
+  },
+  "entities": {
+    "player": {
+      "id": 1,
+      "name": "Player",
+      "displayName": "Player",
+      "description": "Player entity",
+      "category": "player",
+      "size": {
+        "width": 0.6,
+        "height": 1.8,
+        "depth": 0.6
+      },
+      "health": 20,
+      "maxHealth": 20,
+      "armor": 0,
+      "maxArmor": 20,
+      "movementSpeed": 1.0,
+      "jumpHeight": 1.2,
+      "gravity": 0.08,
+      "textures": {
+        "default": "entities/player.png"
+      },
+      "sounds": {
+        "hurt": "entities/player/hurt",
+        "death": "entities/player/death",
+        "jump": "entities/player/jump",
+        "land": "entities/player/land",
+        "swim": "entities/player/swim"
+      },
+      "properties": {
+        "canFly": false,
+        "canSwim": true,
+        "canDrown": true,
+        "canFall": true,
+        "respawnable": true
+      }
+    },
+    "zombie": {
+      "id": 2,
+      "name": "Zombie",
+      "displayName": "Zombie",
+      "description": "Undead mob that attacks players",
+      "category": "hostile",
+      "size": {
+        "width": 0.6,
+        "height": 1.8,
+        "depth": 0.6
+      },
+      "health": 20,
+      "maxHealth": 20,
+      "armor": 0,
+      "maxArmor": 0,
+      "movementSpeed": 0.23,
+      "jumpHeight": 1.0,
+      "gravity": 0.08,
+      "damage": 3,
+      "attackRange": 1.0,
+      "attackCooldown": 1.0,
+      "textures": {
+        "default": "entities/zombie.png"
+      },
+      "sounds": {
+        "hurt": "entities/zombie/hurt",
+        "death": "entities/zombie/death",
+        "ambient": "entities/zombie/ambient",
+        "attack": "entities/zombie/attack"
+      },
+      "properties": {
+        "canFly": false,
+        "canSwim": true,
+        "canDrown": false,
+        "canFall": true,
+        "respawnable": false,
+        "burnsInDaylight": true,
+        "drops": [
+          {
+            "item": "rotten_flesh",
+            "count": [0, 2],
+            "chance": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "biomes": {
+    "plains": {
+      "id": 1,
+      "name": "Plains",
+      "displayName": "Plains",
+      "description": "Flat grassy biome with scattered trees",
+      "category": "temperate",
+      "temperature": 0.8,
+      "humidity": 0.4,
+      "colors": {
+        "grass": "#7CBD6B",
+        "foliage": "#6AB96F",
+        "water": "#3F76E4",
+        "fog": "#C0D8FF"
+      },
+      "features": {
+        "trees": true,
+        "flowers": true,
+        "grass": true,
+        "animals": true,
+        "villages": true
+      },
+      "generation": {
+        "heightVariation": 0.1,
+        "treeDensity": 0.05,
+        "flowerDensity": 0.02,
+        "grassDensity": 0.8
+      },
+      "entities": {
+        "passive": ["cow", "sheep", "pig", "chicken"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": ["wolf"]
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.8,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 3
+        },
+        "iron": {
+          "frequency": 0.6,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 2
+        }
+      }
+    },
+    "desert": {
+      "id": 2,
+      "name": "Desert",
+      "displayName": "Desert",
+      "description": "Dry biome with sand and cacti",
+      "category": "arid",
+      "temperature": 2.0,
+      "humidity": 0.0,
+      "colors": {
+        "grass": "#BFB755",
+        "foliage": "#AEA42A",
+        "water": "#3F76E4",
+        "fog": "#E9DCC1"
+      },
+      "features": {
+        "trees": false,
+        "flowers": false,
+        "grass": false,
+        "animals": false,
+        "villages": true,
+        "cacti": true,
+        "temples": true
+      },
+      "generation": {
+        "heightVariation": 0.05,
+        "treeDensity": 0.0,
+        "flowerDensity": 0.0,
+        "grassDensity": 0.0,
+        "cactusDensity": 0.02
+      },
+      "entities": {
+        "passive": ["rabbit"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": []
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.9,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 4
+        },
+        "iron": {
+          "frequency": 0.4,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 1
+        },
+        "gold": {
+          "frequency": 0.3,
+          "minHeight": 32,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 1
+        }
+      }
+    },
+    "forest": {
+      "id": 3,
+      "name": "Forest",
+      "displayName": "Forest",
+      "description": "Dense biome with many trees",
+      "category": "temperate",
+      "temperature": 0.7,
+      "humidity": 0.8,
+      "colors": {
+        "grass": "#79C05A",
+        "foliage": "#59AE30",
+        "water": "#3F76E4",
+        "fog": "#8EDF9B"
+      },
+      "features": {
+        "trees": true,
+        "flowers": true,
+        "grass": true,
+        "animals": true,
+        "villages": true,
+        "mushrooms": true
+      },
+      "generation": {
+        "heightVariation": 0.2,
+        "treeDensity": 0.15,
+        "flowerDensity": 0.05,
+        "grassDensity": 0.9
+      },
+      "entities": {
+        "passive": ["cow", "sheep", "pig", "chicken", "wolf"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": ["wolf"]
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.7,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 3
+        },
+        "iron": {
+          "frequency": 0.5,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 2
+        }
+      }
+    }
+  },
+  "recipes": {
+    "crafting_table": {
+      "wooden_pickaxe": {
+        "result": "wooden_pickaxe",
+        "count": 1,
+        "ingredients": [
+          ["", "planks", ""],
+          ["", "stick", ""],
+          ["", "stick", ""]
+        ],
+        "category": "tools",
+        "unlockCondition": "has_wood"
+      },
+      "wooden_sword": {
+        "result": "wooden_sword",
+        "count": 1,
+        "ingredients": [
+          ["", "planks", ""],
+          ["", "stick", ""],
+          ["", "stick", ""]
+        ],
+        "category": "tools",
+        "unlockCondition": "has_wood"
+      },
+      "torch": {
+        "result": "torch",
+        "count": 4,
+        "ingredients": [
+          ["coal", ""],
+          ["stick", ""]
+        ],
+        "category": "decoration",
+        "unlockCondition": "has_coal"
+      }
+    },
+    "smelting": {
+      "iron_ingot": {
+        "result": "iron_ingot",
+        "count": 1,
+        "ingredient": "iron_ore",
+        "smeltingTime": 10,
+        "fuelRequired": true,
+        "category": "materials",
+        "unlockCondition": "has_iron_ore"
+      },
+      "glass": {
+        "result": "glass",
+        "count": 1,
+        "ingredient": "sand",
+        "smeltingTime": 10,
+        "fuelRequired": true,
+        "category": "blocks",
+        "unlockCondition": "has_sand"
+      }
+    }
+  },
+  "enchantments": {
+    "sharpness": {
+      "id": 1,
+      "name": "Sharpness",
+      "displayName": "Sharpness",
+      "description": "Increases melee damage",
+      "category": "weapon",
+      "maxLevel": 5,
+      "applicableItems": ["sword", "axe"],
+      "weight": 10,
+      "minEnchantability": 1,
+      "cost": {
+        "1": 1,
+        "2": 5,
+        "3": 9,
+        "4": 14,
+        "5": 20
+      },
+      "effects": {
+        "damage": {
+          "1": 1.25,
+          "2": 1.5,
+          "3": 1.75,
+          "4": 2.0,
+          "5": 2.5
+        }
+      }
+    },
+    "efficiency": {
+      "id": 2,
+      "name": "Efficiency",
+      "displayName": "Efficiency",
+      "description": "Increases mining speed",
+      "category": "tool",
+      "maxLevel": 5,
+      "applicableItems": ["pickaxe", "axe", "shovel"],
+      "weight": 10,
+      "minEnchantability": 1,
+      "cost": {
+        "1": 1,
+        "2": 5,
+        "3": 9,
+        "4": 14,
+        "5": 20
+      },
+      "effects": {
+        "miningSpeed": {
+          "1": 1.3,
+          "2": 1.6,
+          "3": 1.9,
+          "4": 2.2,
+          "5": 2.5
+        }
+      }
+    }
+  }
+}  "version": "1.0.0",
+  "lastUpdated": "2026-01-05T12:00:00Z",
+  "blocks": {
+    "air": {
+      "id": 0,
+      "name": "Air",
+      "displayName": "Air",
+      "description": "Invisible block that occupies space",
+      "category": "utility",
+      "hardness": 0,
+      "resistance": 0,
+      "lightLevel": 0,
+      "lightOpacity": 0,
+      "transparent": true,
+      "solid": false,
+      "gravity": false,
+      "flammable": false,
+      "tool": "none",
+      "drops": [],
+      "states": {},
+      "variants": {},
+      "textures": {
+        "default": "blocks/air.png"
+      },
+      "sounds": {
+        "break": "",
+        "place": "",
+        "step": "",
+        "hit": "",
+        "fall": ""
+      },
+      "particleEffects": [],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": true,
+        "canReplace": true,
+        "canBePlaced": false,
+        "canBeBroken": false
+      }
+    },
+    "stone": {
+      "id": 1,
+      "name": "Stone",
+      "displayName": "Stone",
+      "description": "Common solid block found underground",
+      "category": "building",
+      "hardness": 1.5,
+      "resistance": 6.0,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "pickaxe",
+      "drops": [
+        {
+          "item": "cobblestone",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {},
+      "variants": {
+        "granite": {
+          "id": 1,
+          "displayName": "Granite",
+          "textures": {
+            "default": "blocks/granite.png"
+          }
+        },
+        "diorite": {
+          "id": 3,
+          "displayName": "Diorite",
+          "textures": {
+            "default": "blocks/diorite.png"
+          }
+        },
+        "andesite": {
+          "id": 5,
+          "displayName": "Andesite",
+          "textures": {
+            "default": "blocks/andesite.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/stone.png",
+        "top": "blocks/stone_top.png",
+        "bottom": "blocks/stone_bottom.png",
+        "sides": "blocks/stone_side.png"
+      },
+      "sounds": {
+        "break": "blocks/stone/break",
+        "place": "blocks/stone/place",
+        "step": "blocks/stone/step",
+        "hit": "blocks/stone/hit",
+        "fall": "blocks/stone/fall"
+      },
+      "particleEffects": ["stone_crack"],
+      "craftingRecipes": [
+        {
+          "result": "cobblestone",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "stone",
+              "count": 1
+            }
+          ],
+          "shapeless": true
+        }
+      ],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true
+      }
+    },
+    "grass": {
+      "id": 2,
+      "name": "Grass",
+      "displayName": "Grass",
+      "description": "Grass-covered dirt block",
+      "category": "natural",
+      "hardness": 0.6,
+      "resistance": 0.6,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "dirt",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {
+        "snowy": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "variants": {},
+      "textures": {
+        "default": "blocks/grass.png",
+        "top": "blocks/grass_top.png",
+        "bottom": "blocks/dirt.png",
+        "sides": "blocks/grass_side.png",
+        "overlay": "blocks/grass_side_overlay.png"
+      },
+      "sounds": {
+        "break": "blocks/grass/break",
+        "place": "blocks/grass/place",
+        "step": "blocks/grass/step",
+        "hit": "blocks/grass/hit",
+        "fall": "blocks/grass/fall"
+      },
+      "particleEffects": ["grass_particle"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "supportsGrowth": true
+      }
+    },
+    "dirt": {
+      "id": 3,
+      "name": "Dirt",
+      "displayName": "Dirt",
+      "description": "Common dirt block",
+      "category": "natural",
+      "hardness": 0.5,
+      "resistance": 0.5,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "dirt",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {
+        "coarse": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "variants": {
+        "coarse": {
+          "id": 1,
+          "displayName": "Coarse Dirt",
+          "textures": {
+            "default": "blocks/coarse_dirt.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/dirt.png"
+      },
+      "sounds": {
+        "break": "blocks/dirt/break",
+        "place": "blocks/dirt/place",
+        "step": "blocks/dirt/step",
+        "hit": "blocks/dirt/hit",
+        "fall": "blocks/dirt/fall"
+      },
+      "particleEffects": ["dirt_particle"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "supportsGrowth": true
+      }
+    },
+    "water": {
+      "id": 8,
+      "name": "Water",
+      "displayName": "Water",
+      "description": "Water block",
+      "category": "liquid",
+      "hardness": 0.0,
+      "resistance": 0.0,
+      "lightLevel": 0,
+      "lightOpacity": 2,
+      "transparent": true,
+      "solid": false,
+      "gravity": true,
+      "flammable": false,
+      "tool": "bucket",
+      "drops": [],
+      "states": {
+        "level": {
+          "type": "integer",
+          "min": 0,
+          "max": 15,
+          "default": 0
+        }
+      },
+      "variants": {},
+      "textures": {
+        "default": "blocks/water.png",
+        "overlay": "blocks/water_overlay.png"
+      },
+      "sounds": {
+        "break": "blocks/water/break",
+        "place": "blocks/water/place",
+        "step": "blocks/water/step",
+        "hit": "blocks/water/hit",
+        "fall": "blocks/water/fall"
+      },
+      "particleEffects": ["water_splash"],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": true,
+        "canReplace": true,
+        "canBePlaced": false,
+        "canBeBroken": false,
+        "liquid": true,
+        "flowing": true
+      }
+    },
+    "sand": {
+      "id": 12,
+      "name": "Sand",
+      "displayName": "Sand",
+      "description": "Sand block found in beaches and deserts",
+      "category": "natural",
+      "hardness": 0.5,
+      "resistance": 0.5,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": true,
+      "flammable": false,
+      "tool": "shovel",
+      "drops": [
+        {
+          "item": "sand",
+          "count": 1,
+          "chance": 1.0
+        }
+      ],
+      "states": {},
+      "variants": {
+        "red": {
+          "id": 1,
+          "displayName": "Red Sand",
+          "textures": {
+            "default": "blocks/red_sand.png"
+          }
+        }
+      },
+      "textures": {
+        "default": "blocks/sand.png"
+      },
+      "sounds": {
+        "break": "blocks/sand/break",
+        "place": "blocks/sand/place",
+        "step": "blocks/sand/step",
+        "hit": "blocks/sand/hit",
+        "fall": "blocks/sand/fall"
+      },
+      "particleEffects": ["sand_particle"],
+      "craftingRecipes": [
+        {
+          "result": "glass",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "sand",
+              "count": 1
+            }
+          ],
+          "requiresFurnace": true,
+          "smeltingTime": 10
+        }
+      ],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": true,
+        "canBeBroken": true,
+        "falling": true
+      }
+    },
+    "bedrock": {
+      "id": 7,
+      "name": "Bedrock",
+      "displayName": "Bedrock",
+      "description": "Unbreakable block at the bottom of the world",
+      "category": "natural",
+      "hardness": -1.0,
+      "resistance": 3600000.0,
+      "lightLevel": 0,
+      "lightOpacity": 15,
+      "transparent": false,
+      "solid": true,
+      "gravity": false,
+      "flammable": false,
+      "tool": "none",
+      "drops": [],
+      "states": {},
+      "variants": {},
+      "textures": {
+        "default": "blocks/bedrock.png"
+      },
+      "sounds": {
+        "break": "",
+        "place": "",
+        "step": "blocks/stone/step",
+        "hit": "blocks/stone/hit",
+        "fall": ""
+      },
+      "particleEffects": [],
+      "craftingRecipes": [],
+      "properties": {
+        "canPassThrough": false,
+        "canReplace": false,
+        "canBePlaced": false,
+        "canBeBroken": false,
+        "unbreakable": true
+      }
+    }
+  },
+  "items": {
+    "stick": {
+      "id": 100,
+      "name": "Stick",
+      "displayName": "Stick",
+      "description": "Wooden stick used for crafting tools and weapons",
+      "category": "material",
+      "stackSize": 64,
+      "durability": 0,
+      "damage": 0,
+      "armor": 0,
+      "toolType": "none",
+      "toolTier": "none",
+      "enchantable": false,
+      "repairable": false,
+      "textures": {
+        "default": "items/stick.png"
+      },
+      "sounds": {
+        "pickup": "items/stick/pickup",
+        "use": "items/stick/use"
+      },
+      "craftingRecipes": [
+        {
+          "result": "wooden_pickaxe",
+          "count": 1,
+          "ingredients": [
+            {
+              "item": "stick",
+              "count": 2
+            },
+            {
+              "item": "planks",
+              "count": 3
+            }
+          ],
+          "shape": [
+            ["", "planks", ""],
+            ["", "stick", ""],
+            ["", "stick", ""]
+          ]
+        }
+      ],
+      "properties": {
+        "canBePlaced": false,
+        "canBeUsed": false,
+        "canBeDropped": true
+      }
+    },
+    "wooden_pickaxe": {
+      "id": 101,
+      "name": "Wooden Pickaxe",
+      "displayName": "Wooden Pickaxe",
+      "description": "Basic pickaxe made of wood",
+      "category": "tool",
+      "stackSize": 1,
+      "durability": 59,
+      "damage": 2,
+      "armor": 0,
+      "toolType": "pickaxe",
+      "toolTier": "wood",
+      "enchantable": true,
+      "repairable": true,
+      "textures": {
+        "default": "items/wooden_pickaxe.png"
+      },
+      "sounds": {
+        "pickup": "items/tool/pickup",
+        "use": "items/tool/use",
+        "break": "items/tool/break"
+      },
+      "craftingRecipes": [],
+      "properties": {
+        "canBePlaced": false,
+        "canBeUsed": true,
+        "canBeDropped": true,
+        "miningSpeed": 2.0,
+        "effectiveBlocks": ["stone", "coal_ore", "iron_ore"]
+      }
+    }
+  },
+  "entities": {
+    "player": {
+      "id": 1,
+      "name": "Player",
+      "displayName": "Player",
+      "description": "Player entity",
+      "category": "player",
+      "size": {
+        "width": 0.6,
+        "height": 1.8,
+        "depth": 0.6
+      },
+      "health": 20,
+      "maxHealth": 20,
+      "armor": 0,
+      "maxArmor": 20,
+      "movementSpeed": 1.0,
+      "jumpHeight": 1.2,
+      "gravity": 0.08,
+      "textures": {
+        "default": "entities/player.png"
+      },
+      "sounds": {
+        "hurt": "entities/player/hurt",
+        "death": "entities/player/death",
+        "jump": "entities/player/jump",
+        "land": "entities/player/land",
+        "swim": "entities/player/swim"
+      },
+      "properties": {
+        "canFly": false,
+        "canSwim": true,
+        "canDrown": true,
+        "canFall": true,
+        "respawnable": true
+      }
+    },
+    "zombie": {
+      "id": 2,
+      "name": "Zombie",
+      "displayName": "Zombie",
+      "description": "Undead mob that attacks players",
+      "category": "hostile",
+      "size": {
+        "width": 0.6,
+        "height": 1.8,
+        "depth": 0.6
+      },
+      "health": 20,
+      "maxHealth": 20,
+      "armor": 0,
+      "maxArmor": 0,
+      "movementSpeed": 0.23,
+      "jumpHeight": 1.0,
+      "gravity": 0.08,
+      "damage": 3,
+      "attackRange": 1.0,
+      "attackCooldown": 1.0,
+      "textures": {
+        "default": "entities/zombie.png"
+      },
+      "sounds": {
+        "hurt": "entities/zombie/hurt",
+        "death": "entities/zombie/death",
+        "ambient": "entities/zombie/ambient",
+        "attack": "entities/zombie/attack"
+      },
+      "properties": {
+        "canFly": false,
+        "canSwim": true,
+        "canDrown": false,
+        "canFall": true,
+        "respawnable": false,
+        "burnsInDaylight": true,
+        "drops": [
+          {
+            "item": "rotten_flesh",
+            "count": [0, 2],
+            "chance": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "biomes": {
+    "plains": {
+      "id": 1,
+      "name": "Plains",
+      "displayName": "Plains",
+      "description": "Flat grassy biome with scattered trees",
+      "category": "temperate",
+      "temperature": 0.8,
+      "humidity": 0.4,
+      "colors": {
+        "grass": "#7CBD6B",
+        "foliage": "#6AB96F",
+        "water": "#3F76E4",
+        "fog": "#C0D8FF"
+      },
+      "features": {
+        "trees": true,
+        "flowers": true,
+        "grass": true,
+        "animals": true,
+        "villages": true
+      },
+      "generation": {
+        "heightVariation": 0.1,
+        "treeDensity": 0.05,
+        "flowerDensity": 0.02,
+        "grassDensity": 0.8
+      },
+      "entities": {
+        "passive": ["cow", "sheep", "pig", "chicken"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": ["wolf"]
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.8,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 3
+        },
+        "iron": {
+          "frequency": 0.6,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 2
+        }
+      }
+    },
+    "desert": {
+      "id": 2,
+      "name": "Desert",
+      "displayName": "Desert",
+      "description": "Dry biome with sand and cacti",
+      "category": "arid",
+      "temperature": 2.0,
+      "humidity": 0.0,
+      "colors": {
+        "grass": "#BFB755",
+        "foliage": "#AEA42A",
+        "water": "#3F76E4",
+        "fog": "#E9DCC1"
+      },
+      "features": {
+        "trees": false,
+        "flowers": false,
+        "grass": false,
+        "animals": false,
+        "villages": true,
+        "cacti": true,
+        "temples": true
+      },
+      "generation": {
+        "heightVariation": 0.05,
+        "treeDensity": 0.0,
+        "flowerDensity": 0.0,
+        "grassDensity": 0.0,
+        "cactusDensity": 0.02
+      },
+      "entities": {
+        "passive": ["rabbit"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": []
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.9,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 4
+        },
+        "iron": {
+          "frequency": 0.4,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 1
+        },
+        "gold": {
+          "frequency": 0.3,
+          "minHeight": 32,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 1
+        }
+      }
+    },
+    "forest": {
+      "id": 3,
+      "name": "Forest",
+      "displayName": "Forest",
+      "description": "Dense biome with many trees",
+      "category": "temperate",
+      "temperature": 0.7,
+      "humidity": 0.8,
+      "colors": {
+        "grass": "#79C05A",
+        "foliage": "#59AE30",
+        "water": "#3F76E4",
+        "fog": "#8EDF9B"
+      },
+      "features": {
+        "trees": true,
+        "flowers": true,
+        "grass": true,
+        "animals": true,
+        "villages": true,
+        "mushrooms": true
+      },
+      "generation": {
+        "heightVariation": 0.2,
+        "treeDensity": 0.15,
+        "flowerDensity": 0.05,
+        "grassDensity": 0.9
+      },
+      "entities": {
+        "passive": ["cow", "sheep", "pig", "chicken", "wolf"],
+        "hostile": ["zombie", "skeleton", "spider"],
+        "neutral": ["wolf"]
+      },
+      "ores": {
+        "coal": {
+          "frequency": 0.7,
+          "minHeight": 0,
+          "maxHeight": 128,
+          "veinSize": [8, 16],
+          "veinsPerChunk": 3
+        },
+        "iron": {
+          "frequency": 0.5,
+          "minHeight": 0,
+          "maxHeight": 64,
+          "veinSize": [4, 8],
+          "veinsPerChunk": 2
+        }
+      }
+    }
+  },
+  "recipes": {
+    "crafting_table": {
+      "wooden_pickaxe": {
+        "result": "wooden_pickaxe",
+        "count": 1,
+        "ingredients": [
+          ["", "planks", ""],
+          ["", "stick", ""],
+          ["", "stick", ""]
+        ],
+        "category": "tools",
+        "unlockCondition": "has_wood"
+      },
+      "wooden_sword": {
+        "result": "wooden_sword",
+        "count": 1,
+        "ingredients": [
+          ["", "planks", ""],
+          ["", "stick", ""],
+          ["", "stick", ""]
+        ],
+        "category": "tools",
+        "unlockCondition": "has_wood"
+      },
+      "torch": {
+        "result": "torch",
+        "count": 4,
+        "ingredients": [
+          ["coal", ""],
+          ["stick", ""]
+        ],
+        "category": "decoration",
+        "unlockCondition": "has_coal"
+      }
+    },
+    "smelting": {
+      "iron_ingot": {
+        "result": "iron_ingot",
+        "count": 1,
+        "ingredient": "iron_ore",
+        "smeltingTime": 10,
+        "fuelRequired": true,
+        "category": "materials",
+        "unlockCondition": "has_iron_ore"
+      },
+      "glass": {
+        "result": "glass",
+        "count": 1,
+        "ingredient": "sand",
+        "smeltingTime": 10,
+        "fuelRequired": true,
+        "category": "blocks",
+        "unlockCondition": "has_sand"
+      }
+    }
+  },
+  "enchantments": {
+    "sharpness": {
+      "id": 1,
+      "name": "Sharpness",
+      "displayName": "Sharpness",
+      "description": "Increases melee damage",
+      "category": "weapon",
+      "maxLevel": 5,
+      "applicableItems": ["sword", "axe"],
+      "weight": 10,
+      "minEnchantability": 1,
+      "cost": {
+        "1": 1,
+        "2": 5,
+        "3": 9,
+        "4": 14,
+        "5": 20
+      },
+      "effects": {
+        "damage": {
+          "1": 1.25,
+          "2": 1.5,
+          "3": 1.75,
+          "4": 2.0,
+          "5": 2.5
+        }
+      }
+    },
+    "efficiency": {
+      "id": 2,
+      "name": "Efficiency",
+      "displayName": "Efficiency",
+      "description": "Increases mining speed",
+      "category": "tool",
+      "maxLevel": 5,
+      "applicableItems": ["pickaxe", "axe", "shovel"],
+      "weight": 10,
+      "minEnchantability": 1,
+      "cost": {
+        "1": 1,
+        "2": 5,
+        "3": 9,
+        "4": 14,
+        "5": 20
+      },
+      "effects": {
+        "miningSpeed": {
+          "1": 1.3,
+          "2": 1.6,
+          "3": 1.9,
+          "4": 2.2,
+          "5": 2.5
+        }
+      }
+    }
+  }
+}

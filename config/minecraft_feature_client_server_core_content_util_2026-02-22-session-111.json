@@ -1,0 +1,198 @@
+{
+  "version": "session-111",
+  "generated_at_utc": "2026-02-22T00:00:00Z",
+  "session": 111,
+  "date": "2026-02-22",
+  "signature": "2026-02-22-hydrology-riverlake-cave-v48",
+  "profileVersion": 52,
+  "features": [
+    {
+      "id": "S111-CORE-01",
+      "name": "Shared DLL Queue Policy Hotspot Controls",
+      "category": "Core",
+      "side": "shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/Configuration/ConfigurationModels.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "S111-CORE-02",
+      "name": "World Map Profile v52 + Hydrology Signature v48",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "Assets/Scripts/Minecraft/Core/WorldConfig.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ]
+    },
+    {
+      "id": "S111-CORE-03",
+      "name": "Server Hotspot-Aware Chunk Admission",
+      "category": "Core",
+      "side": "server",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/Program.cs",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "id": "S111-CORE-04",
+      "name": "Client Hotspot-Aware Queue Filtering",
+      "category": "Core",
+      "side": "client",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/world_map_control_queue_policy.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S111-CONTENT-01",
+      "name": "Bankfull Ventilation Seal Cave Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S111-CONTENT-02",
+      "name": "Anabranch Hotspot Relay River Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S111-CONTENT-03",
+      "name": "Floodplain Retention Clamp Lake Bridge",
+      "category": "Content",
+      "side": "server",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "S111-CONTENT-04",
+      "name": "Coupled Floodplain Ventilation Terrain Pass",
+      "category": "Content",
+      "side": "server",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+      ]
+    },
+    {
+      "id": "S111-UTIL-01",
+      "name": "Protobuf Registry + Descriptor Fingerprint Validation",
+      "category": "Utility",
+      "side": "shared",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+      ]
+    },
+    {
+      "id": "S111-UTIL-02",
+      "name": "Dummy Protocol Client Profile Guard v52",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "config/protocol_dummy_client.json",
+        "GameServer/config/protocol_dummy_client.json"
+      ]
+    },
+    {
+      "id": "S111-UTIL-03",
+      "name": "JSON Config Parity Sync (Server/Client/Runtime)",
+      "category": "Utility",
+      "side": "shared-tooling",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "GameServer/config/world.json",
+        "Assets/StreamingAssets/world-config.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "id": "S111-UTIL-04",
+      "name": "Session 111 Runtime Feature Manifest",
+      "category": "Utility",
+      "side": "server",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Program.cs",
+        "config/minecraft_feature_client_server_core_content_util_2026-02-22-session-111.json"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S111-CORE-01",
+      "S111-CORE-02",
+      "S111-CORE-03",
+      "S111-CORE-04"
+    ],
+    "content": [
+      "S111-CONTENT-01",
+      "S111-CONTENT-02",
+      "S111-CONTENT-03",
+      "S111-CONTENT-04"
+    ],
+    "utility": [
+      "S111-UTIL-01",
+      "S111-UTIL-02",
+      "S111-UTIL-03",
+      "S111-UTIL-04"
+    ]
+  },
+  "implementationSequence": [
+    "1. Baseline check (git clean + recent commits + plans update)",
+    "2. Refresh Core/Content/Utility inventory manifest",
+    "3. Implement cave/river/lake terrain bridge improvements",
+    "4. Apply world-map architecture hotspot admission updates (server/client)",
+    "5. Raise signature/profile guards to v48/v52 and sync JSON runtime/config parity",
+    "6. Validate protobuf packet registry and dummy protocol probes",
+    "7. Build/test + docs update + commit/push"
+  ]
+}

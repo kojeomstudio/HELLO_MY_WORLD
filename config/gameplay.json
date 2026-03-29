@@ -1,0 +1,60 @@
+{
+  "Difficulty": {
+    "Difficulty": "normal",
+    "EnablePvP": false,
+    "EnableFriendlyFire": false,
+    "EnableHunger": true,
+    "EnableNaturalRegeneration": true,
+    "DamageMultiplier": 1.0
+  },
+  "Player": {
+    "MaxHealth": 20,
+    "MaxHunger": 20,
+    "WalkSpeed": 4.317,
+    "SprintSpeed": 5.612,
+    "JumpHeight": 1.25,
+    "Reach": 4.5,
+    "MaxInventorySlots": 36,
+    "EnableFlying": false,
+    "FlySpeed": 10.0
+  },
+  "Mobs": {
+    "EnableMobSpawning": true,
+    "EnableMobAI": true,
+    "EnableHostileMobs": true,
+    "EnablePassiveMobs": true,
+    "MobSpawnRange": 128,
+    "MaxMobsPerChunk": 10,
+    "MobDespawnDistance": 128.0,
+    "MobHealthMultiplier": 1.0,
+    "MobDamageMultiplier": 1.0
+  },
+  "Physics": {
+    "Gravity": 32.0,
+    "EnableBlockGravity": true,
+    "EnableWaterFlow": true,
+    "EnableLavaFlow": true,
+    "WaterFlowSpeed": 5,
+    "LavaFlowSpeed": 30,
+    "MaxWaterFlowDistance": 7,
+    "MaxLavaFlowDistance": 3,
+    "EnableFireSpread": true,
+    "FireSpreadSpeed": 30
+  },
+  "Crafting": {
+    "Enable3x3Crafting": true,
+    "EnableFurnaceSmelting": true,
+    "EnableBrewingStand": false,
+    "EnableEnchantingTable": false,
+    "EnableAnvil": false,
+    "FurnaceSmeltTime": 200
+  },
+  "Time": {
+    "EnableDayNightCycle": true,
+    "DayLength": 20,
+    "NightLength": 10,
+    "EnableWeatherCycle": true,
+    "RainChance": 0.1,
+    "ThunderChance": 0.05
+  }
+}

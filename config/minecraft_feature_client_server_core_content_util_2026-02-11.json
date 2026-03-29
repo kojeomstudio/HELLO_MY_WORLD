@@ -1,0 +1,1636 @@
+{
+  "version": "2026-02-11",
+  "generated_at_utc": "2026-02-11T06:35:00Z",
+  "metadata": {
+    "session": "comprehensive-implementation",
+    "date": "2026-02-11",
+    "previousSession": "67",
+    "hydrologySignature": "2026-02-11-hydrology-riverlake-cave-v25",
+    "mapControlProfileVersion": 29,
+    "description": "Comprehensive feature inventory for Minecraft client-server implementation organized by Core, Content, and Utility categories."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S68-CORE-001",
+      "name": "Shared hydrology signature and world-map signature contract",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Hydrology signature v25 and world-map signature contract synchronized across server/client for deterministic drift detection.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapContracts.cs",
+        "GameCommon/World/WorldMapSignature.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-002",
+      "name": "Server-authoritative world generation profile v29",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Server world generation/map-control settings unified to profile version 29 with hydrology v25 integration.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": ["S68-CORE-001"]
+    },
+    {
+      "id": "S68-CORE-003",
+      "name": "Client world-map profile parity",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Unity StreamingAssets world config/profile mirrors server profile v29 parameters for client-server consistency.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CORE-004",
+      "name": "Shared DLL architecture",
+      "category": "Core",
+      "subcategory": "Architecture",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Common enums/contracts/utilities distributed through GameCommon.dll and SharedProtocol.dll for code reuse.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": ["S68-CORE-001"]
+    },
+    {
+      "id": "S68-CORE-005",
+      "name": "Server/client world-map control architecture",
+      "category": "Core",
+      "subcategory": "Architecture",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Server/client world-map controllers include deterministic signature updates and profile drift reload handling.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": ["S68-CORE-001", "S68-CORE-003"]
+    },
+    {
+      "id": "S68-CORE-006",
+      "name": "Protobuf protocol implementation",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Complete protobuf packet protocol with generated C# classes and message handlers.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "proto/*.proto",
+        "Assets/Generated/Protobuf/*.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/MinecraftMessages.cs",
+        "SharedProtocol/EnhancedMinecraft/*.cs"
+      ],
+      "dependencies": ["S68-CORE-004"]
+    },
+    {
+      "id": "S68-CORE-007",
+      "name": "Client-Server connection management",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Connection handling and session management with authentication and state tracking.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs",
+        "SharedProtocol/Session.cs",
+        "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"
+      ],
+      "dependencies": ["S68-CORE-006"]
+    },
+    {
+      "id": "S68-CORE-008",
+      "name": "Message dispatcher system",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Centralized message routing with type-safe dispatch and handler registration.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Network/MessageDispatcher.cs",
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "Assets/Scripts/Networking/Core/MessageDispatcher.cs"
+      ],
+      "dependencies": ["S68-CORE-006"]
+    },
+    {
+      "id": "S68-CORE-009",
+      "name": "SQLite database integration",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Database connection and operations with connection pooling and query optimization.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/Database/*.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-010",
+      "name": "Player data persistence",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Save/load player data with inventory, position, and state management.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/Models/Character.cs"
+      ],
+      "dependencies": ["S68-CORE-009"]
+    },
+    {
+      "id": "S68-CORE-011",
+      "name": "World state persistence",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Save/load world state with chunk data and block modifications.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": ["S68-CORE-009"]
+    },
+    {
+      "id": "S68-CORE-012",
+      "name": "Basic collision detection",
+      "category": "Core",
+      "subcategory": "Physics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Octree-based collision system for entity-terrain and entity-entity collision.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "Assets/Scripts/Minecraft/Physics/OctreeCollision.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-013",
+      "name": "Gravity simulation",
+      "category": "Core",
+      "subcategory": "Physics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Entity gravity and falling mechanics with ground detection.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/PhysicsSystem.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-012"]
+    },
+    {
+      "id": "S68-CORE-014",
+      "name": "Chunk-based rendering system",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Efficient chunk rendering with mesh generation and frustum culling.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/ChunkRenderer.cs",
+        "Assets/Scripts/Minecraft/World/ChunkManager.cs",
+        "Assets/Scripts/Minecraft/World/ImprovedChunkManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-015",
+      "name": "Block mesh generation",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Dynamic block mesh creation with face culling and texture mapping.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/BlockMeshGenerator.cs"
+      ],
+      "dependencies": ["S68-CORE-014"]
+    },
+    {
+      "id": "S68-CORE-016",
+      "name": "Basic lighting system",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Simple lighting calculations with block light and sky light.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/LightingSystem.cs"
+      ],
+      "dependencies": ["S68-CORE-014"]
+    },
+    {
+      "id": "S68-CORE-017",
+      "name": "Basic player movement",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "WASD movement and mouse look with collision detection.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-012", "S68-CORE-013"]
+    },
+    {
+      "id": "S68-CORE-018",
+      "name": "Mouse look controls",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Camera rotation controls with sensitivity settings.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-017"]
+    },
+    {
+      "id": "S68-CORE-019",
+      "name": "Block interaction controls",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Block placement/destruction with raycasting and validation.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-017"]
+    },
+    {
+      "id": "S68-CORE-020",
+      "name": "Basic HUD implementation",
+      "category": "Core",
+      "subcategory": "UICore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Health, hunger, and status display with hotbar.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/UI/MinecraftGameManager.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-021",
+      "name": "Inventory display system",
+      "category": "Core",
+      "subcategory": "UICore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Player inventory UI with slot management and item display.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Inventory/ClientInventorySnapshot.cs",
+        "GameServer/Handlers/InventoryHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-020"]
+    },
+    {
+      "id": "S68-CONTENT-001",
+      "name": "Hydrology-aware river generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "River generation adds cross-chunk floodplain bridge pass for seam-safe continuity with hydrology v25.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-002",
+      "name": "Hydrology-aware lake generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Lake generation adds floodplain terrace bridge to stabilize spillway continuity around terrace seams.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CONTENT-001"]
+    },
+    {
+      "id": "S68-CONTENT-003",
+      "name": "Hydrology-aware cave generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Cave generation adds vadose bypass seal pass to suppress unstable bypass openings near riparian seams.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CONTENT-001", "S68-CONTENT-002"]
+    },
+    {
+      "id": "S68-CONTENT-004",
+      "name": "Biome generation system",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Temperature/humidity gradient-based biomes with data-driven biome definitions.",
+      "order": 25,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "config/biomes.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-005",
+      "name": "Ore distribution system",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Configurable ore rarity and distribution with depth-based spawning.",
+      "order": 26,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "config/blocks.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-006",
+      "name": "Structure generation framework",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Dungeons, villages, and other structures with template-based generation.",
+      "order": 27,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-007",
+      "name": "Basic block breaking/placing",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Fundamental block interaction with validation and synchronization.",
+      "order": 28,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-019"]
+    },
+    {
+      "id": "S68-CONTENT-008",
+      "name": "Crafting system",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "2x2 and 3x3 crafting with recipe validation and data-driven recipes.",
+      "order": 29,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+        "GameServer/Handlers/CraftingHandler.cs",
+        "config/recipes.json"
+      ],
+      "dependencies": ["S68-CORE-021"]
+    },
+    {
+      "id": "S68-CONTENT-009",
+      "name": "Furnace smelting system",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Ore smelting mechanics with fuel consumption and progress tracking.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+        "GameServer/Handlers/CraftingHandler.cs"
+      ],
+      "dependencies": ["S68-CONTENT-008"]
+    },
+    {
+      "id": "S68-CONTENT-010",
+      "name": "Hunger and food mechanics",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Survival hunger system with food consumption and saturation.",
+      "order": 31,
+      "status": "in_progress",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/FoodConsumptionManager.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "config/hunger_config.json"
+      ],
+      "dependencies": ["S68-CORE-020"]
+    },
+    {
+      "id": "S68-CONTENT-011",
+      "name": "Basic player entity",
+      "category": "Content",
+      "subcategory": "EntitySystem",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Player representation with position, rotation, and state.",
+      "order": 32,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/Character.cs",
+        "GameServer/Models/Entity.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CONTENT-012",
+      "name": "Mob spawning system",
+      "category": "Content",
+      "subcategory": "EntitySystem",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Mob generation mechanics with spawn conditions and limits.",
+      "order": 33,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/World/Spawning/MobSpawningConfig.cs"
+      ],
+      "dependencies": ["S68-CONTENT-004"]
+    },
+    {
+      "id": "S68-CONTENT-013",
+      "name": "Basic block types",
+      "category": "Content",
+      "subcategory": "WorldContent",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Stone, dirt, grass blocks with data-driven block definitions.",
+      "order": 34,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Models/BlockData.cs",
+        "config/blocks.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CONTENT-014",
+      "name": "Basic block textures",
+      "category": "Content",
+      "subcategory": "ClientContent",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Block material textures with atlas mapping.",
+      "order": 35,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Texture/SpriteSheet/CommonBlockSheet.png"
+      ],
+      "dependencies": ["S68-CORE-015"]
+    },
+    {
+      "id": "S68-CONTENT-015",
+      "name": "Basic sound system",
+      "category": "Content",
+      "subcategory": "AudioContent",
+      "layer": "Client",
+      "side": "client",
+      "priority": 3,
+      "description": "Audio playback with 3D spatial audio support.",
+      "order": 36,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Audio/AudioManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-001",
+      "name": "Protobuf registry and descriptor diagnostics",
+      "category": "Utility",
+      "subcategory": "Diagnostics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Enhanced protobuf diagnostics and registry validation for generated descriptors/bindings.",
+      "order": 37,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": ["S68-CORE-004"]
+    },
+    {
+      "id": "S68-UTIL-002",
+      "name": "Dummy client packet probe",
+      "category": "Utility",
+      "subcategory": "Testing",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Dummy protocol client validates packet round-trip and emits protocol reference diagnostics.",
+      "order": 38,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "GameServer/TestClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": ["S68-UTIL-001"]
+    },
+    {
+      "id": "S68-UTIL-003",
+      "name": "Data-driven JSON configuration parity",
+      "category": "Utility",
+      "subcategory": "Configuration",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "JSON configuration and runtime override loading for server/client world-map and terrain generation.",
+      "order": 39,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "GameServer/Configuration/ConfigurationModels.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": ["S68-CORE-002", "S68-CORE-003"]
+    },
+    {
+      "id": "S68-UTIL-004",
+      "name": "Basic server configuration",
+      "category": "Utility",
+      "subcategory": "ServerAdministration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 3,
+      "description": "Server settings with JSON configuration file.",
+      "order": 40,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/ServerConfig.cs",
+        "config/server_config.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-005",
+      "name": "Chunk unloading for memory management",
+      "category": "Utility",
+      "subcategory": "Performance",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Memory optimization with chunk unloading and caching.",
+      "order": 41,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-006",
+      "name": "Octree-based collision optimization",
+      "category": "Utility",
+      "subcategory": "ClientPerformance",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Collision optimization with octree spatial partitioning.",
+      "order": 42,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Physics/OctreeCollision.cs"
+      ],
+      "dependencies": ["S68-CORE-012"]
+    }
+  ],
+  "summary": {
+    "coreCount": 21,
+    "contentCount": 15,
+    "utilityCount": 6,
+    "totalImplemented": 42,
+    "totalInProgress": 1,
+    "totalPending": 3,
+    "totalFeatures": 46
+  },
+  "implementationPriority": {
+    "phase1": {
+      "name": "Critical Core Infrastructure",
+      "description": "Essential systems for basic functionality",
+      "features": [
+        "S68-CORE-001",
+        "S68-CORE-002",
+        "S68-CORE-003",
+        "S68-CORE-004",
+        "S68-CORE-005",
+        "S68-CORE-006",
+        "S68-CORE-007",
+        "S68-CORE-008"
+      ]
+    },
+    "phase2": {
+      "name": "Core Content Implementation",
+      "description": "Core gameplay systems",
+      "features": [
+        "S68-CONTENT-001",
+        "S68-CONTENT-002",
+        "S68-CONTENT-003",
+        "S68-CONTENT-007",
+        "S68-CONTENT-008",
+        "S68-CONTENT-009",
+        "S68-CONTENT-010",
+        "S68-CONTENT-011",
+        "S68-CONTENT-013",
+        "S68-CONTENT-014",
+        "S68-CONTENT-015"
+      ]
+    },
+    "phase3": {
+      "name": "Advanced Features",
+      "description": "Complex gameplay elements",
+      "features": [
+        "S68-CONTENT-004",
+        "S68-CONTENT-005",
+        "S68-CONTENT-006",
+        "S68-CONTENT-012"
+      ]
+    },
+    "phase4": {
+      "name": "Polish and Enhancement",
+      "description": "Final touches and improvements",
+      "features": [
+        "S68-UTIL-001",
+        "S68-UTIL-002",
+        "S68-UTIL-003",
+        "S68-UTIL-004",
+        "S68-UTIL-005",
+        "S68-UTIL-006"
+      ]
+    }
+  }
+}
+  "version": "2026-02-11",
+  "generated_at_utc": "2026-02-11T06:35:00Z",
+  "metadata": {
+    "session": "comprehensive-implementation",
+    "date": "2026-02-11",
+    "previousSession": "67",
+    "hydrologySignature": "2026-02-11-hydrology-riverlake-cave-v25",
+    "mapControlProfileVersion": 29,
+    "description": "Comprehensive feature inventory for Minecraft client-server implementation organized by Core, Content, and Utility categories."
+  },
+  "implementationSequence": [
+    "core",
+    "content",
+    "utility"
+  ],
+  "features": [
+    {
+      "id": "S68-CORE-001",
+      "name": "Shared hydrology signature and world-map signature contract",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Hydrology signature v25 and world-map signature contract synchronized across server/client for deterministic drift detection.",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "GameCommon/World/WorldMapContracts.cs",
+        "GameCommon/World/WorldMapSignature.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-002",
+      "name": "Server-authoritative world generation profile v29",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Server world generation/map-control settings unified to profile version 29 with hydrology v25 integration.",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldGenerationConfig.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json"
+      ],
+      "dependencies": ["S68-CORE-001"]
+    },
+    {
+      "id": "S68-CORE-003",
+      "name": "Client world-map profile parity",
+      "category": "Core",
+      "subcategory": "WorldGeneration",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Unity StreamingAssets world config/profile mirrors server profile v29 parameters for client-server consistency.",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CORE-004",
+      "name": "Shared DLL architecture",
+      "category": "Core",
+      "subcategory": "Architecture",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Common enums/contracts/utilities distributed through GameCommon.dll and SharedProtocol.dll for code reuse.",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Assets/Plugins/GameCommon.dll"
+      ],
+      "dependencies": ["S68-CORE-001"]
+    },
+    {
+      "id": "S68-CORE-005",
+      "name": "Server/client world-map control architecture",
+      "category": "Core",
+      "subcategory": "Architecture",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Server/client world-map controllers include deterministic signature updates and profile drift reload handling.",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameServer/World/WorldMapController.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ],
+      "dependencies": ["S68-CORE-001", "S68-CORE-003"]
+    },
+    {
+      "id": "S68-CORE-006",
+      "name": "Protobuf protocol implementation",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Complete protobuf packet protocol with generated C# classes and message handlers.",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "proto/*.proto",
+        "Assets/Generated/Protobuf/*.cs",
+        "SharedProtocol/Messages.cs",
+        "SharedProtocol/MinecraftMessages.cs",
+        "SharedProtocol/EnhancedMinecraft/*.cs"
+      ],
+      "dependencies": ["S68-CORE-004"]
+    },
+    {
+      "id": "S68-CORE-007",
+      "name": "Client-Server connection management",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Connection handling and session management with authentication and state tracking.",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/SessionManager.cs",
+        "SharedProtocol/Session.cs",
+        "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs"
+      ],
+      "dependencies": ["S68-CORE-006"]
+    },
+    {
+      "id": "S68-CORE-008",
+      "name": "Message dispatcher system",
+      "category": "Core",
+      "subcategory": "Networking",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Centralized message routing with type-safe dispatch and handler registration.",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Network/MessageDispatcher.cs",
+        "SharedProtocol/MessageDispatcher.cs",
+        "SharedProtocol/MinecraftMessageDispatcher.cs",
+        "Assets/Scripts/Networking/Core/MessageDispatcher.cs"
+      ],
+      "dependencies": ["S68-CORE-006"]
+    },
+    {
+      "id": "S68-CORE-009",
+      "name": "SQLite database integration",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Database connection and operations with connection pooling and query optimization.",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/Database/*.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-010",
+      "name": "Player data persistence",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Save/load player data with inventory, position, and state management.",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/Models/Character.cs"
+      ],
+      "dependencies": ["S68-CORE-009"]
+    },
+    {
+      "id": "S68-CORE-011",
+      "name": "World state persistence",
+      "category": "Core",
+      "subcategory": "Database",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Save/load world state with chunk data and block modifications.",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Database/DatabaseHelper.cs",
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": ["S68-CORE-009"]
+    },
+    {
+      "id": "S68-CORE-012",
+      "name": "Basic collision detection",
+      "category": "Core",
+      "subcategory": "Physics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Octree-based collision system for entity-terrain and entity-entity collision.",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Physics/EntityCollisionSystem.cs",
+        "GameServer/World/Physics/EntityCollisionSystem.cs",
+        "Assets/Scripts/Minecraft/Physics/OctreeCollision.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-013",
+      "name": "Gravity simulation",
+      "category": "Core",
+      "subcategory": "Physics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Entity gravity and falling mechanics with ground detection.",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Systems/PhysicsSystem.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-012"]
+    },
+    {
+      "id": "S68-CORE-014",
+      "name": "Chunk-based rendering system",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Efficient chunk rendering with mesh generation and frustum culling.",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/ChunkRenderer.cs",
+        "Assets/Scripts/Minecraft/World/ChunkManager.cs",
+        "Assets/Scripts/Minecraft/World/ImprovedChunkManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-015",
+      "name": "Block mesh generation",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Dynamic block mesh creation with face culling and texture mapping.",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/BlockMeshGenerator.cs"
+      ],
+      "dependencies": ["S68-CORE-014"]
+    },
+    {
+      "id": "S68-CORE-016",
+      "name": "Basic lighting system",
+      "category": "Core",
+      "subcategory": "ClientCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Simple lighting calculations with block light and sky light.",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/World/LightingSystem.cs"
+      ],
+      "dependencies": ["S68-CORE-014"]
+    },
+    {
+      "id": "S68-CORE-017",
+      "name": "Basic player movement",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "WASD movement and mouse look with collision detection.",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-012", "S68-CORE-013"]
+    },
+    {
+      "id": "S68-CORE-018",
+      "name": "Mouse look controls",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Camera rotation controls with sensitivity settings.",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": ["S68-CORE-017"]
+    },
+    {
+      "id": "S68-CORE-019",
+      "name": "Block interaction controls",
+      "category": "Core",
+      "subcategory": "InputCore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Block placement/destruction with raycasting and validation.",
+      "order": 19,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-017"]
+    },
+    {
+      "id": "S68-CORE-020",
+      "name": "Basic HUD implementation",
+      "category": "Core",
+      "subcategory": "UICore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Health, hunger, and status display with hotbar.",
+      "order": 20,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/UI/MinecraftGameManager.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CORE-021",
+      "name": "Inventory display system",
+      "category": "Core",
+      "subcategory": "UICore",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Player inventory UI with slot management and item display.",
+      "order": 21,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Inventory/ClientInventorySnapshot.cs",
+        "GameServer/Handlers/InventoryHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-020"]
+    },
+    {
+      "id": "S68-CONTENT-001",
+      "name": "Hydrology-aware river generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "River generation adds cross-chunk floodplain bridge pass for seam-safe continuity with hydrology v25.",
+      "order": 22,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-002",
+      "name": "Hydrology-aware lake generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Lake generation adds floodplain terrace bridge to stabilize spillway continuity around terrace seams.",
+      "order": 23,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CONTENT-001"]
+    },
+    {
+      "id": "S68-CONTENT-003",
+      "name": "Hydrology-aware cave generation v25",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 1,
+      "description": "Cave generation adds vadose bypass seal pass to suppress unstable bypass openings near riparian seams.",
+      "order": 24,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "config/world.json"
+      ],
+      "dependencies": ["S68-CONTENT-001", "S68-CONTENT-002"]
+    },
+    {
+      "id": "S68-CONTENT-004",
+      "name": "Biome generation system",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Temperature/humidity gradient-based biomes with data-driven biome definitions.",
+      "order": 25,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/BiomeGenerationSystem.cs",
+        "config/biomes.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-005",
+      "name": "Ore distribution system",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Configurable ore rarity and distribution with depth-based spawning.",
+      "order": 26,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "config/blocks.json"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-006",
+      "name": "Structure generation framework",
+      "category": "Content",
+      "subcategory": "WorldGeneration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Dungeons, villages, and other structures with template-based generation.",
+      "order": 27,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Generation/Stages/DungeonGenerationStage.cs"
+      ],
+      "dependencies": ["S68-CORE-002"]
+    },
+    {
+      "id": "S68-CONTENT-007",
+      "name": "Basic block breaking/placing",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Fundamental block interaction with validation and synchronization.",
+      "order": 28,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs",
+        "GameServer/Handlers/WorldBlockHandler.cs"
+      ],
+      "dependencies": ["S68-CORE-019"]
+    },
+    {
+      "id": "S68-CONTENT-008",
+      "name": "Crafting system",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "2x2 and 3x3 crafting with recipe validation and data-driven recipes.",
+      "order": 29,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+        "GameServer/Handlers/CraftingHandler.cs",
+        "config/recipes.json"
+      ],
+      "dependencies": ["S68-CORE-021"]
+    },
+    {
+      "id": "S68-CONTENT-009",
+      "name": "Furnace smelting system",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Ore smelting mechanics with fuel consumption and progress tracking.",
+      "order": 30,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+        "GameServer/Handlers/CraftingHandler.cs"
+      ],
+      "dependencies": ["S68-CONTENT-008"]
+    },
+    {
+      "id": "S68-CONTENT-010",
+      "name": "Hunger and food mechanics",
+      "category": "Content",
+      "subcategory": "GameplayMechanics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Survival hunger system with food consumption and saturation.",
+      "order": 31,
+      "status": "in_progress",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Player/FoodConsumptionManager.cs",
+        "GameServer/Handlers/FoodSystemHandler.cs",
+        "GameServer/Systems/HealthAndHungerSystem.cs",
+        "config/hunger_config.json"
+      ],
+      "dependencies": ["S68-CORE-020"]
+    },
+    {
+      "id": "S68-CONTENT-011",
+      "name": "Basic player entity",
+      "category": "Content",
+      "subcategory": "EntitySystem",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Player representation with position, rotation, and state.",
+      "order": 32,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/Character.cs",
+        "GameServer/Models/Entity.cs",
+        "Assets/Scripts/Minecraft/Player/MinecraftPlayerController.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CONTENT-012",
+      "name": "Mob spawning system",
+      "category": "Content",
+      "subcategory": "EntitySystem",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Mob generation mechanics with spawn conditions and limits.",
+      "order": 33,
+      "status": "pending",
+      "artifacts": [
+        "GameServer/World/Spawning/MobSpawningSystem.cs",
+        "GameServer/World/Spawning/MobSpawningConfig.cs"
+      ],
+      "dependencies": ["S68-CONTENT-004"]
+    },
+    {
+      "id": "S68-CONTENT-013",
+      "name": "Basic block types",
+      "category": "Content",
+      "subcategory": "WorldContent",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "Stone, dirt, grass blocks with data-driven block definitions.",
+      "order": 34,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Models/BlockType.cs",
+        "GameServer/Models/BlockData.cs",
+        "config/blocks.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-CONTENT-014",
+      "name": "Basic block textures",
+      "category": "Content",
+      "subcategory": "ClientContent",
+      "layer": "Client",
+      "side": "client",
+      "priority": 1,
+      "description": "Block material textures with atlas mapping.",
+      "order": 35,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Texture/SpriteSheet/CommonBlockSheet.png"
+      ],
+      "dependencies": ["S68-CORE-015"]
+    },
+    {
+      "id": "S68-CONTENT-015",
+      "name": "Basic sound system",
+      "category": "Content",
+      "subcategory": "AudioContent",
+      "layer": "Client",
+      "side": "client",
+      "priority": 3,
+      "description": "Audio playback with 3D spatial audio support.",
+      "order": 36,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Audio/AudioManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-001",
+      "name": "Protobuf registry and descriptor diagnostics",
+      "category": "Utility",
+      "subcategory": "Diagnostics",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 2,
+      "description": "Enhanced protobuf diagnostics and registry validation for generated descriptors/bindings.",
+      "order": 37,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "config/proto_reference_report.json"
+      ],
+      "dependencies": ["S68-CORE-004"]
+    },
+    {
+      "id": "S68-UTIL-002",
+      "name": "Dummy client packet probe",
+      "category": "Utility",
+      "subcategory": "Testing",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Dummy protocol client validates packet round-trip and emits protocol reference diagnostics.",
+      "order": 38,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Testing/DummyProtocolClient.cs",
+        "GameServer/TestClient.cs",
+        "config/protocol_dummy_client.json",
+        "reports/proto_probe_report.json"
+      ],
+      "dependencies": ["S68-UTIL-001"]
+    },
+    {
+      "id": "S68-UTIL-003",
+      "name": "Data-driven JSON configuration parity",
+      "category": "Utility",
+      "subcategory": "Configuration",
+      "layer": "Shared",
+      "side": "shared",
+      "priority": 1,
+      "description": "JSON configuration and runtime override loading for server/client world-map and terrain generation.",
+      "order": 39,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/Configuration/DataDrivenConfigManager.cs",
+        "GameServer/Configuration/ConfigurationModels.cs",
+        "config/world.json",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ],
+      "dependencies": ["S68-CORE-002", "S68-CORE-003"]
+    },
+    {
+      "id": "S68-UTIL-004",
+      "name": "Basic server configuration",
+      "category": "Utility",
+      "subcategory": "ServerAdministration",
+      "layer": "Server",
+      "side": "server",
+      "priority": 3,
+      "description": "Server settings with JSON configuration file.",
+      "order": 40,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/ServerConfig.cs",
+        "config/server_config.json"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-005",
+      "name": "Chunk unloading for memory management",
+      "category": "Utility",
+      "subcategory": "Performance",
+      "layer": "Server",
+      "side": "server",
+      "priority": 2,
+      "description": "Memory optimization with chunk unloading and caching.",
+      "order": 41,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/ChunkData.cs",
+        "GameServer/World/WorldManager.cs"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "S68-UTIL-006",
+      "name": "Octree-based collision optimization",
+      "category": "Utility",
+      "subcategory": "ClientPerformance",
+      "layer": "Client",
+      "side": "client",
+      "priority": 2,
+      "description": "Collision optimization with octree spatial partitioning.",
+      "order": 42,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/Scripts/Minecraft/Physics/OctreeCollision.cs"
+      ],
+      "dependencies": ["S68-CORE-012"]
+    }
+  ],
+  "summary": {
+    "coreCount": 21,
+    "contentCount": 15,
+    "utilityCount": 6,
+    "totalImplemented": 42,
+    "totalInProgress": 1,
+    "totalPending": 3,
+    "totalFeatures": 46
+  },
+  "implementationPriority": {
+    "phase1": {
+      "name": "Critical Core Infrastructure",
+      "description": "Essential systems for basic functionality",
+      "features": [
+        "S68-CORE-001",
+        "S68-CORE-002",
+        "S68-CORE-003",
+        "S68-CORE-004",
+        "S68-CORE-005",
+        "S68-CORE-006",
+        "S68-CORE-007",
+        "S68-CORE-008"
+      ]
+    },
+    "phase2": {
+      "name": "Core Content Implementation",
+      "description": "Core gameplay systems",
+      "features": [
+        "S68-CONTENT-001",
+        "S68-CONTENT-002",
+        "S68-CONTENT-003",
+        "S68-CONTENT-007",
+        "S68-CONTENT-008",
+        "S68-CONTENT-009",
+        "S68-CONTENT-010",
+        "S68-CONTENT-011",
+        "S68-CONTENT-013",
+        "S68-CONTENT-014",
+        "S68-CONTENT-015"
+      ]
+    },
+    "phase3": {
+      "name": "Advanced Features",
+      "description": "Complex gameplay elements",
+      "features": [
+        "S68-CONTENT-004",
+        "S68-CONTENT-005",
+        "S68-CONTENT-006",
+        "S68-CONTENT-012"
+      ]
+    },
+    "phase4": {
+      "name": "Polish and Enhancement",
+      "description": "Final touches and improvements",
+      "features": [
+        "S68-UTIL-001",
+        "S68-UTIL-002",
+        "S68-UTIL-003",
+        "S68-UTIL-004",
+        "S68-UTIL-005",
+        "S68-UTIL-006"
+      ]
+    }
+  }
+}
+

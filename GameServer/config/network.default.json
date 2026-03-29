@@ -1,0 +1,14 @@
+{
+  "ConnectionSettings": {
+    "ProtocolVersion": 1,
+    "MaxPacketSize": 262144,
+    "EnableCompression": true,
+    "CompressionThreshold": 512,
+    "EnableEncryption": false
+  },
+  "RateLimit": {
+    "MaxPacketsPerSecond": 120,
+    "BurstSize": 24,
+    "MaxQueuedPackets": 1024
+  }
+}

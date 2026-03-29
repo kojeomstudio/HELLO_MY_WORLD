@@ -1,0 +1,87 @@
+{
+  "date": "2026-01-19",
+  "session": "worldgen-hydrology-proto-sync",
+  "client": {
+    "core": [
+      "chunk streaming, mesh generation, and map-control hash validation",
+      "world map control preload with hydrology/erosion overlays",
+      "block interaction + inventory HUD with water-level awareness",
+      "lighting/fog tuned by biome moisture and river/lake masks",
+      "protobuf bootstrap + reconnect guards"
+    ],
+    "content": [
+      "biome-tinted terrain and foliage for rivers/wetlands",
+      "cave/river/lake visualization with erosion risk shading",
+      "structure hooks (dungeons, villages) respecting hydrology",
+      "crafting UI with data-driven recipes",
+      "particles + ambient audio for water/cave contexts"
+    ],
+    "util": [
+      "telemetry and debug overlays (chunk edges, hydrology, erosion risk)",
+      "JSON config loading from StreamingAssets (world + map-control profile)",
+      "proto desync/error reporting with handler coverage hints",
+      "localization scaffolding and hot-reload stubs"
+    ]
+  },
+  "server": {
+    "core": [
+      "world map control generation/caching with erosion-risk masks",
+      "hydrology/flow/erosion cache feeding improved terrain pipeline",
+      "session lifecycle, auth, and keepalive handlers",
+      "chunk save/load with profile hash and proto fingerprints"
+    ],
+    "content": [
+      "biome + loot tables (JSON-driven)",
+      "structure placement (dungeons/ores) respecting hydrology and erosion",
+      "cave/river/lake generation with riparian sealing",
+      "weather scheduler and progression events"
+    ],
+    "util": [
+      "config management via JSON (server-config, world.json, world_map_control_profile.json)",
+      "monitoring/logging and admin commands for map/profile reload",
+      "protobuf DTO registration/validation with startup fingerprints",
+      "data-driven tuning (drop rates, mob stats, XP curves)"
+    ]
+  },
+  "sequence": [
+    {
+      "order": 1,
+      "focus": "map-control-parity",
+      "details": "Refresh map-control profile hash and ensure Unity/Server share hydrology + erosion knobs (world_map_control_profile.json, world.json).",
+      "status": "in_progress"
+    },
+    {
+      "order": 2,
+      "focus": "terrain-synthesis",
+      "details": "Apply erosion-risk-aware hydrology masks to rivers/lakes/caves across server pipeline and MapGeneratorLib previews.",
+      "status": "in_progress"
+    },
+    {
+      "order": 3,
+      "focus": "protocol-audit",
+      "details": "Validate generated protobuf DTO registration and handler coverage; align client/server namespaces and imports.",
+      "status": "pending"
+    },
+    {
+      "order": 4,
+      "focus": "content-glue",
+      "details": "Wire biome/structure/mob placement to updated hydrology + erosion signals; ensure JSON tables reflect new masks.",
+      "status": "pending"
+    },
+    {
+      "order": 5,
+      "focus": "observability",
+      "details": "Telemetry overlays, proto fingerprint logging, and config parity checks after each build/run.",
+      "status": "pending"
+    }
+  ],
+  "data_sources": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/world.default.json",
+    "Assets/StreamingAssets/world-config.json",
+    "Assets/StreamingAssets/world-map-control.json",
+    "Assets/Generated/Protobuf",
+    "proto/*.proto"
+  ]
+}

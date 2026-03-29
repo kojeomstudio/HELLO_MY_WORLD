@@ -1,4 +1,7 @@
 using ProtoBuf;
+using RoomVisibility = SharedProtocol.Common.Enums.CoreEnums.RoomVisibility;
+using RoomStatus = SharedProtocol.Common.Enums.CoreEnums.RoomStatus;
+using RoomRole = SharedProtocol.Common.Enums.CoreEnums.RoomRole;
 
 namespace SharedProtocol;
 
@@ -55,6 +58,7 @@ public enum MessageType
     RespawnResponse = 84,
     PlayerDeath = 85,
     PlayerRespawnBroadcast = 86,
+    CombatEvent = 87,
 
     // 룸/로비 관련
     RoomListRequest = 90,
@@ -65,6 +69,25 @@ public enum MessageType
     RoomLeaveResponse = 95,
     RoomQueueUpdate = 96,
     RoomPromotionNotice = 97,
+
+    // AI 시스템 관련 (Server-Authoritative)
+    AIStateSyncBroadcast = 100,
+    AIAttackEventBroadcast = 101,
+    AIDeathEventBroadcast = 102,
+    AISpawnRequest = 103,
+    AISpawnResponse = 104,
+    AIDebugInfoRequest = 105,
+    AIDebugInfoResponse = 106,
+
+    // 전투 시스템 (PvP/PvE)
+    PlayerAttackRequest = 110,
+    PlayerAttackResponse = 111,
+    PlayerAttackBroadcast = 112,
+
+    // 명령어 시스템
+    CommandRequest = 120,
+    CommandResponse = 121,
+    CommandBroadcast = 122,
 }
 
 // 기본 데이터 구조
@@ -243,17 +266,20 @@ public class ServerStatusRequest
 }
 
 [ProtoContract]
-  public class ServerStatusResponse
-  {
-      [ProtoMember(1)] public int OnlinePlayers { get; set; }
-      [ProtoMember(2)] public string ServerVersion { get; set; } = string.Empty;
-      [ProtoMember(3)] public long ServerUptime { get; set; }
-      [ProtoMember(4)] public long ContainerHashMismatches { get; set; }
-      [ProtoMember(5)] public long TotalTrackedChunks { get; set; }
-      [ProtoMember(6)] public int ActiveChunkResidencyPlayers { get; set; }
-      [ProtoMember(7)] public int PeakChunksPerPlayer { get; set; }
-      [ProtoMember(8)] public string BusiestChunkPlayer { get; set; } = string.Empty;
-  }
+public class ServerStatusResponse
+{
+    [ProtoMember(1)] public int OnlinePlayers { get; set; }
+    [ProtoMember(2)] public string ServerVersion { get; set; } = string.Empty;
+    [ProtoMember(3)] public long ServerUptime { get; set; }
+    [ProtoMember(4)] public long ContainerHashMismatches { get; set; }
+    [ProtoMember(5)] public long TotalTrackedChunks { get; set; }
+    [ProtoMember(6)] public int ActiveChunkResidencyPlayers { get; set; }
+    [ProtoMember(7)] public int PeakChunksPerPlayer { get; set; }
+    [ProtoMember(8)] public string BusiestChunkPlayer { get; set; } = string.Empty;
+    [ProtoMember(9)] public long TotalDeaths { get; set; }
+    [ProtoMember(10)] public long TotalRespawns { get; set; }
+    [ProtoMember(11)] public long DeathsLastTenMinutes { get; set; }
+}
 
 [ProtoContract]
 public class PlayerInfoUpdate
@@ -513,30 +539,6 @@ public class RoomPromotionMessage
     [ProtoMember(4)] public RoomInfo? Room { get; set; }
 }
 
-public enum RoomVisibility
-{
-    Public = 0,
-    FriendsOnly = 1,
-    Private = 2
-}
-
-public enum RoomStatus
-{
-    Waiting = 0,
-    InGame = 1,
-    Completed = 2,
-    Locked = 3
-}
-
-public enum RoomRole
-{
-    Player = 0,
-    Host = 1,
-    Moderator = 2,
-    Spectator = 3,
-    Queue = 4
-}
-
 // 체력 및 허기 관련 메시지
 [ProtoContract]
 public class HealthActionRequest
@@ -546,6 +548,11 @@ public class HealthActionRequest
     [ProtoMember(3)] public int DamageType { get; set; }
     [ProtoMember(4)] public int HealType { get; set; }
     [ProtoMember(5)] public float Saturation { get; set; }
+    [ProtoMember(6)] public string SourcePlayerName { get; set; } = string.Empty;
+    [ProtoMember(7)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(8)] public int WeaponItemId { get; set; }
+    [ProtoMember(9)] public bool IsCritical { get; set; }
+    [ProtoMember(10)] public bool IsBlocked { get; set; }
 }
 
 [ProtoContract]
@@ -600,5 +607,76 @@ public class PlayerRespawnBroadcast
 {
     [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
     [ProtoMember(2)] public Vector3? RespawnPosition { get; set; }
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class CombatEventMessage
+{
+    [ProtoMember(1)] public string AttackerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string TargetName { get; set; } = string.Empty;
+    [ProtoMember(3)] public int DamageType { get; set; }
+    [ProtoMember(4)] public float RawDamage { get; set; }
+    [ProtoMember(5)] public float FinalDamage { get; set; }
+    [ProtoMember(6)] public float TargetRemainingHealth { get; set; }
+    [ProtoMember(7)] public bool IsCritical { get; set; }
+    [ProtoMember(8)] public bool IsBlocked { get; set; }
+    [ProtoMember(9)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(10)] public int WeaponItemId { get; set; }
+    [ProtoMember(11)] public long Timestamp { get; set; }
+}
+
+// 전투 시스템 관련 메시지
+[ProtoContract]
+public class PlayerAttackRequest
+{
+    [ProtoMember(1)] public string TargetPlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string WeaponName { get; set; } = string.Empty;
+    [ProtoMember(3)] public bool IsSprinting { get; set; }
+}
+
+[ProtoContract]
+public class PlayerAttackResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public float Damage { get; set; }
+    [ProtoMember(4)] public bool IsCritical { get; set; }
+    [ProtoMember(5)] public bool IsBlocked { get; set; }
+    [ProtoMember(6)] public float Knockback { get; set; }
+    [ProtoMember(7)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class PlayerAttackBroadcast
+{
+    [ProtoMember(1)] public string AttackerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string TargetName { get; set; } = string.Empty;
+    [ProtoMember(3)] public float Damage { get; set; }
+    [ProtoMember(4)] public bool IsCritical { get; set; }
+    [ProtoMember(5)] public Vector3? KnockbackVector { get; set; }
+    [ProtoMember(6)] public long Timestamp { get; set; }
+}
+
+// 명령어 시스템 관련 메시지
+[ProtoContract]
+public class CommandRequest
+{
+    [ProtoMember(1)] public string CommandText { get; set; } = string.Empty;
+}
+
+[ProtoContract]
+public class CommandResponse
+{
+    [ProtoMember(1)] public bool Success { get; set; }
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
+    [ProtoMember(3)] public long Timestamp { get; set; }
+}
+
+[ProtoContract]
+public class CommandBroadcast
+{
+    [ProtoMember(1)] public string PlayerName { get; set; } = string.Empty;
+    [ProtoMember(2)] public string Message { get; set; } = string.Empty;
     [ProtoMember(3)] public long Timestamp { get; set; }
 }

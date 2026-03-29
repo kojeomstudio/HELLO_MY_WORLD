@@ -1,0 +1,110 @@
+{
+  "date": "2026-01-31",
+  "session": "32",
+  "meta": {
+    "source_commits": [
+      "f3ed38a7",
+      "a57db682",
+      "51610e9f"
+    ],
+    "notes": "Refresh core/content/util features for hydrology-reservoir worldgen, map-control parity, and protocol tooling before implementation."
+  },
+  "client": {
+    "core": [
+      {
+        "id": "C32-CORE-01",
+        "order": 1,
+        "name": "Hydrology Reservoir Map Control",
+        "description": "Unity map control consumes updated hydrology reservoir profile/signature so chunk previews and streamed terrain stay aligned with server tuning.",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/StreamingAssets/world-map-control.json",
+          "Assets/Plugins/GameCommon.dll"
+        ],
+        "status": "completed",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "C32-CONTENT-01",
+        "order": 2,
+        "name": "Chunk Preview Cave/River/Lake Stabilization",
+        "description": "MapGeneratorLib hydrology fields apply reservoir smoothing and riparian cave guards so rivers, lakes, and caves render without chunk seams or flooded ceilings.",
+        "files": [
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json"
+        ],
+        "status": "completed",
+        "priority": "high"
+      }
+    ],
+    "utility": [
+      {
+        "id": "C32-UTIL-01",
+        "order": 3,
+        "name": "Data-Driven Preview Config Sync",
+        "description": "StreamingAssets and Resources configs carry new hydrology reservoir and riparian guard fields to keep editor/runtime previews deterministic.",
+        "files": [
+          "Assets/StreamingAssets/world-config.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "completed",
+        "priority": "medium"
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "S32-CORE-01",
+        "order": 1,
+        "name": "Hydrology Reservoir Signature v7",
+        "description": "World map control manager and signature pipeline include reservoir smoothing knobs so chunk streaming honors the new hydrology seal.",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs",
+          "GameCommon/World/WorldMapSignature.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "completed",
+        "priority": "high"
+      }
+    ],
+    "content": [
+      {
+        "id": "S32-CONTENT-01",
+        "order": 2,
+        "name": "Riparian Cave/River/Lake Stabilization",
+        "description": "Terrain coordinator and generators apply reservoir-smoothed hydrology and riparian cave ceiling guards to reduce seam artifacts and flooding.",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+          "config/world.json"
+        ],
+        "status": "completed",
+        "priority": "high"
+      }
+    ],
+    "utility": [
+      {
+        "id": "S32-UTIL-01",
+        "order": 3,
+        "name": "Enhanced Dummy Protocol Probe",
+        "description": "Dummy protocol client validates chunk/world map packets against the registry and JSON-driven probe list before network probing.",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs",
+          "config/protocol_dummy_client.json",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "completed",
+        "priority": "medium"
+      }
+    ]
+  }
+}

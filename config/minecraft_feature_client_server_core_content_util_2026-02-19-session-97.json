@@ -1,0 +1,277 @@
+{
+  "version": "session-97",
+  "generated_at_utc": "2026-02-19T06:40:00Z",
+  "session": 97,
+  "date": "2026-02-19",
+  "signature": "2026-02-19-hydrology-riverlake-cave-v41",
+  "profileVersion": 45,
+  "features": [
+    {
+      "id": "S97-CORE-01",
+      "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+      "category": "Core",
+      "side": "shared",
+      "order": 1,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/GameCommon.csproj",
+        "SharedProtocol/SharedProtocol.csproj",
+        "GameServer/GameServer.csproj",
+        "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj"
+      ]
+    },
+    {
+      "id": "S97-CORE-02",
+      "name": "World Map Control Runtime Queue Policy v45",
+      "category": "Core",
+      "side": "server-client",
+      "order": 2,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapController.cs",
+        "GameServer/World/WorldGenerationConfig.cs",
+        "GameServer/Program.cs",
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S97-CORE-03",
+      "name": "Data-Driven World Profile/Config Sync",
+      "category": "Core",
+      "side": "shared",
+      "order": 3,
+      "status": "implemented",
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-config.json",
+        "Assets/StreamingAssets/world-map-control.json"
+      ]
+    },
+    {
+      "id": "S97-CORE-04",
+      "name": "Server Chunk Streaming + Adaptive Backpressure",
+      "category": "Core",
+      "side": "server",
+      "order": 4,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "GameCommon/World/WorldMapQueuePolicy.cs"
+      ]
+    },
+    {
+      "id": "S97-CORE-05",
+      "name": "Client Preview Chunk Queue + Load Shedding",
+      "category": "Core",
+      "side": "client",
+      "order": 5,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S97-CORE-06",
+      "name": "Unified Map Signature/Fingerprint Checks",
+      "category": "Core",
+      "side": "shared",
+      "order": 6,
+      "status": "implemented",
+      "artifacts": [
+        "GameCommon/World/WorldMapSignature.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-01",
+      "name": "Hydrology Sink-Stability Coupling (Server)",
+      "category": "Content",
+      "side": "server",
+      "order": 7,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-02",
+      "name": "Hydrology Sink-Stability Coupling (Unity Preview)",
+      "category": "Content",
+      "side": "client",
+      "order": 8,
+      "status": "implemented",
+      "artifacts": [
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-03",
+      "name": "Hydrology Sink-Stability Coupling (MapGeneratorLib)",
+      "category": "Content",
+      "side": "client",
+      "order": 9,
+      "status": "implemented",
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-04",
+      "name": "Cave Groundwater/Ventilation Stability",
+      "category": "Content",
+      "side": "server-client",
+      "order": 10,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-05",
+      "name": "River Tributary/Confluence/Avulsion Resistance",
+      "category": "Content",
+      "side": "server-client",
+      "order": 11,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world.json"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-06",
+      "name": "Lake Terrace/Spillway/Outflow Retention",
+      "category": "Content",
+      "side": "server-client",
+      "order": 12,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+        "config/world.json"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-07",
+      "name": "Biome-aware Terrain Height + Erosion Risk",
+      "category": "Content",
+      "side": "server",
+      "order": 13,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+        "GameServer/World/Generation/BiomeGenerationSystem.cs"
+      ]
+    },
+    {
+      "id": "S97-CONTENT-08",
+      "name": "Ore Distribution + Layered Resource Rules",
+      "category": "Content",
+      "side": "server",
+      "order": 14,
+      "status": "implemented",
+      "artifacts": [
+        "GameServer/World/Generation/OreDistributionSystem.cs",
+        "config/blocks.json",
+        "config/items.json"
+      ]
+    },
+    {
+      "id": "S97-UTIL-01",
+      "name": "Protobuf Registry + Descriptor Validation",
+      "category": "Utility",
+      "side": "shared",
+      "order": 15,
+      "status": "implemented",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+      ]
+    },
+    {
+      "id": "S97-UTIL-02",
+      "name": "Dummy Client Profile Version + Signature Guard",
+      "category": "Utility",
+      "side": "tooling",
+      "order": 16,
+      "status": "implemented",
+      "artifacts": [
+        "Tools/DummyMinecraftClient/Program.cs",
+        "config/dummy_minecraft_client.json"
+      ]
+    },
+    {
+      "id": "S97-UTIL-03",
+      "name": "JSON-Driven Runtime Configuration Governance",
+      "category": "Utility",
+      "side": "server-client",
+      "order": 17,
+      "status": "implemented",
+      "artifacts": [
+        "config/enhanced_world_map_control_server.json",
+        "config/enhanced_world_map_control_client.json",
+        "Assets/StreamingAssets/enhanced_world_map_control_client.json"
+      ]
+    },
+    {
+      "id": "S97-UTIL-04",
+      "name": "Data-Driven Gameplay Tables (JSON)",
+      "category": "Utility",
+      "side": "server-client",
+      "order": 18,
+      "status": "implemented",
+      "artifacts": [
+        "config/blocks.json",
+        "config/items.json",
+        "config/biomes.json",
+        "Assets/MyAssets/Scripts/DataFiles"
+      ]
+    }
+  ],
+  "categories": {
+    "core": [
+      "S97-CORE-01",
+      "S97-CORE-02",
+      "S97-CORE-03",
+      "S97-CORE-04",
+      "S97-CORE-05",
+      "S97-CORE-06"
+    ],
+    "content": [
+      "S97-CONTENT-01",
+      "S97-CONTENT-02",
+      "S97-CONTENT-03",
+      "S97-CONTENT-04",
+      "S97-CONTENT-05",
+      "S97-CONTENT-06",
+      "S97-CONTENT-07",
+      "S97-CONTENT-08"
+    ],
+    "utility": [
+      "S97-UTIL-01",
+      "S97-UTIL-02",
+      "S97-UTIL-03",
+      "S97-UTIL-04"
+    ]
+  },
+  "implementationSequence": [
+    "1. Plan update + recent commit gap review",
+    "2. Core/Content/Utility full catalog refresh",
+    "3. World-map control profile version upgrade (v45)",
+    "4. Server queue-policy v45 tuning",
+    "5. Client queue-policy v45 tuning",
+    "6. Server hydrology sink-stability pass",
+    "7. Unity preview hydrology sink-stability mirror",
+    "8. MapGeneratorLib hydrology sink-stability mirror",
+    "9. Dummy client profile version/signature fail-fast extension",
+    "10. Build + protocol probe + docs update"
+  ]
+}

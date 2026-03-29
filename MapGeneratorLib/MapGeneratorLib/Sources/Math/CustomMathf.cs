@@ -8,6 +8,8 @@ namespace MapGenLib
 {
     public class CustomMathf
     {
+        public const float kEpsilon = 1e-06f;
+
         // Returns the sine of angle /f/ in radians.
         public static float Sin(float f) { return (float)Math.Sin(f); }
 

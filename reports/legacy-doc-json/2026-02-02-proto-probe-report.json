@@ -1,0 +1,49 @@
+{
+  "RoundTripOk": true,
+  "DescriptorName": "EnhancedMinecraftProtocol.ChunkLoadRequest",
+  "NetworkProbeAttempted": true,
+  "NetworkProbeOk": false,
+  "NetworkError": "The operation was canceled.",
+  "ValidatedPackets": [
+    "PlayerStateUpdate",
+    "PlayerActionRequest",
+    "PlayerActionResponse",
+    "ChunkDataRequest",
+    "ChunkDataResponse",
+    "ChunkUnloadNotification",
+    "ChunkUnloadAcknowledge",
+    "BlockChangeNotification",
+    "EntitySpawn",
+    "EntityDespawn",
+    "TimeUpdate",
+    "WeatherChange",
+    "SoundEffect",
+    "ParticleEffect",
+    "ChunkLoadRequest"
+  ],
+  "MissingRequiredPackets": [
+    "MultiBlockChange",
+    "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
+    "ItemPickup",
+    "EntityUpdate",
+    "EntityInteract",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
+  ],
+  "OptionalUnregistered": [
+    "MultiBlockChange",
+    "InventoryUpdate",
+    "ItemUse",
+    "ItemDrop",
+    "ItemPickup",
+    "EntityUpdate",
+    "EntityInteract",
+    "ContainerOpen",
+    "ContainerClose",
+    "ContainerUpdate"
+  ],
+  "ReportPath": "C:\\TeamCity\\buildAgent\\work\\ab662da5acd87944\\reports\\proto_probe_report.json"
+}

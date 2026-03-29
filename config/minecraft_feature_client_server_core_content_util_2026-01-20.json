@@ -1,0 +1,69 @@
+{
+  "date": "2026-01-20",
+  "client": {
+    "core": [
+      "chunk streaming and mesh rebuilds gated by world-map control profile (render/simulation distance, chunk size)",
+      "world map control preload with hydrology/erosion overlays and profile hash validation",
+      "network bootstrap, reconnect, and keepalive handling using generated protobuf DTOs",
+      "block placement/break + inventory HUD that respects water level and cave moisture masks"
+    ],
+    "content": [
+      "biome-tinted terrain, rivers, lakes, and caves rendered with shared hydrology masks",
+      "shoreline, wetland, and aquifer visualization aligned to server pressure fields",
+      "structure/loot preview hooks aligned with hydrology-aware spawn tables",
+      "ambient audio/FX triggers for caves, rivers, lakes driven by JSON data"
+    ],
+    "util": [
+      "debug overlays for chunk bounds, hydrology/flow/erosion masks, and profile mismatches",
+      "JSON config loading from StreamingAssets (world + map-control profile) with version checks",
+      "protobuf desync/error reporting tied to handler coverage",
+      "localization and analytics stubs kept off-by-default via config switches"
+    ]
+  },
+  "server": {
+    "core": [
+      "world map control generation/caching and profile export with hydrology + erosion signals",
+      "improved hydrology/flow cache feeding caves, rivers, and lakes with seam-safe blending",
+      "session lifecycle/auth/keepalive handlers with protobuf registry guards",
+      "chunk save/load pipeline with profile hash + proto fingerprint tagging"
+    ],
+    "content": [
+      "biome/loot/structure tables (JSON-driven) keyed to hydrology and erosion risk",
+      "cave/river/lake generation with riparian sealing, inlet/outlet balancing, and cave ventilation",
+      "weather scheduler and progression events that consume world map control data",
+      "data-driven block/ore distribution synchronized with client previews"
+    ],
+    "util": [
+      "config management via JSON (server-config, world.json, world_map_control_profile.json) with reload hooks",
+      "monitoring/logging and admin commands for map/profile refresh",
+      "protobuf DTO registration/validation with startup fingerprints",
+      "data-driven tuning (drop rates, mob stats, XP curves) referenced in handlers"
+    ]
+  },
+  "sequence": [
+    {
+      "order": 1,
+      "focus": "map-control-parity",
+      "details": "Refresh world-map control profile and ensure client/server load identical hydrology + erosion knobs from JSON.",
+      "status": "pending"
+    },
+    {
+      "order": 2,
+      "focus": "terrain-synthesis",
+      "details": "Strengthen cave/river/lake generation with hydrology-driven inlet/outlet balance and erosion-aware sealing across server and MapGeneratorLib.",
+      "status": "pending"
+    },
+    {
+      "order": 3,
+      "focus": "protocol-integrity",
+      "details": "Validate protobuf registry usage in handlers and regenerate DTOs if drift is detected; keep using statements aligned to real types.",
+      "status": "pending"
+    },
+    {
+      "order": 4,
+      "focus": "observability-and-config",
+      "details": "Extend JSON configs for new hydrology/erosion knobs and expose debug overlays for profile mismatches.",
+      "status": "pending"
+    }
+  ]
+}

@@ -371,12 +371,24 @@ public class WorldArea : MonoBehaviour
                     //KojeomLogger.DebugLog(string.Format("this area ID : {0}, player contained AreaID : {1}", AreaUniqueID, containedAreaID));
                     Vector3 offsetPos = SubWorldStates[GetSubWorldUniqueID(playerPos)].SubWorldInstance.OffsetCoordinate;
                     // 플레이어가 위치한 서브월드의 offset 위치를 기준삼아
-                    // 8방향(대각선, 좌우상하)의 subWorld를 활성화 시킨다. 
+                    // 8방향(대각선, 좌우상하)의 subWorld를 활성화 시킨다. 맵 컨트롤 프로파일(render/sim 거리)에 맞춰 반경을 확장.
+                    int loadRadius = 1;
+                    if (WorldAreaManager.Instance != null && WorldAreaManager.Instance.MapControlProfile != null)
+                    {
+                        var tunedConfig = WorldConfigFile.Instance.GetConfig();
+                        int chunksPerSubWorld = Mathf.Max(1, tunedConfig.SubWorldSizeX / Mathf.Max(1, tunedConfig.ChunkSize));
+                        int desiredRadius = Mathf.CeilToInt(WorldAreaManager.Instance.MapControlProfile.RenderDistance / (float)chunksPerSubWorld);
+                        int simRadius = Mathf.CeilToInt(WorldAreaManager.Instance.MapControlProfile.SimulationDistance / (float)chunksPerSubWorld);
+                        loadRadius = Mathf.Max(1, Mathf.Max(desiredRadius, simRadius));
+                        int radiusLimit = Mathf.Max(1, Mathf.Min(WorldMapDataFile.Instance.MapData.SubWorldRow, WorldMapDataFile.Instance.MapData.SubWorldColumn));
+                        loadRadius = Mathf.Min(loadRadius, radiusLimit);
+                    }
+
                     // 플레이어 주변을 넘어서는 그 바깥의 영역들은 외부 파일로 저장시키는걸 비동기로..
                     List<Vector3> candidates = new List<Vector3>();
-                    for (int x = (int)offsetPos.x - 1; x <= (int)offsetPos.x + 1; x++)
+                    for (int x = (int)offsetPos.x - loadRadius; x <= (int)offsetPos.x + loadRadius; x++)
                     {
-                        for (int z = (int)offsetPos.z - 1; z <= (int)offsetPos.z + 1; z++) candidates.Add(new Vector3(x, offsetPos.y, z));
+                        for (int z = (int)offsetPos.z - loadRadius; z <= (int)offsetPos.z + loadRadius; z++) candidates.Add(new Vector3(x, offsetPos.y, z));
                     }
                     candidates.Add(new Vector3(offsetPos.x, offsetPos.y - 1, offsetPos.z));
 

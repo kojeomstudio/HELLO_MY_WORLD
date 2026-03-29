@@ -1,0 +1,152 @@
+{
+  "WorldGenerationConfig": {
+    "WorldHeight": 256,
+    "ChunkSize": 16,
+    "SeaLevel": 62,
+    "Seed": 12345,
+    "BiomeConfig": {
+      "OceanBiome": {
+        "HeightModifier": -20,
+        "SurfaceBlock": "Sand",
+        "SubSurfaceBlock": "Sandstone"
+      },
+      "BeachBiome": {
+        "HeightModifier": -5,
+        "SurfaceBlock": "Sand",
+        "SubSurfaceBlock": "Sandstone"
+      },
+      "PlainsBiome": {
+        "HeightModifier": 0,
+        "SurfaceBlock": "Grass",
+        "SubSurfaceBlock": "Dirt"
+      },
+      "ForestBiome": {
+        "HeightModifier": 5,
+        "SurfaceBlock": "Grass",
+        "SubSurfaceBlock": "Dirt"
+      },
+      "DesertBiome": {
+        "HeightModifier": 10,
+        "SurfaceBlock": "Sand",
+        "SubSurfaceBlock": "Sandstone"
+      },
+      "MountainsBiome": {
+        "HeightModifier": 20,
+        "SurfaceBlock": "Stone",
+        "SubSurfaceBlock": "Stone"
+      }
+    },
+    "Caves": {
+      "EnableCaves": true,
+      "UseImprovedCaves": true,
+      "CaveConfig": {
+        "HorizontalFrequency": 0.02,
+        "VerticalFrequency": 0.01,
+        "Threshold": 0.5,
+        "SupportDensity": 0.3,
+        "RegionalMainCaveMinY": 10,
+        "RegionalMainCaveMaxY": 50,
+        "CeilingStabilityWeight": 0.2,
+        "MoistureRetentionWeight": 0.1,
+        "SupportFlowBias": 0.1,
+        "RiverSuppressionWeight": 0.15,
+        "StabilitySmoothIterations": 2,
+        "StabilitySmoothBlend": 0.6,
+        "EdgeSealStrength": 0.3,
+        "SupportPillarChance": 0.05,
+        "RiparianPlugDepth": 4
+      }
+    },
+    "Water": {
+      "EnableRivers": true,
+      "UseImprovedRivers": true,
+      "EnableLakes": true,
+      "UseImprovedLakes": true,
+      "GlobalWaterLevel": 62,
+      "RiverConfig": {
+        "RiverNoiseScale": 0.008,
+        "RiverCenterThreshold": 0.3,
+        "RiverIntensitySmoothIterations": 2,
+        "RiverIntensitySmoothBlend": 0.7,
+        "RiverConfluenceBoost": 0.2,
+        "HydrologySeamRelaxIterations": 3,
+        "HydrologySeamRelaxBlend": 0.4,
+        "HydrologyEdgeBlendRadius": 2,
+        "HydrologyEdgeFluxBlend": 0.3,
+        "HydrologyWarpFrequency": 0.001,
+        "HydrologyWarpAmplitude": 20.0,
+        "RiverGradientPenalty": 0.5,
+        "RiverReliefPenaltyWeight": 0.1,
+        "RiverAnisotropyWeight": 0.3,
+        "RiverHeadwaterStabilityWeight": 0.2,
+        "RiverFlowAlignmentWeight": 0.1,
+        "RiverProximitySuppression": 0.5
+      },
+      "LakeConfig": {
+        "MaxDepth": 8,
+        "LakeBasinSmoothIterations": 2,
+        "ShorelineBlend": 0.3,
+        "SpawnWeightBias": 0.1,
+        "RiverProximitySuppression": 0.5,
+        "ShorelineBufferRadius": 3,
+        "WetlandSaturationThreshold": 0.4
+      }
+    },
+    "Ores": {
+      "CoalOre": {
+        "VeinFrequency": 0.7,
+        "MinY": 5,
+        "MaxY": 40,
+        "VeinLengthMin": 5,
+        "VeinLengthMax": 15,
+        "BlockType": "CoalOre"
+      },
+      "IronOre": {
+        "VeinFrequency": 0.5,
+        "MinY": 10,
+        "MaxY": 60,
+        "VeinLengthMin": 5,
+        "VeinLengthMax": 12,
+        "BlockType": "IronOre"
+      },
+      "GoldOre": {
+        "VeinFrequency": 0.2,
+        "MinY": 20,
+        "MaxY": 40,
+        "VeinLengthMin": 3,
+        "VeinLengthMax": 8,
+        "BlockType": "GoldOre"
+      },
+      "DiamondOre": {
+        "VeinFrequency": 0.08,
+        "MinY": 5,
+        "MaxY": 20,
+        "VeinLengthMin": 2,
+        "VeinLengthMax": 6,
+        "BlockType": "DiamondOre"
+      }
+    },
+    "Vegetation": {
+      "TreeFrequency": 0.1,
+      "TallGrassFrequency": 0.3,
+      "FlowerFrequency": 0.05,
+      "CactusFrequency": 0.02,
+      "ReedsFrequency": 0.03,
+      "LilyPadFrequency": 0.02,
+      "TreeHeightMin": 4,
+      "TreeHeightMax": 7,
+      "TreeLeafRadius": 2
+    },
+    "Structures": {
+      "DungeonFrequency": 0.05,
+      "DungeonWidthMin": 5,
+      "DungeonWidthMax": 9,
+      "DungeonHeightMin": 4,
+      "DungeonHeightMax": 7,
+      "DungeonDepthMin": 5,
+      "DungeonDepthMax": 10,
+      "DungeonWallBlock": "Cobblestone",
+      "DungeonFloorBlock": "Cobblestone"
+    }
+  }
+}

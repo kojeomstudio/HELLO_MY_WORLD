@@ -1,0 +1,318 @@
+{
+    "version": "session-138-2026-03-01",
+    "generated_at_utc": "2026-03-01T12:00:00Z",
+    "features": [
+        {
+            "id": "S21-CORE-01",
+            "name": "Shared DLL Contract Baseline",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "공통 enum/코드(GameCommon.dll)를 서버/클라이언트가 동일 참조로 사용",
+            "order": 1,
+            "status": "implemented",
+            "artifacts": [
+                "GameCommon/GameCommon.csproj",
+                "GameCommon/World/SharedFeatureCatalog.cs",
+                "Assets/Plugins/GameCommon.dll"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "S21-CORE-02",
+            "name": "Proto Contract Registry",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "Google Protobuf 패킷 타입/디스크립터 바인딩 검증 경로 유지",
+            "order": 2,
+            "status": "implemented",
+            "artifacts": [
+                "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+                "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+                "GameServer/Program.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-01"
+            ]
+        },
+        {
+            "id": "S21-CORE-03",
+            "name": "Authoritative World Config",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "월드/맵 제어 설정을 JSON 데이터 기반으로 단일 소스에서 관리",
+            "order": 3,
+            "status": "implemented",
+            "artifacts": [
+                "config/world.json",
+                "GameServer/config/world.json",
+                "Assets/StreamingAssets/world-config.json"
+            ],
+            "dependencies": [
+                "S21-CORE-01"
+            ]
+        },
+        {
+            "id": "S21-CORE-04",
+            "name": "World Map Profile Baseline v66",
+            "category": "Core",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "HydrologySignature v62 + MapControlProfileVersion 66 기준 강제",
+            "order": 4,
+            "status": "implemented",
+            "artifacts": [
+                "GameCommon/World/SharedFeatureCatalog.cs",
+                "config/world_map_control_profile.json",
+                "Assets/StreamingAssets/world-map-control.json"
+            ],
+            "dependencies": [
+                "S21-CORE-03"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-01",
+            "name": "Deterministic River Seeds",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "강 생성 랜덤 경로를 좌표 기반 결정성 시드로 전환",
+            "order": 5,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedRiverGenerator.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-03"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-02",
+            "name": "Deterministic Lake Seeds",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "호수 생성 노이즈/에지 펄스를 좌표 기반 결정성 시드로 전환",
+            "order": 6,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+            ],
+            "dependencies": [
+                "S21-CONTENT-01"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-03",
+            "name": "Deterministic Cave Seeds",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "동굴 워프/노이즈/서포트 필러/엣지 씰링 랜덤 경로를 결정성 시드로 전환",
+            "order": 7,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedCaveGenerator.cs"
+            ],
+            "dependencies": [
+                "S21-CONTENT-01",
+                "S21-CONTENT-02"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-04",
+            "name": "Hydrology Coupled Terrain Coordinator",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "동굴/강/호수 상호작용을 TerrainCoordinator 파이프라인에서 통합",
+            "order": 8,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+                "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs"
+            ],
+            "dependencies": [
+                "S21-CONTENT-03"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-05",
+            "name": "Server World Map Controller",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "청크 생성/캐시/프로파일 재동기화/큐 압력 제어를 서버 권한으로 유지",
+            "order": 9,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/WorldMapController.cs",
+                "GameServer/World/WorldMapControlManager.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-04"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-06",
+            "name": "Client World Map Preview Controller",
+            "category": "Content",
+            "layer": "Client",
+            "side": "client",
+            "description": "StreamingAssets 프로파일 기반 로컬 미리보기 및 큐 정책 적용",
+            "order": 10,
+            "status": "implemented",
+            "artifacts": [
+                "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-04"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-07",
+            "name": "Biome and Ore Data Driven Generation",
+            "category": "Content",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "바이옴/광물 생성 파라미터를 JSON 데이터로 제어",
+            "order": 11,
+            "status": "implemented",
+            "artifacts": [
+                "config/biomes.json",
+                "config/enhanced_terrain_generation.json",
+                "GameServer/World/Generation/BiomeGenerationSystem.cs",
+                "GameServer/World/Generation/OreDistributionSystem.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-03"
+            ]
+        },
+        {
+            "id": "S21-CONTENT-08",
+            "name": "Network Chunk Stream Priority",
+            "category": "Content",
+            "layer": "Server",
+            "side": "server",
+            "description": "플레이어 근접 청크 우선순위와 적응형 압력 제어를 적용",
+            "order": 12,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/World/WorldMapControlManager.cs",
+                "GameCommon/World/WorldMapQueuePolicy.cs"
+            ],
+            "dependencies": [
+                "S21-CONTENT-05"
+            ]
+        },
+        {
+            "id": "S21-UTIL-01",
+            "name": "Config Parity Manifest Automation",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "config_parity_manifest.json 기반 서버/클라 설정 파일 미러 자동화",
+            "order": 13,
+            "status": "implemented",
+            "artifacts": [
+                "config/config_parity_manifest.json",
+                "GameServer/Program.cs"
+            ],
+            "dependencies": [
+                "S21-CORE-03"
+            ]
+        },
+        {
+            "id": "S21-UTIL-02",
+            "name": "Proto Generated Source Audit",
+            "category": "Utility",
+            "layer": "Server",
+            "side": "server",
+            "description": "Generated protobuf C# 파일 존재 여부와 디스크립터 요약 점검",
+            "order": 14,
+            "status": "implemented",
+            "artifacts": [
+                "Assets/Generated/Protobuf",
+                "GameServer/Program.cs",
+                "SharedProtocol/SharedProtocol.csproj"
+            ],
+            "dependencies": [
+                "S21-CORE-02"
+            ]
+        },
+        {
+            "id": "S21-UTIL-03",
+            "name": "Dummy Protocol Probe Client",
+            "category": "Utility",
+            "layer": "Server",
+            "side": "server",
+            "description": "프로토콜 라운드트립/커버리지/네트워크 프로브를 더미 클라이언트로 검증",
+            "order": 15,
+            "status": "implemented",
+            "artifacts": [
+                "GameServer/Testing/DummyProtocolClient.cs",
+                "config/protocol_dummy_client.json"
+            ],
+            "dependencies": [
+                "S21-CORE-02"
+            ]
+        },
+        {
+            "id": "S21-UTIL-04",
+            "name": "Standalone Dummy Minecraft Client Tool",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "클라/서버 패킷 프로토콜 테스트용 독립 실행 .NET 더미 클라이언트",
+            "order": 16,
+            "status": "implemented",
+            "artifacts": [
+                "Tools/DummyMinecraftClient/DummyMinecraftClient.csproj",
+                "Tools/DummyMinecraftClient/Program.cs",
+                "config/dummy_minecraft_client.json"
+            ],
+            "dependencies": [
+                "S21-UTIL-03"
+            ]
+        },
+        {
+            "id": "S21-UTIL-05",
+            "name": "Using and Reference Compile Verification",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "using/project 참조 유효성은 실제 빌드와 테스트 파이프라인으로 검증",
+            "order": 17,
+            "status": "implemented",
+            "artifacts": [
+                "SharedProtocol/SharedProtocol.csproj",
+                "GameServer/GameServer.csproj",
+                "GameCommon/GameCommon.csproj"
+            ],
+            "dependencies": [
+                "S21-UTIL-02"
+            ]
+        },
+        {
+            "id": "S21-UTIL-06",
+            "name": "Session Documentation and Reports",
+            "category": "Utility",
+            "layer": "Shared",
+            "side": "shared",
+            "description": "세션 결과를 README 및 docs 마크다운 문서로 지속 갱신",
+            "order": 18,
+            "status": "implemented",
+            "artifacts": [
+                "README.md",
+                "docs/session-138-implementation-summary.md",
+                "plans/2026-03-01-session-138-comprehensive-work-plan.md"
+            ],
+            "dependencies": [
+                "S21-UTIL-05"
+            ]
+        }
+    ]
+}

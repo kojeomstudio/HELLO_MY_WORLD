@@ -1,0 +1,101 @@
+{
+  "version": "2026-02-21",
+  "last_updated": "2026-02-21T00:00:00Z",
+  "categories": {
+    "core": [
+      {
+        "id": "core_world_map_control_sync",
+        "name": "World map control sync",
+        "applies_to": [
+          "client",
+          "server"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Keep Unity world map previews aligned with server-side hydrology/cave toggles via data-driven profile export and hash validation.",
+        "artifacts": [
+          "config/world_map_control_profile.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ]
+      },
+      {
+        "id": "core_terrain_hydrology_overhaul",
+        "name": "Terrain hydrology & caves",
+        "applies_to": [
+          "client"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Improve river bank shaping, lake shelves, and cave stability using moisture-aware thresholds and data-driven tuning.",
+        "artifacts": [
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+          "config/enhanced-terrain-config.json"
+        ]
+      },
+      {
+        "id": "core_protocol_contract_validation",
+        "name": "Protobuf contract validation",
+        "applies_to": [
+          "server",
+          "shared"
+        ],
+        "status": "in_progress",
+        "priority": "p0",
+        "description": "Ensure Google.Protobuf generated contracts are loaded from the expected assembly and registry bindings stay in sync.",
+        "artifacts": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs"
+        ]
+      }
+    ],
+    "content": [
+      {
+        "id": "content_world_features",
+        "name": "World feature presentation",
+        "applies_to": [
+          "client"
+        ],
+        "status": "planned",
+        "priority": "p1",
+        "description": "Expose hydrology overlays (rivers, lakes, caves) consistently in map UI and chunk rendering.",
+        "artifacts": [
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs"
+        ]
+      }
+    ],
+    "utility": [
+      {
+        "id": "util_data_driven_configs",
+        "name": "Data-driven config pipeline",
+        "applies_to": [
+          "client",
+          "server"
+        ],
+        "status": "stable",
+        "priority": "p0",
+        "description": "Manage environment, world, and feature toggles through JSON configs to keep authoring and runtime aligned.",
+        "artifacts": [
+          "config/world.json",
+          "config/enhanced-terrain-config.json",
+          "server-config.json",
+          "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json"
+        ]
+      }
+    ]
+  },
+  "implementation_order": [
+    "core_world_map_control_sync",
+    "core_terrain_hydrology_overhaul",
+    "core_protocol_contract_validation",
+    "util_data_driven_configs",
+    "content_world_features"
+  ],
+  "data_driven_configs": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/enhanced-terrain-config.json",
+    "Assets/MyAssets/Resources/TextAsset/GameWorld/WorldConfigData.json"
+  ],
+  "notes": "Lists the coordinated client/server tasks for the Minecraft feature set in core, content, and utility buckets. Keep this file updated when adding new protocol messages or terrain controls."
+}

@@ -1,5 +1,6 @@
 using Game.Auth;
 using Networking.Core;
+using Google.Protobuf;
 
 namespace Networking.Handlers
 {
@@ -15,12 +16,22 @@ namespace Networking.Handlers
             _transport = transport;
         }
 
-        /// <summary>Send login request through transport.</summary>
+        /// <summary>Send login request through transport with proper protobuf serialization.</summary>
         public void SendLogin(string user, string password)
         {
             var req = new LoginRequest { Username = user, Password = password };
-            // serialization placeholder
-            _transport.Send(new System.ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(req.Username)));
+
+            using var memoryStream = new System.IO.MemoryStream();
+            req.WriteTo(memoryStream);
+            var payload = memoryStream.ToArray();
+
+            var typeBytes = System.BitConverter.GetBytes((int)ClientMessageType.LoginRequest);
+            var framed = new byte[typeBytes.Length + payload.Length];
+            System.Buffer.BlockCopy(typeBytes, 0, framed, 0, typeBytes.Length);
+            System.Buffer.BlockCopy(payload, 0, framed, typeBytes.Length, payload.Length);
+
+            _transport.Send(new System.ArraySegment<byte>(framed));
         }
     }
 }
+

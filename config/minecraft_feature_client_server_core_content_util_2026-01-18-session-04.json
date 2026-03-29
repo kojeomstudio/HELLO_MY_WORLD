@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-01-18T12:00:00Z",
+  "version": "2026-01-18-session-04",
+  "scope": "minecraft client/server feature classification",
+  "categories": {
+    "core": {
+      "client": [
+        {
+          "id": "client-worldmap-preview",
+          "description": "World map preview generator uses hydrology-aware profile hash and protobuf handshake for chunk tiles."
+        },
+        {
+          "id": "client-profile-reload",
+          "description": "Profile reload/resync when server generation signature changes; JSON-driven profile defaults."
+        },
+        {
+          "id": "client-network-sync",
+          "description": "Protobuf world map request/response binding for chunk tiles and profile updates."
+        }
+      ],
+      "server": [
+        {
+          "id": "server-mapcontrol-pipeline",
+          "description": "WorldMapControlManager ties enhanced terrain pipeline and hydrology signature with cache-aware chunk streaming."
+        },
+        {
+          "id": "server-remote-profile",
+          "description": "Profile hash validation plus JSON defaults and regeneration when configs drift."
+        },
+        {
+          "id": "server-proto-routing",
+          "description": "WorldMapRequest/Response handlers using generated protobuf DTOs and compression."
+        }
+      ]
+    },
+    "content": {
+      "client": [
+        {
+          "id": "client-hydrology-visual",
+          "description": "Render rivers, lakes, and cave skylight overlays in previews using data-driven palettes."
+        },
+        {
+          "id": "client-biome-overlay",
+          "description": "Biome/height overlays sourced from config palettes."
+        }
+      ],
+      "server": [
+        {
+          "id": "server-river-delta",
+          "description": "Hydrology-guided river mask with confluence stability and delta wetland smoothing."
+        },
+        {
+          "id": "server-lake-basin",
+          "description": "Lake basins with wetland buffers and outflow carving tuned to hydrology and flow."
+        },
+        {
+          "id": "server-cave-support",
+          "description": "Cave mask that layers moisture stability, pillar placement, and ceiling sealing."
+        }
+      ]
+    },
+    "util": {
+      "client": [
+        {
+          "id": "client-config-loader",
+          "description": "Data-driven loaders for world map profile/config JSON with hash validation."
+        },
+        {
+          "id": "client-proto-diagnostics",
+          "description": "Log protobuf IDs for world map packets when mismatched."
+        }
+      ],
+      "server": [
+        {
+          "id": "server-config-guards",
+          "description": "Validation for world_map_control_profile.json and hydrology configs with SHA tracking."
+        },
+        {
+          "id": "server-telemetry",
+          "description": "Terrain pipeline telemetry output (flow, hydrology) for debugging protobuf responses."
+        }
+      ]
+    }
+  },
+  "implementationOrder": [
+    { "order": 1, "category": "core", "target": "server-mapcontrol-pipeline", "status": "planned" },
+    { "order": 2, "category": "content", "target": "server-river-delta", "status": "planned" },
+    { "order": 3, "category": "content", "target": "server-lake-basin", "status": "planned" },
+    { "order": 4, "category": "content", "target": "server-cave-support", "status": "planned" },
+    { "order": 5, "category": "core", "target": "client-worldmap-preview", "status": "planned" },
+    { "order": 6, "category": "core", "target": "client-profile-reload", "status": "planned" },
+    { "order": 7, "category": "util", "target": "server-config-guards", "status": "planned" },
+    { "order": 8, "category": "util", "target": "client-config-loader", "status": "planned" }
+  ],
+  "dataFiles": [
+    "config/world.json",
+    "config/world_map_control_profile.json",
+    "config/enhanced_terrain_generation.json",
+    "config/minecraft_feature_client_server_core_content_util_2026-01-18-session-04.json"
+  ],
+  "notes": "Use this list to track sequential implementation of core/content/util features needed for Minecraft client/server world map, hydrology, and protobuf flows."
+}

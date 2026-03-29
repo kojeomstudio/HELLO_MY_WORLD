@@ -1,0 +1,984 @@
+﻿{
+  "session": "165",
+  "generatedAt": "2026-03-13T18:30:00Z",
+  "codebaseVersion": "hydrology-v86-mapcontrol-v90-queue-v42",
+  "implementationSequence": [
+    {
+      "step": 1,
+      "title": "Core foundation sync (session 163)",
+      "status": "completed",
+      "artifacts": [
+        "GameCommon/World/SharedFeatureCatalog.cs",
+        "config/world.json",
+        "config/world_map_control_profile.json"
+      ]
+    },
+    {
+      "step": 2,
+      "title": "Terrain algorithm uplift to v86 (subsurface spillway convergence bridge)",
+      "status": "completed",
+      "artifacts": [
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs",
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+      ]
+    },
+    {
+      "step": 3,
+      "title": "Map-control architecture uplift to v90 (karst spillway queue coupling)",
+      "status": "completed",
+      "artifacts": [
+        "GameCommon/World/WorldMapQueuePolicy.cs",
+        "GameServer/World/WorldMapController.cs",
+        "config/world_map_control_queue_policy.json"
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Proto/runtime validation hardening (session 165)",
+      "status": "completed",
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+        "GameServer/Program.cs",
+        "GameServer/Testing/DummyProtocolClient.cs"
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Documentation update",
+      "status": "completed",
+      "artifacts": [
+        "README.md",
+        "docs/2026-03-13-session-165-implementation-report.md"
+      ]
+    }
+  ],
+  "categories": {
+    "core": {
+      "description": "Core Foundation & Infrastructure Features",
+      "features": [
+        {
+          "id": "CORE-001",
+          "name": "Shared DLL Contracts (GameCommon + SharedProtocol)",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameCommon/GameCommon.csproj",
+            "SharedProtocol/SharedProtocol.csproj",
+            "GameCommon/World/SharedFeatureCatalog.cs"
+          ]
+        },
+        {
+          "id": "CORE-002",
+          "name": "World Map Control Profile Sync",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "config/world_map_control_profile.json",
+            "GameServer/World/WorldMapControlProfile.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"
+          ]
+        },
+        {
+          "id": "CORE-003",
+          "name": "Chunk queue control and load shedding",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/WorldMapController.cs",
+            "GameServer/World/WorldMapControlManager.cs",
+            "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+          ]
+        },
+        {
+          "id": "CORE-004",
+          "name": "Protobuf packet registry and descriptor fingerprint",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtoFingerprint.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtoRuntime.cs"
+          ]
+        },
+        {
+          "id": "CORE-005",
+          "name": "Player Authentication & Session Management",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/SessionManager.cs",
+            "Assets/Scripts/Networking/Handlers/LoginHandler.cs"
+          ]
+        },
+        {
+          "id": "CORE-006",
+          "name": "Network Transport Layer (TCP)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/Scripts/Networking/Core/TcpNetworkTransport.cs",
+            "Assets/Scripts/Networking/Core/INetworkTransport.cs"
+          ]
+        },
+        {
+          "id": "CORE-007",
+          "name": "Message Dispatcher",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/Scripts/Networking/Core/MessageDispatcher.cs",
+            "SharedProtocol/MinecraftMessageDispatcher.cs"
+          ]
+        },
+        {
+          "id": "CORE-008",
+          "name": "Chunk Loading/Unloading System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/WorldMapController.cs",
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-009",
+          "name": "Block Placement & Destruction",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto",
+            "GameServer/Handlers/BlockHandler.cs"
+          ]
+        },
+        {
+          "id": "CORE-010",
+          "name": "Player Movement & Position Sync",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/Player/GamePlayerController.cs",
+            "proto/game_move.proto"
+          ]
+        },
+        {
+          "id": "CORE-011",
+          "name": "Game Time Management",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-012",
+          "name": "Weather System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-013",
+          "name": "World Border System",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "GameServer/World/WorldBorderSystem.cs"
+          ]
+        },
+        {
+          "id": "CORE-014",
+          "name": "Chat System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/game_chat.proto"
+          ]
+        },
+        {
+          "id": "CORE-015",
+          "name": "Command System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-016",
+          "name": "Entity State Synchronization",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "SharedProtocol/WorldSyncMessages.cs",
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-017",
+          "name": "Player Stats & Experience",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-018",
+          "name": "Combat & Damage System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-019",
+          "name": "Death & Respawn System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-020",
+          "name": "Active Effects System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-021",
+          "name": "Health & Hunger System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-022",
+          "name": "Particle Effects System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto",
+            "Assets/MyAssets/Scripts/ParticleSystem/GameParticleEffectManager.cs"
+          ]
+        },
+        {
+          "id": "CORE-023",
+          "name": "Sound Effects System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-024",
+          "name": "Achievement System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-025",
+          "name": "Statistics Tracking",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CORE-026",
+          "name": "Game Mode Management",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/common.proto"
+          ]
+        },
+        {
+          "id": "CORE-027",
+          "name": "World Seed Configuration",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/WorldSeedConfig.cs",
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CORE-028",
+          "name": "Block Type Registry",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameCommon/Blocks/BlockType.cs",
+            "GameCommon/Blocks/BlockRegistry.cs",
+            "GameCommon/Blocks/BlockProperties.cs"
+          ]
+        },
+        {
+          "id": "CORE-029",
+          "name": "Biome Type Registry",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/Models/BiomeType.cs",
+            "GameServer/World/Generation/BiomeGenerationSystem.cs"
+          ]
+        },
+        {
+          "id": "CORE-030",
+          "name": "Data-Driven Config Manager",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameCommon/Configuration/ConfigManager.cs",
+            "GameCommon/Configuration/UnifiedConfigManager.cs"
+          ]
+        },
+        {
+          "id": "CORE-031",
+          "name": "JSON Configuration Files",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "config/server.json",
+            "config/world.json",
+            "config/world_map_control_profile.json"
+          ]
+        },
+        {
+          "id": "CORE-032",
+          "name": "Common Enum Sharing via DLL",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameCommon/GameCommon.csproj",
+            "GameCommon/World/SharedFeatureCatalog.cs",
+            "SharedProtocol/Common/Enums/CoreEnums.cs",
+            "SharedProtocol/Common/Enums/WorldEnums.cs",
+            "SharedProtocol/Common/Enums/TerrainGenerationEnums.cs",
+            "SharedProtocol/Common/Enums/BiomeEnums.cs",
+            "SharedProtocol/Common/Enums/ItemEnums.cs",
+            "SharedProtocol/Common/Enums/CombatEnums.cs",
+            "SharedProtocol/Common/Enums/GameEnums.cs"
+          ]
+        }
+      ]
+    },
+    "content": {
+      "description": "Minecraft Gameplay & World Generation Features",
+      "features": [
+        {
+          "id": "CONTENT-001",
+          "name": "Hydrology-aware Cave Generation v86 (Subsurface Spillway Convergence)",
+          "side": "Server",
+          "status": "completed",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+            "GameServer/World/Generation/EnhancedCaveGenerator.cs",
+            "config/world.json",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-002",
+          "name": "River Thalweg/Anabranch Stabilization v86",
+          "side": "Server",
+          "status": "completed",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-003",
+          "name": "Lake Floodplain/Backwater Retention v86",
+          "side": "Server",
+          "status": "completed",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-004",
+          "name": "Integrated Cave-River-Lake Coupling Coordinator",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/ImprovedTerrainCoordinator.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-005",
+          "name": "Terrain Noise Generation",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+            "MapGeneratorLib/MapGeneratorLib/Sources/Noise/Noise.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-006",
+          "name": "Biome Generation",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Generation/BiomeGenerationSystem.cs",
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-007",
+          "name": "Ore Distribution",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "GameServer/World/Generation/OreDistributionSystem.cs",
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-008",
+          "name": "Tree Generation",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-009",
+          "name": "Dungeon Generation",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "config/world.json"
+          ]
+        },
+        {
+          "id": "CONTENT-010",
+          "name": "Inventory System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto",
+            "Assets/MyAssets/Scripts/UI/InGame/Popup/InventoryUIManager.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-011",
+          "name": "Hotbar System",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/CharacterBelt/BeltItemSelector.cs",
+            "Assets/MyAssets/Scripts/CharacterBelt/BeltItemBlockData.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-012",
+          "name": "Item Durability",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-013",
+          "name": "Item Enchantments",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-014",
+          "name": "Crafting System (2x2)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto",
+            "Assets/MyAssets/Scripts/UI/InGame/Popup/CraftItemUIManager.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-015",
+          "name": "Crafting Table (3x3)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-016",
+          "name": "Furnace Smelting",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-017",
+          "name": "Brewing Stand",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-018",
+          "name": "Enchanting Table",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-019",
+          "name": "Mob Spawning System",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/World/Spawning/MobSpawningSystem.cs",
+            "GameServer/World/Spawning/MobSpawningConfig.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-020",
+          "name": "Entity Types (Hostile Mobs)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-021",
+          "name": "Entity Types (Passive Mobs)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-022",
+          "name": "Entity Metadata System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-023",
+          "name": "Dropped Item Entities",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-024",
+          "name": "Experience Orbs",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-025",
+          "name": "Container System (Chest)",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto",
+            "SharedProtocol/MinecraftContainerMessages.cs"
+          ]
+        },
+        {
+          "id": "CONTENT-026",
+          "name": "Tile Entity System",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "proto/enhanced_minecraft_game.proto"
+          ]
+        },
+        {
+          "id": "CONTENT-027",
+          "name": "Water Physics System",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "GameServer/World/Physics/WaterPhysicsSystem.cs"
+          ]
+        }
+      ]
+    },
+    "utility": {
+      "description": "Operations / Debug / Performance Support Features",
+      "features": [
+        {
+          "id": "UTIL-001",
+          "name": "Queue Policy JSON Parity v42",
+          "side": "Server+Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "config/world_map_control_queue_policy.json",
+            "GameServer/config/world_map_control_queue_policy.json",
+            "Assets/StreamingAssets/world_map_control_queue_policy.json"
+          ]
+        },
+        {
+          "id": "UTIL-002",
+          "name": "Dummy Protocol Probe Client",
+          "side": "Server Tool",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/Testing/DummyProtocolClient.cs",
+            "config/protocol_dummy_client.json"
+          ]
+        },
+        {
+          "id": "UTIL-003",
+          "name": "Dummy Packet Round-Trip CLI Client",
+          "side": "Client Tool",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Tools/DummyMinecraftClient/Program.cs",
+            "config/dummy_minecraft_client.json"
+          ]
+        },
+        {
+          "id": "UTIL-004",
+          "name": "Data-Driven World/Profile Config",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "config/world.json",
+            "config/world_map_control_profile.json",
+            "Assets/StreamingAssets/world-config.json",
+            "Assets/StreamingAssets/world-map-control.json"
+          ]
+        },
+        {
+          "id": "UTIL-005",
+          "name": "Logging System",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/Utility/KojeomLogger.cs",
+            "GameServer/Logging/"
+          ]
+        },
+        {
+          "id": "UTIL-006",
+          "name": "Performance Monitoring",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "GameServer/GameServer.cs"
+          ]
+        },
+        {
+          "id": "UTIL-007",
+          "name": "Anti-Cheat Middleware",
+          "side": "Server",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "GameServer/Middleware/AntiCheatMiddleware.cs"
+          ]
+        },
+        {
+          "id": "UTIL-008",
+          "name": "Pathfinding (A*)",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/PathFinding/CustomAstar3D.cs"
+          ]
+        },
+        {
+          "id": "UTIL-009",
+          "name": "Collision Detection (AABB/OBB)",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomAABB.cs",
+            "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOBB.cs",
+            "Assets/MyAssets/Scripts/CustomStructure/Collision/AABBCollider.cs"
+          ]
+        },
+        {
+          "id": "UTIL-010",
+          "name": "Octree Spatial Partitioning",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomOctree.cs"
+          ]
+        },
+        {
+          "id": "UTIL-011",
+          "name": "Raycast System",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/CustomStructure/Collision/CustomRayCast.cs"
+          ]
+        },
+        {
+          "id": "UTIL-012",
+          "name": "Save/Load System",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/DataManageMent/SaveAndLoadManager.cs"
+          ]
+        },
+        {
+          "id": "UTIL-013",
+          "name": "LZF Compression",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/DataManageMent/LZFCompress.cs"
+          ]
+        },
+        {
+          "id": "UTIL-014",
+          "name": "Game DB Manager",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/DataManageMent/GameDBManager.cs",
+            "GameServer/Database/DatabaseHelper.cs"
+          ]
+        },
+        {
+          "id": "UTIL-015",
+          "name": "Data Table Readers",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/DataFiles/Tables/ItemTableReader.cs",
+            "Assets/MyAssets/Scripts/DataFiles/Tables/BlockProductTableReader.cs",
+            "Assets/MyAssets/Scripts/DataFiles/Tables/RawElementTableReader.cs"
+          ]
+        },
+        {
+          "id": "UTIL-016",
+          "name": "Game Data Manager",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/DataFiles/GameDataManager.cs"
+          ]
+        },
+        {
+          "id": "UTIL-017",
+          "name": "State Machine (Player)",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/StateMachine/StateMachineController.cs",
+            "Assets/MyAssets/Scripts/StateMachine/playerState/"
+          ]
+        },
+        {
+          "id": "UTIL-018",
+          "name": "State Machine (NPC)",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/StateMachine/ActorState/NPCState/"
+          ]
+        },
+        {
+          "id": "UTIL-019",
+          "name": "State Machine (Animal)",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/StateMachine/ActorState/AnimalState/"
+          ]
+        },
+        {
+          "id": "UTIL-020",
+          "name": "Game State Manager",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/StateMachine/GameStateManager.cs"
+          ]
+        },
+        {
+          "id": "UTIL-021",
+          "name": "AI Perception System",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/AI/PerceptionSystem.cs"
+          ]
+        },
+        {
+          "id": "UTIL-022",
+          "name": "Animation Controller",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/Animation/ActorAnimationController.cs"
+          ]
+        },
+        {
+          "id": "UTIL-023",
+          "name": "Coroutine Helper",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "low",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/Utility/KojeomCoroutineHelper.cs"
+          ]
+        },
+        {
+          "id": "UTIL-024",
+          "name": "Custom Utility Functions",
+          "side": "Client",
+          "status": "implemented",
+          "priority": "medium",
+          "artifacts": [
+            "Assets/MyAssets/Scripts/Utility/KojeomUtility.cs"
+          ]
+        },
+        {
+          "id": "UTIL-025",
+          "name": "Protocol Diagnostics",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs",
+            "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+          ]
+        },
+        {
+          "id": "UTIL-026",
+          "name": "Chunk Payload Builder",
+          "side": "Shared",
+          "status": "implemented",
+          "priority": "high",
+          "artifacts": [
+            "SharedProtocol/EnhancedMinecraft/ChunkPayloadBuilder.cs"
+          ]
+        }
+      ]
+    }
+  }
+}

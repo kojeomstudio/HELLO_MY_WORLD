@@ -1,0 +1,646 @@
+{
+  "date": "2026-01-28",
+  "meta": {
+    "hydrology_signature": "2026-01-28-hydrology-shield-v5-aquifer",
+    "map_control_profile_version": 8,
+    "source_commits": [
+      "97314dff",
+      "f418c0a6",
+      "b83e7370"
+    ],
+    "notes": "Comprehensive client/server feature categorization for all Minecraft functionality with core/content/util classification"
+  },
+  "client": {
+    "core": [
+      {
+        "id": "CL-CORE-01",
+        "name": "World Map Control + Preview",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+          "Assets/StreamingAssets/world-map-control.json"
+        ],
+        "status": "in-progress",
+        "notes": "Hydrology-aware previews with river/lake overlays and cave suppression tuned to aquifer shielding."
+      },
+      {
+        "id": "CL-CORE-02",
+        "name": "Network Proto Runtime",
+        "files": [
+          "Assets/MyAssets/Scripts/Network/NetworkManager.cs",
+          "Assets/Generated/Protobuf/EnhancedMinecraftGame.cs",
+          "Assets/Generated/Protobuf/GameWorld.cs"
+        ],
+        "status": "validated",
+        "notes": "Google.Protobuf bindings, dispatcher registration, and descriptor fingerprint checks."
+      },
+      {
+        "id": "CL-CORE-03",
+        "name": "Shared DLL Integration",
+        "files": [
+          "Assets/Plugins/GameCommon.dll",
+          "GameCommon/GameCommon.csproj"
+        ],
+        "status": "in-progress",
+        "notes": "Shared enums/contracts for world map signature + feature catalog consumed by Unity."
+      },
+      {
+        "id": "CL-CORE-04",
+        "name": "Player Authentication & Session",
+        "files": [
+          "Assets/MyAssets/Scripts/Network/NetworkManager.cs",
+          "SharedProtocol/Session.cs"
+        ],
+        "status": "completed",
+        "notes": "Basic player authentication and session management."
+      },
+      {
+        "id": "CL-CORE-05",
+        "name": "Chunk Management System",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Chunk loading/unloading with view distance optimization."
+      },
+      {
+        "id": "CL-CORE-06",
+        "name": "Block System Core",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/World/BlockSystem.cs"
+        ],
+        "status": "completed",
+        "notes": "Basic block placement and removal with type properties."
+      },
+      {
+        "id": "CL-CORE-07",
+        "name": "Player Movement & Physics",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Player/PlayerController.cs"
+        ],
+        "status": "completed",
+        "notes": "Basic player movement with collision detection."
+      },
+      {
+        "id": "CL-CORE-08",
+        "name": "Inventory System Core",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Inventory/InventoryManager.cs"
+        ],
+        "status": "completed",
+        "notes": "Basic inventory system with slot management."
+      }
+    ],
+    "content": [
+      {
+        "id": "CL-CONTENT-01",
+        "name": "Hydrology v5 Terrain Preview",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+          "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Client-side river/lake/cave visualization with aquifer damping and lake seepage continuity."
+      },
+      {
+        "id": "CL-CONTENT-02",
+        "name": "World Map UI",
+        "files": [
+          "Assets/Scripts/Minecraft/World/EnhancedWorldMapController.cs",
+          "Assets/MyAssets/Scripts/GameWorld/WorldAreaManager.cs"
+        ],
+        "status": "planned",
+        "notes": "UI toggles and overlays consuming refreshed profile hashes."
+      },
+      {
+        "id": "CL-CONTENT-03",
+        "name": "Player Health & Hunger System",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Player/PlayerHealthSystem.cs",
+          "Assets/MyAssets/Scripts/Minecraft/Player/PlayerHungerSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Health regeneration, hunger depletion, and food consumption mechanics."
+      },
+      {
+        "id": "CL-CONTENT-04",
+        "name": "Experience & Leveling System",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Player/ExperienceSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Experience gain, leveling, and enchantment points."
+      },
+      {
+        "id": "CL-CONTENT-05",
+        "name": "Crafting System",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Crafting/CraftingManager.cs",
+          "Assets/MyAssets/Scripts/Minecraft/Crafting/CraftingUI.cs"
+        ],
+        "status": "planned",
+        "notes": "2x2 and 3x3 crafting grids with recipe validation."
+      },
+      {
+        "id": "CL-CONTENT-06",
+        "name": "Item & Equipment System",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Items/ItemManager.cs",
+          "Assets/MyAssets/Scripts/Minecraft/Items/EquipmentManager.cs"
+        ],
+        "status": "planned",
+        "notes": "Tool tiers, durability, weapon damage, armor protection."
+      },
+      {
+        "id": "CL-CONTENT-07",
+        "name": "Mob Rendering & AI Client",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Mobs/MobRenderer.cs",
+          "Assets/MyAssets/Scripts/Minecraft/Mobs/MobAIClient.cs"
+        ],
+        "status": "planned",
+        "notes": "Mob visualization and client-side prediction."
+      },
+      {
+        "id": "CL-CONTENT-08",
+        "name": "Day/Night Cycle",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/World/DayNightCycle.cs"
+        ],
+        "status": "planned",
+        "notes": "Sun/moon movement, lighting changes, time-based events."
+      },
+      {
+        "id": "CL-CONTENT-09",
+        "name": "Weather System",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/World/WeatherSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Rain, snow, thunder effects with audio."
+      },
+      {
+        "id": "CL-CONTENT-10",
+        "name": "Particle & Sound Effects",
+        "files": [
+          "Assets/MyAssets/Scripts/Minecraft/Effects/ParticleSystem.cs",
+          "Assets/MyAssets/Scripts/Minecraft/Effects/SoundSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Block break particles, ambient sounds, UI feedback."
+      }
+    ],
+    "util": [
+      {
+        "id": "CL-UTIL-01",
+        "name": "Profile Reload/Hash Guard",
+        "files": [
+          "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Auto-reload streaming profile/config when hydrology signature or map profile version changes."
+      },
+      {
+        "id": "CL-UTIL-02",
+        "name": "Configuration Manager",
+        "files": [
+          "Assets/MyAssets/Scripts/Config/ClientConfigManager.cs"
+        ],
+        "status": "completed",
+        "notes": "JSON configuration loading and validation."
+      },
+      {
+        "id": "CL-UTIL-03",
+        "name": "Chat System",
+        "files": [
+          "Assets/MyAssets/Scripts/UI/ChatSystem.cs"
+        ],
+        "status": "completed",
+        "notes": "Basic chat display and input."
+      },
+      {
+        "id": "CL-UTIL-04",
+        "name": "Debug Tools",
+        "files": [
+          "Assets/MyAssets/Scripts/Debug/DebugManager.cs"
+        ],
+        "status": "completed",
+        "notes": "Debug visualization and testing tools."
+      },
+      {
+        "id": "CL-UTIL-05",
+        "name": "Performance Monitor",
+        "files": [
+          "Assets/MyAssets/Scripts/Debug/PerformanceMonitor.cs"
+        ],
+        "status": "planned",
+        "notes": "FPS counter, memory usage, network stats."
+      },
+      {
+        "id": "CL-UTIL-06",
+        "name": "Settings UI",
+        "files": [
+          "Assets/MyAssets/Scripts/UI/SettingsUI.cs"
+        ],
+        "status": "planned",
+        "notes": "Graphics, audio, and control settings."
+      },
+      {
+        "id": "CL-UTIL-07",
+        "name": "Statistics Display",
+        "files": [
+          "Assets/MyAssets/Scripts/UI/StatisticsUI.cs"
+        ],
+        "status": "planned",
+        "notes": "Player stats, achievements, and progress tracking."
+      }
+    ]
+  },
+  "server": {
+    "core": [
+      {
+        "id": "SV-CORE-01",
+        "name": "World Map Control Manager",
+        "files": [
+          "GameServer/World/WorldMapControlManager.cs",
+          "GameServer/World/WorldMapControlProfile.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Pipeline signature, profile generation, and chunk previews wired to hydrology v5."
+      },
+      {
+        "id": "SV-CORE-02",
+        "name": "Shared Protocol Wiring",
+        "files": [
+          "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+          "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+        ],
+        "status": "validated",
+        "notes": "Registry validation, fingerprint assertions, and packet bindings for dummy client tests."
+      },
+      {
+        "id": "SV-CORE-03",
+        "name": "Session Management",
+        "files": [
+          "GameServer/SessionManager.cs",
+          "SharedProtocol/Session.cs"
+        ],
+        "status": "completed",
+        "notes": "Player session lifecycle, connection handling."
+      },
+      {
+        "id": "SV-CORE-04",
+        "name": "Network Handler System",
+        "files": [
+          "GameServer/Network/EnhancedProtocolHandler.cs",
+          "GameServer/Handlers/"
+        ],
+        "status": "in-progress",
+        "notes": "Packet routing, message dispatchers, error handling."
+      },
+      {
+        "id": "SV-CORE-05",
+        "name": "World Manager",
+        "files": [
+          "GameServer/World/WorldManager.cs",
+          "GameServer/World/ChunkData.cs"
+        ],
+        "status": "in-progress",
+        "notes": "World state management, chunk tracking."
+      },
+      {
+        "id": "SV-CORE-06",
+        "name": "Authentication System",
+        "files": [
+          "GameServer/Handlers/LoginHandler.cs"
+        ],
+        "status": "completed",
+        "notes": "Player login, authentication, spawn handling."
+      },
+      {
+        "id": "SV-CORE-07",
+        "name": "Synchronization Manager",
+        "files": [
+          "GameServer/World/WorldSynchronizationManager.cs",
+          "GameServer/Synchronization/"
+        ],
+        "status": "in-progress",
+        "notes": "Block, chunk, entity synchronization."
+      },
+      {
+        "id": "SV-CORE-08",
+        "name": "Room Management",
+        "files": [
+          "GameServer/Room/RoomManager.cs",
+          "GameServer/Room/GameRoom.cs"
+        ],
+        "status": "completed",
+        "notes": "Room creation, player grouping, room state."
+      }
+    ],
+    "content": [
+      {
+        "id": "SV-CONTENT-01",
+        "name": "Improved Hydrology Masks",
+        "files": [
+          "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+          "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+          "GameServer/World/Generation/ImprovedLakeGenerator.cs"
+        ],
+        "status": "in-progress",
+        "notes": "River/lake feedback, flow memory, and shoreline seepage tuned for aquifer stability."
+      },
+      {
+        "id": "SV-CONTENT-02",
+        "name": "Cave Generator (Aquifer Shield)",
+        "files": [
+          "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+          "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+        ],
+        "status": "in-progress",
+        "notes": "Cave stability clamps linked to hydrology, river suppression, and erosion risk."
+      },
+      {
+        "id": "SV-CONTENT-03",
+        "name": "Terrain Generation Pipeline",
+        "files": [
+          "GameServer/World/Generation/TerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/EnhancedTerrainGenerationPipeline.cs",
+          "GameServer/World/Generation/Stages/"
+        ],
+        "status": "in-progress",
+        "notes": "Multi-stage terrain generation with biome, cave, river, lake, ore stages."
+      },
+      {
+        "id": "SV-CONTENT-04",
+        "name": "Biome Generation System",
+        "files": [
+          "GameServer/World/Generation/BiomeGenerationSystem.cs"
+        ],
+        "status": "completed",
+        "notes": "Biome distribution based on temperature and humidity."
+      },
+      {
+        "id": "SV-CONTENT-05",
+        "name": "Ore Distribution System",
+        "files": [
+          "GameServer/World/Generation/OreDistributionSystem.cs"
+        ],
+        "status": "completed",
+        "notes": "Ore generation with depth-based distribution."
+      },
+      {
+        "id": "SV-CONTENT-06",
+        "name": "Mob Spawning System",
+        "files": [
+          "GameServer/World/Spawning/MobSpawningSystem.cs",
+          "GameServer/World/Spawning/MobSpawningConfig.cs"
+        ],
+        "status": "planned",
+        "notes": "Mob spawning based on biome, light level, and time."
+      },
+      {
+        "id": "SV-CONTENT-07",
+        "name": "Mob AI Server",
+        "files": [
+          "GameServer/AI/ServerAIManager.cs"
+        ],
+        "status": "planned",
+        "notes": "Hostile and passive mob behaviors, pathfinding."
+      },
+      {
+        "id": "SV-CONTENT-08",
+        "name": "Combat System",
+        "files": [
+          "GameServer/Systems/CombatSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Damage calculation, knockback, death handling."
+      },
+      {
+        "id": "SV-CONTENT-09",
+        "name": "Health & Hunger System",
+        "files": [
+          "GameServer/Systems/HealthAndHungerSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Health regeneration, hunger mechanics, starvation damage."
+      },
+      {
+        "id": "SV-CONTENT-10",
+        "name": "Inventory System Server",
+        "files": [
+          "GameServer/Systems/InventorySystem.cs",
+          "GameServer/Handlers/InventoryHandler.cs"
+        ],
+        "status": "completed",
+        "notes": "Inventory management, item operations."
+      },
+      {
+        "id": "SV-CONTENT-11",
+        "name": "Crafting System Server",
+        "files": [
+          "GameServer/Handlers/CraftingHandler.cs",
+          "GameServer/Handlers/RecipeListHandler.cs"
+        ],
+        "status": "planned",
+        "notes": "Recipe validation, crafting operations."
+      },
+      {
+        "id": "SV-CONTENT-12",
+        "name": "Container System",
+        "files": [
+          "GameServer/Systems/ContainerSystem.cs",
+          "GameServer/Handlers/MinecraftContainerHandlers.cs"
+        ],
+        "status": "planned",
+        "notes": "Chests, furnaces, and other container interactions."
+      },
+      {
+        "id": "SV-CONTENT-13",
+        "name": "World Time System",
+        "files": [
+          "GameServer/Systems/WorldTimeSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Day/night cycle management, time-based events."
+      },
+      {
+        "id": "SV-CONTENT-14",
+        "name": "Weather System Server",
+        "files": [
+          "GameServer/Systems/WeatherSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Weather changes, thunder, lightning."
+      }
+    ],
+    "util": [
+      {
+        "id": "SV-UTIL-01",
+        "name": "Dummy Protocol Client",
+        "files": [
+          "GameServer/Testing/DummyProtocolClient.cs"
+        ],
+        "status": "planned",
+        "notes": "Round-trip framing for time, chunk load, and block change packets against registry."
+      },
+      {
+        "id": "SV-UTIL-02",
+        "name": "Map Profile Generator",
+        "files": [
+          "GameServer/Program.cs",
+          "config/world_map_control_profile.json"
+        ],
+        "status": "in-progress",
+        "notes": "Generates profile v8 artifacts and syncs hashes to Unity StreamingAssets."
+      },
+      {
+        "id": "SV-UTIL-03",
+        "name": "Configuration Manager",
+        "files": [
+          "GameServer/Configuration/DataDrivenConfigManager.cs",
+          "GameServer/ServerConfig.cs"
+        ],
+        "status": "completed",
+        "notes": "JSON configuration loading, validation, hot-reload."
+      },
+      {
+        "id": "SV-UTIL-04",
+        "name": "Database Helper",
+        "files": [
+          "GameServer/Database/DatabaseHelper.cs"
+        ],
+        "status": "completed",
+        "notes": "SQLite database operations for persistent data."
+      },
+      {
+        "id": "SV-UTIL-05",
+        "name": "Logger System",
+        "files": [
+          "GameServer/Utils/Logger.cs"
+        ],
+        "status": "completed",
+        "notes": "Structured logging with levels and file output."
+      },
+      {
+        "id": "SV-UTIL-06",
+        "name": "Performance Monitor",
+        "files": [
+          "GameServer/Utils/PerformanceMonitor.cs"
+        ],
+        "status": "completed",
+        "notes": "Server metrics, TPS tracking, resource usage."
+      },
+      {
+        "id": "SV-UTIL-07",
+        "name": "Command System",
+        "files": [
+          "GameServer/Systems/CommandSystem.cs",
+          "GameServer/Handlers/CommandHandler.cs"
+        ],
+        "status": "completed",
+        "notes": "Server commands, admin tools."
+      },
+      {
+        "id": "SV-UTIL-08",
+        "name": "Permission System",
+        "files": [
+          "GameServer/Systems/PermissionSystem.cs"
+        ],
+        "status": "planned",
+        "notes": "Player permissions, admin levels."
+      },
+      {
+        "id": "SV-UTIL-09",
+        "name": "Anti-Cheat Middleware",
+        "files": [
+          "GameServer/Middleware/AntiCheatMiddleware.cs"
+        ],
+        "status": "planned",
+        "notes": "Movement validation, speed checks, block modification validation."
+      },
+      {
+        "id": "SV-UTIL-10",
+        "name": "Config Validator",
+        "files": [
+          "GameServer/Utils/ConfigValidator.cs"
+        ],
+        "status": "completed",
+        "notes": "Configuration schema validation."
+      },
+      {
+        "id": "SV-UTIL-11",
+        "name": "Error Handler",
+        "files": [
+          "GameServer/Utils/ErrorHandler.cs"
+        ],
+        "status": "completed",
+        "notes": "Centralized error handling and reporting."
+      }
+    ]
+  },
+  "implementation_order": [
+    "SV-CORE-01",
+    "SV-CONTENT-01",
+    "SV-CONTENT-02",
+    "CL-CORE-01",
+    "CL-CONTENT-01",
+    "SV-UTIL-01",
+    "SV-UTIL-02",
+    "SV-CORE-04",
+    "SV-CORE-07",
+    "SV-CONTENT-03",
+    "SV-CONTENT-06",
+    "SV-CONTENT-07",
+    "SV-CONTENT-08",
+    "SV-CONTENT-09",
+    "CL-CONTENT-03",
+    "CL-CONTENT-04",
+    "CL-CONTENT-05",
+    "CL-CONTENT-06",
+    "CL-CONTENT-07",
+    "CL-CONTENT-08",
+    "CL-CONTENT-09",
+    "CL-CONTENT-10",
+    "CL-UTIL-05",
+    "CL-UTIL-06",
+    "CL-UTIL-07",
+    "SV-UTIL-08",
+    "SV-UTIL-09"
+  ],
+  "dependencies": {
+    "terrain_generation": [
+      "SV-CONTENT-01",
+      "SV-CONTENT-02",
+      "SV-CONTENT-03",
+      "SV-CONTENT-04",
+      "SV-CONTENT-05"
+    ],
+    "player_systems": [
+      "CL-CONTENT-03",
+      "CL-CONTENT-04",
+      "SV-CONTENT-08",
+      "SV-CONTENT-09"
+    ],
+    "inventory_crafting": [
+      "CL-CONTENT-05",
+      "CL-CONTENT-06",
+      "SV-CONTENT-10",
+      "SV-CONTENT-11",
+      "SV-CONTENT-12"
+    ],
+    "mobs_ai": [
+      "SV-CONTENT-06",
+      "SV-CONTENT-07",
+      "CL-CONTENT-07"
+    ],
+    "world_environment": [
+      "CL-CONTENT-08",
+      "CL-CONTENT-09",
+      "CL-CONTENT-10",
+      "SV-CONTENT-13",
+      "SV-CONTENT-14"
+    ]
+  }
+}

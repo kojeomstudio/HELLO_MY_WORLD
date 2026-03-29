@@ -1,63 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{945056CA-D86A-42C7-9D91-04E6CA18CEE3}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>MapGeneratorLib</RootNamespace>
-    <AssemblyName>MapGeneratorLib</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup>
-    <StartupObject />
-  </PropertyGroup>
-  <PropertyGroup>
-    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-  </PropertyGroup>
+
   <ItemGroup>
+    <Compile Include="Sources\**\*.cs" />
     <None Include="App.config" />
   </ItemGroup>
-    <ItemGroup>
-      <Compile Include="Sources\Core\MainEntry.cs" />
-      <Compile Include="Sources\Math\CustomMathf.cs" />
-      <Compile Include="Sources\Math\CustomVector2.cs" />
-      <Compile Include="Sources\Math\CustomVector3.cs" />
-      <Compile Include="Sources\Algorithms\EnviromentGenAlgorithms.cs" />
-      <Compile Include="Sources\Algorithms\WorldGenAlgorithms.cs" />
-      <Compile Include="Sources\Algorithms\WorldGenerateUtils.cs" />
-      <Compile Include="Sources\Noise\Noise.cs" />
-      <Compile Include="Sources\Utils\Utilitys.cs" />
-    </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PreBuildEvent>
-    </PreBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(TargetDir)$(TargetFileName)" "C:\Workspaces\Unity3DWorkSpace\HELLO_MY_WORLD\Assets\Plugins";
-copy /Y "$(TargetDir)$(TargetFileName)" "C:\Workspaces\Unity3DWorkSpace\HELLO_MY_WORLD\KojeomNetWorkSpace\HMWGameServer\libs";</PostBuildEvent>
-  </PropertyGroup>
 </Project>

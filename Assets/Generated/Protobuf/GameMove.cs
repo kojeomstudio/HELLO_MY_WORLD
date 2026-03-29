@@ -24,14 +24,15 @@ namespace Game.Move {
     static GameMoveReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "Cg9nYW1lX21vdmUucHJvdG8SCUdhbWUuTW92ZRoPZ2FtZV9jb3JlLnByb3Rv",
-            "IlIKC01vdmVSZXF1ZXN0EisKD3RhcmdldF9wb3NpdGlvbhgBIAEoCzISLkdh",
-            "bWUuQ29yZS5WZWN0b3IzEhYKDm1vdmVtZW50X3NwZWVkGAIgASgCIlwKDE1v",
-            "dmVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEigKDG5ld19wb3NpdGlvbhgC",
-            "IAEoCzISLkdhbWUuQ29yZS5WZWN0b3IzEhEKCXRpbWVzdGFtcBgDIAEoA0IM",
-            "qgIJR2FtZS5Nb3ZlYgZwcm90bzM="));
+            "Cg9nYW1lX21vdmUucHJvdG8SCUdhbWUuTW92ZRoMY29tbW9uLnByb3RvGg9n",
+            "YW1lX2NvcmUucHJvdG8iXQoLTW92ZVJlcXVlc3QSNgoPdGFyZ2V0X3Bvc2l0",
+            "aW9uGAEgASgLMh0uTWluZWNyYWZ0R2FtZS5Db21tb24uVmVjdG9yMxIWCg5t",
+            "b3ZlbWVudF9zcGVlZBgCIAEoAiJnCgxNb3ZlUmVzcG9uc2USDwoHc3VjY2Vz",
+            "cxgBIAEoCBIzCgxuZXdfcG9zaXRpb24YAiABKAsyHS5NaW5lY3JhZnRHYW1l",
+            "LkNvbW1vbi5WZWN0b3IzEhEKCXRpbWVzdGFtcBgDIAEoA0IMqgIJR2FtZS5N",
+            "b3ZlYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Game.Core.GameCoreReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::MinecraftGame.Common.CommonReflection.Descriptor, global::Game.Core.GameCoreReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Game.Move.MoveRequest), global::Game.Move.MoveRequest.Parser, new[]{ "TargetPosition", "MovementSpeed" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Game.Move.MoveResponse), global::Game.Move.MoveResponse.Parser, new[]{ "Success", "NewPosition", "Timestamp" }, null, null, null, null)
@@ -89,10 +90,10 @@ namespace Game.Move {
 
     /// <summary>Field number for the "target_position" field.</summary>
     public const int TargetPositionFieldNumber = 1;
-    private global::Game.Core.Vector3 targetPosition_;
+    private global::MinecraftGame.Common.Vector3 targetPosition_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Game.Core.Vector3 TargetPosition {
+    public global::MinecraftGame.Common.Vector3 TargetPosition {
       get { return targetPosition_; }
       set {
         targetPosition_ = value;
@@ -211,7 +212,7 @@ namespace Game.Move {
       }
       if (other.targetPosition_ != null) {
         if (targetPosition_ == null) {
-          TargetPosition = new global::Game.Core.Vector3();
+          TargetPosition = new global::MinecraftGame.Common.Vector3();
         }
         TargetPosition.MergeFrom(other.TargetPosition);
       }
@@ -235,7 +236,7 @@ namespace Game.Move {
             break;
           case 10: {
             if (targetPosition_ == null) {
-              TargetPosition = new global::Game.Core.Vector3();
+              TargetPosition = new global::MinecraftGame.Common.Vector3();
             }
             input.ReadMessage(TargetPosition);
             break;
@@ -261,7 +262,7 @@ namespace Game.Move {
             break;
           case 10: {
             if (targetPosition_ == null) {
-              TargetPosition = new global::Game.Core.Vector3();
+              TargetPosition = new global::MinecraftGame.Common.Vector3();
             }
             input.ReadMessage(TargetPosition);
             break;
@@ -338,10 +339,10 @@ namespace Game.Move {
 
     /// <summary>Field number for the "new_position" field.</summary>
     public const int NewPositionFieldNumber = 2;
-    private global::Game.Core.Vector3 newPosition_;
+    private global::MinecraftGame.Common.Vector3 newPosition_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Game.Core.Vector3 NewPosition {
+    public global::MinecraftGame.Common.Vector3 NewPosition {
       get { return newPosition_; }
       set {
         newPosition_ = value;
@@ -476,7 +477,7 @@ namespace Game.Move {
       }
       if (other.newPosition_ != null) {
         if (newPosition_ == null) {
-          NewPosition = new global::Game.Core.Vector3();
+          NewPosition = new global::MinecraftGame.Common.Vector3();
         }
         NewPosition.MergeFrom(other.NewPosition);
       }
@@ -504,7 +505,7 @@ namespace Game.Move {
           }
           case 18: {
             if (newPosition_ == null) {
-              NewPosition = new global::Game.Core.Vector3();
+              NewPosition = new global::MinecraftGame.Common.Vector3();
             }
             input.ReadMessage(NewPosition);
             break;
@@ -534,7 +535,7 @@ namespace Game.Move {
           }
           case 18: {
             if (newPosition_ == null) {
-              NewPosition = new global::Game.Core.Vector3();
+              NewPosition = new global::MinecraftGame.Common.Vector3();
             }
             input.ReadMessage(NewPosition);
             break;

@@ -1,0 +1,165 @@
+{
+  "version": "2026-02-16",
+  "summary": "Flow-shadowed hydrology that keeps caves/rivers/lakes stitched across seams, hashed map-control parity, and stronger protobuf origin checks.",
+  "core": [
+    {
+      "id": "core.hydrology_flow_shadow",
+      "name": "Flow-shadow hydrology masks",
+      "description": "Blend hydrology + flow shadows so caves, rivers, and lakes share stable, seam-safe masks.",
+      "owners": [
+        "GameServer/World/Generation",
+        "Assets/Scripts/Minecraft/World",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms"
+      ],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ]
+    },
+    {
+      "id": "core.worldmap_control",
+      "name": "World-map control sync",
+      "description": "Keep render/simulation/hydrology + enhanced-terrain knobs hashed across server JSON and Unity StreamingAssets with hot reload.",
+      "owners": [
+        "GameServer/World/WorldMapControlManager.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs",
+        "Assets/StreamingAssets/config"
+      ],
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/StreamingAssets/enhanced-terrain-config.json",
+        "Assets/StreamingAssets/world-config.json"
+      ]
+    },
+    {
+      "id": "core.protocol_guard",
+      "name": "Protocol origin guard",
+      "description": "Descriptor origin + fingerprint + parser coverage validation before handlers wire up.",
+      "owners": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/*",
+        "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+        "proto/*.proto"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content.river_meanders",
+      "name": "Flow-aware meanders",
+      "description": "Tributary-friendly river pressure that mixes flow-shadow masks, confluence boosts, and meander jitter.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "content.lake_shore_complexity",
+      "name": "Stable lake rims",
+      "description": "Lake basins with shore complexity, wetland padding, and downhill outflow carving tied to hydrology masks.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "content.cave_resilience",
+      "name": "Hydrology-resilient caves",
+      "description": "Cave thresholds dampened by flow shadows and edge stability; moisture-biased support pillars.",
+      "owners": [
+        "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+        "Assets/Scripts/Minecraft/World/EnhancedTerrainGenerator.cs",
+        "MapGeneratorLib/MapGeneratorLib/Sources/Algorithms/WorldGenAlgorithms.cs"
+      ],
+      "artifacts": []
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util.config_profiles",
+      "name": "Data-driven config parity",
+      "description": "JSON-first configs for worldgen and map control; keep server/client copies hashed.",
+      "owners": [
+        "config/world.json",
+        "config/enhanced-terrain-config.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/StreamingAssets/enhanced-terrain-config.json"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "util.proto_ci",
+      "name": "Protobuf CI gates",
+      "description": "Registry coverage + parser binding + descriptor origin checks baked into shared validation helpers.",
+      "owners": [
+        "SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs",
+        "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "util.tests_builds",
+      "name": "Build + smoke tests",
+      "description": "Dotnet builds for SharedProtocol/GameServer and protobuf handler smoke tests.",
+      "owners": ["dotnet build SharedProtocol/SharedProtocol.csproj", "dotnet build GameServer/GameServer.csproj"],
+      "artifacts": []
+    }
+  ],
+  "implementation_order": [
+    {
+      "phase": "1",
+      "name": "Flow-shadow worldgen",
+      "items": [
+        "core.hydrology_flow_shadow",
+        "content.river_meanders",
+        "content.lake_shore_complexity"
+      ]
+    },
+    {
+      "phase": "2",
+      "name": "Control + protocol guard",
+      "items": [
+        "core.worldmap_control",
+        "core.protocol_guard",
+        "util.proto_ci"
+      ]
+    },
+    {
+      "phase": "3",
+      "name": "Data + tests",
+      "items": [
+        "util.config_profiles",
+        "util.tests_builds",
+        "content.cave_resilience"
+      ]
+    }
+  ],
+  "data_sources": {
+    "server": [
+      "config/world.json",
+      "config/world_map_control_profile.json",
+      "config/enhanced-terrain-config.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/world-map-control.json",
+      "Assets/StreamingAssets/enhanced-terrain-config.json",
+      "Assets/StreamingAssets/world-config.json"
+    ],
+    "proto": [
+      "proto/*.proto",
+      "SharedProtocol/EnhancedMinecraft/*"
+    ]
+  }
+}

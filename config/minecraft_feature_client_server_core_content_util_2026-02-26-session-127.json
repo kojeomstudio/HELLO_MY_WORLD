@@ -1,0 +1,327 @@
+﻿{
+    "version":  "2026-02-26-session-127",
+    "generated_at_utc":  "2026-02-26T12:12:14.1435319Z",
+    "signature":  "2026-02-26-hydrology-riverlake-cave-v56",
+    "mapControlProfileVersion":  60,
+    "features":  [
+                     {
+                         "id":  "S27-CORE-01",
+                         "name":  "Shared DLL Contract Baseline",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "GameCommon.dll and SharedProtocol.dll baseline for enums/constants/contracts shared by client and server.",
+                         "order":  1,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameCommon/GameCommon.csproj",
+                                           "SharedProtocol/SharedProtocol.csproj",
+                                           "Assets/Plugins/GameCommon.dll"
+                                       ],
+                         "dependencies":  [
+
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CORE-02",
+                         "name":  "World Signature + Profile v60",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Hydrology signature v56 and map-control profile version 60 synchronization across server/client/probe paths.",
+                         "order":  2,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameCommon/World/SharedFeatureCatalog.cs",
+                                           "GameCommon/World/WorldMapSignature.cs",
+                                           "config/world_map_control_profile.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CORE-03",
+                         "name":  "Queue Policy Shared Core",
+                         "category":  "Core",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Adaptive queue pressure and near-chunk keep budget utilities shared by server and Unity client.",
+                         "order":  3,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameCommon/World/WorldMapQueuePolicy.cs",
+                                           "GameServer/World/WorldMapControlManager.cs",
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CORE-04",
+                         "name":  "Feature Manifest Runtime Loading",
+                         "category":  "Core",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Server startup loads session-127 feature manifest with highest priority.",
+                         "order":  4,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/Program.cs",
+                                           "GameCommon/DataDriven/FeatureManifest.cs",
+                                           "config/minecraft_feature_client_server_core_content_util_2026-02-26-session-127.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-01",
+                         "name":  "River Groundwater Exchange Bridge (Server)",
+                         "category":  "Content",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Improved river generation with groundwater exchange pass for floodplain continuity and seam stability.",
+                         "order":  5,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+                                           "config/world.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-02",
+                         "name":  "River Groundwater Exchange Bridge (Client)",
+                         "category":  "Content",
+                         "layer":  "Client",
+                         "side":  "client",
+                         "description":  "Unity preview river generation mirrors server groundwater exchange pass for deterministic parity.",
+                         "order":  6,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                                           "Assets/StreamingAssets/world-config.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CONTENT-01",
+                                              "S27-CORE-03"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-03",
+                         "name":  "Lake Groundwater Latch Bridge (Server)",
+                         "category":  "Content",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Lake generator adds groundwater latch pass around spillways/outflow nodes.",
+                         "order":  7,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+                                           "config/world.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-04",
+                         "name":  "Lake Groundwater Latch Bridge (Client)",
+                         "category":  "Content",
+                         "layer":  "Client",
+                         "side":  "client",
+                         "description":  "Unity preview lake generation mirrors groundwater latch pass to reduce server/client drift.",
+                         "order":  8,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                                           "Assets/StreamingAssets/world-config.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CONTENT-03",
+                                              "S27-CORE-03"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-05",
+                         "name":  "Cave Groundwater Perch Seal (Server)",
+                         "category":  "Content",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Cave mask generation adds perched-aquifer seal bridge near water table to reduce collapse artifacts.",
+                         "order":  9,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/World/Generation/ImprovedCaveGenerator.cs",
+                                           "config/world.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-06",
+                         "name":  "Cave Groundwater Perch Seal (Client)",
+                         "category":  "Content",
+                         "layer":  "Client",
+                         "side":  "client",
+                         "description":  "Unity preview cave mask includes perched-aquifer seal bridge with server-equivalent heuristics.",
+                         "order":  10,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs",
+                                           "Assets/StreamingAssets/world-config.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CONTENT-05",
+                                              "S27-CORE-03"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-CONTENT-07",
+                         "name":  "Hydrology Parameter Tuning v56",
+                         "category":  "Content",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Data-driven river/lake/cave tuning update for v56 groundwater coupling behavior.",
+                         "order":  11,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "config/world.json",
+                                           "GameServer/config/world.json",
+                                           "Assets/StreamingAssets/world-config.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CONTENT-01",
+                                              "S27-CONTENT-03",
+                                              "S27-CONTENT-05"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-01",
+                         "name":  "Protocol Registry Validation Pipeline",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Ensure protobuf generated contracts are registered, mapped, and validated.",
+                         "order":  12,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "SharedProtocol/EnhancedMinecraft/ProtocolRegistry.cs",
+                                           "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs",
+                                           "SharedProtocol/EnhancedMinecraft/ProtoDiagnostics.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-02",
+                         "name":  "Dummy Protocol Probe Client",
+                         "category":  "Utility",
+                         "layer":  "Server",
+                         "side":  "server",
+                         "description":  "Server-side dummy protocol probe validates protobuf round-trip and descriptor coverage.",
+                         "order":  13,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "GameServer/Testing/DummyProtocolClient.cs",
+                                           "config/protocol_dummy_client.json",
+                                           "GameServer/config/protocol_dummy_client.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-UTIL-01",
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-03",
+                         "name":  "Standalone Dummy Client Tool",
+                         "category":  "Utility",
+                         "layer":  "Client",
+                         "side":  "client",
+                         "description":  "Standalone dummy client tool validates packet encoding/decoding and profile guards from client perspective.",
+                         "order":  14,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "Tools/DummyMinecraftClient/Program.cs",
+                                           "config/dummy_minecraft_client.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-UTIL-01",
+                                              "S27-CORE-02"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-04",
+                         "name":  "Protobuf Generation Freshness Check",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "PowerShell verification script checks proto schema and generated C# timestamp/hash freshness.",
+                         "order":  15,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "scripts/verify_protobuf.ps1",
+                                           "proto/*.proto",
+                                           "Assets/Generated/Protobuf/*.cs"
+                                       ],
+                         "dependencies":  [
+                                              "S27-UTIL-01"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-05",
+                         "name":  "Queue Policy Data-Driven Sync",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Queue policy json synchronized for server runtime, server mirror, and Unity streaming assets.",
+                         "order":  16,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "config/world_map_control_queue_policy.json",
+                                           "GameServer/config/world_map_control_queue_policy.json",
+                                           "Assets/StreamingAssets/world_map_control_queue_policy.json"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CORE-03"
+                                          ]
+                     },
+                     {
+                         "id":  "S27-UTIL-06",
+                         "name":  "Session 125 Documentation Pack",
+                         "category":  "Utility",
+                         "layer":  "Shared",
+                         "side":  "shared",
+                         "description":  "Plan, implementation summary, README update, and category document updated in markdown.",
+                         "order":  17,
+                         "status":  "implemented",
+                         "artifacts":  [
+                                           "plans/2026-02-26-session-127-comprehensive-work-plan.md",
+                                           "docs/session-125-implementation-summary.md",
+                                           "docs/minecraft_features_core_content_util_session_125.md",
+                                           "README.md"
+                                       ],
+                         "dependencies":  [
+                                              "S27-CONTENT-07",
+                                              "S27-UTIL-02"
+                                          ]
+                     }
+                 ],
+    "implementation_sequence":  [
+                                    "1. Shared baseline constants/signature/profile version update",
+                                    "2. Queue policy adaptive near-keep commonization (server/client)",
+                                    "3. River groundwater exchange bridge (server/client)",
+                                    "4. Lake groundwater latch bridge (server/client)",
+                                    "5. Cave groundwater perch seal bridge (server/client)",
+                                    "6. Data-driven JSON profile/queue/runtime config sync",
+                                    "7. Protocol registry/probe verification and dummy-client checks",
+                                    "8. Build/test/documentation update and finalize"
+                                ]
+}
+

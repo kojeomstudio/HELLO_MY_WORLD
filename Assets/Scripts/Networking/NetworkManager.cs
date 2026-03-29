@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using Networking.Core;
-using GameProtocol;
 
 namespace Networking
 {
@@ -269,7 +268,8 @@ namespace Networking
             UpdateUI();
         }
 
-        private void OnMoveResponse(MoveResponse response)
+        #if HMW_PROTO
+        private void OnMoveResponse(Game.Move.MoveResponse response)
         {
             if (response.Success && response.NewPosition != null && playerTransform != null)
             {
@@ -284,7 +284,6 @@ namespace Networking
             }
         }
 
-        #if HMW_PROTO
         private void OnChatMessage(Game.Chat.ChatMessage message)
         {
             var chatType = (ChatType)message.Type;
@@ -306,18 +305,22 @@ namespace Networking
             {
                 var pos = broadcast.BlockPosition;
                 Debug.Log($"Block changed by {broadcast.PlayerId}: ({pos.X}, {pos.Y}, {pos.Z}) -> Type {broadcast.BlockType}");
-                // Apply to local world using ModifyWorldManager
+                
+                // Apply to local world using WorldManager
                 try
                 {
-                    var modifyMgr = GameObject.FindObjectOfType<ModifyWorldManager>();
-                    if (modifyMgr != null)
+                    var worldManager = FindObjectOfType<WorldManager>();
+                    if (worldManager != null)
                     {
-                        modifyMgr.ModifySpecificSubWorld(
-                            broadcast.AreaId,
-                            broadcast.SubworldId,
-                            pos.X, pos.Y, pos.Z,
-                            (byte)broadcast.BlockType
-                        );
+                        // Convert world coordinates to chunk coordinates
+                        int chunkX = Mathf.FloorToInt(pos.X / 16f);
+                        int chunkZ = Mathf.FloorToInt(pos.Z / 16f);
+                        int blockX = Mathf.FloorToInt(pos.X) % 16;
+                        int blockY = Mathf.FloorToInt(pos.Y);
+                        int blockZ = Mathf.FloorToInt(pos.Z) % 16;
+                        
+                        // Apply block change to world
+                        worldManager.SetBlock(chunkX, chunkZ, blockX, blockY, blockZ, (byte)broadcast.BlockType);
                     }
                 }
                 catch (System.Exception ex)

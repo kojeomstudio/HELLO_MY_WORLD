@@ -1,0 +1,130 @@
+{
+  "version": "2026-02-15",
+  "summary": "Hydrology-aligned worldgen (caves/rivers/lakes), world-map control parity, and protobuf validation/CI checkpoints.",
+  "core": [
+    {
+      "id": "core.worldgen_masks",
+      "name": "Seam-safe hydrology masks",
+      "description": "Blend hydrology/flow for caves, rivers, and lakes with variance damping and confluence-aware boosts.",
+      "owners": ["GameServer/World/Generation", "Assets/MyAssets/Scripts/GameWorld"],
+      "artifacts": [
+        "GameServer/World/Generation/ImprovedTerrainCoordinator.cs",
+        "GameServer/World/Generation/ImprovedRiverGenerator.cs",
+        "GameServer/World/Generation/ImprovedLakeGenerator.cs",
+        "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"
+      ]
+    },
+    {
+      "id": "core.worldmap_control",
+      "name": "World-map control sync",
+      "description": "Keep render/simulation distances and hydrology knobs in sync between server JSON and Unity StreamingAssets.",
+      "owners": ["GameServer/World/WorldMapControlManager.cs", "Assets/MyAssets/Scripts/GameWorld/WorldMapControlProfile.cs"],
+      "artifacts": [
+        "config/world.json",
+        "config/world_map_control_profile.json",
+        "Assets/StreamingAssets/world-map-control.json",
+        "Assets/StreamingAssets/enhanced-terrain-config.json"
+      ]
+    },
+    {
+      "id": "core.protocol_health",
+      "name": "Protocol registry validation",
+      "description": "Fingerprint + parser checks before wiring protobuf handlers and client network bootstrap.",
+      "owners": ["SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs", "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"],
+      "artifacts": [
+        "SharedProtocol/EnhancedMinecraft/*",
+        "Assets/Scripts/Networking/Core/ProtobufNetworkClient.cs",
+        "proto/*.proto"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "id": "content.river_meanders",
+      "name": "Flow-aware rivers",
+      "description": "Tributary-friendly river widths, edge feathering, and confluence boosts driven by flow masks.",
+      "owners": ["GameServer/World/Generation/ImprovedRiverGenerator.cs", "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"],
+      "artifacts": []
+    },
+    {
+      "id": "content.lake_outflow",
+      "name": "Outflow-capable lakes",
+      "description": "Lake basins that respect river proximity, carve downhill outflows, and pad wetlands.",
+      "owners": ["GameServer/World/Generation/ImprovedLakeGenerator.cs", "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"],
+      "artifacts": []
+    },
+    {
+      "id": "content.cave_stability",
+      "name": "Hydrology-aware caves",
+      "description": "Cave masks dampened by hydrology variance and flow to avoid flooded seams.",
+      "owners": ["GameServer/World/Generation/ImprovedTerrainCoordinator.cs", "Assets/MyAssets/Scripts/GameWorld/WorldMapController.cs"],
+      "artifacts": []
+    }
+  ],
+  "utilities": [
+    {
+      "id": "util.config_profiles",
+      "name": "Data-driven config parity",
+      "description": "JSON-first configs for worldgen and map control; keep server/client copies hashed.",
+      "owners": ["config/world.json", "Assets/StreamingAssets/world-map-control.json", "Assets/StreamingAssets/enhanced-terrain-config.json"],
+      "artifacts": []
+    },
+    {
+      "id": "util.proto_ci",
+      "name": "Protobuf CI gates",
+      "description": "Registry coverage + parser binding checks baked into shared validation helpers.",
+      "owners": ["SharedProtocol/EnhancedMinecraft/ProtocolStandardization.cs", "SharedProtocol/EnhancedMinecraft/ProtocolValidator.cs"],
+      "artifacts": []
+    },
+    {
+      "id": "util.tests_builds",
+      "name": "Build + smoke tests",
+      "description": "Dotnet builds for SharedProtocol/GameServer and protobuf handler smoke tests.",
+      "owners": ["dotnet build SharedProtocol/SharedProtocol.csproj", "dotnet build GameServer/GameServer.csproj"],
+      "artifacts": []
+    }
+  ],
+  "implementation_order": [
+    {
+      "phase": "1",
+      "name": "Hydrology alignment",
+      "items": [
+        "core.worldgen_masks",
+        "content.river_meanders",
+        "content.lake_outflow"
+      ]
+    },
+    {
+      "phase": "2",
+      "name": "Control + protocol validation",
+      "items": [
+        "core.worldmap_control",
+        "core.protocol_health",
+        "util.proto_ci"
+      ]
+    },
+    {
+      "phase": "3",
+      "name": "Data + tests",
+      "items": [
+        "util.config_profiles",
+        "util.tests_builds",
+        "content.cave_stability"
+      ]
+    }
+  ],
+  "data_sources": {
+    "server": [
+      "config/world.json",
+      "config/world_map_control_profile.json"
+    ],
+    "client": [
+      "Assets/StreamingAssets/world-map-control.json",
+      "Assets/StreamingAssets/enhanced-terrain-config.json"
+    ],
+    "proto": [
+      "proto/*.proto",
+      "SharedProtocol/EnhancedMinecraft/*"
+    ]
+  }
+}
